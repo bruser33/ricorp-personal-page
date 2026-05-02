@@ -108,8 +108,7 @@ export function Contact() {
       <div className="container contact-inner">
         <div className="contact-headline reveal">
           <h2>
-            Let's start a new<br />
-            <span>.project</span>
+            Let's start a new <span>.project</span>
           </h2>
           <p className="contact-sub">What are you looking for?</p>
         </div>
@@ -134,8 +133,7 @@ export function Contact() {
             onChange={(e) => setEmail(e.target.value)}
             required
           />
-        </label>
-        <button type="submit" className={'submit' + (sent ? ' sent' : '')}>
+          <button type="submit" className={'submit' + (sent ? ' sent' : '')}>
           {sent ? (
             <>
               Sent!{' '}
@@ -155,6 +153,7 @@ export function Contact() {
             </>
           )}
         </button>
+        </label>
       </form>
     </section>
   );

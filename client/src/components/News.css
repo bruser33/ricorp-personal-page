@@ -87,6 +87,38 @@
   background: linear-gradient(135deg, #1a1920, #0f0e14);
 }
 
+.card-date {
+  color: rgba(227, 227, 227, 0.4);
+  font-size: clamp(11px, 0.8vw, 14px);
+  letter-spacing: 0.06em;
+  margin: 0 0 4px 0;
+  text-transform: uppercase;
+}
+
+.news-cta-wrap {
+  display: flex;
+  justify-content: center;
+  margin-top: clamp(40px, 5vw, 80px);
+}
+
+.news-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 28px;
+  font-size: clamp(14px, 1.04vw, 18px);
+  font-weight: 500;
+  color: var(--fg);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+  transition: background 200ms, border-color 200ms;
+}
+
+.news-cta:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
 @media (max-width: 720px) {
   .news-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
   .news-card h4 { font-size: 14px; }

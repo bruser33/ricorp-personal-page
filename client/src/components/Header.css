@@ -46,6 +46,7 @@
 .nav-desktop a {
   transition: color .2s;
   color: rgba(227, 227, 227, 0.32);
+  text-transform: lowercase;
 }
 
 .nav-desktop a:last-child {

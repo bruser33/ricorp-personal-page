@@ -1,5 +1,9 @@
 .projects-carousel-section {
-  padding: clamp(80px, 8vw, 120px) 0;
+  padding: clamp(40px, 4vw, 80px) 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
   overflow: hidden;
 }
 
@@ -12,7 +16,7 @@
 .carousel-viewport {
   width: 100%;
   overflow: hidden;
-  padding: 32px 0;
+  padding: 16px 0;
 }
 
 .carousel-track {
@@ -23,16 +27,16 @@
 }
 
 .project-card {
-  flex: 0 0 50vw;
-  max-width: 880px;
-  aspect-ratio: 16 / 9;
-  border-radius: 24px;
+  flex: 0 0 40vw;
+  max-width: 780px;
+  aspect-ratio: 3 / 2;
+  border-radius: 20px;
   overflow: hidden;
   position: relative;
   cursor: pointer;
   background: var(--bg-card);
   transform: scale(0.95);
-  opacity: 0.95;
+  opacity: 0.9;
   transition:
     transform 800ms cubic-bezier(0.7, 0.01, 0.23, 1.01),
     opacity 800ms ease;
@@ -55,17 +59,17 @@
 .project-card-overlay {
   position: absolute;
   inset: auto 0 0 0;
-  padding: clamp(24px, 3vw, 56px);
+  padding: clamp(20px, 2.5vw, 40px);
   background: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.55) 100%);
   pointer-events: none;
 }
 
 .project-title {
-  font-size: clamp(64px, 8vw, 140px);
+  font-size: clamp(56px, 6vw, 110px);
   font-weight: 500;
   letter-spacing: -0.01em;
   line-height: 1;
-  margin: 0 0 12px;
+  margin: 0 0 10px;
   color: #fff;
   text-shadow: 0 2px 18px rgba(0, 0, 0, 0.45);
 }
@@ -123,7 +127,7 @@
   display: flex;
   gap: 12px;
   justify-content: center;
-  margin-top: 32px;
+  margin-top: clamp(48px, 6vh, 96px);
 }
 
 .carousel-dot {

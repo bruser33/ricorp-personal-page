@@ -14,14 +14,14 @@
   height: 500px;
   left: 8%;
   bottom: 8%;
-  background: radial-gradient(ellipse 60% 70% at center, rgba(110, 68, 164, 0.14), transparent 70%);
+  background: radial-gradient(ellipse 60% 70% at center, rgba(110, 68, 164, 0.04), transparent 70%);
   pointer-events: none;
   z-index: 0;
 }
 
 .hero-inner {
   display: grid;
-  grid-template-columns: 1fr 1.3fr;
+  grid-template-columns: 1fr 1.1fr;
   align-items: center;
   gap: 0;
   position: relative;
@@ -29,18 +29,15 @@
 }
 
 .hero-title {
-  font-size: clamp(54px, 6.667vw, 128px);
+  font-size: clamp(54px, 5.4vw, 104px);
   line-height: 0.92;
   font-weight: 700;
-  color: var(--fg);
+  color: #cfcfcf;
   letter-spacing: -0.02em;
 }
 
 .hero-sub {
-  margin-top: 32px;
-  font-size: clamp(20px, 2.083vw, 40px);
-  line-height: 1.257;
-  font-weight: 500;
+  display: none;
 }
 
 .grad-blue {
@@ -78,8 +75,8 @@
   max-height: 880px;
   overflow: hidden;
   margin-right: calc((100vw - var(--maxw)) / -2);
-  mask-image: radial-gradient(ellipse 75% 90% at 50% 50%, #000 65%, transparent 100%);
-  -webkit-mask-image: radial-gradient(ellipse 75% 90% at 50% 50%, #000 65%, transparent 100%);
+  mask-image: radial-gradient(ellipse 70% 85% at 50% 50%, #000 55%, transparent 100%);
+  -webkit-mask-image: radial-gradient(ellipse 70% 85% at 50% 50%, #000 55%, transparent 100%);
   opacity: 0;
   transition: opacity 1.8s cubic-bezier(0.7, 0.01, 0.23, 1.01);
   transition-delay: 0.4s;
@@ -105,28 +102,28 @@
 
 @keyframes tv-circle-drift {
   0% {
-    mask-image: radial-gradient(ellipse 75% 90% at 50% 50%, #000 65%, transparent 100%);
-    -webkit-mask-image: radial-gradient(ellipse 75% 90% at 50% 50%, #000 65%, transparent 100%);
+    mask-image: radial-gradient(ellipse 70% 85% at 50% 50%, #000 55%, transparent 100%);
+    -webkit-mask-image: radial-gradient(ellipse 70% 85% at 50% 50%, #000 55%, transparent 100%);
   }
   33% {
-    mask-image: radial-gradient(ellipse 78% 92% at 47% 52%, #000 65%, transparent 100%);
-    -webkit-mask-image: radial-gradient(ellipse 78% 92% at 47% 52%, #000 65%, transparent 100%);
+    mask-image: radial-gradient(ellipse 73% 88% at 47% 52%, #000 55%, transparent 100%);
+    -webkit-mask-image: radial-gradient(ellipse 73% 88% at 47% 52%, #000 55%, transparent 100%);
   }
   66% {
-    mask-image: radial-gradient(ellipse 72% 88% at 53% 48%, #000 65%, transparent 100%);
-    -webkit-mask-image: radial-gradient(ellipse 72% 88% at 53% 48%, #000 65%, transparent 100%);
+    mask-image: radial-gradient(ellipse 67% 82% at 53% 48%, #000 55%, transparent 100%);
+    -webkit-mask-image: radial-gradient(ellipse 67% 82% at 53% 48%, #000 55%, transparent 100%);
   }
   100% {
-    mask-image: radial-gradient(ellipse 75% 90% at 50% 50%, #000 65%, transparent 100%);
-    -webkit-mask-image: radial-gradient(ellipse 75% 90% at 50% 50%, #000 65%, transparent 100%);
+    mask-image: radial-gradient(ellipse 70% 85% at 50% 50%, #000 55%, transparent 100%);
+    -webkit-mask-image: radial-gradient(ellipse 70% 85% at 50% 50%, #000 55%, transparent 100%);
   }
 }
 
 @keyframes hero-camera-drift {
-  0%   { object-position: 60% 50%; transform: scale(1.00); }
-  33%  { object-position: 56% 48%; transform: scale(1.04); }
-  66%  { object-position: 64% 52%; transform: scale(1.02); }
-  100% { object-position: 60% 50%; transform: scale(1.00); }
+  0%   { object-position: 50% 45%; transform: scale(1.00); }
+  33%  { object-position: 47% 43%; transform: scale(1.04); }
+  66%  { object-position: 53% 47%; transform: scale(1.02); }
+  100% { object-position: 50% 45%; transform: scale(1.00); }
 }
 
 @keyframes hero-blob-drift {
@@ -163,7 +160,7 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: 60% center;
+  object-position: 50% 45%;
   filter: grayscale(1) brightness(1.05) contrast(1.1);
 }
 
