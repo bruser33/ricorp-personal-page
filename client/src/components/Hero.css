@@ -96,6 +96,68 @@
   }
 }
 
+/* ──────────────────────────────────────────────────────────────────
+   Hero post-splash continuous loops (TV circle drift + camera + blob)
+   Replicates the 3 Home keyframes Smart Animate from Figma.
+   Loops only run when .hero.hero-intro is active (post-splash).
+   ────────────────────────────────────────────────────────────────── */
+
+@keyframes tv-circle-drift {
+  0% {
+    mask-image: radial-gradient(ellipse 55% 65% at 50% 50%, #000 50%, transparent 80%);
+    -webkit-mask-image: radial-gradient(ellipse 55% 65% at 50% 50%, #000 50%, transparent 80%);
+  }
+  33% {
+    mask-image: radial-gradient(ellipse 58% 68% at 47% 52%, #000 50%, transparent 80%);
+    -webkit-mask-image: radial-gradient(ellipse 58% 68% at 47% 52%, #000 50%, transparent 80%);
+  }
+  66% {
+    mask-image: radial-gradient(ellipse 53% 63% at 53% 48%, #000 50%, transparent 80%);
+    -webkit-mask-image: radial-gradient(ellipse 53% 63% at 53% 48%, #000 50%, transparent 80%);
+  }
+  100% {
+    mask-image: radial-gradient(ellipse 55% 65% at 50% 50%, #000 50%, transparent 80%);
+    -webkit-mask-image: radial-gradient(ellipse 55% 65% at 50% 50%, #000 50%, transparent 80%);
+  }
+}
+
+@keyframes hero-camera-drift {
+  0%   { object-position: 92% 50%; transform: scale(1.00); }
+  33%  { object-position: 88% 48%; transform: scale(1.04); }
+  66%  { object-position: 95% 52%; transform: scale(1.02); }
+  100% { object-position: 92% 50%; transform: scale(1.00); }
+}
+
+@keyframes hero-blob-drift {
+  0%   { transform: translate(0, 0) scale(1);          opacity: 1; }
+  50%  { transform: translate(24px, -18px) scale(1.08); opacity: 0.92; }
+  100% { transform: translate(0, 0) scale(1);          opacity: 1; }
+}
+
+.hero.hero-intro .hero-portrait {
+  animation: tv-circle-drift 9000ms cubic-bezier(0.7, 0.01, 0.23, 1.01) 2400ms infinite;
+  will-change: mask-image;
+}
+
+.hero.hero-intro .hero-portrait img {
+  animation: hero-camera-drift 12000ms ease-in-out 2400ms infinite;
+  transform-origin: 50% 50%;
+  will-change: transform, object-position;
+}
+
+.hero.hero-intro::before {
+  animation: hero-blob-drift 7000ms ease-in-out 2400ms infinite;
+  will-change: transform, opacity;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero.hero-intro .hero-portrait,
+  .hero.hero-intro .hero-portrait img,
+  .hero.hero-intro::before {
+    animation: none !important;
+  }
+}
+
 .hero-portrait img {
   width: 100%;
   height: 100%;

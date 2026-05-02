@@ -73,8 +73,10 @@ const projects: Project[] = [
 export function Projects() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [expandedSlide, setExpandedSlide] = useState<number | null>(null);
+  const [originRect, setOriginRect] = useState<DOMRect | null>(null);
   const total = projects.length;
   const touchStartX = useRef<number | null>(null);
+  const cardRefs = useRef<(HTMLElement | null)[]>([]);
 
   const goTo = useCallback(
     (i: number) => {
@@ -83,13 +85,24 @@ export function Projects() {
     [total]
   );
 
+  const openProject = useCallback((i: number) => {
+    const el = cardRefs.current[i];
+    if (el) setOriginRect(el.getBoundingClientRect());
+    setExpandedSlide(i);
+  }, []);
+
+  const closeProject = useCallback(() => {
+    setExpandedSlide(null);
+    setOriginRect(null);
+  }, []);
+
   const next = useCallback(() => goTo(currentSlide + 1), [currentSlide, goTo]);
   const prev = useCallback(() => goTo(currentSlide - 1), [currentSlide, goTo]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (expandedSlide !== null) {
-        if (e.key === 'Escape') setExpandedSlide(null);
+        if (e.key === 'Escape') closeProject();
         return;
       }
       if (e.key === 'ArrowRight') next();
@@ -97,7 +110,7 @@ export function Projects() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [next, prev, expandedSlide]);
+  }, [next, prev, expandedSlide, closeProject]);
 
   useEffect(() => {
     document.body.style.overflow = expandedSlide !== null ? 'hidden' : '';
@@ -154,8 +167,11 @@ export function Projects() {
               return (
                 <article
                   key={p.id}
+                  ref={(el) => {
+                    cardRefs.current[i] = el;
+                  }}
                   className={`project-card ${isActive ? 'is-active' : 'is-side'}`}
-                  onClick={() => (isActive ? setExpandedSlide(i) : goTo(i))}
+                  onClick={() => (isActive ? openProject(i) : goTo(i))}
                   aria-hidden={!isActive}
                 >
                   <img src={p.image} alt={p.title} />
@@ -209,9 +225,22 @@ export function Projects() {
           role="dialog"
           aria-modal="true"
           aria-label={`${expanded.title} — ${expanded.tag}`}
-          onClick={() => setExpandedSlide(null)}
+          onClick={closeProject}
         >
-          <div className="project-modal" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="project-modal"
+            onClick={(e) => e.stopPropagation()}
+            style={
+              originRect
+                ? ({
+                    ['--from-x' as string]: `${originRect.left}px`,
+                    ['--from-y' as string]: `${originRect.top}px`,
+                    ['--from-w' as string]: `${originRect.width}px`,
+                    ['--from-h' as string]: `${originRect.height}px`,
+                  } as React.CSSProperties)
+                : undefined
+            }
+          >
             <div className="project-modal-image">
               <img src={expanded.image} alt={expanded.title} />
               <div className="project-modal-image-overlay">
@@ -221,7 +250,7 @@ export function Projects() {
               <button
                 type="button"
                 className="project-modal-close"
-                onClick={() => setExpandedSlide(null)}
+                onClick={closeProject}
                 aria-label="Close project"
               >
                 <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
