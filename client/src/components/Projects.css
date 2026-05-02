@@ -1,12 +1,13 @@
 .section-title {
-  font-size: clamp(40px, 5vw, 72px);
-  font-weight: 500;
-  margin-bottom: 60px;
+  font-size: clamp(40px, 4.69vw, 90px);
+  font-weight: 600;
+  margin-bottom: clamp(40px, 3.13vw, 60px);
+  letter-spacing: 0;
 }
 
 .project-list {
   display: grid;
-  gap: 40px;
+  gap: clamp(40px, 4.17vw, 80px);
 }
 
 .project-item {
@@ -31,44 +32,48 @@
 
 .project-overtitle {
   position: absolute;
-  left: 32px;
+  left: clamp(20px, 2.5vw, 48px);
   bottom: -8px;
   color: var(--fg);
-  text-shadow: 0 2px 24px rgba(0, 0, 0, 0.65);
+  text-shadow: 0 4px 32px rgba(0, 0, 0, 0.7);
 }
 
+/* Haru title 204.32px @ 1920 → 10.642vw, floor at 64px for mobile */
 .project-overtitle h3 {
-  font-size: clamp(64px, 9vw, 120px);
-  font-weight: 300;
-  letter-spacing: -0.02em;
+  font-size: clamp(64px, 10.642vw, 204px);
+  font-weight: 600;
+  letter-spacing: 0;
   line-height: 1;
 }
 
+/* App development 38.31px @ 1920 → 1.995vw, floor at 16px */
 .project-overtitle span {
   display: block;
-  font-size: 14px;
+  font-size: clamp(16px, 1.995vw, 38px);
   margin-top: 6px;
-  font-weight: 400;
-  color: rgba(255, 255, 255, 0.85);
+  font-weight: 600;
+  color: var(--fg);
 }
 
 .project-card {
   background: var(--bg-card);
   border-radius: 16px;
   border: 1px solid var(--border);
-  padding: 32px;
+  padding: clamp(24px, 2.5vw, 48px);
 }
 
+/* Lorem body 38.31px @ 1920 → 1.995vw with floor 16px */
 .project-desc {
-  color: rgba(255, 255, 255, 0.9);
-  line-height: 1.6;
-  max-width: 720px;
+  color: var(--fg);
+  font-size: clamp(16px, 1.995vw, 38px);
+  line-height: 1.4;
   margin: 0;
 }
 
 @media (max-width: 720px) {
-  .section-title { margin-bottom: 32px; }
   .project-overtitle { left: 20px; bottom: -4px; }
-  .project-overtitle h3 { font-size: 56px; }
-  .project-card { padding: 24px; }
+  .project-overtitle h3 { font-size: 64px; }
+  .project-overtitle span { font-size: 16px; }
+  .project-card { padding: 20px; }
+  .project-desc { font-size: 16px; }
 }

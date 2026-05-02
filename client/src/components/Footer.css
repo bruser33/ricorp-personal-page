@@ -1,14 +1,16 @@
 .site-footer {
-  padding: 28px 0;
+  padding: clamp(28px, 2.5vw, 48px) 0;
   text-align: center;
-  color: var(--fg-muted);
-  font-size: 14px;
-  letter-spacing: 0.01em;
+  color: var(--fg);
+  font-size: clamp(14px, 1.04vw, 20px);
+  font-weight: 400;
+  line-height: 1.6;
+  letter-spacing: 0;
 }
 
 .footer-inner p { margin: 2px 0; }
 
-.footer-links { color: var(--fg-muted); }
-.footer-links a:hover { color: var(--fg); }
+.footer-links { color: var(--fg); }
+.footer-links a:hover { opacity: 0.8; }
 
-.footer-meta, .footer-loc { color: var(--fg-dim); }
+.footer-meta, .footer-loc { color: var(--fg); }

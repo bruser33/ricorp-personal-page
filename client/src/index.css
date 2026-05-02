@@ -1,40 +1,42 @@
 :root {
-  --bg: #0a0a0f;
-  --bg-elev: #15151c;
-  --bg-card: #1a1a24;
-  --fg: #f3f3f5;
+  --bg: #121115;
+  --bg-elev: #1a1922;
+  --bg-card: #1e1d28;
+  --fg: #e3e3e3;
   --fg-muted: #a8a8b3;
   --fg-dim: #6c6c78;
-  --accent-blue: #5b6cff;
-  --accent-purple: #b86bff;
-  --accent-grad: linear-gradient(90deg, #b86bff 0%, #5b6cff 100%);
+  --grad-from: #343cff;
+  --grad-to: #994a7b;
+  --grad-mid: #6e44a4;
+  --gradient: linear-gradient(180deg, var(--grad-from) 0%, var(--grad-to) 100%);
+  --gradient-text: linear-gradient(135deg, var(--grad-from) 0%, var(--grad-mid) 50%, var(--grad-to) 100%);
   --border: rgba(255, 255, 255, 0.08);
   --maxw: 1280px;
   --header-h: 80px;
+
   font-synthesis: none;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 
-* {
-  box-sizing: border-box;
-}
+* { box-sizing: border-box; }
 
 html, body, #root {
   margin: 0;
   padding: 0;
   background: var(--bg);
   color: var(--fg);
-  font-family: 'Helvetica Neue', 'Inter', system-ui, -apple-system, sans-serif;
-  font-weight: 300;
-  letter-spacing: 0.01em;
+  font-family: 'Source Sans 3', 'Source Sans Pro', system-ui, -apple-system, sans-serif;
+  font-weight: 400;
 }
 
 body {
   min-height: 100vh;
+  font-size: clamp(16px, 1.04vw, 20px);
+  line-height: 1.6;
   background:
-    radial-gradient(ellipse 80% 50% at 50% 50%, rgba(91, 108, 255, 0.10), transparent 60%),
-    radial-gradient(ellipse 60% 40% at 30% 80%, rgba(184, 107, 255, 0.08), transparent 60%),
+    radial-gradient(ellipse 80% 50% at 50% 50%, rgba(52, 60, 255, 0.10), transparent 60%),
+    radial-gradient(ellipse 60% 40% at 30% 80%, rgba(153, 74, 123, 0.10), transparent 60%),
     var(--bg);
   background-attachment: fixed;
 }
@@ -51,10 +53,15 @@ button {
 
 img { display: block; max-width: 100%; }
 
-h1, h2, h3 { margin: 0; font-weight: 400; letter-spacing: -0.02em; }
+h1, h2, h3, h4 {
+  margin: 0;
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--fg);
+}
 
 .gradient-text {
-  background: var(--accent-grad);
+  background: var(--gradient-text);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;

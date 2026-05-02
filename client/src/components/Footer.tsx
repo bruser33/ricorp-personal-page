@@ -9,8 +9,8 @@ export function Footer() {
           <span> - </span>
           <a href="#cookies">Política de Cookies</a>
         </p>
-        <p className="footer-meta">© 2023</p>
-        <p className="footer-loc">Santiago de Chile.</p>
+        <p className="footer-meta">© 2023 All rights reserved.</p>
+        <p className="footer-loc">Santiago de Chile, Chile.</p>
       </div>
     </footer>
   );

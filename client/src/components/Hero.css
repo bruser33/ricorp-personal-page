@@ -10,11 +10,11 @@
 .hero::before {
   content: '';
   position: absolute;
-  width: 500px;
-  height: 400px;
-  left: 12%;
-  bottom: 12%;
-  background: radial-gradient(ellipse 60% 70% at center, rgba(184, 107, 255, 0.22), transparent 70%);
+  width: 600px;
+  height: 500px;
+  left: 8%;
+  bottom: 8%;
+  background: radial-gradient(ellipse 60% 70% at center, rgba(110, 68, 164, 0.28), transparent 70%);
   pointer-events: none;
   z-index: 0;
 }
@@ -28,30 +28,26 @@
   z-index: 1;
 }
 
+/* Figma desktop ref: 128px @ 1920w → 6.667vw with floor 54px (mobile spec) */
 .hero-title {
-  font-size: clamp(56px, 6vw, 96px);
-  line-height: 1;
+  font-size: clamp(54px, 6.667vw, 128px);
+  line-height: 0.957;
   font-weight: 600;
   color: var(--fg);
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
 }
 
+/* Figma desktop ref: 40px @ 1920w → 2.083vw with floor 20px (mobile spec) */
 .hero-sub {
-  margin-top: 24px;
-  font-size: clamp(18px, 1.4vw, 22px);
-  line-height: 1.4;
-  font-weight: 500;
+  margin-top: 32px;
+  font-size: clamp(20px, 2.083vw, 40px);
+  line-height: 1.257;
+  font-weight: 600;
 }
 
-.grad-blue {
-  background: linear-gradient(90deg, #4a5cff, #6a7dff);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
-
+.grad-blue,
 .grad-purple {
-  background: linear-gradient(90deg, #b86bff, #d086ff);
+  background: var(--gradient-text);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -88,6 +84,6 @@
     margin: 0 auto;
     border-radius: 999px;
   }
-  .hero-title { font-size: 56px; }
-  .hero-sub { font-size: 16px; }
+  .hero-title { font-size: 54px; }
+  .hero-sub { font-size: 20px; }
 }
