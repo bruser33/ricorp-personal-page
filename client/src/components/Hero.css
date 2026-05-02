@@ -28,7 +28,6 @@
   z-index: 1;
 }
 
-/* Figma desktop ref: 128px @ 1920w → 6.667vw with floor 54px (mobile spec) */
 .hero-title {
   font-size: clamp(54px, 6.667vw, 128px);
   line-height: 0.957;
@@ -37,7 +36,6 @@
   letter-spacing: 0;
 }
 
-/* Figma desktop ref: 40px @ 1920w → 2.083vw with floor 20px (mobile spec) */
 .hero-sub {
   margin-top: 32px;
   font-size: clamp(20px, 2.083vw, 40px);
@@ -58,32 +56,33 @@
   height: 80vh;
   max-height: 760px;
   overflow: hidden;
-  mask-image: radial-gradient(ellipse 50% 60% at 70% 50%, #000 40%, transparent 80%);
-  -webkit-mask-image: radial-gradient(ellipse 50% 60% at 70% 50%, #000 40%, transparent 80%);
+  mask-image: radial-gradient(ellipse 65% 75% at 50% 50%, #000 50%, transparent 80%);
+  -webkit-mask-image: radial-gradient(ellipse 65% 75% at 50% 50%, #000 50%, transparent 80%);
 }
 
 .hero-portrait img {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: 88% center;
+  object-position: center;
   filter: grayscale(1) brightness(0.95) contrast(1.15);
+  mix-blend-mode: screen;
+  background: #000;
+}
+
+.hero-portrait::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--bg);
+  mix-blend-mode: multiply;
+  pointer-events: none;
 }
 
 @media (max-width: 720px) {
   .hero { min-height: auto; padding: 40px 0 60px; }
-  .hero-inner {
-    grid-template-columns: 1fr;
-    gap: 24px;
-    text-align: center;
-  }
-  .hero-portrait {
-    order: -1;
-    height: 320px;
-    max-width: 320px;
-    margin: 0 auto;
-    border-radius: 999px;
-  }
+  .hero-inner { grid-template-columns: 1fr; gap: 24px; text-align: center; }
+  .hero-portrait { order: -1; height: 320px; max-width: 320px; margin: 0 auto; border-radius: 999px; }
   .hero-title { font-size: 54px; }
   .hero-sub { font-size: 20px; }
 }
