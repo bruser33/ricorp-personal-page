@@ -4,14 +4,14 @@ const projects = [
   {
     name: 'Haru',
     type: 'App development',
-    img: '/figma-frames/ricorp-d-frame-02.png',
+    img: import.meta.env.BASE_URL + 'figma-frames/ricorp-d-frame-02.png',
     desc:
       'Lorem ipsum dolor sit amet consectetur. Quis sed ultrices sed ornare iaculis viverra nec vivamus. Eu ullamcorper sed in dictumst mauris nunc a posuere.',
   },
   {
     name: 'Aurora',
     type: 'Web platform',
-    img: '/figma-frames/ricorp-d-frame-08.png',
+    img: import.meta.env.BASE_URL + 'figma-frames/ricorp-d-frame-08.png',
     desc:
       'Plataforma web a medida con foco en performance, SEO técnico y diseño centrado en la conversión.',
   },

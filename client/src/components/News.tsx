@@ -7,18 +7,18 @@ const fallback: Item[] = [
   {
     id: '1',
     title: 'Análisis: AMD Radeon RX 7900 XTX',
-    image: '/figma-frames/ricorp-d-frame-05.png',
+    image: import.meta.env.BASE_URL + 'figma-frames/ricorp-d-frame-05.png',
     featured: true,
   },
   {
     id: '2',
     title: 'Nuevo aspirante al trono de la realidad virtual',
-    image: '/figma-frames/ricorp-d-frame-11.png',
+    image: import.meta.env.BASE_URL + 'figma-frames/ricorp-d-frame-11.png',
   },
   {
     id: '3',
     title: 'Análisis: Suunto 9 Peak Pro',
-    image: '/figma-frames/ricorp-animation-frame-02.png',
+    image: import.meta.env.BASE_URL + 'figma-frames/ricorp-animation-frame-02.png',
   },
 ];
 
