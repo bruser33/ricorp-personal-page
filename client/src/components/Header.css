@@ -5,9 +5,7 @@
   right: 0;
   height: var(--header-h);
   z-index: 50;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  background: rgba(18, 17, 21, 0.55);
+  background: transparent;
 }
 
 .header-inner {
@@ -18,21 +16,19 @@
 }
 
 .brand {
-  letter-spacing: 0.4em;
-  font-weight: 600;
-  font-size: clamp(14px, 1.04vw, 20px);
+  letter-spacing: 0.18em;
+  font-weight: 700;
+  font-size: clamp(16px, 1.2vw, 22px);
   text-align: center;
   white-space: nowrap;
   color: var(--fg);
 }
 
 .lang {
-  font-size: clamp(14px, 1.04vw, 20px);
+  font-size: clamp(16px, 1.04vw, 20px);
+  line-height: 1.257;
   font-weight: 400;
-  color: var(--fg);
-  text-decoration: underline;
-  text-underline-offset: 4px;
-  text-transform: lowercase;
+  color: #e3e3e3;
   justify-self: start;
   padding: 0;
 }
@@ -41,17 +37,17 @@
   display: flex;
   gap: clamp(24px, 2.5vw, 48px);
   justify-self: end;
-  font-size: clamp(14px, 1.04vw, 20px);
+  font-size: clamp(16px, 1.04vw, 20px);
+  line-height: 1.257;
   font-weight: 400;
-  color: var(--fg);
 }
 
 .nav-desktop a {
   transition: opacity .2s;
-  opacity: 0.85;
+  color: #e3e3e3;
 }
 
-.nav-desktop a:hover { opacity: 1; }
+.nav-desktop a:hover { opacity: 0.7; }
 
 .hamburger { display: none; }
 
@@ -75,9 +71,10 @@
     font-style: italic;
   }
   .hamburger-label {
-    font-size: 10px;
-    line-height: 1.05;
-    letter-spacing: 0.05em;
+    font-size: 16px;
+    line-height: 0.842;
+    font-weight: 600;
+    letter-spacing: 0;
   }
 }
 

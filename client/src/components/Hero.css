@@ -14,64 +14,153 @@
   height: 500px;
   left: 8%;
   bottom: 8%;
-  background: radial-gradient(ellipse 60% 70% at center, rgba(110, 68, 164, 0.28), transparent 70%);
+  background: radial-gradient(ellipse 60% 70% at center, rgba(110, 68, 164, 0.04), transparent 70%);
   pointer-events: none;
   z-index: 0;
 }
 
 .hero-inner {
   display: grid;
-  grid-template-columns: 1.05fr 1fr;
+  grid-template-columns: 1fr 1.1fr;
   align-items: center;
-  gap: 32px;
+  gap: 0;
   position: relative;
   z-index: 1;
 }
 
 .hero-title {
-  font-size: clamp(54px, 6.667vw, 128px);
+  font-size: clamp(54px, 6.67vw, 128px);
   line-height: 0.957;
   font-weight: 600;
-  color: var(--fg);
+  color: #e3e3e3;
   letter-spacing: 0;
 }
 
 .hero-sub {
-  margin-top: 32px;
-  font-size: clamp(20px, 2.083vw, 40px);
+  font-size: clamp(20px, 2.08vw, 40px);
   line-height: 1.257;
   font-weight: 600;
-}
-
-.grad-blue,
-.grad-purple {
-  background: var(--gradient-text);
+  margin-top: clamp(16px, 1.46vw, 28px);
+  background: linear-gradient(90deg, #343cff 0%, #994a7b 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
+  white-space: pre-line;
+}
+
+.hero-text {
+  opacity: 0;
+  transform: translateY(36px);
+  transition:
+    opacity 1.5s cubic-bezier(0.7, 0.01, 0.23, 1.01),
+    transform 1.5s cubic-bezier(0.7, 0.01, 0.23, 1.01);
+  transition-delay: 0.2s;
+}
+
+.hero.hero-intro .hero-text {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .hero-portrait {
   position: relative;
-  height: 80vh;
-  max-height: 760px;
+  height: 90vh;
+  max-height: 880px;
   overflow: hidden;
-  mask-image: radial-gradient(ellipse 55% 65% at 50% 50%, #000 50%, transparent 80%);
-  -webkit-mask-image: radial-gradient(ellipse 55% 65% at 50% 50%, #000 50%, transparent 80%);
+  margin-right: calc((100vw - var(--maxw)) / -2);
+  mask-image: radial-gradient(ellipse 70% 85% at 50% 50%, #000 55%, transparent 100%);
+  -webkit-mask-image: radial-gradient(ellipse 70% 85% at 50% 50%, #000 55%, transparent 100%);
+  opacity: 0;
+  transition: opacity 1.8s cubic-bezier(0.7, 0.01, 0.23, 1.01);
+  transition-delay: 0.4s;
+}
+
+.hero.hero-intro .hero-portrait {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-text, .hero-portrait {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   Hero post-splash continuous loops (TV circle drift + camera + blob)
+   Replicates the 3 Home keyframes Smart Animate from Figma.
+   Loops only run when .hero.hero-intro is active (post-splash).
+   ────────────────────────────────────────────────────────────────── */
+
+@keyframes tv-circle-drift {
+  0% {
+    mask-image: radial-gradient(ellipse 70% 85% at 50% 50%, #000 55%, transparent 100%);
+    -webkit-mask-image: radial-gradient(ellipse 70% 85% at 50% 50%, #000 55%, transparent 100%);
+  }
+  33% {
+    mask-image: radial-gradient(ellipse 73% 88% at 47% 52%, #000 55%, transparent 100%);
+    -webkit-mask-image: radial-gradient(ellipse 73% 88% at 47% 52%, #000 55%, transparent 100%);
+  }
+  66% {
+    mask-image: radial-gradient(ellipse 67% 82% at 53% 48%, #000 55%, transparent 100%);
+    -webkit-mask-image: radial-gradient(ellipse 67% 82% at 53% 48%, #000 55%, transparent 100%);
+  }
+  100% {
+    mask-image: radial-gradient(ellipse 70% 85% at 50% 50%, #000 55%, transparent 100%);
+    -webkit-mask-image: radial-gradient(ellipse 70% 85% at 50% 50%, #000 55%, transparent 100%);
+  }
+}
+
+@keyframes hero-camera-drift {
+  0%   { object-position: 50% 45%; transform: scale(1.00); }
+  33%  { object-position: 47% 43%; transform: scale(1.04); }
+  66%  { object-position: 53% 47%; transform: scale(1.02); }
+  100% { object-position: 50% 45%; transform: scale(1.00); }
+}
+
+@keyframes hero-blob-drift {
+  0%   { transform: translate(0, 0) scale(1);          opacity: 1; }
+  50%  { transform: translate(24px, -18px) scale(1.08); opacity: 0.92; }
+  100% { transform: translate(0, 0) scale(1);          opacity: 1; }
+}
+
+.hero.hero-intro .hero-portrait {
+  animation: tv-circle-drift 9000ms cubic-bezier(0.7, 0.01, 0.23, 1.01) 2400ms infinite;
+  will-change: mask-image;
+}
+
+.hero.hero-intro .hero-portrait img {
+  animation: hero-camera-drift 12000ms ease-in-out 2400ms infinite;
+  transform-origin: 50% 50%;
+  will-change: transform, object-position;
+}
+
+.hero.hero-intro::before {
+  animation: hero-blob-drift 7000ms ease-in-out 2400ms infinite;
+  will-change: transform, opacity;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero.hero-intro .hero-portrait,
+  .hero.hero-intro .hero-portrait img,
+  .hero.hero-intro::before {
+    animation: none !important;
+  }
 }
 
 .hero-portrait img {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: 92% center;
-  filter: grayscale(1) brightness(0.95) contrast(1.15);
+  object-position: 50% 45%;
+  filter: grayscale(1) brightness(1.05) contrast(1.1);
 }
 
 @media (max-width: 720px) {
   .hero { min-height: auto; padding: 40px 0 60px; }
   .hero-inner { grid-template-columns: 1fr; gap: 24px; text-align: center; }
   .hero-portrait { order: -1; height: 320px; max-width: 320px; margin: 0 auto; border-radius: 999px; }
-  .hero-title { font-size: 54px; }
-  .hero-sub { font-size: 20px; }
+  .hero-title { font-size: 54px; line-height: 0.957; font-weight: 600; }
+  .hero-sub { font-size: 20px; line-height: 1.257; font-weight: 600; }
 }

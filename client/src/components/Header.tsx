@@ -17,9 +17,9 @@ export function Header() {
           </button>
           <a href="#home" className="brand">RICORP</a>
           <nav className="nav-desktop">
-            <a href="#contact">CONTACT</a>
-            <a href="#news">NEWS</a>
             <a href="#about">About</a>
+            <a href="#news">NEWS</a>
+            <a href="#contact">CONTACT</a>
           </nav>
           <button
             className="hamburger"
