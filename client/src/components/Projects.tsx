@@ -7,6 +7,7 @@ type Project = {
   tag: string;
   image: string;
   description: string;
+  mockups?: string[];
 };
 
 const BASE = import.meta.env.BASE_URL;
@@ -19,6 +20,7 @@ const projects: Project[] = [
     image: BASE + 'figma-frames/image-7.png',
     description:
       'Lorem ipsum dolor sit amet consectetur. Quis sed ultrices sed ornare iaculis viverra nec vivamus. Eu ullamcorper sed in dictumst mauris nunc a posuere. Quam faucibus sem sed odio augue lectus cursus ultricies morbi. Eu elit cursus orci justo accumsan sit. Felis leo eleifend elit urna habitasse integer. Ornare donec vivamus eget facilisi interdum.',
+    mockups: [BASE + 'figma-frames/project-haru-1.png', BASE + 'figma-frames/project-haru-2.png'],
   },
   {
     id: 2,
@@ -264,9 +266,30 @@ export function Projects() {
               </button>
             </div>
             <div className="project-modal-card">
-              <p className="project-modal-text">{expanded.description}</p>
-              <p className="project-modal-text">{expanded.description}</p>
-              <p className="project-modal-text">{expanded.description}</p>
+              {expanded.mockups && expanded.mockups.length > 0 ? (
+                <div className="project-modal-layout">
+                  <div className="project-modal-text-col">
+                    <p className="project-modal-text">{expanded.description}</p>
+                    <p className="project-modal-text">{expanded.description}</p>
+                  </div>
+                  <div className="project-modal-mockups-col">
+                    {expanded.mockups.map((src, i) => (
+                      <img
+                        key={i}
+                        src={src}
+                        alt=""
+                        className={`project-modal-mockup mockup-${i + 1}`}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <p className="project-modal-text">{expanded.description}</p>
+                  <p className="project-modal-text">{expanded.description}</p>
+                  <p className="project-modal-text">{expanded.description}</p>
+                </>
+              )}
             </div>
           </div>
         </div>

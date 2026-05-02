@@ -308,6 +308,55 @@
 
 .project-modal-text:last-child { margin-bottom: 0; }
 
+.project-modal-layout {
+  display: grid;
+  grid-template-columns: 1fr 0.7fr;
+  gap: clamp(40px, 4vw, 80px);
+  align-items: start;
+}
+
+.project-modal-mockups-col {
+  position: relative;
+  min-height: 600px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.project-modal-mockup {
+  position: absolute;
+  width: 75%;
+  filter: drop-shadow(0 12px 32px rgba(0, 0, 0, 0.5));
+  border-radius: 28px;
+}
+
+.project-modal-mockup.mockup-1 {
+  transform: rotate(-8deg) translateX(-15%);
+  z-index: 1;
+}
+
+.project-modal-mockup.mockup-2 {
+  transform: rotate(6deg) translateX(20%) translateY(20%);
+  z-index: 2;
+  width: 60%;
+}
+
+@media (max-width: 720px) {
+  .project-modal-layout {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+  .project-modal-mockups-col {
+    min-height: 400px;
+  }
+  .project-modal-mockup.mockup-1 {
+    transform: rotate(-6deg) translateX(-10%);
+  }
+  .project-modal-mockup.mockup-2 {
+    transform: rotate(5deg) translateX(15%) translateY(20%);
+  }
+}
+
 .project-modal-close {
   position: absolute;
   top: 24px;
