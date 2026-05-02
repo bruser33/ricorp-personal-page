@@ -1,6 +1,9 @@
 .projects-carousel-section {
   padding: clamp(60px, 6vw, 120px) 0;
   overflow: hidden;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
 }
 
 .projects-carousel {

@@ -30,6 +30,23 @@ html, body, #root {
   font-weight: 400;
 }
 
+/* Ricorp_animation flow: each section takes over the viewport on scroll.
+   scroll-snap-type: 'proximity' is gentler than 'mandatory' — snaps when
+   user pauses near a section break, doesn't fight continuous scrolling. */
+html {
+  scroll-snap-type: y proximity;
+  scroll-behavior: smooth;
+}
+
+#home, #about, #news, #contact {
+  scroll-snap-align: start;
+  scroll-snap-stop: normal;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-snap-type: none; scroll-behavior: auto; }
+}
+
 body {
   min-height: 100vh;
   font-size: clamp(16px, 1.04vw, 20px);

@@ -2,6 +2,10 @@
   position: relative;
   overflow: hidden;
   padding-bottom: clamp(120px, 11vw, 200px);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .contact-bg {

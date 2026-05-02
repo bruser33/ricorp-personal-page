@@ -1,4 +1,10 @@
-.news { padding: clamp(60px, 6.25vw, 120px) 0 clamp(80px, 8.33vw, 160px); }
+.news {
+  padding: clamp(60px, 6.25vw, 120px) 0 clamp(80px, 8.33vw, 160px);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
 
 .news-feature {
   position: relative;
