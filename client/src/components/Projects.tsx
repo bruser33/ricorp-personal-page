@@ -24,7 +24,7 @@ export function Projects() {
         <h2 className="section-title">Projects</h2>
         <div className="project-list">
           {projects.map((p) => (
-            <article key={p.name} className="project-card">
+            <article key={p.name} className="project-item">
               <div className="project-media">
                 <img src={p.img} alt={p.name} />
                 <div className="project-overtitle">
@@ -32,7 +32,9 @@ export function Projects() {
                   <span>{p.type}</span>
                 </div>
               </div>
-              <p className="project-desc">{p.desc}</p>
+              <div className="project-card">
+                <p className="project-desc">{p.desc}</p>
+              </div>
             </article>
           ))}
         </div>

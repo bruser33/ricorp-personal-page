@@ -10,12 +10,6 @@ const codeLines = [
   '[i].customerName}}</td>',
   '[i].location}}</td>',
   '[i].description}}</td>',
-  '<th>issuesTmpl.html">',
-  'ble-generic">',
-  'ng-repeat="i in model.',
-  '[i].name}}</td>',
-  '[i].company_name}}</td>',
-  '[i].issue}}</td>',
 ];
 
 export function Contact() {
@@ -41,7 +35,13 @@ export function Contact() {
     <section id="contact" className="contact">
       <div className="contact-bg" aria-hidden="true">
         {codeLines.map((l, i) => (
-          <span key={i} style={{ top: `${5 + i * 7}%`, left: `${(i % 2) * 4}%` }}>
+          <span
+            key={i}
+            style={{
+              top: `${8 + i * 6}%`,
+              left: `${(i % 2) * 3}%`,
+            }}
+          >
             {l}
           </span>
         ))}

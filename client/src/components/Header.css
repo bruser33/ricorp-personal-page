@@ -21,13 +21,13 @@
 .brand {
   letter-spacing: 0.4em;
   font-weight: 500;
-  font-size: 18px;
+  font-size: 16px;
   text-align: center;
   white-space: nowrap;
 }
 
 .lang {
-  font-size: 14px;
+  font-size: 13px;
   color: var(--fg-muted);
   text-decoration: underline;
   text-underline-offset: 4px;
@@ -40,7 +40,7 @@
   display: flex;
   gap: 32px;
   justify-self: end;
-  font-size: 14px;
+  font-size: 13px;
   color: var(--fg-muted);
 }
 

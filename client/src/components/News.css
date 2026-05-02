@@ -2,14 +2,15 @@
   position: relative;
   border-radius: 24px;
   overflow: hidden;
-  aspect-ratio: 16 / 7;
+  aspect-ratio: 21 / 7;
   margin-bottom: 32px;
 }
 
 .news-feature img {
   width: 100%;
-  height: 100%;
+  height: auto;
   object-fit: cover;
+  object-position: top;
 }
 
 .news-feature-overlay {
@@ -18,26 +19,30 @@
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  padding: 32px;
-  background: linear-gradient(180deg, transparent 30%, rgba(10, 10, 15, 0.88));
+  padding: 48px;
+  background: linear-gradient(180deg, transparent 10%, rgba(10, 10, 15, 0.55) 60%, rgba(10, 10, 15, 0.78));
 }
 
 .news-feature-overlay .kicker {
-  font-size: 18px;
-  color: var(--fg-muted);
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.85);
   margin-bottom: 4px;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .news-feature-overlay h3 {
-  font-size: clamp(28px, 4vw, 56px);
-  font-weight: 500;
+  font-size: clamp(32px, 4.5vw, 64px);
+  font-weight: 400;
   color: var(--fg);
   max-width: 70%;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
 }
 
 .news-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  grid-template-columns: repeat(3, 1fr);
   gap: 24px;
 }
 
@@ -57,19 +62,24 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: top;
   transition: transform .4s ease;
 }
 
 .news-card:hover .news-card-media img { transform: scale(1.04); }
 
 .news-card h4 {
-  font-size: 16px;
-  font-weight: 400;
-  color: var(--fg);
+  font-size: 13px;
+  font-weight: 300;
+  color: var(--fg-muted);
   line-height: 1.35;
+  margin: 0;
 }
+
+.card-kicker { color: var(--fg); }
 
 @media (max-width: 720px) {
   .news-feature-overlay { padding: 20px; }
   .news-feature-overlay h3 { max-width: 100%; }
+  .news-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
 }

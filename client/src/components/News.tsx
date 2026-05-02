@@ -1,12 +1,19 @@
 import { useEffect, useState } from 'react';
 import './News.css';
 
-type Item = { id: string; title: string; image: string; featured?: boolean };
+type Item = {
+  id: string;
+  title: string;
+  image: string;
+  kicker?: string;
+  featured?: boolean;
+};
 
 const fallback: Item[] = [
   {
     id: '1',
-    title: 'Análisis: AMD Radeon RX 7900 XTX',
+    kicker: 'Análisis:',
+    title: 'AMD Radeon RX 7900 XTX',
     image: import.meta.env.BASE_URL + 'figma-frames/ricorp-d-frame-05.png',
     featured: true,
   },
@@ -17,7 +24,8 @@ const fallback: Item[] = [
   },
   {
     id: '3',
-    title: 'Análisis: Suunto 9 Peak Pro',
+    kicker: 'Análisis:',
+    title: 'Suunto 9 Peak Pro',
     image: import.meta.env.BASE_URL + 'figma-frames/ricorp-animation-frame-02.png',
   },
 ];
@@ -45,8 +53,8 @@ export function News() {
         <article className="news-feature">
           <img src={featured.image} alt="" />
           <div className="news-feature-overlay">
-            <span className="kicker">Análisis:</span>
-            <h3>{featured.title.replace(/^Análisis:\s*/i, '')}</h3>
+            {featured.kicker && <span className="kicker">{featured.kicker}</span>}
+            <h3>{featured.title}</h3>
           </div>
         </article>
         <div className="news-grid">
@@ -55,7 +63,10 @@ export function News() {
               <div className="news-card-media">
                 <img src={it.image} alt="" />
               </div>
-              <h4>{it.title}</h4>
+              <h4>
+                {it.kicker && <span className="card-kicker">{it.kicker} </span>}
+                {it.title}
+              </h4>
             </article>
           ))}
         </div>
