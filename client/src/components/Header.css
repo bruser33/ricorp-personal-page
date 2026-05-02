@@ -25,12 +25,10 @@
 }
 
 .lang {
-  font-size: 13px;
+  font-size: clamp(16px, 1.04vw, 20px);
+  line-height: 1.257;
   font-weight: 400;
-  color: rgba(227, 227, 227, 0.5);
-  text-transform: lowercase;
-  text-decoration: underline;
-  text-underline-offset: 4px;
+  color: #e3e3e3;
   justify-self: start;
   padding: 0;
 }
@@ -39,21 +37,17 @@
   display: flex;
   gap: clamp(24px, 2.5vw, 48px);
   justify-self: end;
-  font-size: clamp(14px, 1.04vw, 20px);
+  font-size: clamp(16px, 1.04vw, 20px);
+  line-height: 1.257;
   font-weight: 400;
 }
 
 .nav-desktop a {
-  transition: color .2s;
-  color: rgba(227, 227, 227, 0.32);
-  text-transform: lowercase;
+  transition: opacity .2s;
+  color: #e3e3e3;
 }
 
-.nav-desktop a:last-child {
-  color: var(--fg);
-}
-
-.nav-desktop a:hover { color: var(--fg); }
+.nav-desktop a:hover { opacity: 0.7; }
 
 .hamburger { display: none; }
 
@@ -77,9 +71,10 @@
     font-style: italic;
   }
   .hamburger-label {
-    font-size: 10px;
-    line-height: 1.05;
-    letter-spacing: 0.05em;
+    font-size: 16px;
+    line-height: 0.842;
+    font-weight: 600;
+    letter-spacing: 0;
   }
 }
 

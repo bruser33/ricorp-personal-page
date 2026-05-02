@@ -1,6 +1,6 @@
 .site-footer {
   padding: clamp(28px, 2.5vw, 48px) 0;
-  color: rgba(227, 227, 227, 0.55);
+  color: #e3e3e3;
   font-size: clamp(14px, 1.04vw, 20px);
   font-weight: 400;
   line-height: 1.6;
@@ -25,13 +25,13 @@
   grid-column: 3;
   justify-self: end;
   margin: 0;
-  color: rgba(227, 227, 227, 0.55);
+  color: #e3e3e3;
 }
 
-.footer-links { color: rgba(227, 227, 227, 0.55); }
+.footer-links { color: #e3e3e3; }
 .footer-links a:hover { opacity: 0.8; }
 
-.footer-meta { color: rgba(227, 227, 227, 0.55); }
+.footer-meta { color: #e3e3e3; }
 
 @media (max-width: 720px) {
   .footer-inner {

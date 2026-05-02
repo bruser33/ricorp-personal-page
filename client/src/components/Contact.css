@@ -101,8 +101,8 @@
 
 .contact-sub {
   margin-top: 24px;
-  font-size: clamp(20px, 2.083vw, 40px);
-  font-weight: 600;
+  font-size: clamp(18px, 1.46vw, 28px);
+  font-weight: 500;
   background: var(--gradient-text);
   -webkit-background-clip: text;
   background-clip: text;
@@ -132,8 +132,8 @@
   background: rgba(20, 20, 28, 0.92);
   color: var(--fg);
   font-family: inherit;
-  font-size: clamp(16px, 1.667vw, 32px);
-  padding: clamp(16px, 1.25vw, 24px) clamp(20px, 1.46vw, 28px);
+  font-size: clamp(15px, 1.04vw, 20px);
+  padding: clamp(14px, 1.04vw, 20px) clamp(20px, 1.46vw, 28px);
   border: none;
   border-radius: 999px;
   outline: none;
@@ -148,7 +148,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.18);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .field-email input {
@@ -160,7 +160,7 @@
   padding: 12px 4px;
   color: var(--fg-dim);
   font-family: inherit;
-  font-size: clamp(16px, 1.667vw, 32px);
+  font-size: clamp(15px, 1.04vw, 20px);
   font-weight: 400;
 }
 
@@ -168,8 +168,8 @@
 
 .submit {
   white-space: nowrap;
-  font-size: clamp(18px, 2.083vw, 40px);
-  font-weight: 600;
+  font-size: clamp(16px, 1.25vw, 22px);
+  font-weight: 500;
   color: var(--fg);
   display: inline-flex;
   align-items: center;
