@@ -26,11 +26,11 @@
   left: 50%;
   top: 55%;
   transform: translate(-50%, -50%);
-  width: clamp(280px, 38vw, 720px);
-  height: clamp(280px, 26vw, 500px);
+  width: clamp(320px, 42vw, 820px);
+  height: clamp(320px, 30vw, 600px);
   border-radius: 50%;
-  background: radial-gradient(ellipse, rgba(149, 92, 196, 0.22), transparent 65%);
-  filter: blur(70px);
+  background: radial-gradient(ellipse, rgba(149, 92, 196, 0.55) 0%, rgba(110, 68, 164, 0.35) 35%, transparent 70%);
+  filter: blur(40px);
   pointer-events: none;
   z-index: 0;
 }
