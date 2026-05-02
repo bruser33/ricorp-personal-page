@@ -1,0 +1,13 @@
+.site-footer {
+  border-top: 1px solid var(--border);
+  padding: 48px 0;
+  text-align: center;
+  color: var(--fg-muted);
+  font-size: 14px;
+}
+
+.footer-inner p { margin: 4px 0; }
+
+.footer-links a:hover { color: var(--fg); }
+
+.footer-meta, .footer-loc { color: var(--fg-dim); }
