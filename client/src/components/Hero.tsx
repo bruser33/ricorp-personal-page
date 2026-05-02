@@ -15,7 +15,7 @@ export function Hero() {
           </p>
         </div>
         <div className="hero-portrait" aria-hidden="true">
-          <img src={import.meta.env.BASE_URL + 'figma-frames/portrait.png'} alt="" />
+          <img src={import.meta.env.BASE_URL + 'figma-frames/ricorp-animation-frame-01.png'} alt="" />
         </div>
       </div>
     </section>
