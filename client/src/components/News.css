@@ -1,11 +1,11 @@
-.news { padding: clamp(60px, 6vw, 120px) 0; }
+.news { padding: clamp(40px, 4vw, 80px) 0 clamp(60px, 6vw, 120px); }
 
 .news-feature {
   position: relative;
-  border-radius: 24px;
+  border-radius: 16px;
   overflow: hidden;
-  aspect-ratio: 1920 / 503;
-  margin-bottom: clamp(24px, 2.5vw, 48px);
+  aspect-ratio: 1920 / 440;
+  margin-bottom: clamp(16px, 1.67vw, 32px);
 }
 
 .news-feature img {
@@ -49,13 +49,13 @@
 .news-card {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 10px;
 }
 
 .news-card-media {
   border-radius: 12px;
   overflow: hidden;
-  aspect-ratio: 588 / 340;
+  aspect-ratio: 16 / 9;
 }
 
 .news-card-media img {
