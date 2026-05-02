@@ -16,7 +16,7 @@
 }
 
 .brand {
-  letter-spacing: 0.22em;
+  letter-spacing: 0.18em;
   font-weight: 700;
   font-size: clamp(16px, 1.2vw, 22px);
   text-align: center;
@@ -45,7 +45,7 @@
 
 .nav-desktop a {
   transition: color .2s;
-  color: rgba(227, 227, 227, 0.4);
+  color: rgba(227, 227, 227, 0.32);
 }
 
 .nav-desktop a:last-child {

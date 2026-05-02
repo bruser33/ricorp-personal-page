@@ -9,7 +9,7 @@
   inset: 0;
   font-family: ui-monospace, 'SF Mono', monospace;
   font-size: clamp(11px, 0.83vw, 16px);
-  color: rgba(149, 161, 255, 0.10);
+  color: rgba(149, 161, 255, 0.32);
   pointer-events: none;
   user-select: none;
   z-index: 0;
@@ -20,7 +20,9 @@
   white-space: pre;
 }
 
-.contact-bg span:nth-child(odd) { color: rgba(184, 107, 255, 0.10); }
+.contact-bg span:nth-child(3n+1) { color: rgba(149, 161, 255, 0.32); }
+.contact-bg span:nth-child(3n+2) { color: rgba(184, 107, 255, 0.30); }
+.contact-bg span:nth-child(3n+3) { color: rgba(52, 211, 153, 0.28); }
 
 .contact-orb {
   position: absolute;
@@ -115,23 +117,37 @@
   gap: clamp(20px, 1.67vw, 32px);
   width: 100%;
   max-width: 720px;
-  margin: clamp(60px, 8vw, 120px) auto 0;
+  margin: clamp(120px, 14vw, 260px) auto 0;
 }
 
-.field input,
-.field-email input {
+.field {
+  position: relative;
+  border-radius: 999px;
+  padding: 1px;
+  background: linear-gradient(90deg, var(--grad-from), var(--grad-to));
+}
+
+.field input {
   width: 100%;
-  background: rgba(20, 20, 28, 0.7);
+  background: rgba(20, 20, 28, 0.92);
   color: var(--fg);
   font-family: inherit;
   font-size: clamp(16px, 1.667vw, 32px);
   padding: clamp(16px, 1.25vw, 24px) clamp(20px, 1.46vw, 28px);
-  border: 1px solid;
-  border-image: linear-gradient(90deg, var(--grad-from), var(--grad-to)) 1;
+  border: none;
   border-radius: 999px;
   outline: none;
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
+  font-weight: 400;
+  display: block;
+}
+
+.field-email input {
+  width: 100%;
+  color: var(--fg);
+  font-family: inherit;
+  font-size: clamp(16px, 1.667vw, 32px);
   font-weight: 400;
 }
 
