@@ -1,90 +1,13 @@
+.news { padding: clamp(60px, 6vw, 120px) 0; }
+
 .news-feature {
-  position: relative;
+  width: 100%;
   border-radius: 24px;
   overflow: hidden;
-  aspect-ratio: 21 / 7;
-  margin-bottom: clamp(24px, 2.5vw, 48px);
 }
 
 .news-feature img {
   width: 100%;
   height: auto;
-  object-fit: cover;
-  object-position: top;
-}
-
-.news-feature-overlay {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  padding: clamp(24px, 3.125vw, 60px);
-  background: linear-gradient(180deg, transparent 10%, rgba(18, 17, 21, 0.55) 60%, rgba(18, 17, 21, 0.78));
-}
-
-/* Kicker "Análisis:" 90px @ 1920 → 4.69vw, floor 28px */
-.news-feature-overlay .kicker {
-  font-size: clamp(28px, 4.69vw, 90px);
-  color: var(--fg);
-  font-weight: 600;
-  margin-bottom: 0;
-  line-height: 1;
-}
-
-/* Featured title 90px @ 1920 → 4.69vw */
-.news-feature-overlay h3 {
-  font-size: clamp(28px, 4.69vw, 90px);
-  font-weight: 600;
-  color: var(--fg);
-  max-width: 80%;
-  letter-spacing: 0;
-  line-height: 1;
-}
-
-.news-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: clamp(16px, 1.67vw, 32px);
-}
-
-.news-card {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.news-card-media {
-  border-radius: 12px;
-  overflow: hidden;
-  aspect-ratio: 4 / 3;
-}
-
-.news-card-media img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: top;
-  transition: transform .4s ease;
-}
-
-.news-card:hover .news-card-media img { transform: scale(1.04); }
-
-/* Card title primary 40px @ 1920 → 2.083vw, floor 16px (matches mobile body) */
-.news-card h4 {
-  font-size: clamp(16px, 2.083vw, 40px);
-  font-weight: 600;
-  color: var(--fg);
-  line-height: 1.1;
-  margin: 0;
-}
-
-.card-kicker { color: var(--fg); }
-
-@media (max-width: 720px) {
-  .news-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
-  .news-card h4 { font-size: 14px; }
-  .news-feature-overlay { padding: 16px; }
-  .news-feature-overlay h3 { max-width: 100%; font-size: 24px; }
-  .news-feature-overlay .kicker { font-size: 24px; }
+  display: block;
 }

@@ -4,7 +4,21 @@ import cors from 'cors';
 import mongoose from 'mongoose';
 
 const app = express();
-app.use(cors());
+
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:5173,https://bruser33.github.io')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+app.use(
+  cors({
+    origin: (origin, cb) => {
+      if (!origin) return cb(null, true);
+      if (allowedOrigins.some((a) => origin.startsWith(a))) return cb(null, true);
+      cb(new Error('Origin not allowed: ' + origin));
+    },
+  })
+);
 app.use(express.json());
 
 const PORT = process.env.PORT || 4000;

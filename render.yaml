@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: ricorp-api
+    runtime: node
+    plan: free
+    rootDir: server
+    buildCommand: npm install
+    startCommand: node src/index.js
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: ALLOWED_ORIGINS
+        value: https://bruser33.github.io
+      - key: MONGO_URI
+        sync: false
