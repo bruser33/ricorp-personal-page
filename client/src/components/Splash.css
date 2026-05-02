@@ -1,0 +1,44 @@
+.splash {
+  position: fixed;
+  inset: 0;
+  background: #121115;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  transition: opacity 1s cubic-bezier(0.7, 0.01, 0.23, 1.01);
+  opacity: 1;
+}
+
+.splash.splash-out {
+  opacity: 0;
+}
+
+.splash-logo {
+  font-size: clamp(28px, 3.6vw, 56px);
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  color: var(--fg);
+  opacity: 0;
+  transform: translateY(8px);
+  transition:
+    opacity 1s cubic-bezier(0.7, 0.01, 0.23, 1.01),
+    transform 1s cubic-bezier(0.7, 0.01, 0.23, 1.01);
+}
+
+.splash-logo-in {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .splash {
+    transition: none;
+  }
+  .splash-logo {
+    transition: none;
+    opacity: 1;
+    transform: none;
+  }
+}

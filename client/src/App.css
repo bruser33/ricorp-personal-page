@@ -1,3 +1,11 @@
+.site-pre {
+  visibility: hidden;
+}
+
+.site-ready {
+  visibility: visible;
+}
+
 main {
   padding-top: var(--header-h);
 }
