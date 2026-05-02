@@ -1,6 +1,7 @@
 .contact {
   position: relative;
   overflow: hidden;
+  padding-bottom: clamp(40px, 6vw, 96px);
 }
 
 .contact-bg {
@@ -29,20 +30,86 @@
   width: clamp(320px, 42vw, 820px);
   height: clamp(320px, 30vw, 600px);
   border-radius: 50%;
-  background: radial-gradient(ellipse, rgba(149, 92, 196, 0.55) 0%, rgba(110, 68, 164, 0.35) 35%, transparent 70%);
-  filter: blur(40px);
+  background: radial-gradient(ellipse, rgba(149, 92, 196, 0.30) 0%, rgba(110, 68, 164, 0.18) 35%, transparent 70%);
+  filter: blur(50px);
   pointer-events: none;
   z-index: 0;
+}
+
+.contact-orb-3d {
+  position: absolute;
+  right: clamp(40px, 6vw, 120px);
+  top: clamp(80px, 10vw, 200px);
+  width: clamp(280px, 28vw, 480px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  z-index: 1;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  background:
+    radial-gradient(circle at 30% 28%, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0) 42%),
+    conic-gradient(
+      from 220deg at 50% 50%,
+      #c4a3ff 0deg,
+      #ff8de2 60deg,
+      #8de2ff 120deg,
+      #c4a3ff 180deg,
+      #ff8de2 240deg,
+      #8de2ff 300deg,
+      #c4a3ff 360deg
+    );
+  background-blend-mode: screen;
+  filter: blur(0.5px) saturate(1.35) contrast(1.05);
+  animation: orb-rotate 24s linear infinite;
+}
+
+.contact-orb-3d::after {
+  content: '';
+  position: absolute;
+  inset: -18%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(196, 163, 255, 0.35) 0%, rgba(255, 141, 226, 0.18) 35%, transparent 65%);
+  filter: blur(40px);
+  z-index: -1;
+  pointer-events: none;
+}
+
+.contact-orb-3d__gloss {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0) 35%),
+    radial-gradient(ellipse 60% 30% at 35% 25%, rgba(255, 255, 255, 0.7) 0%, transparent 60%);
+  mix-blend-mode: overlay;
+  animation: orb-rotate-slow 20s linear infinite;
+}
+
+@keyframes orb-rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes orb-rotate-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(-360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .contact-orb-3d,
+  .contact-orb-3d__gloss { animation: none; }
 }
 
 .contact-inner {
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: 1.2fr 0.8fr;
   gap: clamp(40px, 5vw, 96px);
   align-items: start;
 }
+
+.contact-spacer { min-height: 1px; }
 
 .contact-headline h2 {
   font-size: clamp(54px, 6.667vw, 128px);
@@ -56,7 +123,6 @@
   color: var(--fg);
 }
 
-/* Sub "What are you looking for?" 40px @ 1920 → 2.083vw, floor 20px */
 .contact-sub {
   margin-top: 24px;
   font-size: clamp(20px, 2.083vw, 40px);
@@ -68,15 +134,16 @@
 }
 
 .contact-form {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   gap: clamp(20px, 1.67vw, 32px);
   width: 100%;
   max-width: 720px;
-  margin-left: auto;
+  margin: clamp(60px, 8vw, 120px) auto 0;
 }
 
-/* Field input "Branding for a new App." 32px @ 1920 → 1.667vw, floor 16px */
 .field input,
 .field-email input {
   width: 100%;
@@ -106,7 +173,6 @@
 .field input::placeholder { color: var(--fg-muted); }
 .field-email input::placeholder { color: var(--fg-dim); }
 
-/* Submit "Send email" 40px @ 1920 → 2.083vw, floor 18px */
 .submit {
   align-self: flex-end;
   font-size: clamp(18px, 2.083vw, 40px);
@@ -120,13 +186,21 @@
 }
 
 .submit:hover { opacity: 0.8; }
-
-.submit.sent {
-  color: #34d399;
-}
+.submit.sent { color: #34d399; }
 
 @media (max-width: 720px) {
-  .contact-inner { gap: 32px; }
+  .contact-inner {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+  .contact-orb-3d {
+    position: relative;
+    margin: 32px auto;
+    right: auto;
+    top: auto;
+    width: min(280px, 70vw);
+  }
+  .contact-spacer { display: none; }
   .contact-form { max-width: 100%; }
   .contact-sub { margin-top: 16px; }
 }

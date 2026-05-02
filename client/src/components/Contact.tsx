@@ -46,7 +46,13 @@ export function Contact() {
           </span>
         ))}
       </div>
+
       <div className="contact-orb" aria-hidden="true" />
+
+      <div className="contact-orb-3d" aria-hidden="true">
+        <div className="contact-orb-3d__gloss" />
+      </div>
+
       <div className="container contact-inner">
         <div className="contact-headline">
           <h2>
@@ -55,47 +61,49 @@ export function Contact() {
           </h2>
           <p className="contact-sub">What are you looking for?</p>
         </div>
-        <form className="contact-form" onSubmit={submit}>
-          <label className="field">
-            <input
-              type="text"
-              placeholder="Branding for a new App."
-              value={subject}
-              onChange={(e) => setSubject(e.target.value)}
-              required
-            />
-          </label>
-          <label className="field-email">
-            <input
-              type="email"
-              placeholder="Customer101@email.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </label>
-          <button type="submit" className={'submit' + (sent ? ' sent' : '')}>
-            {sent ? (
-              <>
-                Sent!{' '}
-                <svg aria-hidden width="22" height="22" viewBox="0 0 24 24" fill="none">
-                  <path
-                    d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </>
-            ) : (
-              <>
-                Send <span aria-hidden>→</span>
-              </>
-            )}
-          </button>
-        </form>
+        <div className="contact-spacer" aria-hidden="true" />
       </div>
+
+      <form className="contact-form container" onSubmit={submit}>
+        <label className="field">
+          <input
+            type="text"
+            placeholder="Branding for a new App."
+            value={subject}
+            onChange={(e) => setSubject(e.target.value)}
+            required
+          />
+        </label>
+        <label className="field-email">
+          <input
+            type="email"
+            placeholder="Customer101@email.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+        </label>
+        <button type="submit" className={'submit' + (sent ? ' sent' : '')}>
+          {sent ? (
+            <>
+              Sent!{' '}
+              <svg aria-hidden width="22" height="22" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </>
+          ) : (
+            <>
+              Send <span aria-hidden>→</span>
+            </>
+          )}
+        </button>
+      </form>
     </section>
   );
 }
