@@ -1,8 +1,16 @@
+import { useEffect, useState } from 'react';
 import './Hero.css';
 
 export function Hero() {
+  const [intro, setIntro] = useState(false);
+
+  useEffect(() => {
+    const id = window.setTimeout(() => setIntro(true), 100);
+    return () => window.clearTimeout(id);
+  }, []);
+
   return (
-    <section id="home" className="hero">
+    <section id="home" className={`hero ${intro ? 'hero-intro' : ''}`}>
       <div className="container hero-inner">
         <div className="hero-text">
           <h1 className="hero-title">

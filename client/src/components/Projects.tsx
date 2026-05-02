@@ -121,7 +121,7 @@ export function Projects() {
   return (
     <section id="about" className="projects projects-carousel-section">
       <div
-        className="projects-carousel"
+        className="projects-carousel reveal-scale"
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
       >

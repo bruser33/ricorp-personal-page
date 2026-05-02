@@ -69,7 +69,7 @@ export function News() {
   return (
     <section id="news" className="news">
       <div className="container">
-        <article className="news-feature">
+        <article className="news-feature reveal-scale">
           <img
             src={featured.image}
             alt={featured.title.replace(/\n/g, ' ')}
@@ -85,8 +85,11 @@ export function News() {
           </div>
         </article>
         <div className="news-grid">
-          {rest.map((it) => (
-            <article key={it.id} className="news-card">
+          {rest.map((it, i) => (
+            <article
+              key={it.id}
+              className={`news-card reveal reveal-delay-${Math.min(i + 1, 5)}`}
+            >
               <div className="news-card-media">
                 <img
                   src={it.image}
@@ -100,10 +103,10 @@ export function News() {
               </div>
               {it.kicker && <p className="card-kicker">{it.kicker}</p>}
               <h4>
-                {it.title.split('\n').map((line, i, arr) => (
-                  <span key={i}>
+                {it.title.split('\n').map((line, idx, arr) => (
+                  <span key={idx}>
                     {line}
-                    {i < arr.length - 1 && <br />}
+                    {idx < arr.length - 1 && <br />}
                   </span>
                 ))}
               </h4>

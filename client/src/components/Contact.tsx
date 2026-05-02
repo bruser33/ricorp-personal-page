@@ -106,7 +106,7 @@ export function Contact() {
       </div>
 
       <div className="container contact-inner">
-        <div className="contact-headline">
+        <div className="contact-headline reveal">
           <h2>
             Let's start a new<br />
             <span>.project</span>
@@ -116,7 +116,7 @@ export function Contact() {
         <div className="contact-spacer" aria-hidden="true" />
       </div>
 
-      <form className="contact-form container" onSubmit={submit}>
+      <form className="contact-form container reveal reveal-delay-2" onSubmit={submit}>
         <label className="field">
           <input
             type="text"

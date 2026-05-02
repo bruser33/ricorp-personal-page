@@ -89,3 +89,58 @@ h1, h2, h3, h4 {
 @media (max-width: 720px) {
   .container { padding: 0 20px; }
 }
+
+/* Smart Animate-style scroll reveals (Figma cubic-bezier) */
+.reveal {
+  opacity: 0;
+  transform: translateY(36px);
+  transition:
+    opacity 1.5s cubic-bezier(0.7, 0.01, 0.23, 1.01),
+    transform 1.5s cubic-bezier(0.7, 0.01, 0.23, 1.01);
+  will-change: opacity, transform;
+}
+
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.reveal-fade {
+  opacity: 0;
+  transition: opacity 1.8s cubic-bezier(0.7, 0.01, 0.23, 1.01);
+  will-change: opacity;
+}
+
+.reveal-fade.visible {
+  opacity: 1;
+}
+
+.reveal-scale {
+  opacity: 0;
+  transform: scale(0.92);
+  transition:
+    opacity 1.6s cubic-bezier(0.7, 0.01, 0.23, 1.01),
+    transform 1.6s cubic-bezier(0.7, 0.01, 0.23, 1.01);
+  will-change: opacity, transform;
+}
+
+.reveal-scale.visible {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.reveal-delay-1 { transition-delay: 0.1s; }
+.reveal-delay-2 { transition-delay: 0.2s; }
+.reveal-delay-3 { transition-delay: 0.3s; }
+.reveal-delay-4 { transition-delay: 0.4s; }
+.reveal-delay-5 { transition-delay: 0.5s; }
+.reveal-delay-6 { transition-delay: 0.6s; }
+.reveal-delay-7 { transition-delay: 0.7s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal, .reveal-fade, .reveal-scale {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+}
