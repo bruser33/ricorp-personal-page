@@ -43,17 +43,19 @@
   font-weight: 500;
 }
 
-.hero-sub-dim {
-  color: rgba(227, 227, 227, 0.55);
-  font-weight: 400;
-}
-
-.grad-blue,
-.grad-purple {
-  background: var(--gradient-text);
+.grad-blue {
+  background: linear-gradient(90deg, var(--grad-from) 0%, var(--grad-mid) 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
+}
+
+.hero-sub-dim {
+  background: linear-gradient(90deg, var(--grad-mid) 0%, var(--grad-to) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-weight: 500;
 }
 
 .hero-portrait {

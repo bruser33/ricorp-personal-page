@@ -27,8 +27,10 @@
 .lang {
   font-size: 13px;
   font-weight: 400;
-  color: rgba(227, 227, 227, 0.4);
+  color: rgba(227, 227, 227, 0.5);
   text-transform: lowercase;
+  text-decoration: underline;
+  text-underline-offset: 4px;
   justify-self: start;
   padding: 0;
 }
