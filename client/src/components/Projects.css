@@ -38,7 +38,8 @@
   font-size: clamp(64px, 10.642vw, 204px);
   font-weight: 600;
   letter-spacing: 0;
-  line-height: 1;
+  line-height: 1.1;
+  padding-bottom: 0.04em;
 }
 
 .project-overtitle span {
@@ -54,7 +55,7 @@
   border-radius: 16px;
   border: 1px solid var(--border);
   padding: clamp(24px, 2.5vw, 48px);
-  margin-top: -8px;
+  margin-top: 12px;
 }
 
 .project-desc {
