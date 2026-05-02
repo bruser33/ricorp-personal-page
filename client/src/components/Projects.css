@@ -1,9 +1,5 @@
 .projects-carousel-section {
-  padding: clamp(40px, 4vw, 80px) 0;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
+  padding: clamp(60px, 6vw, 120px) 0;
   overflow: hidden;
 }
 
