@@ -88,7 +88,7 @@
 .contact-spacer { min-height: 1px; }
 
 .contact-headline h2 {
-  font-size: clamp(54px, 6.667vw, 128px);
+  font-size: clamp(48px, 5vw, 96px);
   font-weight: 500;
   line-height: 1.0;
   letter-spacing: -0.02em;
