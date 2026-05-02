@@ -46,6 +46,7 @@ export function Contact() {
           </span>
         ))}
       </div>
+      <div className="contact-orb" aria-hidden="true" />
       <div className="container contact-inner">
         <div className="contact-headline">
           <h2>
@@ -74,7 +75,24 @@ export function Contact() {
             />
           </label>
           <button type="submit" className={'submit' + (sent ? ' sent' : '')}>
-            {sent ? <>Sent! <span aria-hidden>↗</span></> : <>Send <span aria-hidden>→</span></>}
+            {sent ? (
+              <>
+                Sent!{' '}
+                <svg aria-hidden width="22" height="22" viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </>
+            ) : (
+              <>
+                Send <span aria-hidden>→</span>
+              </>
+            )}
           </button>
         </form>
       </div>

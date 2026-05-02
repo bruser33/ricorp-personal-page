@@ -11,11 +11,11 @@ export function Hero() {
           <p className="hero-sub">
             <span className="grad-blue">Software {'{development}'}</span>
             <br />
-            <span className="grad-purple">and innovation.</span>
+            <span className="hero-sub-dim">and innovation.</span>
           </p>
         </div>
         <div className="hero-portrait" aria-hidden="true">
-          <img src={import.meta.env.BASE_URL + 'figma-frames/ricorp-animation-frame-01.png'} alt="" />
+          <img src={import.meta.env.BASE_URL + 'figma-frames/portrait.png'} alt="" />
         </div>
       </div>
     </section>

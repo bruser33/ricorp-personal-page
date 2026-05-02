@@ -21,6 +21,20 @@
 
 .contact-bg span:nth-child(odd) { color: rgba(184, 107, 255, 0.10); }
 
+.contact-orb {
+  position: absolute;
+  left: 50%;
+  top: 55%;
+  transform: translate(-50%, -50%);
+  width: clamp(280px, 38vw, 720px);
+  height: clamp(280px, 26vw, 500px);
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(149, 92, 196, 0.22), transparent 65%);
+  filter: blur(70px);
+  pointer-events: none;
+  z-index: 0;
+}
+
 .contact-inner {
   position: relative;
   z-index: 1;
@@ -72,7 +86,7 @@
   font-size: clamp(16px, 1.667vw, 32px);
   padding: clamp(16px, 1.25vw, 24px) clamp(20px, 1.46vw, 28px);
   border: 1px solid;
-  border-image: linear-gradient(90deg, var(--grad-to), var(--grad-from)) 1;
+  border-image: linear-gradient(90deg, var(--grad-from), var(--grad-to)) 1;
   border-radius: 999px;
   outline: none;
   backdrop-filter: blur(6px);

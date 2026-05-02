@@ -68,14 +68,24 @@
 .news-card:hover .news-card-media img { transform: scale(1.04); }
 
 .news-card h4 {
-  font-size: clamp(16px, 2.083vw, 40px);
+  font-size: clamp(16px, 1.66vw, 32px);
   font-weight: 600;
   color: var(--fg);
   line-height: 1.05;
   margin: 0;
 }
 
-.card-kicker { color: var(--fg); display: inline; }
+.card-kicker {
+  color: rgba(227, 227, 227, 0.55);
+  font-size: clamp(12px, 0.9vw, 16px);
+  letter-spacing: 0.02em;
+  margin: 0 0 4px 0;
+  display: block;
+}
+
+.media-fallback {
+  background: linear-gradient(135deg, #1a1920, #0f0e14);
+}
 
 @media (max-width: 720px) {
   .news-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }

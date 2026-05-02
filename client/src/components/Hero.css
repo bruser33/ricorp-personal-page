@@ -31,16 +31,21 @@
 .hero-title {
   font-size: clamp(54px, 6.667vw, 128px);
   line-height: 0.957;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--fg);
-  letter-spacing: 0;
+  letter-spacing: -0.02em;
 }
 
 .hero-sub {
   margin-top: 32px;
   font-size: clamp(20px, 2.083vw, 40px);
   line-height: 1.257;
-  font-weight: 600;
+  font-weight: 500;
+}
+
+.hero-sub-dim {
+  color: rgba(227, 227, 227, 0.55);
+  font-weight: 400;
 }
 
 .grad-blue,
@@ -66,6 +71,7 @@
   object-fit: cover;
   object-position: 92% center;
   filter: grayscale(1) brightness(0.95) contrast(1.15);
+  mix-blend-mode: multiply;
 }
 
 @media (max-width: 720px) {

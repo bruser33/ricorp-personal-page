@@ -70,7 +70,15 @@ export function News() {
     <section id="news" className="news">
       <div className="container">
         <article className="news-feature">
-          <img src={featured.image} alt={featured.title} />
+          <img
+            src={featured.image}
+            alt={featured.title.replace(/\n/g, ' ')}
+            onError={(e) => {
+              const img = e.currentTarget as HTMLImageElement;
+              img.style.display = 'none';
+              img.parentElement?.classList.add('media-fallback');
+            }}
+          />
           <div className="news-feature-overlay">
             {featured.kicker && <span className="kicker">{featured.kicker}</span>}
             <h3>{featured.title}</h3>
@@ -80,11 +88,18 @@ export function News() {
           {rest.map((it) => (
             <article key={it.id} className="news-card">
               <div className="news-card-media">
-                <img src={it.image} alt="" />
+                <img
+                  src={it.image}
+                  alt={it.title.replace(/\n/g, ' ')}
+                  onError={(e) => {
+                    const img = e.currentTarget as HTMLImageElement;
+                    img.style.display = 'none';
+                    img.parentElement?.classList.add('media-fallback');
+                  }}
+                />
               </div>
+              {it.kicker && <p className="card-kicker">{it.kicker}</p>}
               <h4>
-                {it.kicker && <span className="card-kicker">{it.kicker}</span>}
-                {it.kicker && <br />}
                 {it.title.split('\n').map((line, i, arr) => (
                   <span key={i}>
                     {line}
