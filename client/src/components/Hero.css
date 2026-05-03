@@ -7,9 +7,58 @@
   position: relative;
 }
 
-/* Local hero blob removed — replaced by global body::before blob in index.css
-   that morphs across all sections (Hero 1 → Projects 2.27 → News 5.7 → Contact 0.18).
-   This keeps a single source of truth for the Smart Animate Blue Light element. */
+/* Hero Blue Light — local 228px purple/blue circle that runs the 3-state
+   intro animation (extracted from Ricorp_animation Design→Home→Enter):
+   State 1: visible at (447, 618) — Figma frame coords scaled to viewport
+   State 2: opacity 1 → 0 (fades out in place) at ~800ms
+   State 3: re-translates to y=-510 (1129px above) and fades back in
+   Smart Animate timing: 2400ms ease_out per state cycle.
+   This is SEPARATE from the global body::before that morphs across sections. */
+.hero::before {
+  content: '';
+  position: absolute;
+  /* Figma frame is 1920w; Blue Light at x=447 = 23.3% from left, y=618 = 28.2% of 2188h.
+     Translate to relative units bound to viewport. */
+  left: 23.3%;
+  top: 56%;
+  width: clamp(120px, 11.875vw, 228px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 50% 50%,
+    rgba(81, 88, 252, 0.55) 0%,
+    rgba(81, 88, 252, 0.28) 35%,
+    rgba(110, 68, 164, 0.18) 60%,
+    transparent 80%
+  );
+  filter: blur(28px);
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0;
+  transform: translateY(0);
+  will-change: opacity, transform;
+}
+
+.hero.hero-intro::before {
+  /* Run the 3-state Smart Animate sequence. Total 2400ms.
+     0-33%: state 1 (visible, in place)
+     33-66%: state 2 (fade out, no movement)
+     66-100%: state 3 (re-enter from -1129px above) */
+  animation: hero-blue-light 2400ms var(--ease-figma-out) 200ms both;
+}
+
+@keyframes hero-blue-light {
+  0%   { opacity: 0; transform: translateY(0); }
+  15%  { opacity: 1; transform: translateY(0); }      /* state 1: visible */
+  45%  { opacity: 1; transform: translateY(0); }      /* hold state 1 */
+  60%  { opacity: 0; transform: translateY(0); }      /* state 2: fade out */
+  75%  { opacity: 0; transform: translateY(-58%); }   /* jump above (1129/1920 ≈ 58%) */
+  100% { opacity: 1; transform: translateY(-58%); }   /* state 3: re-enter from above */
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero::before { animation: none; opacity: 0.6; transform: none; }
+}
 
 .hero-inner {
   display: grid;
