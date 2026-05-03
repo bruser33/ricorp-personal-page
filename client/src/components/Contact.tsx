@@ -115,44 +115,46 @@ export function Contact() {
         <div className="contact-spacer" aria-hidden="true" />
       </div>
 
-      <form className="contact-form container reveal reveal-delay-2" onSubmit={submit}>
+      <form
+        className="contact-form container reveal reveal-delay-2"
+        data-stage={sent ? 'sent' : email ? 'composing' : subject ? 'subject-filled' : 'initial'}
+        onSubmit={submit}
+      >
         <label className="field">
           <input
             type="text"
-            placeholder="Branding for a new App."
+            placeholder="Write here..."
             value={subject}
             onChange={(e) => setSubject(e.target.value)}
+            disabled={sent}
             required
           />
         </label>
         <label className="field-email">
           <input
             type="email"
-            placeholder="Customer101@email.com"
+            placeholder="Enter your @email..."
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            disabled={sent}
             required
           />
-          <button type="submit" className={'submit' + (sent ? ' sent' : '')}>
-          {sent ? (
-            <>
-              Sent!{' '}
-              <svg aria-hidden width="22" height="22" viewBox="0 0 24 24" fill="none">
-                <path
-                  d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </>
-          ) : (
-            <>
-              Send <span aria-hidden>→</span>
-            </>
-          )}
-        </button>
+          <button
+            type="submit"
+            className={'submit' + (sent ? ' sent' : '')}
+            disabled={sent || !email}
+          >
+            <span className="submit-label">{sent ? 'Sent!' : 'Send email'}</span>
+            <svg aria-hidden width="22" height="22" viewBox="0 0 24 24" fill="none">
+              <path
+                d="M22 2L11 13M22 2L15 22L11 13L2 9L22 2Z"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
         </label>
       </form>
     </section>

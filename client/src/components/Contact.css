@@ -155,6 +155,14 @@
   position: relative;
   border-radius: 999px;
   padding: 1px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.08));
+  transition: background 280ms var(--ease-figma-out);
+}
+
+.field:focus-within,
+.contact-form[data-stage="subject-filled"] .field,
+.contact-form[data-stage="composing"] .field,
+.contact-form[data-stage="sent"] .field {
   background: linear-gradient(90deg, var(--grad-from), var(--grad-to));
 }
 
@@ -180,6 +188,20 @@
   justify-content: space-between;
   gap: 16px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  opacity: 0;
+  transform: translateY(8px);
+  pointer-events: none;
+  transition:
+    opacity 320ms var(--ease-figma-out),
+    transform 320ms var(--ease-figma-out);
+}
+
+.contact-form[data-stage="subject-filled"] .field-email,
+.contact-form[data-stage="composing"] .field-email,
+.contact-form[data-stage="sent"] .field-email {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
 }
 
 .field-email input {
@@ -201,16 +223,37 @@
   white-space: nowrap;
   font-size: clamp(16px, 1.25vw, 22px);
   font-weight: 500;
-  color: var(--fg);
+  color: var(--grad-to);
   display: inline-flex;
   align-items: center;
   gap: 12px;
   padding: 8px 4px;
-  transition: opacity .2s;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  opacity: 0;
+  transform: translateX(-4px);
+  pointer-events: none;
+  transition:
+    color 280ms var(--ease-figma-out),
+    opacity 280ms var(--ease-figma-out),
+    transform 280ms var(--ease-figma-out);
+}
+
+.contact-form[data-stage="composing"] .submit,
+.contact-form[data-stage="sent"] .submit {
+  opacity: 1;
+  transform: translateX(0);
+  pointer-events: auto;
 }
 
 .submit:hover { opacity: 0.8; }
-.submit.sent { color: #34d399; }
+.submit:active { transform: scale(0.96); }
+.submit:disabled { cursor: default; }
+.submit.sent {
+  color: var(--accent-success, #34d399);
+  opacity: 1;
+}
 
 @media (max-width: 720px) {
   .contact-inner {
