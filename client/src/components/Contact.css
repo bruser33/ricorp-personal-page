@@ -28,13 +28,14 @@
   inset: 0;
   font-family: ui-monospace, 'SF Mono', monospace;
   font-size: clamp(11px, 0.83vw, 16px);
-  color: rgba(170, 180, 230, 0.11);
+  color: rgba(170, 180, 230, 0.18);
   font-weight: 400;
   letter-spacing: 0.02em;
   line-height: 1.7;
   pointer-events: none;
   user-select: none;
   z-index: 0;
+  padding-left: clamp(8px, 1vw, 24px);
   /* Phase B: code-rain fades in after headline + orb begin */
   opacity: 0;
   transition: opacity 700ms var(--ease-figma-out) 700ms;
@@ -45,7 +46,7 @@
 .contact-bg span {
   position: absolute;
   white-space: pre;
-  color: rgba(170, 180, 230, 0.11);
+  color: rgba(170, 180, 230, 0.18);
 }
 
 .contact-orb {
@@ -137,10 +138,10 @@
 .contact-spacer { min-height: 1px; }
 
 .contact-headline h2 {
-  font-size: clamp(40px, 4.27vw, 72px);
-  font-weight: 500;
-  line-height: 1.0;
-  letter-spacing: -0.02em;
+  font-size: clamp(48px, 5.2vw, 88px);
+  font-weight: 700;
+  line-height: 0.98;
+  letter-spacing: -0.025em;
 }
 
 /* Smart Animate Pair E entrance: headline slide-up + fade. */
