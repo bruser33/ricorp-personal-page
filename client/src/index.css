@@ -17,7 +17,9 @@
   --accent-blue-active: #5158fc;   /* active dot indicator + accent */
   --accent-blue-bright: #343cff;   /* gradient start */
   --accent-magenta: #994a7b;       /* gradient end */
-  --accent-green: #0cb870;         /* sent state / success */
+  --accent-green: #22D886;         /* sent state / success — Figma Contact-End spring green */
+  --accent-violet: #4B4BFF;        /* electric violet — Figma "Send email" CTA */
+  --accent-success: #22D886;       /* alias for sent CTA color */
   --grad-mid: #6e44a4;             /* derived midpoint */
 
   --ambient-green: #67960c33;

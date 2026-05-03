@@ -1,15 +1,19 @@
 import { useState } from 'react';
 import './Contact.css';
 
-const codeLines = [
-  '<th>Performed</th>',
+const leftLines = [
+  'th>Performed</th>',
   'ng-repeat="i in model.m',
   '[i].projName}}</td>',
   '[i].start}}</td>',
   '[i].end}}</td>',
   '[i].customerName}}</td>',
+];
+
+const rightLines = [
   '[i].location}}</td>',
   '[i].description}}</td>',
+  '-generic">',
 ];
 
 export function Contact() {
@@ -33,15 +37,14 @@ export function Contact() {
 
   return (
     <section id="contact" className="contact">
-      <div className="contact-bg" aria-hidden="true">
-        {codeLines.map((l, i) => (
-          <span
-            key={i}
-            style={{
-              top: `${8 + i * 6}%`,
-              left: `${(i % 2) * 3}%`,
-            }}
-          >
+      <div className="contact-bg reveal reveal-delay-2" aria-hidden="true">
+        {leftLines.map((l, i) => (
+          <span key={`l-${i}`} style={{ top: `${8 + i * 8}%`, left: '0%' }}>
+            {l}
+          </span>
+        ))}
+        {rightLines.map((l, i) => (
+          <span key={`r-${i}`} style={{ top: `${58 + i * 10}%`, right: '0%' }}>
             {l}
           </span>
         ))}
@@ -49,58 +52,87 @@ export function Contact() {
 
       <div className="contact-orb" aria-hidden="true" />
 
-      <div className="contact-orb-3d" aria-hidden="true">
-        <svg viewBox="0 0 320 320" className="iridescent-svg">
+      <div className="contact-orb-3d reveal reveal-delay-2" aria-hidden="true">
+        <svg viewBox="0 0 320 360" className="iridescent-svg">
           <defs>
-            <radialGradient id="orb1" cx="40%" cy="35%" r="65%">
-              <stop offset="0%" stopColor="#A8D8FF" stopOpacity="0.9" />
-              <stop offset="30%" stopColor="#B8A0FF" stopOpacity="0.8" />
-              <stop offset="60%" stopColor="#FF8EC7" stopOpacity="0.85" />
-              <stop offset="85%" stopColor="#994A7B" stopOpacity="0.7" />
-              <stop offset="100%" stopColor="#343CFF" stopOpacity="0.5" />
+            <linearGradient id="ribbonIris" x1="15%" y1="10%" x2="85%" y2="95%">
+              <stop offset="0%" stopColor="#C9B8FF" />
+              <stop offset="28%" stopColor="#E4C8FF" />
+              <stop offset="52%" stopColor="#FFB8D8" />
+              <stop offset="78%" stopColor="#B8D4FF" />
+              <stop offset="100%" stopColor="#8FB8FF" />
+            </linearGradient>
+            <linearGradient id="ribbonShade" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#7B5FA8" stopOpacity="0" />
+              <stop offset="55%" stopColor="#5B4380" stopOpacity="0.35" />
+              <stop offset="100%" stopColor="#3A2A60" stopOpacity="0.65" />
+            </linearGradient>
+            <linearGradient id="ribbonHi" x1="20%" y1="20%" x2="60%" y2="70%">
+              <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.65" />
+              <stop offset="100%" stopColor="#FFFFFF" stopOpacity="0" />
+            </linearGradient>
+            <radialGradient id="ribbonGlow" cx="50%" cy="62%" r="55%">
+              <stop offset="0%" stopColor="#B89CFF" stopOpacity="0.55" />
+              <stop offset="55%" stopColor="#8264D8" stopOpacity="0.18" />
+              <stop offset="100%" stopColor="#000000" stopOpacity="0" />
             </radialGradient>
-            <radialGradient id="orb2" cx="60%" cy="60%" r="50%">
-              <stop offset="0%" stopColor="#80FFEA" stopOpacity="0.6" />
-              <stop offset="50%" stopColor="#8080FF" stopOpacity="0.3" />
-              <stop offset="100%" stopColor="transparent" stopOpacity="0" />
-            </radialGradient>
-            <filter id="orbGlow">
-              <feGaussianBlur stdDeviation="3" result="blur" />
-              <feMerge>
-                <feMergeNode in="blur" />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
+            <filter id="ribbonShadow" x="-30%" y="-30%" width="160%" height="160%">
+              <feGaussianBlur stdDeviation="6" />
             </filter>
           </defs>
+          <ellipse cx="160" cy="210" rx="135" ry="120" fill="url(#ribbonGlow)" />
           <path
-            d="M160 40 C220 60 280 100 270 160 C260 220 200 260 160 280 C120 260 60 220 50 160 C40 100 100 60 160 40Z"
-            fill="url(#orb1)"
-            opacity="0.85"
-            filter="url(#orbGlow)"
+            d="M95 95 C70 145 70 215 115 255 C150 285 215 280 240 240 C260 208 245 175 215 175 C190 175 185 200 200 215 C212 227 232 222 235 205"
+            fill="none"
+            stroke="url(#ribbonIris)"
+            strokeWidth="34"
+            strokeLinecap="round"
+            opacity="0.92"
           />
           <path
-            d="M160 60 C210 80 255 115 245 165 C235 215 185 250 160 265 C135 250 85 215 75 165 C65 115 110 80 160 60Z"
-            fill="url(#orb2)"
-            opacity="0.7"
+            d="M95 95 C70 145 70 215 115 255 C150 285 215 280 240 240 C260 208 245 175 215 175 C190 175 185 200 200 215 C212 227 232 222 235 205"
+            fill="none"
+            stroke="url(#ribbonShade)"
+            strokeWidth="34"
+            strokeLinecap="round"
+            opacity="0.6"
           />
           <path
-            d="M100 80 Q160 20 220 80 Q260 120 220 170 Q180 210 160 190 Q140 170 120 160 Q80 140 100 80Z"
-            fill="rgba(180,160,255,0.35)"
-            filter="url(#orbGlow)"
+            d="M205 70 C245 90 270 140 255 200 C238 268 170 300 120 280 C85 266 78 232 100 215 C120 200 140 218 132 235"
+            fill="none"
+            stroke="url(#ribbonIris)"
+            strokeWidth="42"
+            strokeLinecap="round"
+            filter="url(#ribbonShadow)"
+            opacity="0.35"
+            transform="translate(4 8)"
           />
           <path
-            d="M200 200 Q240 230 200 260 Q160 290 120 260 Q80 230 120 200 Q150 185 160 195 Q170 205 200 200Z"
-            fill="rgba(100,200,255,0.3)"
-            filter="url(#orbGlow)"
+            d="M205 70 C245 90 270 140 255 200 C238 268 170 300 120 280 C85 266 78 232 100 215 C120 200 140 218 132 235"
+            fill="none"
+            stroke="url(#ribbonIris)"
+            strokeWidth="42"
+            strokeLinecap="round"
           />
-          <ellipse
-            cx="130"
-            cy="110"
-            rx="30"
-            ry="20"
-            fill="rgba(255,255,255,0.5)"
-            opacity="0.7"
-            style={{ filter: 'blur(6px)' }}
+          <path
+            d="M205 70 C245 90 270 140 255 200 C238 268 170 300 120 280 C85 266 78 232 100 215 C120 200 140 218 132 235"
+            fill="none"
+            stroke="url(#ribbonShade)"
+            strokeWidth="42"
+            strokeLinecap="round"
+            opacity="0.5"
+          />
+          <path
+            d="M210 80 C240 100 258 140 248 188"
+            fill="none"
+            stroke="url(#ribbonHi)"
+            strokeWidth="14"
+            strokeLinecap="round"
+          />
+          <path
+            d="M198 62 C212 48 232 50 244 60 C232 56 218 60 208 72Z"
+            fill="url(#ribbonIris)"
+            opacity="0.9"
           />
         </svg>
       </div>
@@ -157,6 +189,14 @@ export function Contact() {
           </button>
         </label>
       </form>
+
+      <div className="contact-footer container reveal reveal-delay-1">
+        <div className="contact-footer-center">
+          <p>Política de Privacidad · Política de Cookies</p>
+          <p>© 2023 All rights reserved.</p>
+        </div>
+        <p className="contact-footer-loc">Santiago de Chile, Chile.</p>
+      </div>
     </section>
   );
 }
