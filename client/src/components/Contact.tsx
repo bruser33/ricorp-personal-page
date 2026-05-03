@@ -52,7 +52,7 @@ export function Contact() {
           </span>
         ))}
         {rightLines.map((l, i) => (
-          <span key={`r-${i}`} style={{ top: `${50 + i * 7}%`, right: '0%' }}>
+          <span key={`r-${i}`} style={{ top: `${44 + i * 6.5}%`, right: '1.5%' }}>
             {l}
           </span>
         ))}
@@ -70,19 +70,19 @@ export function Contact() {
               <stop offset="75%" stopColor="#C8DFFF" />
               <stop offset="100%" stopColor="#A8C0FF" />
             </linearGradient>
-            <linearGradient id="ribbonIris2" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#C9B8FF" />
-              <stop offset="40%" stopColor="#E4C8FF" />
-              <stop offset="70%" stopColor="#FFC4DC" />
-              <stop offset="100%" stopColor="#B8D4FF" />
+            <linearGradient id="ribbonIris2" x1="100%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor="#E4D0FF" />
+              <stop offset="35%" stopColor="#FFD8E8" />
+              <stop offset="70%" stopColor="#D8C4FF" />
+              <stop offset="100%" stopColor="#B8C8FF" />
             </linearGradient>
             <linearGradient id="ribbonShade" x1="0%" y1="0%" x2="100%" y2="100%">
               <stop offset="0%" stopColor="#8268B8" stopOpacity="0" />
-              <stop offset="55%" stopColor="#5B4380" stopOpacity="0.4" />
-              <stop offset="100%" stopColor="#3A2A60" stopOpacity="0.7" />
+              <stop offset="55%" stopColor="#5B4380" stopOpacity="0.42" />
+              <stop offset="100%" stopColor="#3A2A60" stopOpacity="0.72" />
             </linearGradient>
             <linearGradient id="ribbonHi" x1="20%" y1="15%" x2="55%" y2="65%">
-              <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.85" />
+              <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.9" />
               <stop offset="60%" stopColor="#FFFFFF" stopOpacity="0.15" />
               <stop offset="100%" stopColor="#FFFFFF" stopOpacity="0" />
             </linearGradient>
@@ -95,89 +95,129 @@ export function Contact() {
               <feGaussianBlur stdDeviation="8" />
             </filter>
           </defs>
-          {/* ambient glow */}
+
+          {/* ambient violet glow underneath */}
           <ellipse cx="160" cy="200" rx="155" ry="135" fill="url(#ribbonGlow)" />
 
-          {/* back band — curls behind */}
+          {/* === RIBBON A (back outer band, drawn first/back layer) === */}
+          {/* Drop shadow under outer band */}
           <path
-            d="M85 110 C55 160 55 230 105 270 C150 305 220 295 245 250 C265 215 245 175 210 175 C180 175 175 205 195 220 C215 232 240 225 245 200"
+            d="M225 55 C285 80 305 145 285 210 C260 285 175 320 105 290 C55 268 35 215 55 165 C75 115 130 95 175 110"
             fill="none"
-            stroke="url(#ribbonIris)"
-            strokeWidth="46"
-            strokeLinecap="round"
-            opacity="0.95"
-          />
-          <path
-            d="M85 110 C55 160 55 230 105 270 C150 305 220 295 245 250 C265 215 245 175 210 175 C180 175 175 205 195 220 C215 232 240 225 245 200"
-            fill="none"
-            stroke="url(#ribbonShade)"
-            strokeWidth="46"
-            strokeLinecap="round"
-            opacity="0.55"
-          />
-
-          {/* drop shadow under front band */}
-          <path
-            d="M215 60 C260 82 290 138 270 205 C248 280 175 312 115 290 C75 274 65 235 92 215 C115 198 145 220 130 240"
-            fill="none"
-            stroke="url(#ribbonIris)"
-            strokeWidth="54"
+            stroke="#3A2A60"
+            strokeWidth="50"
             strokeLinecap="round"
             filter="url(#ribbonShadow)"
-            opacity="0.32"
-            transform="translate(6 12)"
+            opacity="0.45"
+            transform="translate(6 14)"
           />
-
-          {/* front band — main sweep */}
+          {/* Outer band base */}
           <path
-            d="M215 60 C260 82 290 138 270 205 C248 280 175 312 115 290 C75 274 65 235 92 215 C115 198 145 220 130 240"
+            d="M225 55 C285 80 305 145 285 210 C260 285 175 320 105 290 C55 268 35 215 55 165 C75 115 130 95 175 110"
             fill="none"
-            stroke="url(#ribbonIris2)"
-            strokeWidth="54"
+            stroke="url(#ribbonIris)"
+            strokeWidth="50"
             strokeLinecap="round"
           />
+          {/* Outer band shading (darker on lower-right curl) */}
           <path
-            d="M215 60 C260 82 290 138 270 205 C248 280 175 312 115 290 C75 274 65 235 92 215 C115 198 145 220 130 240"
+            d="M225 55 C285 80 305 145 285 210 C260 285 175 320 105 290 C55 268 35 215 55 165 C75 115 130 95 175 110"
             fill="none"
             stroke="url(#ribbonShade)"
-            strokeWidth="54"
+            strokeWidth="50"
             strokeLinecap="round"
-            opacity="0.45"
+            opacity="0.5"
           />
 
-          {/* specular highlight on top-front lobe */}
+          {/* === RIBBON B (inner band, crosses over outer at center, under at bottom) === */}
+          {/* Inner band base — a smaller loop tilted across the outer */}
           <path
-            d="M218 68 C254 90 278 138 264 195"
+            d="M85 175 C105 130 175 130 215 165 C255 200 240 260 195 270 C150 280 120 245 130 210 C137 185 165 178 180 195"
+            fill="none"
+            stroke="url(#ribbonIris2)"
+            strokeWidth="42"
+            strokeLinecap="round"
+          />
+          {/* Inner band shading */}
+          <path
+            d="M85 175 C105 130 175 130 215 165 C255 200 240 260 195 270 C150 280 120 245 130 210 C137 185 165 178 180 195"
+            fill="none"
+            stroke="url(#ribbonShade)"
+            strokeWidth="42"
+            strokeLinecap="round"
+            opacity="0.5"
+          />
+
+          {/* === Re-paint top section of OUTER band so it appears over inner at top === */}
+          <path
+            d="M175 110 C200 105 220 80 225 55 C268 70 295 110 295 155"
+            fill="none"
+            stroke="url(#ribbonIris)"
+            strokeWidth="50"
+            strokeLinecap="round"
+          />
+          <path
+            d="M175 110 C200 105 220 80 225 55 C268 70 295 110 295 155"
+            fill="none"
+            stroke="url(#ribbonShade)"
+            strokeWidth="50"
+            strokeLinecap="round"
+            opacity="0.4"
+          />
+
+          {/* === Specular highlights to reinforce 3D feel === */}
+          {/* Top-right outer band shine */}
+          <path
+            d="M232 65 C268 88 290 122 290 158"
             fill="none"
             stroke="url(#ribbonHi)"
             strokeWidth="20"
             strokeLinecap="round"
           />
           <path
-            d="M225 78 C246 92 258 122 252 158"
+            d="M240 75 C264 92 280 118 282 145"
             fill="none"
             stroke="#FFFFFF"
             strokeWidth="6"
             strokeLinecap="round"
-            opacity="0.55"
+            opacity="0.6"
+          />
+          {/* Inner band shine on top arc */}
+          <path
+            d="M115 168 C140 145 175 142 200 155"
+            fill="none"
+            stroke="url(#ribbonHi)"
+            strokeWidth="14"
+            strokeLinecap="round"
+            opacity="0.7"
           />
 
-          {/* top tail flick */}
+          {/* Crossing crease (subtle dark line where outer goes over inner) */}
           <path
-            d="M205 50 C220 32 245 32 258 44 C246 40 228 46 215 60Z"
+            d="M165 110 C175 130 180 150 178 165"
+            fill="none"
+            stroke="#3A2A60"
+            strokeWidth="3"
+            strokeLinecap="round"
+            opacity="0.35"
+          />
+
+          {/* Top-right tail flick */}
+          <path
+            d="M218 48 C232 28 258 28 270 42 C258 38 240 44 226 60Z"
             fill="url(#ribbonIris)"
             opacity="0.95"
           />
 
-          {/* small inner-curl highlight */}
+          {/* Inner-curl center highlight */}
           <ellipse
-            cx="195"
+            cx="160"
             cy="220"
-            rx="12"
+            rx="14"
             ry="6"
             fill="#FFFFFF"
-            opacity="0.4"
-            transform="rotate(-15 195 220)"
+            opacity="0.35"
+            transform="rotate(-12 160 220)"
           />
         </svg>
       </div>
