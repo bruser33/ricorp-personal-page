@@ -43,8 +43,8 @@
 }
 
 .nav-desktop a {
-  transition: opacity .2s;
-  color: #e3e3e3;
+  transition: opacity var(--dur-hover) var(--ease-figma-out);
+  color: var(--fg);
 }
 
 .nav-desktop a:hover { opacity: 0.7; }

@@ -1,18 +1,51 @@
 :root {
-  --bg: #121115;
-  --bg-elev: #1a1922;
-  --bg-card: #1e1d28;
-  --fg: #e3e3e3;
-  --fg-muted: #a8a8b3;
-  --fg-dim: #6c6c78;
-  --grad-from: #343cff;
-  --grad-to: #994a7b;
-  --grad-mid: #6e44a4;
+  /* Color tokens — extracted from Ricorp_D-components Copy via Figma MCP.
+     Usage counts in comments show how often each color appears in the source. */
+  --fg: #e3e3e3;              /* primary text (used 116x) */
+  --fg-secondary: #d0d0d0;    /* secondary surface (70x) */
+  --fg-tertiary: #d9d9d9;     /* dot indicators inactive (40x) */
+  --fg-muted: #949494;        /* muted text (8x) */
+  --fg-dim: #6c6c78;          /* legacy — kept for components still using it */
+
+  --bg: #121115;              /* near-black background (11x) */
+  --bg-elev: #161616;         /* deep dark (2x) */
+  --bg-card: #28282e;         /* dark surface (7x) */
+  --bg-card-overlay: #2f2f2f85;
+  --bg-overlay-20: #26262633; /* dark overlay 20% */
+  --bg-overlay-10: #2e2e2e1a; /* dark overlay 10% */
+
+  --accent-blue-active: #5158fc;   /* active dot indicator + accent */
+  --accent-blue-bright: #343cff;   /* gradient start */
+  --accent-magenta: #994a7b;       /* gradient end */
+  --accent-green: #0cb870;         /* sent state / success */
+  --grad-mid: #6e44a4;             /* derived midpoint */
+
+  --ambient-green: #67960c33;
+  --ambient-warm: #b8840033;
+  --ambient-green-solid: #67960c;
+  --ambient-warm-solid: #b88400;
+
+  /* Backwards-compat aliases */
+  --grad-from: var(--accent-blue-bright);
+  --grad-to: var(--accent-magenta);
   --gradient: linear-gradient(180deg, var(--grad-from) 0%, var(--grad-to) 100%);
   --gradient-text: linear-gradient(135deg, var(--grad-from) 0%, var(--grad-mid) 50%, var(--grad-to) 100%);
   --border: rgba(255, 255, 255, 0.08);
   --maxw: 1280px;
   --header-h: 80px;
+
+  /* Smart Animate easing curves — extracted from Figma prototype transitions.
+     ease_out is Figma's default; the custom_bezier is from one specific transition. */
+  --ease-figma-out: cubic-bezier(0, 0, 0.2, 1);
+  --ease-figma-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-figma-custom: cubic-bezier(0.558, 0.008, 0.138, 1.008);
+
+  /* Smart Animate durations from prototype */
+  --dur-hover: 300ms;          /* nav link hover */
+  --dur-section-snap: 500ms;   /* section transitions (go to contact) */
+  --dur-project-enter: 800ms;  /* project 1 enter */
+  --dur-vertical-scroll: 1200ms;
+  --dur-carousel: 2400ms;      /* horizontal carousel slide */
 
   font-synthesis: none;
   -webkit-font-smoothing: antialiased;
@@ -107,13 +140,15 @@ h1, h2, h3, h4 {
   .container { padding: 0 20px; }
 }
 
-/* Smart Animate-style scroll reveals (Figma cubic-bezier) */
+/* Reveal animations using REAL Smart Animate timings extracted from Figma:
+   project_1_enter = 800ms ease_out, vertical_scroll = 1200ms ease_out.
+   Reveal-on-scroll is the closest CSS analog. */
 .reveal {
   opacity: 0;
   transform: translateY(36px);
   transition:
-    opacity 1.5s cubic-bezier(0.7, 0.01, 0.23, 1.01),
-    transform 1.5s cubic-bezier(0.7, 0.01, 0.23, 1.01);
+    opacity var(--dur-vertical-scroll) var(--ease-figma-out),
+    transform var(--dur-vertical-scroll) var(--ease-figma-out);
   will-change: opacity, transform;
 }
 
@@ -124,7 +159,7 @@ h1, h2, h3, h4 {
 
 .reveal-fade {
   opacity: 0;
-  transition: opacity 1.8s cubic-bezier(0.7, 0.01, 0.23, 1.01);
+  transition: opacity var(--dur-vertical-scroll) var(--ease-figma-out);
   will-change: opacity;
 }
 
@@ -136,8 +171,8 @@ h1, h2, h3, h4 {
   opacity: 0;
   transform: scale(0.92);
   transition:
-    opacity 1.6s cubic-bezier(0.7, 0.01, 0.23, 1.01),
-    transform 1.6s cubic-bezier(0.7, 0.01, 0.23, 1.01);
+    opacity var(--dur-project-enter) var(--ease-figma-custom),
+    transform var(--dur-project-enter) var(--ease-figma-custom);
   will-change: opacity, transform;
 }
 

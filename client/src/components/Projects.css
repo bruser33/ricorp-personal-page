@@ -21,7 +21,8 @@
 .carousel-track {
   display: flex;
   gap: 32px;
-  transition: transform 800ms cubic-bezier(0.7, 0.01, 0.23, 1.01);
+  /* Real Smart Animate carousel slide: 2400ms ease_out from Figma prototype */
+  transition: transform var(--dur-carousel) var(--ease-figma-out);
   will-change: transform;
 }
 
@@ -130,17 +131,19 @@
 }
 
 .carousel-dot {
-  width: 8px;
-  height: 8px;
+  width: 13px;
+  height: 13px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.2);
+  /* Inactive dot: #d9d9d9 at 20% opacity (from Figma S1 in inactive state) */
+  background: rgba(217, 217, 217, 0.2);
   padding: 0;
   border: none;
-  transition: background 200ms, transform 200ms;
+  transition: background var(--dur-hover) var(--ease-figma-out);
 }
 
 .carousel-dot.is-active {
-  background: var(--grad-from);
+  /* Active dot: #5158fc full opacity (from Figma S-dot color swap) */
+  background: var(--accent-blue-active);
 }
 
 @keyframes projectModalIn {

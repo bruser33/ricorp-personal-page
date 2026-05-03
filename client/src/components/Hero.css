@@ -41,19 +41,33 @@
   line-height: 1.257;
   font-weight: 600;
   margin-top: clamp(16px, 1.46vw, 28px);
-  background: linear-gradient(90deg, #343cff 0%, #994a7b 100%);
+  background: linear-gradient(90deg, var(--accent-blue-bright) 0%, var(--accent-magenta) 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
   white-space: pre-line;
+  /* Smart Animate from Figma: subtitle slides -99px LEFT and fades opacity 1→0
+     when transitioning Home start → Home Enter (800ms ease_out).
+     We bind the same effect to scroll past hero. */
+  transition:
+    opacity var(--dur-project-enter) var(--ease-figma-out),
+    transform var(--dur-project-enter) var(--ease-figma-out);
+}
+
+/* When user scrolls beyond hero, subtitle replicates Figma's
+   "Software {development}" delta: -99px x, opacity 1→0. */
+.hero.hero-scrolled .hero-sub {
+  opacity: 0;
+  transform: translateX(-99px);
 }
 
 .hero-text {
   opacity: 0;
   transform: translateY(36px);
+  /* Smart Animate values from Figma: project_enter 800ms ease_out */
   transition:
-    opacity 1.5s cubic-bezier(0.7, 0.01, 0.23, 1.01),
-    transform 1.5s cubic-bezier(0.7, 0.01, 0.23, 1.01);
+    opacity var(--dur-project-enter) var(--ease-figma-out),
+    transform var(--dur-project-enter) var(--ease-figma-out);
   transition-delay: 0.2s;
 }
 
