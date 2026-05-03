@@ -90,6 +90,58 @@ body {
     var(--bg);
   background-attachment: fixed;
   position: relative;
+
+  /* Shared "Blue Light" blob — single fixed pseudo that morphs across sections.
+     Scale stops extracted from Ricorp_animation Smart Animate deltas:
+     Hero 1 → Projects 2.27 → News 5.7 → Contact 0.18 (the literal scale_factor
+     values from Pair B/D/E in the Figma keyframe deltas). Driven by
+     --blob-scale and --blob-y custom props set via scroll listener. */
+  --blob-scale: 1;
+  --blob-y: 0px;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  left: 8%;
+  bottom: 8%;
+  width: 600px;
+  height: 500px;
+  background: radial-gradient(
+    ellipse 60% 70% at 50% 50%,
+    rgba(81, 88, 252, 0.32) 0%,
+    rgba(153, 74, 123, 0.18) 38%,
+    transparent 72%
+  );
+  filter: blur(40px);
+  pointer-events: none;
+  z-index: 0;
+  transform-origin: 50% 50%;
+  transform: translate3d(0, var(--blob-y), 0) scale(var(--blob-scale));
+  transition:
+    transform var(--dur-vertical-scroll) var(--ease-figma-out);
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body::before { transition: none; }
+}
+
+/* Native scroll-timeline progressive enhancement — Chrome/Edge 115+
+   Falls back gracefully to JS-driven --blob-scale/--blob-y. */
+@supports (animation-timeline: scroll()) {
+  @keyframes blob-morph {
+    0%   { transform: translate3d(0, 0, 0) scale(1); }
+    25%  { transform: translate3d(0, 0, 0) scale(1); }
+    50%  { transform: translate3d(0, -40vh, 0) scale(2.27); }
+    80%  { transform: translate3d(0, -180vh, 0) scale(5.7); }
+    100% { transform: translate3d(0, -50vh, 0) scale(0.18); }
+  }
+  body::before {
+    animation: blob-morph linear both;
+    animation-timeline: scroll(root block);
+    transition: none;
+  }
 }
 
 body::after {

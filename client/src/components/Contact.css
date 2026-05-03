@@ -51,7 +51,16 @@
   z-index: 1;
   pointer-events: none;
   filter: drop-shadow(0 0 40px rgba(153, 74, 123, 0.4));
-  animation: orb-float 8s ease-in-out infinite;
+  /* Smart Animate Pair E (News End → Contact End): blob scales 0.18 → 1
+     as the section enters view. Then orb-float continues idle. */
+  animation:
+    orb-entrance var(--dur-vertical-scroll) var(--ease-figma-out) both,
+    orb-float 8s ease-in-out var(--dur-vertical-scroll) infinite;
+}
+
+@keyframes orb-entrance {
+  from { transform: scale(0.18); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
 }
 
 .iridescent-svg {
@@ -77,7 +86,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .contact-orb-3d { animation: none; }
+  .contact-orb-3d { animation: none; transform: scale(1); opacity: 1; }
 }
 
 .contact-inner {
@@ -97,6 +106,24 @@
   line-height: 1.0;
   letter-spacing: -0.02em;
 }
+
+/* Smart Animate Pair E entrance: headline slide-up + fade. */
+.contact-headline.reveal { transform: translateY(60px); }
+.contact-headline.reveal.visible { transform: translateY(0); }
+
+.contact-sub {
+  opacity: 0;
+  transform: translateY(24px);
+  transition:
+    opacity var(--dur-vertical-scroll) var(--ease-figma-out) 200ms,
+    transform var(--dur-vertical-scroll) var(--ease-figma-out) 200ms;
+}
+.contact-headline.reveal.visible .contact-sub {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.contact-form.reveal { transition-delay: 600ms; }
 
 .contact-headline h2 span {
   display: block;

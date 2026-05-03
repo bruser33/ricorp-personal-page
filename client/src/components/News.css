@@ -4,6 +4,9 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
 }
 
 .news-feature {
@@ -132,4 +135,49 @@
   .news-feature-overlay { padding: 16px; }
   .news-feature-overlay h3 { font-size: 24px; }
   .news-feature-overlay .kicker { font-size: 24px; }
+}
+
+/* News entrance — Smart Animate from Figma Pair D (Project 6 → News End):
+   1200ms ease_out, featured first, grid cards stagger 100ms. */
+.news-feature.reveal-scale {
+  transition:
+    opacity var(--dur-vertical-scroll) var(--ease-figma-out),
+    transform var(--dur-vertical-scroll) var(--ease-figma-out);
+  transition-delay: 0s;
+}
+
+.news-card.reveal {
+  transition:
+    opacity var(--dur-vertical-scroll) var(--ease-figma-out),
+    transform var(--dur-vertical-scroll) var(--ease-figma-out);
+}
+
+.news-grid .news-card.reveal-delay-1 { transition-delay: 120ms; }
+.news-grid .news-card.reveal-delay-2 { transition-delay: 220ms; }
+.news-grid .news-card.reveal-delay-3 { transition-delay: 320ms; }
+.news-grid .news-card.reveal-delay-4 { transition-delay: 420ms; }
+.news-grid .news-card.reveal-delay-5 { transition-delay: 520ms; }
+
+.news-cta-wrap {
+  opacity: 0;
+  transform: translateY(24px);
+  transition:
+    opacity var(--dur-vertical-scroll) var(--ease-figma-out) 400ms,
+    transform var(--dur-vertical-scroll) var(--ease-figma-out) 400ms;
+  will-change: opacity, transform;
+}
+
+.news:has(.news-feature.reveal-scale.visible) .news-cta-wrap,
+.news:has(.news-card.reveal.visible) .news-cta-wrap {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .news-cta-wrap { opacity: 1 !important; transform: none !important; transition: none !important; }
+  .news-grid .news-card.reveal-delay-1,
+  .news-grid .news-card.reveal-delay-2,
+  .news-grid .news-card.reveal-delay-3,
+  .news-grid .news-card.reveal-delay-4,
+  .news-grid .news-card.reveal-delay-5 { transition-delay: 0s; }
 }
