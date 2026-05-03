@@ -35,7 +35,12 @@
   pointer-events: none;
   user-select: none;
   z-index: 0;
+  /* Phase B: code-rain fades in after headline + orb begin */
+  opacity: 0;
+  transition: opacity 700ms var(--ease-figma-out) 700ms;
 }
+
+.contact-bg.reveal.visible { opacity: 1; }
 
 .contact-bg span {
   position: absolute;
@@ -59,27 +64,27 @@
 
 .contact-orb-3d {
   position: absolute;
-  right: clamp(40px, 4.5vw, 80px);
-  top: clamp(50px, 4vw, 80px);
-  width: clamp(220px, 17vw, 290px);
+  right: clamp(20px, 3vw, 60px);
+  top: clamp(40px, 3vw, 70px);
+  width: clamp(260px, 20vw, 360px);
   aspect-ratio: 320 / 360;
   z-index: 1;
   pointer-events: none;
-  filter: drop-shadow(0 12px 28px rgba(123, 95, 168, 0.45));
-  /* Reveal-gated entrance: orb stays hidden until section enters viewport
-     and reveal-delay-2 fires (Phase B of staged entrance, ~200ms after
-     headline lands). Without `.reveal.visible`, base state is invisible. */
+  filter: drop-shadow(0 18px 38px rgba(180, 156, 255, 0.35));
+  /* Phase B entrance — orb fades + scales after headline lands. The 800ms
+     delay creates a visible Frame 1 (headline only) → Frame 2 (orb appears)
+     beat matching the Figma Smart Animate cascade. */
   opacity: 0;
   transform: scale(0.18);
   transition:
-    opacity var(--dur-vertical-scroll) var(--ease-figma-out),
-    transform var(--dur-vertical-scroll) var(--ease-figma-out);
+    opacity var(--dur-vertical-scroll) var(--ease-figma-out) 800ms,
+    transform var(--dur-vertical-scroll) var(--ease-figma-out) 800ms;
 }
 
 .contact-orb-3d.reveal.visible {
   opacity: 1;
   transform: scale(1);
-  animation: orb-float 14s ease-in-out var(--dur-vertical-scroll) infinite;
+  animation: orb-float 14s ease-in-out calc(var(--dur-vertical-scroll) + 800ms) infinite;
 }
 
 .iridescent-svg {
@@ -147,7 +152,7 @@
   transform: translateY(0);
 }
 
-.contact-form.reveal { transition-delay: 600ms; }
+.contact-form.reveal { transition-delay: 1000ms; }
 
 .contact-headline h2 span {
   display: block;
