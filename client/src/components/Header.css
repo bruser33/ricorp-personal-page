@@ -24,6 +24,12 @@
   color: var(--fg);
 }
 
+.brand-r {
+  display: inline-block;
+  transform: scaleX(-1);
+  font-style: italic;
+}
+
 .lang {
   font-size: clamp(16px, 1.04vw, 20px);
   line-height: 1.257;

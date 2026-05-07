@@ -13,13 +13,15 @@ export function Header() {
             className="lang"
             onClick={() => setLang(lang === 'eng' ? 'esp' : 'eng')}
           >
-            {lang === 'eng' ? 'esp' : 'eng'}
+            {lang}
           </button>
-          <a href="#home" className="brand">RICORP</a>
+          <a href="#home" className="brand">
+            <span className="brand-r">R</span>ICORP
+          </a>
           <nav className="nav-desktop">
-            <a href="#about">About</a>
-            <a href="#news">NEWS</a>
-            <a href="#contact">CONTACT</a>
+            <a href="#contact">contact</a>
+            <a href="#news">news</a>
+            <a href="#about">about</a>
           </nav>
           <button
             className="hamburger"

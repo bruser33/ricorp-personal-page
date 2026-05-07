@@ -161,7 +161,7 @@ export function Projects() {
           <div
             className="carousel-track"
             style={{
-              transform: `translateX(calc(50% - 20vw - ${currentSlide} * (40vw + 32px)))`,
+              transform: `translateX(calc(50% - 28.125vw - ${currentSlide} * (56.25vw + 32px)))`,
             }}
           >
             {projects.map((p, i) => {

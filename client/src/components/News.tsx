@@ -6,7 +6,6 @@ type Item = {
   title: string;
   image: string;
   kicker?: string;
-  featured?: boolean;
   date?: string;
 };
 
@@ -17,7 +16,6 @@ const fallback: Item[] = [
     kicker: 'Análisis:',
     title: 'AMD Radeon RX 7900 XTX',
     image: base + 'news-featured.png',
-    featured: true,
     date: '14 Dic 2022',
   },
   {
@@ -70,58 +68,50 @@ export function News() {
       .catch(() => {});
   }, []);
 
-  const featured = items.find((i) => i.featured) ?? items[0];
-  const rest = items.filter((i) => i.id !== featured.id);
-
   return (
     <section id="news" className="news">
       <div className="container">
-        <article className="news-feature reveal-scale">
-          <img
-            src={featured.image}
-            alt={featured.title.replace(/\n/g, ' ')}
-            onError={(e) => {
-              const img = e.currentTarget as HTMLImageElement;
-              img.style.display = 'none';
-              img.parentElement?.classList.add('media-fallback');
-            }}
-          />
-          <div className="news-feature-overlay">
-            {featured.kicker && <span className="kicker">{featured.kicker}</span>}
-            <h3>{featured.title}</h3>
-          </div>
-        </article>
-        <div className="news-grid">
-          {rest.map((it, i) => (
-            <article
-              key={it.id}
-              className={`news-card reveal reveal-delay-${Math.min(i + 1, 5)}`}
-            >
-              <div className="news-card-media">
-                <img
-                  src={it.image}
-                  alt={it.title.replace(/\n/g, ' ')}
-                  onError={(e) => {
-                    const img = e.currentTarget as HTMLImageElement;
-                    img.style.display = 'none';
-                    img.parentElement?.classList.add('media-fallback');
-                  }}
-                />
-              </div>
-              {it.date && <p className="card-date">{it.date}</p>}
-              {it.kicker && <p className="card-kicker">{it.kicker}</p>}
-              <h4>
-                {it.title.split('\n').map((line, idx, arr) => (
-                  <span key={idx}>
-                    {line}
-                    {idx < arr.length - 1 && <br />}
-                  </span>
-                ))}
-              </h4>
-            </article>
-          ))}
-        </div>
-        <div className="news-cta-wrap">
+        <ol className="news-timeline">
+          {items.map((it, i) => {
+            const side = i % 2 === 0 ? 'right' : 'left';
+            return (
+              <li
+                key={it.id}
+                className={`news-row news-row--${side} reveal reveal-delay-${Math.min(i + 1, 5)}`}
+              >
+                <div className="news-row__text">
+                  {it.kicker && <p className="news-row__kicker">{it.kicker}</p>}
+                  <h4 className="news-row__title">
+                    {it.title.split('\n').map((line, idx, arr) => (
+                      <span key={idx}>
+                        {line}
+                        {idx < arr.length - 1 && <br />}
+                      </span>
+                    ))}
+                  </h4>
+                </div>
+                <div className="news-row__axis" aria-hidden="true">
+                  <span className="news-row__dot" />
+                  {it.date && <span className="news-row__date">{it.date}</span>}
+                </div>
+                <div className="news-row__media">
+                  <img
+                    src={it.image}
+                    alt={it.title.replace(/\n/g, ' ')}
+                    onError={(e) => {
+                      const img = e.currentTarget as HTMLImageElement;
+                      img.style.display = 'none';
+                      img.parentElement?.classList.add('media-fallback');
+                    }}
+                  />
+                </div>
+              </li>
+            );
+          })}
+        </ol>
+
+        <div className="news-cta-wrap reveal reveal-fade">
+          <span className="news-axis-arrow" aria-hidden="true">▼</span>
           <a href="#news" className="news-cta">Ver todos</a>
         </div>
       </div>

@@ -82,10 +82,7 @@
   line-height: 1.257;
   font-weight: 600;
   margin-top: clamp(16px, 1.46vw, 28px);
-  background: linear-gradient(90deg, var(--accent-blue-bright) 0%, var(--accent-magenta) 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  color: var(--accent-blue-active);
   white-space: pre-line;
   /* Smart Animate from Figma: subtitle slides -99px LEFT and fades opacity 1→0
      when transitioning Home start → Home Enter (800ms ease_out).

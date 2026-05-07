@@ -31,17 +31,17 @@
      - Active slot: w=847, y=72 (full size, top)
      - Side slots:  w=703, y=159 (83% size, pushed down 87/2188 = ~4%)
      scale(703/847) = 0.83 reproduces the depth illusion exactly. */
-  flex: 0 0 44.1vw;
-  max-width: 847px;
+  flex: 0 0 56.25vw;
+  max-width: 1080px;
   aspect-ratio: 847 / 509;
   border-radius: 20px;
   overflow: hidden;
   position: relative;
   cursor: pointer;
   background: var(--bg-card);
-  transform: scale(0.83) translateY(4%);
-  opacity: 0.85;
-  transform-origin: 50% 0%;
+  transform: scale(0.83);
+  opacity: 0.4;
+  transform-origin: 50% 50%;
   transition:
     transform var(--dur-carousel) var(--ease-figma-out),
     opacity var(--dur-carousel) var(--ease-figma-out);
@@ -140,7 +140,7 @@
   height: 13px;
   border-radius: 999px;
   /* Inactive dot: #d9d9d9 at 20% opacity (from Figma S1 in inactive state) */
-  background: rgba(217, 217, 217, 0.2);
+  background: rgba(217, 217, 217, 0.3);
   padding: 0;
   border: none;
   transition: background var(--dur-hover) var(--ease-figma-out);
@@ -175,7 +175,7 @@
   --from-h: 0px;
   max-width: 1280px;
   margin: 0 auto;
-  border-radius: 16px;
+  border-radius: 24px;
   overflow: hidden;
   position: relative;
   transform-origin: top left;
@@ -196,7 +196,7 @@
   100% {
     transform: translate(0, 0) scale(1);
     opacity: 1;
-    border-radius: 16px;
+    border-radius: 24px;
   }
 }
 
@@ -266,7 +266,7 @@
   position: relative;
   width: 100%;
   aspect-ratio: 3 / 2;
-  border-radius: 16px 16px 0 0;
+  border-radius: 24px 24px 0 0;
   overflow: hidden;
 }
 
@@ -300,9 +300,7 @@
 .project-modal-card {
   background: var(--bg-card);
   padding: clamp(32px, 4vw, 64px);
-  border-radius: 0 0 16px 16px;
-  border-top: 1px solid transparent;
-  border-image: linear-gradient(90deg, var(--grad-from), var(--grad-to)) 1;
+  border-radius: 0 0 24px 24px;
 }
 
 .project-modal-text {

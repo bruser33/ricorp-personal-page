@@ -7,7 +7,7 @@ export function Footer() {
         <div className="footer-center">
           <p className="footer-links">
             <a href="#privacy">Política de Privacidad</a>
-            <span> - </span>
+            <span> · </span>
             <a href="#cookies">Política de Cookies</a>
           </p>
           <p className="footer-meta">© 2023 All rights reserved.</p>
