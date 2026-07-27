@@ -6,6 +6,24 @@
   height: var(--header-h);
   z-index: 50;
   background: transparent;
+  border-bottom: 1px solid transparent;
+  transition:
+    background var(--dur-hover) var(--ease-figma-out),
+    backdrop-filter var(--dur-hover) var(--ease-figma-out),
+    border-color var(--dur-hover) var(--ease-figma-out);
+}
+
+/* On scroll the logo bar fades into a frosted translucent-white glass panel
+   (Figma header-on-scroll state). Blur lets the content behind show through
+   softly; a hairline bottom border separates it from the page. */
+.site-header.scrolled {
+  background: rgba(255, 255, 255, 0.07);
+  /* The unprefixed property must survive minification — current Chromium
+     dropped support for -webkit-backdrop-filter. cssTarget in vite.config
+     keeps `backdrop-filter` in the built CSS. */
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  border-bottom-color: rgba(255, 255, 255, 0.10);
 }
 
 .header-inner {
@@ -26,8 +44,6 @@
 
 .brand-r {
   display: inline-block;
-  transform: scaleX(-1);
-  font-style: italic;
 }
 
 .lang {
@@ -74,7 +90,6 @@
     font-size: 26px;
     font-weight: 600;
     line-height: 1;
-    font-style: italic;
   }
   .hamburger-label {
     font-size: 16px;

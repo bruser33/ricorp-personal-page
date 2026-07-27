@@ -60,6 +60,22 @@
   .hero::before { animation: none; opacity: 0.6; transform: none; }
 }
 
+/* TV-static grain over the home — matches the Figma "televisor con estática"
+   texture. Scoped to the hero (section photos below stay clean) and sits above
+   the content (z 2) for the full-screen static look, kept subtle so the
+   headline stays legible. */
+.hero::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  opacity: 0.12;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='hn'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.6 0'/></filter><rect width='100%' height='100%' filter='url(%23hn)'/></svg>");
+  background-size: 140px 140px;
+}
+
 .hero-inner {
   display: grid;
   grid-template-columns: 1fr 1.1fr;
@@ -82,7 +98,17 @@
   line-height: 1.257;
   font-weight: 600;
   margin-top: clamp(16px, 1.46vw, 28px);
-  color: var(--accent-blue-active);
+  /* Figma home subtitle: magenta/violet (left) → electric blue (right),
+     rendered as gradient text (same background-clip effect as Contact sub). */
+  background: linear-gradient(
+    90deg,
+    var(--accent-magenta) 0%,
+    var(--grad-mid) 42%,
+    var(--accent-blue-bright) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
   white-space: pre-line;
   /* Smart Animate from Figma: subtitle slides -99px LEFT and fades opacity 1→0
      when transitioning Home start → Home Enter (800ms ease_out).

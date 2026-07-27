@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useLang } from '../i18n';
 import './Projects.css';
 
 type Project = {
@@ -73,6 +74,7 @@ const projects: Project[] = [
 ];
 
 export function Projects() {
+  const { t } = useLang();
   const [currentSlide, setCurrentSlide] = useState(0);
   const [expandedSlide, setExpandedSlide] = useState<number | null>(null);
   const [originRect, setOriginRect] = useState<DOMRect | null>(null);
@@ -144,7 +146,7 @@ export function Projects() {
           type="button"
           className="carousel-prev"
           onClick={prev}
-          aria-label="Previous project"
+          aria-label={t('projects.prev')}
         >
           <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
             <path
@@ -193,7 +195,7 @@ export function Projects() {
           type="button"
           className="carousel-next"
           onClick={next}
-          aria-label="Next project"
+          aria-label={t('projects.next')}
         >
           <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
             <path

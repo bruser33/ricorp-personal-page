@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useLang } from '../i18n';
 import './News.css';
 
 type Item = {
@@ -55,6 +56,7 @@ const fallback: Item[] = [
 ];
 
 export function News() {
+  const { t } = useLang();
   const [items, setItems] = useState<Item[]>(fallback);
 
   useEffect(() => {
@@ -80,7 +82,11 @@ export function News() {
                 className={`news-row news-row--${side} reveal reveal-delay-${Math.min(i + 1, 5)}`}
               >
                 <div className="news-row__text">
-                  {it.kicker && <p className="news-row__kicker">{it.kicker}</p>}
+                  {it.kicker && (
+                    <p className="news-row__kicker">
+                      {it.kicker === 'Análisis:' ? t('news.analysis') : it.kicker}
+                    </p>
+                  )}
                   <h4 className="news-row__title">
                     {it.title.split('\n').map((line, idx, arr) => (
                       <span key={idx}>
@@ -112,7 +118,7 @@ export function News() {
 
         <div className="news-cta-wrap reveal reveal-fade">
           <span className="news-axis-arrow" aria-hidden="true">▼</span>
-          <a href="#news" className="news-cta">Ver todos</a>
+          <a href="#news" className="news-cta">{t('news.cta')}</a>
         </div>
       </div>
     </section>

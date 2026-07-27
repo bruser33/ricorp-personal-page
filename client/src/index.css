@@ -71,6 +71,11 @@ html, body, #root {
 html {
   scroll-snap-type: y proximity;
   scroll-behavior: smooth;
+  /* Fixed header is 80px; without this, scroll-snap/anchors align #home to
+     the raw viewport top and the browser auto-scrolls down ~80px on load,
+     hiding the top of the hero (portrait pushed up under the header).
+     scroll-padding-top offsets every snap/anchor target by the header. */
+  scroll-padding-top: var(--header-h);
 }
 
 #home, #about, #news, #contact {

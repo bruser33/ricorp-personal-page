@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
+import { useLang } from '../i18n';
 import './Hero.css';
 
 export function Hero({ startAnim }: { startAnim: boolean }) {
+  const { t } = useLang();
   const [scrolled, setScrolled] = useState(false);
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > window.innerHeight * 0.3);
@@ -14,9 +16,16 @@ export function Hero({ startAnim }: { startAnim: boolean }) {
       <div className="container hero-inner">
         <div className="hero-text">
           <h1 className="hero-title">
-            Keep it<br />simple.
+            {t('hero.title')
+              .split('\n')
+              .map((line, i, arr) => (
+                <span key={i}>
+                  {line}
+                  {i < arr.length - 1 && <br />}
+                </span>
+              ))}
           </h1>
-          <p className="hero-sub">{'Software {development}\nand innovation.'}</p>
+          <p className="hero-sub">{t('hero.sub')}</p>
         </div>
         <div className="hero-portrait" aria-hidden="true">
           <img src={import.meta.env.BASE_URL + 'figma-frames/portrait.png'} alt="" />

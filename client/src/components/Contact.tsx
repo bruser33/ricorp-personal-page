@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useLang } from '../i18n';
 import './Contact.css';
 
 const leftLines = [
@@ -25,6 +26,7 @@ const rightLines = [
 ];
 
 export function Contact() {
+  const { t } = useLang();
   const [subject, setSubject] = useState('');
   const [email, setEmail] = useState('');
   const [sent, setSent] = useState(false);
@@ -71,9 +73,10 @@ export function Contact() {
       <div className="container contact-inner">
         <div className="contact-headline reveal">
           <h2>
-            Let's start a new <span>.project</span>
+            {t('contact.titlePre')}
+            <span>{t('contact.titleAccent')}</span>
           </h2>
-          <p className="contact-sub">What are you looking for?</p>
+          <p className="contact-sub">{t('contact.sub')}</p>
         </div>
         <div className="contact-spacer" aria-hidden="true" />
       </div>
@@ -86,7 +89,7 @@ export function Contact() {
         <label className="field">
           <input
             type="text"
-            placeholder="Write here..."
+            placeholder={t('contact.subjectPlaceholder')}
             value={subject}
             onChange={(e) => setSubject(e.target.value)}
             disabled={sent}
@@ -96,7 +99,7 @@ export function Contact() {
         <label className="field-email">
           <input
             type="email"
-            placeholder="Enter your @email..."
+            placeholder={t('contact.emailPlaceholder')}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             disabled={sent}
@@ -107,7 +110,7 @@ export function Contact() {
             className={'submit' + (sent ? ' sent' : '')}
             disabled={sent || !email}
           >
-            <span className="submit-label">{sent ? 'Sent!' : 'Send email'}</span>
+            <span className="submit-label">{sent ? t('contact.sent') : t('contact.send')}</span>
             <svg aria-hidden width="22" height="22" viewBox="0 0 24 24" fill="none">
               <path
                 d="M22 2L11 13M22 2L15 22L11 13L2 9L22 2Z"
@@ -123,10 +126,10 @@ export function Contact() {
 
       <div className="contact-footer container reveal reveal-delay-1">
         <div className="contact-footer-center">
-          <p>Política de Privacidad · Política de Cookies</p>
-          <p>© 2023 All rights reserved.</p>
+          <p>{t('footer.privacy')} · {t('footer.cookies')}</p>
+          <p>{t('footer.rights')}</p>
         </div>
-        <p className="contact-footer-loc">Santiago de Chile, Chile.</p>
+        <p className="contact-footer-loc">{t('footer.loc')}</p>
       </div>
     </section>
   );
