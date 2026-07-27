@@ -13,27 +13,39 @@
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
   height: 100%;
+  position: relative;
+  isolation: isolate;
 }
 
-/* Deliberately NOT a full-width frosted bar (the common pattern). On scroll,
-   only a frosted pill BEHIND the logo lights up; the lang toggle and nav stay
-   floating over the page. Padding is constant so the logo never shifts (keeps
-   the intro center→top handoff aligned). */
 .brand {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 9px 22px;
+}
+
+/* On scroll, a single frosted panel spans from just before the RICORP logo
+   (centre) to the right edge past "about" — a deliberate asymmetric header,
+   NOT the usual full-width bar. "eng" (left) stays floating free. The panel
+   sits behind the text (z -1 within the header-inner stacking context). */
+.header-inner::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 44px;
+  left: calc(50% - 72px);
+  right: -14px;
   border-radius: 999px;
-  border: 1px solid transparent;
   background: transparent;
+  border: 1px solid transparent;
   transition:
     background var(--dur-hover) var(--ease-figma-out),
     backdrop-filter var(--dur-hover) var(--ease-figma-out),
     border-color var(--dur-hover) var(--ease-figma-out);
 }
 
-.site-header.scrolled .brand {
+.site-header.scrolled .header-inner::before {
   background: rgba(255, 255, 255, 0.07);
   -webkit-backdrop-filter: blur(14px);
   backdrop-filter: blur(14px);
