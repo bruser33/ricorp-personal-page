@@ -1,44 +1,63 @@
 .splash {
   position: fixed;
   inset: 0;
-  background: #121115;
   z-index: 9999;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   pointer-events: none;
-  transition: opacity 1s cubic-bezier(0.7, 0.01, 0.23, 1.01);
-  opacity: 1;
 }
 
-.splash.splash-out {
+/* Dark backdrop as its own layer so it can fade out WITHOUT fading the logo
+   (the logo stays put over the header slot during the handoff). */
+.splash::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: #121115;
+  z-index: 0;
+  opacity: 1;
+  transition: opacity 600ms cubic-bezier(0.7, 0.01, 0.23, 1.01);
+}
+.splash.splash-out::before {
   opacity: 0;
 }
 
+/* The travelling logo. Starts centered + large, then animates to the header
+   slot (viewport-centered X, header vertical centre) scaled down to the
+   header logo size — so it lands exactly on the real header logo. */
 .splash-logo {
-  font-size: clamp(28px, 3.6vw, 56px);
-  font-weight: 700;
-  letter-spacing: 0.22em;
-  color: var(--fg);
+  position: fixed;
+  left: 50%;
+  top: 50vh;
+  z-index: 1;
+  /* Fixed height so the scaled-down final size (52 * 0.423 ≈ 22px) matches the
+     header logo exactly at every viewport → seamless handoff. */
+  height: 52px;
+  width: auto;
+  transform: translate(-50%, -50%) scale(1);
   opacity: 0;
-  transform: translateY(8px);
-  transition:
-    opacity 1s cubic-bezier(0.7, 0.01, 0.23, 1.01),
-    transform 1s cubic-bezier(0.7, 0.01, 0.23, 1.01);
+  transition: opacity 700ms cubic-bezier(0.7, 0.01, 0.23, 1.01);
 }
 
-.splash-logo-in {
+.splash-logo.is-in {
   opacity: 1;
-  transform: translateY(0);
+}
+
+.splash-logo.to-top {
+  top: calc(var(--header-h) / 2);
+  transform: translate(-50%, -50%) scale(0.423);
+  transition:
+    top 900ms var(--ease-figma-custom),
+    transform 900ms var(--ease-figma-custom),
+    opacity 700ms cubic-bezier(0.7, 0.01, 0.23, 1.01);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .splash {
+  .splash::before {
     transition: none;
   }
   .splash-logo {
     transition: none;
     opacity: 1;
-    transform: none;
+    top: calc(var(--header-h) / 2);
+    transform: translate(-50%, -50%) scale(0.423);
   }
 }

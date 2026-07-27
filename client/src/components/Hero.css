@@ -70,10 +70,13 @@
   inset: 0;
   z-index: 2;
   pointer-events: none;
-  opacity: 0.12;
-  mix-blend-mode: overlay;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='hn'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.6 0'/></filter><rect width='100%' height='100%' filter='url(%23hn)'/></svg>");
-  background-size: 140px 140px;
+  /* screen blend + white-alpha noise = visible light static specks on the dark
+     hero (overlay was near-invisible against near-black). Matches the Figma
+     "televisor con estática" texture across the whole home. */
+  opacity: 0.5;
+  mix-blend-mode: screen;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='150' height='150'><filter id='hn'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.14 0'/></filter><rect width='100%' height='100%' filter='url(%23hn)'/></svg>");
+  background-size: 150px 150px;
 }
 
 .hero-inner {
@@ -149,8 +152,10 @@
   mask-image: linear-gradient(90deg, transparent 0%, rgba(0,0,0,0.85) 18%, #000 32%, #000 100%);
   -webkit-mask-image: linear-gradient(90deg, transparent 0%, rgba(0,0,0,0.85) 18%, #000 32%, #000 100%);
   opacity: 0;
-  transition: opacity 1.8s cubic-bezier(0.7, 0.01, 0.23, 1.01);
-  transition-delay: 0.4s;
+  /* Face fades in close to the text (video shows them arriving together),
+     not lagging several seconds behind. */
+  transition: opacity 1.2s cubic-bezier(0.7, 0.01, 0.23, 1.01);
+  transition-delay: 0.2s;
 }
 
 .hero.hero-intro .hero-portrait {

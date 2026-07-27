@@ -34,16 +34,17 @@
 }
 
 .brand {
-  letter-spacing: 0.18em;
-  font-weight: 700;
-  font-size: clamp(16px, 1.2vw, 22px);
-  text-align: center;
-  white-space: nowrap;
-  color: var(--fg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.brand-r {
-  display: inline-block;
+/* Custom RICORP wordmark (exported SVG). Height matches the splash logo's
+   final scaled size so the intro center→top handoff is seamless. */
+.brand-logo {
+  height: 22px;
+  width: auto;
+  display: block;
 }
 
 .lang {

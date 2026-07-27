@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useLang } from '../i18n';
 import './Header.css';
 
+const BASE = import.meta.env.BASE_URL;
+
 export function Header() {
   const [open, setOpen] = useState(false);
   const { lang, toggle, t } = useLang();
@@ -21,8 +23,8 @@ export function Header() {
           <button className="lang" onClick={toggle}>
             {lang}
           </button>
-          <a href="#home" className="brand">
-            <span className="brand-r">R</span>ICORP
+          <a href="#home" className="brand" aria-label="RICORP">
+            <img src={BASE + 'ricorp-logo.svg'} alt="RICORP" className="brand-logo" />
           </a>
           <nav className="nav-desktop">
             <a href="#contact">{t('nav.contact')}</a>

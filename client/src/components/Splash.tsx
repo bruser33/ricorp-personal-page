@@ -1,28 +1,34 @@
 import { useEffect, useState } from 'react';
 import './Splash.css';
 
-const LOGO_FADE_IN_AT = 200;
-const LOGO_HOLD_UNTIL = 1800;
-const SPLASH_FADE_OUT_AT = 1800;
-const SPLASH_REMOVE_AT = 2800;
+const BASE = import.meta.env.BASE_URL;
+
+// Intro choreography: logo fades in centered, holds, then travels up to the
+// header slot; once it lands the site is revealed underneath (the header logo
+// sits at the exact same spot, so the handoff is seamless) and the dark
+// backdrop fades out.
+const LOGO_IN_AT = 150;
+const TRAVEL_AT = 1250;
+const REVEAL_AT = 2150; // logo has arrived at the header → show site + fade backdrop
+const REMOVE_AT = 2750;
 
 export function Splash({ onDone }: { onDone?: () => void }) {
   const [logoIn, setLogoIn] = useState(false);
+  const [toTop, setToTop] = useState(false);
   const [fadingOut, setFadingOut] = useState(false);
   const [removed, setRemoved] = useState(false);
 
   useEffect(() => {
-    const t1 = window.setTimeout(() => setLogoIn(true), LOGO_FADE_IN_AT);
-    const t2 = window.setTimeout(() => setFadingOut(true), SPLASH_FADE_OUT_AT);
-    const t3 = window.setTimeout(() => {
-      setRemoved(true);
-      onDone?.();
-    }, SPLASH_REMOVE_AT);
-    return () => {
-      window.clearTimeout(t1);
-      window.clearTimeout(t2);
-      window.clearTimeout(t3);
-    };
+    const timers = [
+      window.setTimeout(() => setLogoIn(true), LOGO_IN_AT),
+      window.setTimeout(() => setToTop(true), TRAVEL_AT),
+      window.setTimeout(() => {
+        setFadingOut(true);
+        onDone?.();
+      }, REVEAL_AT),
+      window.setTimeout(() => setRemoved(true), REMOVE_AT),
+    ];
+    return () => timers.forEach((t) => window.clearTimeout(t));
   }, [onDone]);
 
   if (removed) return null;
@@ -33,11 +39,15 @@ export function Splash({ onDone }: { onDone?: () => void }) {
       aria-hidden="true"
       role="presentation"
     >
-      <div className={`splash-logo ${logoIn ? 'splash-logo-in' : ''}`}>RICORP</div>
+      <img
+        src={BASE + 'ricorp-logo.svg'}
+        alt=""
+        className={`splash-logo ${logoIn ? 'is-in' : ''} ${toTop ? 'to-top' : ''}`}
+      />
     </div>
   );
 }
 
 // Re-export timing constants for App-level coordination
-export const SPLASH_TOTAL_MS = SPLASH_REMOVE_AT;
-export const SPLASH_HOLD_END = LOGO_HOLD_UNTIL;
+export const SPLASH_TOTAL_MS = REMOVE_AT;
+export const SPLASH_HOLD_END = TRAVEL_AT;
