@@ -1,0 +1,7 @@
+# Estado local del harness — no versionar
+settings.local.json
+revert-stack.txt
+queue/.verify-gate
+queue/.prod-ok
+queue/.sql-ok
+worktrees/

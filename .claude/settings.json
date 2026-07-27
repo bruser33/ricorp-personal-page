@@ -1,0 +1,88 @@
+{
+  "permissions": {
+    "allow": [
+      "Skill(start)", "Skill(start:*)",
+      "Skill(status)", "Skill(status:*)",
+      "Skill(sfront)", "Skill(sfront:*)",
+      "Skill(nivel10)", "Skill(nivel10:*)",
+      "Skill(resolver)", "Skill(resolver:*)",
+      "Skill(owork)", "Skill(owork:*)",
+      "Skill(push)", "Skill(push:*)",
+      "Skill(revert)", "Skill(revert:*)",
+      "Skill(code-review)", "Skill(code-review:*)",
+      "Skill(verify)", "Skill(verify:*)",
+      "Skill(update-config)", "Skill(update-config:*)",
+      "Bash(ss -lntp*)",
+      "Bash(curl -s http://127.0.0.1:*)",
+      "Bash(curl -s --max-time * http://127.0.0.1:*)",
+      "Bash(cd /home/pedrorico/Documentos/pedrorico/ricorp-personal-page/client && npm run dev*)",
+      "Bash(cd /home/pedrorico/Documentos/pedrorico/ricorp-personal-page/client && npm run build*)",
+      "Bash(cd /home/pedrorico/Documentos/pedrorico/ricorp-personal-page/client && npm run lint*)",
+      "Bash(cd /home/pedrorico/Documentos/pedrorico/ricorp-personal-page/client && npx tsc*)",
+      "Bash(cd /home/pedrorico/Documentos/pedrorico/ricorp-personal-page/server && npm run dev*)",
+      "Bash(cd /home/pedrorico/Documentos/pedrorico/ricorp-personal-page/server && npm start*)",
+      "Bash(cd /home/pedrorico/Documentos/pedrorico/ricorp-personal-page/server && node *)",
+      "Bash(git -C /home/pedrorico/Documentos/pedrorico/ricorp-personal-page *)",
+      "Bash(gh issue list*)", "Bash(gh issue view*)", "Bash(gh issue create*)",
+      "Bash(gh issue edit*)", "Bash(gh issue comment*)", "Bash(gh issue close*)",
+      "Bash(gh pr list*)", "Bash(gh pr view*)", "Bash(gh pr create*)",
+      "Bash(gh auth status*)", "Bash(gh repo view*)", "Bash(gh api*)",
+      "Bash(mongosh mongodb://127.0.0.1*)",
+      "Bash(echo *)", "Bash(jq *)",
+      "mcp__playwright__browser_navigate",
+      "mcp__playwright__browser_snapshot",
+      "mcp__playwright__browser_click",
+      "mcp__playwright__browser_type",
+      "mcp__playwright__browser_fill_form",
+      "mcp__playwright__browser_wait_for",
+      "mcp__playwright__browser_evaluate",
+      "mcp__playwright__browser_select_option",
+      "mcp__playwright__browser_press_key",
+      "mcp__playwright__browser_network_requests",
+      "mcp__playwright__browser_console_messages",
+      "mcp__playwright__browser_take_screenshot",
+      "mcp__playwright__browser_tabs"
+    ],
+    "deny": [
+      "Bash(git push --force*)",
+      "Bash(git push -f *)",
+      "Bash(git push --force-with-lease*)",
+      "Bash(git * --no-verify*)",
+      "Bash(git reset --hard*)",
+      "Bash(git clean -fx*)"
+    ]
+  },
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          { "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/snapshot-repo.sh", "timeout": 10 }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          { "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/safety-guard.sh", "timeout": 10 },
+          { "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/gh-scope-guard.sh", "timeout": 10 }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          { "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/tsc-check-on-edit.sh", "timeout": 40 }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          { "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/stop-verifier.sh", "timeout": 600 }
+        ]
+      }
+    ]
+  }
+}
