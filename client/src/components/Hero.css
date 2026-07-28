@@ -133,16 +133,27 @@
 
 .hero-portrait {
   position: relative;
-  /* Shorter than the hero + centred, so dark hero bg shows above/below and the
-     head is NOT clipped by the header and reads at a moderate size (the square
-     portrait.png has a big head with little headroom, so full-height cover
-     over-zooms it). */
-  height: min(82vh, 900px);
+  /* Full hero height → the black shirt reaches the page bottom (no gap, no
+     scroll). cover keeps the face BIG/prominent (like the Figma target); the
+     mask dissolves the hair (top) and left edge into the black so it reads as a
+     face emerging from darkness, not a cropped rectangle. */
+  height: calc(100vh - var(--header-h));
   align-self: center;
   overflow: hidden;
-  margin-right: calc((100vw - var(--maxw)) / -2);
-  mask-image: linear-gradient(90deg, transparent 0%, rgba(0,0,0,0.85) 18%, #000 32%, #000 100%);
-  -webkit-mask-image: linear-gradient(90deg, transparent 0%, rgba(0,0,0,0.85) 18%, #000 32%, #000 100%);
+  width: 100%;
+  max-width: 720px;
+  justify-self: end;
+  /* A touch of black to the right so the face sits right-of-centre, not flush. */
+  margin-right: clamp(0px, 3vw, 60px);
+  /* Left fade + long TOP fade so the hair dissolves gradually into the black. */
+  mask-image:
+    linear-gradient(90deg, transparent 0%, #000 30%, #000 100%),
+    linear-gradient(180deg, transparent 0%, #000 32%, #000 100%);
+  mask-composite: intersect;
+  -webkit-mask-image:
+    linear-gradient(90deg, transparent 0%, #000 30%, #000 100%),
+    linear-gradient(180deg, transparent 0%, #000 32%, #000 100%);
+  -webkit-mask-composite: source-in;
   opacity: 0;
   /* Face fades in close to the text (video shows them arriving together),
      not lagging several seconds behind. */
@@ -206,9 +217,14 @@
      head-and-shoulders at a MODERATE size (cover over-zoomed the big head); the
      dark image bg blends seamlessly into the dark hero. Right-aligned so the
      person sits on the right, fading left via the mask. */
-  object-fit: contain;
-  object-position: 100% 50%;
-  filter: grayscale(1) brightness(0.95) contrast(1.25);
+  /* cover → face fills big/prominent, shirt to the bottom (no letterbox, so no
+     dark-band seam). object-position keeps the head high enough that the top
+     fade lands on the hair. */
+  object-fit: cover;
+  object-position: 50% 28%;
+  /* Punchy high-contrast B&W like the target — the mask (not the filter) blends
+     the edges, so contrast is safe here. */
+  filter: grayscale(1) brightness(1) contrast(1.22);
   /* Intro (video): face enters slightly bigger and scales down to normal. */
   transform: scale(1.08);
   transform-origin: 50% 50%;
@@ -219,7 +235,21 @@
 @media (max-width: 720px) {
   .hero { min-height: auto; padding: 40px 0 60px; }
   .hero-inner { grid-template-columns: 1fr; gap: 24px; text-align: center; }
-  .hero-portrait { order: -1; height: 320px; max-width: 320px; margin: 0 auto; border-radius: 999px; }
+  .hero-portrait {
+    order: -1;
+    height: 320px;
+    width: 320px;
+    max-width: 320px;
+    margin: 0 auto;
+    justify-self: center;
+    border-radius: 999px;
+    /* Reset the desktop edge fades — the mobile avatar is a round crop, not a
+       fade-into-hero panel. */
+    mask-image: none;
+    -webkit-mask-image: none;
+  }
+  /* Fill the circular avatar (contain would letterbox the round crop). */
+  .hero-portrait img { object-fit: cover; object-position: center; }
   .hero-title { font-size: 54px; line-height: 0.957; font-weight: 600; }
   .hero-sub { font-size: 20px; line-height: 1.257; font-weight: 600; }
 }
