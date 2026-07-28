@@ -143,8 +143,9 @@
   width: 100%;
   max-width: 720px;
   justify-self: end;
-  /* A touch of black to the right so the face sits right-of-centre, not flush. */
-  margin-right: clamp(0px, 3vw, 60px);
+  /* Sit closer to the right edge (aligned with "about" in the nav); the right
+     mask fade already softens the shirt so it doesn't read as flush/cropped. */
+  margin-right: clamp(0px, 0.6vw, 12px);
   /* Fade on BOTH sides (left + right) and a long TOP fade so the hair and both
      edges dissolve gradually into the black — the face emerges from darkness on
      every side, not a rectangle with a hard right edge. */
