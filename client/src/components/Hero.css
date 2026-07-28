@@ -145,13 +145,15 @@
   justify-self: end;
   /* A touch of black to the right so the face sits right-of-centre, not flush. */
   margin-right: clamp(0px, 3vw, 60px);
-  /* Left fade + long TOP fade so the hair dissolves gradually into the black. */
+  /* Fade on BOTH sides (left + right) and a long TOP fade so the hair and both
+     edges dissolve gradually into the black — the face emerges from darkness on
+     every side, not a rectangle with a hard right edge. */
   mask-image:
-    linear-gradient(90deg, transparent 0%, #000 30%, #000 100%),
+    linear-gradient(90deg, transparent 0%, #000 28%, #000 78%, transparent 100%),
     linear-gradient(180deg, transparent 0%, #000 32%, #000 100%);
   mask-composite: intersect;
   -webkit-mask-image:
-    linear-gradient(90deg, transparent 0%, #000 30%, #000 100%),
+    linear-gradient(90deg, transparent 0%, #000 28%, #000 78%, transparent 100%),
     linear-gradient(180deg, transparent 0%, #000 32%, #000 100%);
   -webkit-mask-composite: source-in;
   opacity: 0;
