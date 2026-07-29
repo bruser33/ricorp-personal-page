@@ -1,13 +1,14 @@
 .projects-carousel-section {
-  /* Everything (label + card + dots) must fit in ONE viewport height, no scroll.
-     Vertical rhythm is vh-based and tight so it holds on short laptops (~720). */
-  padding: clamp(16px, 2.5vh, 40px) 0;
+  /* Everything (label + card + dots) fits in ONE viewport height, no scroll — but
+     with air, not cramped. Content sits toward the TOP (label high) with generous
+     gaps; the vh-based rhythm still holds on short laptops (~720). */
+  padding: clamp(44px, 8vh, 100px) 0 clamp(24px, 4vh, 56px);
   overflow: hidden;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  gap: clamp(14px, 2.2vh, 30px);
+  justify-content: flex-start;
+  gap: clamp(24px, 4.5vh, 64px);
 }
 
 /* Section label — same branded type as the hero "Keep it simple." (Source Sans 3,
@@ -138,7 +139,7 @@
      and reserve room below so the dropped edge dots aren't clipped. */
   align-items: flex-start;
   padding-bottom: 22px;
-  margin-top: clamp(16px, 2.6vh, 40px);
+  margin-top: clamp(28px, 4vh, 56px);
 }
 
 .carousel-dot {

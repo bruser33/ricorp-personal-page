@@ -164,7 +164,8 @@ export function Projects() {
     const move = Math.max(-3, Math.min(3, Math.round(rawSlides)));
     setDragging(false);
     setDragDX(0);
-    setCurrentSlide((s) => Math.max(0, Math.min(total - 1, s + move)));
+    // Loop: the last slide connects back to the first (and vice versa).
+    setCurrentSlide((s) => (((s + move) % total) + total) % total);
     e.currentTarget.releasePointerCapture?.(d.pointerId);
   };
 

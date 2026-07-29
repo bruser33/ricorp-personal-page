@@ -1,9 +1,13 @@
 .contact {
   position: relative;
   overflow: hidden;
-  padding-top: clamp(80px, 8vw, 140px);
-  padding-bottom: clamp(40px, 4vw, 80px);
-  min-height: 100vh;
+  padding-top: clamp(72px, 7vw, 120px);
+  padding-bottom: clamp(32px, 3vw, 56px);
+  /* One full screen MINUS the fixed header — the section snaps to y=header, so this
+     keeps its bottom at the viewport bottom, where the embedded .contact-footer
+     (margin-top:auto) pins the © rights + "Santiago de Chile" so they're visible on
+     the final screen (no extra scroll, no duplicate global footer). */
+  min-height: calc(100vh - var(--header-h));
   display: flex;
   flex-direction: column;
 }
