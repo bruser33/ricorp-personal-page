@@ -79,8 +79,11 @@ export function Projects() {
   const [expandedSlide, setExpandedSlide] = useState<number | null>(null);
   const [originRect, setOriginRect] = useState<DOMRect | null>(null);
   const total = projects.length;
-  const touchStartX = useRef<number | null>(null);
   const cardRefs = useRef<(HTMLElement | null)[]>([]);
+  // Pointer drag ("grab & move the slider" with momentum/force on release).
+  const [dragging, setDragging] = useState(false);
+  const [dragDX, setDragDX] = useState(0);
+  const drag = useRef({ startX: 0, lastX: 0, lastT: 0, vel: 0, moved: false, pointerId: -1 });
 
   const goTo = useCallback(
     (i: number) => {
@@ -123,47 +126,67 @@ export function Projects() {
     };
   }, [expandedSlide]);
 
-  const onTouchStart = (e: React.TouchEvent) => {
-    touchStartX.current = e.touches[0].clientX;
+  // Slide step in px — MUST match the CSS/track transform (46vw card + 24px gap).
+  const stepPx = () => window.innerWidth * 0.46 + 24;
+
+  const onPointerDown = (e: React.PointerEvent) => {
+    if (expandedSlide !== null) return;
+    const d = drag.current;
+    d.startX = e.clientX;
+    d.lastX = e.clientX;
+    d.lastT = e.timeStamp;
+    d.vel = 0;
+    d.moved = false;
+    d.pointerId = e.pointerId;
+    setDragging(true);
+    e.currentTarget.setPointerCapture?.(e.pointerId);
   };
-  const onTouchEnd = (e: React.TouchEvent) => {
-    if (touchStartX.current === null) return;
-    const dx = e.changedTouches[0].clientX - touchStartX.current;
-    if (Math.abs(dx) > 50) (dx < 0 ? next : prev)();
-    touchStartX.current = null;
+
+  const onPointerMove = (e: React.PointerEvent) => {
+    if (!dragging) return;
+    const d = drag.current;
+    const dt = e.timeStamp - d.lastT;
+    if (dt > 0) d.vel = (e.clientX - d.lastX) / dt; // px per ms
+    d.lastX = e.clientX;
+    d.lastT = e.timeStamp;
+    const dx = e.clientX - d.startX;
+    if (Math.abs(dx) > 5) d.moved = true;
+    setDragDX(dx);
+  };
+
+  const endDrag = (e: React.PointerEvent) => {
+    if (!dragging) return;
+    const d = drag.current;
+    const dx = e.clientX - d.startX;
+    // Momentum: project the release velocity into extra travel ("force").
+    const projected = d.vel * 180;
+    const rawSlides = -(dx + projected) / stepPx();
+    const move = Math.max(-3, Math.min(3, Math.round(rawSlides)));
+    setDragging(false);
+    setDragDX(0);
+    setCurrentSlide((s) => Math.max(0, Math.min(total - 1, s + move)));
+    e.currentTarget.releasePointerCapture?.(d.pointerId);
   };
 
   const expanded = expandedSlide !== null ? projects[expandedSlide] : null;
 
   return (
     <section id="about" className="projects projects-carousel-section">
-      <div
-        className="projects-carousel reveal-scale"
-        onTouchStart={onTouchStart}
-        onTouchEnd={onTouchEnd}
-      >
-        <button
-          type="button"
-          className="carousel-prev"
-          onClick={prev}
-          aria-label={t('projects.prev')}
+      <div className="container projects-header">
+        <p className="section-label reveal">{t('projects.label')}</p>
+      </div>
+      <div className="projects-carousel reveal-scale">
+        <div
+          className={`carousel-viewport${dragging ? ' is-dragging' : ''}`}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={endDrag}
+          onPointerCancel={endDrag}
         >
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-            <path
-              d="M12.5 4l-6 6 6 6"
-              stroke="currentColor"
-              strokeWidth="1.6"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </button>
-
-        <div className="carousel-viewport">
           <div
-            className="carousel-track"
+            className={`carousel-track${dragging ? ' is-dragging' : ''}`}
             style={{
-              transform: `translateX(calc(50% - 28.125vw - ${currentSlide} * (56.25vw + 32px)))`,
+              transform: `translateX(calc(50% - 23vw - ${currentSlide} * (46vw + 24px) + ${dragDX}px))`,
             }}
           >
             {projects.map((p, i) => {
@@ -175,10 +198,18 @@ export function Projects() {
                     cardRefs.current[i] = el;
                   }}
                   className={`project-card ${isActive ? 'is-active' : 'is-side'}`}
-                  onClick={() => (isActive ? openProject(i) : goTo(i))}
+                  onClick={() => {
+                    // Suppress the click that follows a drag gesture.
+                    if (drag.current.moved) {
+                      drag.current.moved = false;
+                      return;
+                    }
+                    if (isActive) openProject(i);
+                    else goTo(i);
+                  }}
                   aria-hidden={!isActive}
                 >
-                  <img src={p.image} alt={p.title} />
+                  <img src={p.image} alt={p.title} draggable={false} />
                   {isActive && (
                     <div className="project-card-overlay">
                       <h3 className="project-title">{p.title}</h3>
@@ -191,35 +222,26 @@ export function Projects() {
           </div>
         </div>
 
-        <button
-          type="button"
-          className="carousel-next"
-          onClick={next}
-          aria-label={t('projects.next')}
-        >
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-            <path
-              d="M7.5 4l6 6-6 6"
-              stroke="currentColor"
-              strokeWidth="1.6"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </button>
-
         <div className="carousel-dots" role="tablist" aria-label="Projects pagination">
-          {projects.map((p, i) => (
-            <button
-              key={p.id}
-              type="button"
-              role="tab"
-              aria-selected={i === currentSlide}
-              aria-label={`Go to project ${i + 1}`}
-              className={`carousel-dot ${i === currentSlide ? 'is-active' : ''}`}
-              onClick={() => goTo(i)}
-            />
-          ))}
+          {projects.map((p, i) => {
+            /* Figma: the dots sit on a convex arc (dome ∩) — apex in the centre,
+               dropping down toward both edges. Parabolic offset per position. */
+            const mid = (total - 1) / 2;
+            const t = mid === 0 ? 0 : (i - mid) / mid; // -1 … 0 … 1
+            const dropY = 22 * t * t; // 0px at centre → 22px at the edges
+            return (
+              <button
+                key={p.id}
+                type="button"
+                role="tab"
+                aria-selected={i === currentSlide}
+                aria-label={`Go to project ${i + 1}`}
+                className={`carousel-dot ${i === currentSlide ? 'is-active' : ''}`}
+                style={{ transform: `translateY(${dropY.toFixed(1)}px)` }}
+                onClick={() => goTo(i)}
+              />
+            );
+          })}
         </div>
       </div>
 

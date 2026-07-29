@@ -63,7 +63,10 @@
 .lang {
   font-size: clamp(16px, 1.04vw, 20px);
   line-height: 1.257;
-  font-weight: 400;
+  /* On-brand weight matching the hero "Keep it simple." wordmark (600), not the
+     generic 400 — the nav now reads as part of the same type system as the logo. */
+  font-weight: 600;
+  letter-spacing: 0.01em;
   color: #e3e3e3;
   justify-self: start;
   padding: 0;
@@ -75,7 +78,9 @@
   justify-self: end;
   font-size: clamp(16px, 1.04vw, 20px);
   line-height: 1.257;
-  font-weight: 400;
+  /* Same branded weight/spacing as "Keep it simple." (see .lang). */
+  font-weight: 600;
+  letter-spacing: 0.01em;
 }
 
 .nav-desktop a {

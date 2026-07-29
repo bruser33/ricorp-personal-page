@@ -1,9 +1,29 @@
 .projects-carousel-section {
-  padding: clamp(60px, 6vw, 120px) 0;
+  /* Everything (label + card + dots) must fit in ONE viewport height, no scroll.
+     Vertical rhythm is vh-based and tight so it holds on short laptops (~720). */
+  padding: clamp(16px, 2.5vh, 40px) 0;
   overflow: hidden;
   min-height: 100vh;
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  justify-content: center;
+  gap: clamp(14px, 2.2vh, 30px);
+}
+
+/* Section label — same branded type as the hero "Keep it simple." (Source Sans 3,
+   600) so the carousel section clearly reads as "Proyectos informáticos". */
+.projects-header {
+  align-self: center;
+}
+
+.section-label {
+  margin: 0;
+  font-family: inherit;
+  font-size: clamp(28px, 3.4vw, 60px);
+  font-weight: 600;
+  line-height: 0.957;
+  letter-spacing: 0;
+  color: #e3e3e3;
 }
 
 .projects-carousel {
@@ -15,15 +35,30 @@
 .carousel-viewport {
   width: 100%;
   overflow: hidden;
-  padding: 16px 0;
+  padding: 8px 0;
+  /* Grab-and-drag the slider with the mouse; allow vertical page scroll (pan-y)
+     while we capture horizontal drags. */
+  cursor: grab;
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.carousel-viewport.is-dragging {
+  cursor: grabbing;
 }
 
 .carousel-track {
   display: flex;
-  gap: 32px;
-  /* Real Smart Animate carousel slide: 2400ms ease_out from Figma prototype */
-  transition: transform var(--dur-carousel) var(--ease-figma-out);
+  gap: 24px;
+  /* Snappy, strong ease-out so a drag release glides with "force"/momentum. */
+  transition: transform 850ms cubic-bezier(0.16, 1, 0.3, 1);
   will-change: transform;
+}
+
+/* While dragging, follow the pointer 1:1 (no easing). */
+.carousel-track.is-dragging {
+  transition: none;
 }
 
 .project-card {
@@ -31,8 +66,9 @@
      - Active slot: w=847, y=72 (full size, top)
      - Side slots:  w=703, y=159 (83% size, pushed down 87/2188 = ~4%)
      scale(703/847) = 0.83 reproduces the depth illusion exactly. */
-  flex: 0 0 56.25vw;
-  max-width: 1080px;
+  /* Narrower than before (was 56.25vw) so the whole section fits in one screen. */
+  flex: 0 0 46vw;
+  max-width: 900px;
   aspect-ratio: 847 / 509;
   border-radius: 20px;
   overflow: hidden;
@@ -43,8 +79,8 @@
   opacity: 0.4;
   transform-origin: 50% 50%;
   transition:
-    transform var(--dur-carousel) var(--ease-figma-out),
-    opacity var(--dur-carousel) var(--ease-figma-out);
+    transform 850ms cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 850ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .project-card.is-active {
@@ -59,6 +95,10 @@
   object-fit: cover;
   object-position: center;
   display: block;
+  /* Don't start a native image drag when grabbing the slider. */
+  -webkit-user-drag: none;
+  user-drag: none;
+  pointer-events: none;
 }
 
 .project-card-overlay {
@@ -70,7 +110,7 @@
 }
 
 .project-title {
-  font-size: clamp(56px, 6vw, 110px);
+  font-size: clamp(40px, 4.5vw, 84px);
   font-weight: 500;
   letter-spacing: -0.01em;
   line-height: 1;
@@ -90,49 +130,15 @@
   letter-spacing: 0;
 }
 
-.carousel-prev,
-.carousel-next {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 48px;
-  height: 48px;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  background: rgba(18, 17, 21, 0.6);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  color: rgba(255, 255, 255, 0.85);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 5;
-  opacity: 0;
-  transition: background 200ms, border-color 200ms, color 200ms, opacity 300ms;
-}
-
-.projects-carousel:hover .carousel-prev,
-.projects-carousel:hover .carousel-next,
-.carousel-prev:focus-visible,
-.carousel-next:focus-visible {
-  opacity: 1;
-}
-
-.carousel-prev { left: clamp(16px, 2vw, 40px); }
-.carousel-next { right: clamp(16px, 2vw, 40px); }
-
-.carousel-prev:hover,
-.carousel-next:hover {
-  background: rgba(30, 29, 40, 0.9);
-  border-color: rgba(255, 255, 255, 0.3);
-  color: #fff;
-}
-
 .carousel-dots {
   display: flex;
   gap: 12px;
   justify-content: center;
-  margin-top: clamp(48px, 6vh, 96px);
+  /* Dots ride a convex arc (per-dot translateY set inline) — align from the top
+     and reserve room below so the dropped edge dots aren't clipped. */
+  align-items: flex-start;
+  padding-bottom: 22px;
+  margin-top: clamp(16px, 2.6vh, 40px);
 }
 
 .carousel-dot {
@@ -395,8 +401,6 @@
   .carousel-track {
     gap: 16px;
   }
-  .carousel-prev,
-  .carousel-next { display: none; }
   .project-title { font-size: clamp(48px, 14vw, 80px); }
   .project-modal-title { font-size: clamp(40px, 12vw, 64px); }
   .project-modal-overlay { padding: 16px; }

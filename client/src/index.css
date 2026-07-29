@@ -151,21 +151,11 @@ body::before {
   }
 }
 
-/* Film grain — the real Figma Noise asset (semi-transparent speckle), tiled as a
-   single fixed overlay over the WHOLE page. Normal blend + low opacity keeps the
-   black at #121115 (does NOT wash it grey) while adding the subtle grain seen in
-   the Figma home. Uniform across header + hero + sections → no black-tone seam. */
-body::after {
-  content: '';
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 1;
-  opacity: 0.35;
-  background-image: url('/noise.png');
-  background-repeat: repeat;
-  background-size: 220px 220px;
-}
+/* Film grain is NOT a full-page background — in the Figma home the noise lives
+   ONLY inside the glowing circles beneath "Software {development}", not washed
+   across the whole page. The grain is therefore scoped to the hero blob circles
+   (see Hero.css .hero::after). With no global overlay the black stays a uniform
+   #121115 across header + hero + sections (no grain seam). */
 
 a { color: inherit; text-decoration: none; }
 

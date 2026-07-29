@@ -31,8 +31,7 @@ const translations: Record<Lang, Dict> = {
     'footer.loc': 'Santiago de Chile, Chile.',
     'news.cta': 'See all',
     'news.analysis': 'Analysis:',
-    'projects.prev': 'Previous project',
-    'projects.next': 'Next project',
+    'projects.label': 'IT projects',
   },
   esp: {
     'nav.contact': 'contacto',
@@ -56,8 +55,7 @@ const translations: Record<Lang, Dict> = {
     'footer.loc': 'Santiago de Chile, Chile.',
     'news.cta': 'Ver todos',
     'news.analysis': 'Análisis:',
-    'projects.prev': 'Proyecto anterior',
-    'projects.next': 'Proyecto siguiente',
+    'projects.label': 'Proyectos informáticos',
   },
 };
 
