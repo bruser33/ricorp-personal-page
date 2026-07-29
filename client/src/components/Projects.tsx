@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useLang } from '../i18n';
+import { Footline } from './Footline';
 import './Projects.css';
 
 type Project = {
@@ -229,7 +230,7 @@ export function Projects() {
                dropping down toward both edges. Parabolic offset per position. */
             const mid = (total - 1) / 2;
             const t = mid === 0 ? 0 : (i - mid) / mid; // -1 … 0 … 1
-            const dropY = 22 * t * t; // 0px at centre → 22px at the edges
+            const dropY = 14 * t * t; // 0px at centre → 14px at the edges (subtle arc)
             return (
               <button
                 key={p.id}
@@ -245,6 +246,8 @@ export function Projects() {
           })}
         </div>
       </div>
+
+      <Footline />
 
       {expanded && (
         <div

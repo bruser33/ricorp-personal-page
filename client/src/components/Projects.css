@@ -2,13 +2,16 @@
   /* Everything (label + card + dots) fits in ONE viewport height, no scroll — but
      with air, not cramped. Content sits toward the TOP (label high) with generous
      gaps; the vh-based rhythm still holds on short laptops (~720). */
-  padding: clamp(44px, 8vh, 100px) 0 clamp(24px, 4vh, 56px);
+  padding: clamp(36px, 6vh, 88px) 0 clamp(16px, 2vh, 32px);
   overflow: hidden;
-  min-height: 100vh;
+  /* One screen minus the fixed header — the section snaps to y=header, so its
+     bottom lands at the viewport bottom where the <Footline> (margin-top:auto)
+     pins the © rights + Santiago, visible on the projects screen (like Figma). */
+  min-height: calc(100vh - var(--header-h));
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
-  gap: clamp(24px, 4.5vh, 64px);
+  gap: clamp(20px, 3.4vh, 52px);
 }
 
 /* Section label — same branded type as the hero "Keep it simple." (Source Sans 3,
@@ -133,18 +136,18 @@
 
 .carousel-dots {
   display: flex;
-  gap: 12px;
+  gap: 7px;
   justify-content: center;
   /* Dots ride a convex arc (per-dot translateY set inline) — align from the top
      and reserve room below so the dropped edge dots aren't clipped. */
   align-items: flex-start;
-  padding-bottom: 22px;
-  margin-top: clamp(28px, 4vh, 56px);
+  padding-bottom: 18px;
+  margin-top: clamp(18px, 3vh, 44px);
 }
 
 .carousel-dot {
-  width: 13px;
-  height: 13px;
+  width: 10px;
+  height: 10px;
   border-radius: 999px;
   /* Inactive dot: #d9d9d9 at 20% opacity (from Figma S1 in inactive state) */
   background: rgba(217, 217, 217, 0.3);
