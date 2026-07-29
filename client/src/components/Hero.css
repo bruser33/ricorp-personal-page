@@ -60,10 +60,37 @@
   .hero::before { animation: none; opacity: 0.6; transform: none; }
 }
 
-/* Film-grain/noise moved to a single global overlay (index.css body::after,
-   real Figma Noise.png) so header + hero + page share the exact same black —
-   the old .hero::after screen grain lightened only the hero (y>80), leaving the
-   header strip a darker black. */
+/* Film-grain confined to the hero CIRCLES (Figma: the noise lives only inside the
+   glowing orbs beneath "Software {development}", not across the whole page). A
+   crisp (un-blurred) noise tile, radially masked to a soft circle co-located with
+   the blue-light blob at lower-left, so the grain reads only inside that orb. */
+.hero::after {
+  content: '';
+  position: absolute;
+  left: 23.3%;
+  top: 56%;
+  width: clamp(200px, 20vw, 380px);
+  aspect-ratio: 1;
+  transform: translate(-25%, -25%);
+  background-image: url('/noise.png');
+  background-repeat: repeat;
+  background-size: 200px 200px;
+  /* Soft circular mask → grain only inside the orb, fading to nothing at the edge. */
+  -webkit-mask-image: radial-gradient(circle at 50% 50%, #000 0%, #000 40%, transparent 72%);
+  mask-image: radial-gradient(circle at 50% 50%, #000 0%, #000 40%, transparent 72%);
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0;
+}
+
+.hero.hero-intro::after {
+  opacity: 0.5;
+  transition: opacity 900ms var(--ease-figma-out) 400ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero::after { opacity: 0.5; transition: none; }
+}
 
 .hero-inner {
   display: grid;
@@ -75,22 +102,27 @@
 }
 
 .hero-title {
-  font-size: clamp(54px, 6.67vw, 128px);
+  /* Smaller than before — in Figma the "Keep it simple." block reads notably
+     smaller than the face (head ≈ 1.7× the title height). Was 54/6.67vw/128. */
+  font-size: clamp(46px, 5.4vw, 104px);
   line-height: 0.957;
   font-weight: 600;
   color: #e3e3e3;
   letter-spacing: 0;
-  /* Intro (video): title enters from ABOVE moving DOWN into place + fade. */
+  /* Intro (video): the title + the face move TOGETHER — softly from ABOVE moving
+     DOWN into place while scaling from BIG → small. Shared 1000ms timing with the
+     portrait so they arrive as one motion; the subtitle comes AFTER (see below). */
   opacity: 0;
-  transform: translateY(-46px);
+  transform: translateY(-52px) scale(1.08);
+  transform-origin: left top;
   transition:
-    opacity var(--dur-project-enter) var(--ease-figma-out),
-    transform var(--dur-project-enter) var(--ease-figma-out);
+    opacity 1000ms var(--ease-figma-out) 250ms,
+    transform 1000ms var(--ease-figma-out) 250ms;
 }
 
 .hero.hero-intro .hero-title {
   opacity: 1;
-  transform: translateY(0);
+  transform: translateY(0) scale(1);
 }
 
 .hero-sub {
@@ -110,14 +142,15 @@
   background-clip: text;
   color: transparent;
   white-space: pre-line;
-  /* Intro (video): subtitle enters from the LEFT moving RIGHT into place + fade,
-     a touch after the title. */
+  /* Intro (video): the subtitle "Software {development}…" enters LAST, sliding
+     from the LEFT moving RIGHT into place + fade — clearly AFTER the title and
+     face have settled (long delay so the two motions read as separate beats). */
   opacity: 0;
   transform: translateX(-64px);
   transition:
-    opacity var(--dur-project-enter) var(--ease-figma-out),
-    transform var(--dur-project-enter) var(--ease-figma-out);
-  transition-delay: 0.15s;
+    opacity 700ms var(--ease-figma-out),
+    transform 700ms var(--ease-figma-out);
+  transition-delay: 1.15s;
 }
 
 .hero.hero-intro .hero-sub {
@@ -132,40 +165,47 @@
 }
 
 .hero-portrait {
-  position: relative;
-  /* Full hero height → the black shirt reaches the page bottom (no gap, no
-     scroll). cover keeps the face BIG/prominent (like the Figma target); the
-     mask dissolves the hair (top) and left edge into the black so it reads as a
-     face emerging from darkness, not a cropped rectangle. */
-  height: calc(100vh - var(--header-h));
-  align-self: center;
+  /* Framed against layout landmarks (user): the shirt's RIGHT edge lands on "about"
+     in the nav, the LEFT ear just past the logo's "P", the forehead a touch above
+     "Keep it simple" and the neck just below "innovation". It's a sibling of
+     .hero-inner (out of the grid) anchored to .hero; the inner <img> is sized and
+     offset BY HAND — object-fit can't express the head-left / shoulder-right
+     asymmetry baked into the square photo (head sits at ~36% width, the right
+     shoulder runs out to ~88%). */
+  position: absolute;
+  z-index: 0;
+  /* Right edge on the container content right, where "about" sits. */
+  right: max(32px, calc((100vw - 1216px) / 2));
+  /* TALL box: the figure is head + neck + shoulders + shirt (like Figma) — the
+     shirt must stay VISIBLE and dissolve near the BOTTOM of the hero, NOT be cut at
+     the neck. Box runs from just above the title down to near the hero bottom. */
+  top: clamp(110px, 16vh, 175px);
+  width: clamp(360px, 45.8vw, 660px);
+  height: clamp(440px, 73vh, 680px);
   overflow: hidden;
-  width: 100%;
-  max-width: 720px;
-  justify-self: end;
-  /* Sit closer to the right edge (aligned with "about" in the nav); the right
-     mask fade already softens the shirt so it doesn't read as flush/cropped. */
-  margin-right: clamp(0px, 0.6vw, 12px);
-  /* Fade on BOTH sides (left + right) and a long TOP fade so the hair and both
-     edges dissolve gradually into the black — the face emerges from darkness on
-     every side, not a rectangle with a hard right edge. */
+  /* 4-side fades: dissolve both shoulders (sides), the hair (top) and — low down,
+     near the hero bottom — the shirt (bottom). The solid band runs to 82% so the
+     neck + shoulders + shirt read clearly before melting into the black. */
   mask-image:
-    linear-gradient(90deg, transparent 0%, #000 28%, #000 78%, transparent 100%),
-    linear-gradient(180deg, transparent 0%, #000 32%, #000 100%);
+    linear-gradient(90deg, transparent 0%, #000 14%, #000 92%, transparent 100%),
+    linear-gradient(180deg, transparent 0%, #000 12%, #000 82%, transparent 100%);
   mask-composite: intersect;
   -webkit-mask-image:
-    linear-gradient(90deg, transparent 0%, #000 28%, #000 78%, transparent 100%),
-    linear-gradient(180deg, transparent 0%, #000 32%, #000 100%);
+    linear-gradient(90deg, transparent 0%, #000 14%, #000 92%, transparent 100%),
+    linear-gradient(180deg, transparent 0%, #000 12%, #000 82%, transparent 100%);
   -webkit-mask-composite: source-in;
+  /* Intro (video): the face moves TOGETHER with the title — from ABOVE moving
+     DOWN into place, same 1000ms/250ms cadence, so they arrive as one motion. */
   opacity: 0;
-  /* Face fades in close to the text (video shows them arriving together),
-     not lagging several seconds behind. */
-  transition: opacity 1.2s cubic-bezier(0.7, 0.01, 0.23, 1.01);
-  transition-delay: 0.2s;
+  transform: translateY(-52px);
+  transition:
+    opacity 1000ms var(--ease-figma-out) 250ms,
+    transform 1000ms var(--ease-figma-out) 250ms;
 }
 
 .hero.hero-intro .hero-portrait {
   opacity: 1;
+  transform: translateY(0);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -214,31 +254,35 @@
 }
 
 .hero-portrait img {
-  width: 100%;
-  height: 100%;
-  /* portrait.png is a square dark-background photo, so `contain` shows the whole
-     head-and-shoulders at a MODERATE size (cover over-zoomed the big head); the
-     dark image bg blends seamlessly into the dark hero. Right-aligned so the
-     person sits on the right, fading left via the mask. */
-  /* cover → face fills big/prominent, shirt to the bottom (no letterbox, so no
-     dark-band seam). object-position keeps the head high enough that the top
-     fade lands on the hair. */
-  object-fit: cover;
-  object-position: 50% 28%;
-  /* Punchy high-contrast B&W like the target — the mask (not the filter) blends
-     the edges, so contrast is safe here. */
-  filter: grayscale(1) brightness(1) contrast(1.22);
-  /* Intro (video): face enters slightly bigger and scales down to normal. */
-  transform: scale(1.08);
-  transform-origin: 50% 50%;
-  transition: transform 1.3s cubic-bezier(0.7, 0.01, 0.23, 1.01);
-  will-change: transform;
+  /* Sized + offset by hand inside the clip window (see .hero-portrait). width sets
+     the subject scale; left crops the photo's dark left margin so the head lands
+     just right of the logo "P". Natural aspect (height auto). */
+  position: absolute;
+  top: 0;
+  left: -2.6vw;
+  width: 62vw;
+  max-width: 895px;
+  height: auto;
+  /* Bright B&W with a touch of punch — bright enough that the face isn't dark,
+     contrast light enough that the shirt's black still matches #121115 so the
+     bottom/side fades dissolve seamlessly (no crushed band). */
+  filter: grayscale(1) brightness(1.14) contrast(1.08);
 }
 
 @media (max-width: 720px) {
-  .hero { min-height: auto; padding: 40px 0 60px; }
+  /* Portrait is a sibling of .hero-inner (not a grid item), so on mobile stack the
+     hero as a column and let the round avatar sit first via order. */
+  .hero {
+    min-height: auto;
+    padding: 40px 0 60px;
+    flex-direction: column;
+    align-items: center;
+  }
   .hero-inner { grid-template-columns: 1fr; gap: 24px; text-align: center; }
   .hero-portrait {
+    /* Back into flow for the round mobile avatar (desktop is absolute). */
+    position: static;
+    inset: auto;
     order: -1;
     height: 320px;
     width: 320px;
@@ -251,8 +295,17 @@
     mask-image: none;
     -webkit-mask-image: none;
   }
-  /* Fill the circular avatar (contain would letterbox the round crop). */
-  .hero-portrait img { object-fit: cover; object-position: center; }
+  /* Fill the circular avatar — reset the desktop hand-positioning. */
+  .hero-portrait img {
+    position: static;
+    top: auto;
+    left: auto;
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    object-fit: cover;
+    object-position: center;
+  }
   .hero-title { font-size: 54px; line-height: 0.957; font-weight: 600; }
   .hero-sub { font-size: 20px; line-height: 1.257; font-weight: 600; }
 }

@@ -27,9 +27,9 @@ export function Hero({ startAnim }: { startAnim: boolean }) {
           </h1>
           <p className="hero-sub">{t('hero.sub')}</p>
         </div>
-        <div className="hero-portrait" aria-hidden="true">
-          <img src={import.meta.env.BASE_URL + 'figma-frames/portrait.png'} alt="" />
-        </div>
+      </div>
+      <div className="hero-portrait" aria-hidden="true">
+        <img src={import.meta.env.BASE_URL + 'figma-frames/portrait.png'} alt="" />
       </div>
     </section>
   );

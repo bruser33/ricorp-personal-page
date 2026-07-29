@@ -63,10 +63,76 @@ function useBlobMorph(enabled: boolean) {
   }, [enabled]);
 }
 
+/* "Movie" auto-advance: once the hero intro has finished (title + face settled,
+   "Software {development}" revealed), the FIRST interaction — a scroll in ANY
+   direction, a key, or a click — glides the page down to the projects section
+   ONE time, so the site plays like a film instead of waiting for the user to find
+   the carousel. Fires once, only while still in the hero, and never with reduced
+   motion. */
+function useAutoAdvanceToProjects(enabled: boolean) {
+  useEffect(() => {
+    if (!enabled) return;
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+
+    let armed = false;
+    let fired = false;
+    // Arm only after the intro choreography has played out (~1.85s of transitions).
+    const armTimer = window.setTimeout(() => {
+      armed = true;
+    }, 2000);
+
+    const advance = (e: Event) => {
+      if (!armed || fired) return;
+      // Never hijack a click on an interactive control (nav links, language
+      // toggle, buttons, carousel tabs) — the user's own action must win. A click
+      // on empty hero space still triggers the "movie" advance, alongside
+      // scroll/key gestures.
+      if (e.type === 'click') {
+        const el = e.target as Element | null;
+        if (el?.closest?.('a, button, input, textarea, select, [role="tab"]')) return;
+      }
+      // Only auto-advance from the hero itself — if the user already scrolled
+      // away, leave them be.
+      if (window.scrollY > window.innerHeight * 0.5) {
+        cleanup();
+        return;
+      }
+      if (e.type === 'wheel' || e.type === 'touchmove' || e.type === 'keydown') {
+        e.preventDefault();
+      }
+      fired = true;
+      document.getElementById('about')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      cleanup();
+    };
+
+    const onKey = (e: KeyboardEvent) => {
+      const advanceKeys = ['ArrowDown', 'ArrowUp', 'PageDown', 'PageUp', ' ', 'Spacebar', 'Home', 'End'];
+      if (advanceKeys.includes(e.key)) advance(e);
+    };
+
+    const wheelOpts: AddEventListenerOptions = { passive: false };
+    function cleanup() {
+      window.clearTimeout(armTimer);
+      window.removeEventListener('wheel', advance, wheelOpts);
+      window.removeEventListener('touchmove', advance, wheelOpts);
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('click', advance);
+    }
+
+    window.addEventListener('wheel', advance, wheelOpts);
+    window.addEventListener('touchmove', advance, wheelOpts);
+    window.addEventListener('keydown', onKey);
+    window.addEventListener('click', advance);
+
+    return cleanup;
+  }, [enabled]);
+}
+
 export default function App() {
   const [siteReady, setSiteReady] = useState(false);
   useReveal(siteReady);
   useBlobMorph(siteReady);
+  useAutoAdvanceToProjects(siteReady);
 
   return (
     <>
