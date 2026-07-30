@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
 
-export function useReveal(active: boolean, threshold = 0.12) {
+/* `epoch` re-arms the observer when it changes (e.g. after a view swap remounts
+   a fresh set of `.reveal` nodes) so their entrance animations play again. */
+export function useReveal(active: boolean, threshold = 0.12, epoch?: unknown) {
   useEffect(() => {
     if (!active) return;
     let io: IntersectionObserver | null = null;
@@ -33,5 +35,5 @@ export function useReveal(active: boolean, threshold = 0.12) {
       cancelAnimationFrame(raf);
       io?.disconnect();
     };
-  }, [active, threshold]);
+  }, [active, threshold, epoch]);
 }

@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useLang } from '../i18n';
+import { useView } from '../view';
+import type { View } from '../view';
 import './Header.css';
 
 const BASE = import.meta.env.BASE_URL;
@@ -7,6 +9,7 @@ const BASE = import.meta.env.BASE_URL;
 export function Header() {
   const [open, setOpen] = useState(false);
   const { lang, toggle, t } = useLang();
+  const { view, navigate } = useView();
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
@@ -16,6 +19,13 @@ export function Header() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
+  // "Proyectos TI" lives inside the home reel → go home and land on the carousel.
+  const go = (e: React.MouseEvent, target: View, scrollTo?: string) => {
+    e.preventDefault();
+    navigate(target, scrollTo ? { scrollTo } : undefined);
+    setOpen(false);
+  };
+
   return (
     <>
       <header className={`site-header${scrolled ? ' scrolled' : ''}`}>
@@ -23,13 +33,36 @@ export function Header() {
           <button className="lang" onClick={toggle}>
             {lang}
           </button>
-          <a href="#home" className="brand" aria-label="RICORP">
+          <a
+            href="#/"
+            className="brand"
+            aria-label="RICORP"
+            onClick={(e) => go(e, 'home')}
+          >
             <img src={BASE + 'ricorp-logo.svg'} alt="RICORP" className="brand-logo" />
           </a>
           <nav className="nav-desktop">
-            <a href="#contact">{t('nav.contact')}</a>
-            <a href="#news">{t('nav.news')}</a>
-            <a href="#about">{t('nav.about')}</a>
+            <a
+              href="#/"
+              className={view === 'home' ? 'is-current' : undefined}
+              onClick={(e) => go(e, 'home', 'about')}
+            >
+              {t('nav.projects')}
+            </a>
+            <a
+              href="#/timeline"
+              className={view === 'timeline' ? 'is-current' : undefined}
+              onClick={(e) => go(e, 'timeline')}
+            >
+              {t('nav.timeline')}
+            </a>
+            <a
+              href="#/contact"
+              className={view === 'contact' ? 'is-current' : undefined}
+              onClick={(e) => go(e, 'contact')}
+            >
+              {t('nav.contact')}
+            </a>
           </nav>
           <button
             className="hamburger"
@@ -55,11 +88,19 @@ export function Header() {
           >
             ×
           </button>
-          <nav className="overlay-nav" onClick={() => setOpen(false)}>
-            <a href="#home">{t('nav.home')}</a>
-            <a href="#contact">{t('nav.contact')}</a>
-            <a href="#news">{t('nav.news')}</a>
-            <a href="#about">{t('nav.about')}</a>
+          <nav className="overlay-nav">
+            <a href="#/" onClick={(e) => go(e, 'home')}>
+              {t('nav.home')}
+            </a>
+            <a href="#/" onClick={(e) => go(e, 'home', 'about')}>
+              {t('nav.projects')}
+            </a>
+            <a href="#/timeline" onClick={(e) => go(e, 'timeline')}>
+              {t('nav.timeline')}
+            </a>
+            <a href="#/contact" onClick={(e) => go(e, 'contact')}>
+              {t('nav.contact')}
+            </a>
           </nav>
           <button className="overlay-lang" onClick={toggle}>
             {t('lang.switch')}

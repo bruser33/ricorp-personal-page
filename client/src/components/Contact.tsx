@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useLang } from '../i18n';
 import './Contact.css';
 
@@ -29,21 +29,36 @@ export function Contact() {
   const { t } = useLang();
   const [subject, setSubject] = useState('');
   const [email, setEmail] = useState('');
+  const [file, setFile] = useState<File | null>(null);
   const [sent, setSent] = useState(false);
+  const [sending, setSending] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!subject || !email) return;
+    // subject se pide primero (revela email + adjunto) y sigue siendo `required`
+    // en el input — lo validamos aquí también para no divergir del formulario.
+    if (!subject || !email || sending) return;
+    setSending(true);
     try {
       const url = (import.meta.env.VITE_API_URL ?? 'http://localhost:4000') + '/api/contact';
-      await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ subject, email }),
-      });
-    } catch {}
+      const form = new FormData();
+      form.append('subject', subject);
+      form.append('email', email);
+      if (file) form.append('file', file);
+      // Multipart: the backend sends the proposal to the owner with the fixed
+      // subject "Ricorp Propuesta de proyecto" and the file as an attachment.
+      await fetch(url, { method: 'POST', body: form });
+    } catch {
+      /* offline: still confirm to the user, the design has no error state */
+    }
+    setSending(false);
     setSent(true);
   }
+
+  const onPickFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFile(e.target.files?.[0] ?? null);
+  };
 
   return (
     <section id="contact" className="contact">
@@ -96,6 +111,50 @@ export function Contact() {
             required
           />
         </label>
+
+        <div className="field-attach">
+          <input
+            ref={fileInputRef}
+            type="file"
+            className="attach-input"
+            onChange={onPickFile}
+            disabled={sent}
+          />
+          <button
+            type="button"
+            className="attach-btn"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={sent}
+          >
+            <svg aria-hidden width="18" height="18" viewBox="0 0 24 24" fill="none">
+              <path
+                d="M21 11.5l-8.5 8.5a5 5 0 01-7-7l8.5-8.5a3.3 3.3 0 014.7 4.7L9.9 17.6a1.6 1.6 0 01-2.3-2.3l7.9-7.9"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+            <span>{t('contact.attach')}</span>
+          </button>
+          {file && (
+            <span className="attach-name" title={file.name}>
+              {file.name}
+              <button
+                type="button"
+                className="attach-clear"
+                aria-label={t('contact.attachRemove')}
+                onClick={() => {
+                  setFile(null);
+                  if (fileInputRef.current) fileInputRef.current.value = '';
+                }}
+              >
+                ×
+              </button>
+            </span>
+          )}
+        </div>
+
         <label className="field-email">
           <input
             type="email"
@@ -108,9 +167,11 @@ export function Contact() {
           <button
             type="submit"
             className={'submit' + (sent ? ' sent' : '')}
-            disabled={sent || !email}
+            disabled={sent || !email || sending}
           >
-            <span className="submit-label">{sent ? t('contact.sent') : t('contact.send')}</span>
+            <span className="submit-label">
+              {sent ? t('contact.sent') : sending ? t('contact.sending') : t('contact.send')}
+            </span>
             <svg aria-hidden width="22" height="22" viewBox="0 0 24 24" fill="none">
               <path
                 d="M22 2L11 13M22 2L15 22L11 13L2 9L22 2Z"

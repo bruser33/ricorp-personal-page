@@ -90,6 +90,10 @@
 
 .nav-desktop a:hover { opacity: 0.7; }
 
+.nav-desktop a.is-current {
+  color: var(--accent-violet, #b8a0ff);
+}
+
 .hamburger { display: none; }
 
 @media (max-width: 720px) {

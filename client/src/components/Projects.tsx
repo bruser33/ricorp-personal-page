@@ -170,6 +170,28 @@ export function Projects() {
 
   const expanded = expandedSlide !== null ? projects[expandedSlide] : null;
 
+  /* Arc slide (the designer's "circle" motion): cards ride a convex rim.
+     The centred card sits up front & full size; neighbours drop DOWN a parabola
+     and shrink/rotate as they slip off to the sides — so advancing makes the
+     next card RISE from below into focus ("el siguiente viene desde abajo").
+     `center` is fractional so the arc follows the drag 1:1. */
+  const step =
+    typeof window !== 'undefined' ? window.innerWidth * 0.46 + 24 : 1;
+  const center = currentSlide - dragDX / step;
+  const arc = (i: number) => {
+    const d = i - center; // signed distance in slide units
+    const ad = Math.abs(d);
+    const dropY = 30 * d * d; // px: 0 at centre → down at the edges
+    const rot = -4 * Math.max(-2.2, Math.min(2.2, d)); // slight rim tilt
+    const scale = Math.max(0.62, 1 - 0.18 * ad);
+    const opacity = Math.max(0, 1 - 0.5 * ad); // ±2 neighbours visible, rest fade
+    return {
+      transform: `translateY(${dropY.toFixed(1)}px) rotate(${rot.toFixed(2)}deg) scale(${scale.toFixed(3)})`,
+      opacity,
+      zIndex: 100 - Math.round(ad * 10),
+    } as React.CSSProperties;
+  };
+
   return (
     <section id="about" className="projects projects-carousel-section">
       <div className="container projects-header">
@@ -198,6 +220,7 @@ export function Projects() {
                     cardRefs.current[i] = el;
                   }}
                   className={`project-card ${isActive ? 'is-active' : 'is-side'}`}
+                  style={arc(i)}
                   onClick={() => {
                     // Suppress the click that follows a drag gesture.
                     if (drag.current.moved) {

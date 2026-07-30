@@ -34,8 +34,11 @@
 
 .carousel-viewport {
   width: 100%;
-  overflow: hidden;
-  padding: 8px 0;
+  /* Clip horizontally (neighbours slip off the sides) but let the arc drop show
+     vertically so the rising/sinking cards aren't cut off. */
+  overflow-x: clip;
+  overflow-y: visible;
+  padding: 60px 0;
   /* Grab-and-drag the slider with the mouse; allow vertical page scroll (pan-y)
      while we capture horizontal drags. */
   cursor: grab;
@@ -56,8 +59,10 @@
   will-change: transform;
 }
 
-/* While dragging, follow the pointer 1:1 (no easing). */
-.carousel-track.is-dragging {
+/* While dragging, follow the pointer 1:1 (no easing) — track AND the per-card
+   arc transforms, so the whole rim tracks the finger without lag. */
+.carousel-track.is-dragging,
+.carousel-track.is-dragging .project-card {
   transition: none;
 }
 
@@ -75,17 +80,15 @@
   position: relative;
   cursor: pointer;
   background: var(--bg-card);
-  transform: scale(0.83);
-  opacity: 0.4;
+  /* transform + opacity are driven inline per-card (the arc rim). */
   transform-origin: 50% 50%;
+  will-change: transform, opacity;
   transition:
     transform 850ms cubic-bezier(0.16, 1, 0.3, 1),
     opacity 850ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .project-card.is-active {
-  transform: scale(1) translateY(0);
-  opacity: 1;
   cursor: zoom-in;
 }
 

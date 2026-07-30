@@ -7,6 +7,7 @@ import { News } from './components/News';
 import { Contact } from './components/Contact';
 import { Footer } from './components/Footer';
 import { useReveal } from './hooks/useReveal';
+import { useView } from './view';
 import './App.css';
 
 /* Scroll-driven morph of body::before "Blue Light" blob.
@@ -130,9 +131,13 @@ function useAutoAdvanceToProjects(enabled: boolean) {
 
 export default function App() {
   const [siteReady, setSiteReady] = useState(false);
-  useReveal(siteReady);
-  useBlobMorph(siteReady);
-  useAutoAdvanceToProjects(siteReady);
+  const { view, phase } = useView();
+  const onHome = view === 'home';
+  // Re-arm reveals on every view swap so each screen "builds" on entry.
+  useReveal(siteReady, 0.12, view);
+  // Blob morph + movie auto-advance only make sense on the scrollable home reel.
+  useBlobMorph(siteReady && onHome);
+  useAutoAdvanceToProjects(siteReady && onHome);
 
   return (
     <>
@@ -140,12 +145,21 @@ export default function App() {
       <div className={siteReady ? 'site-ready' : 'site-pre'} aria-hidden={!siteReady}>
         <Header />
         <main>
-          <Hero startAnim={siteReady} />
-          <Projects />
-          <News />
-          <Contact />
+          {view === 'home' && (
+            <>
+              <Hero startAnim={siteReady} />
+              <Projects />
+            </>
+          )}
+          {view === 'timeline' && <News />}
+          {view === 'contact' && <Contact />}
         </main>
-        <Footer />
+        {view !== 'contact' && <Footer />}
+      </div>
+
+      {/* Always mounted so the opacity 0→1 cover actually animates on entry. */}
+      <div className={`view-transition is-${phase}`} aria-hidden="true">
+        <div className="view-transition-orb" />
       </div>
     </>
   );
