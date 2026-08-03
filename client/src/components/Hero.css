@@ -165,9 +165,12 @@
 }
 
 .hero-portrait {
-  /* Framed against layout landmarks (user): the shirt's RIGHT edge lands on "about"
-     in the nav, the LEFT ear just past the logo's "P", the forehead a touch above
-     "Keep it simple" and the neck just below "innovation". It's a sibling of
+  /* Framed against layout landmarks (user): the LEFT ear just past the logo's "P",
+     the forehead a touch above "Keep it simple" and the neck just below
+     "innovation" — the head lands on the same marks as the previous portrait.
+     (The old photo's shirt also reached "about" in the nav; the current one is
+     shot further back, so the torso melts into the black below the neck.)
+     It's a sibling of
      .hero-inner (out of the grid) anchored to .hero; the inner <img> is sized and
      offset BY HAND — object-fit can't express the head-left / shoulder-right
      asymmetry baked into the square photo (head sits at ~36% width, the right
@@ -263,9 +266,13 @@
   width: 62vw;
   max-width: 895px;
   height: auto;
-  /* Bright B&W with a touch of punch — bright enough that the face isn't dark,
-     contrast light enough that the shirt's black still matches #121115 so the
-     bottom/side fades dissolve seamlessly (no crushed band). */
+  /* portrait.png is a luminance matte (white RGB + alpha = tone curve), so the
+     photo's black background composites away to nothing and the page bg + glow
+     stay visible behind the head — no rectangle, no torn shadow edge. The B&W
+     punch that used to live in this filter is baked into that alpha
+     (brightness 1.14 → contrast 1.08, composited at 80% like the old cutout);
+     the filter stays as a no-op safety net if the asset is ever swapped for a
+     plain opaque photo. */
   filter: grayscale(1) brightness(1.14) contrast(1.08);
 }
 
