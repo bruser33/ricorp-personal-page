@@ -34,12 +34,22 @@
   position: relative;
   width: 100%;
   max-width: 100vw;
+  /* Geometría del slider en UN solo lugar: la card la consume como flex-basis y
+     el track la usa para calcular el desplazamiento. Antes el ancho vivía en el
+     CSS (46vw con un max-width de 900px encima) y el desplazamiento se escribía
+     a mano en el JSX en vw, así que en pantallas anchas la card tocaba el
+     max-width, la fórmula seguía contando 46vw y el slot activo quedaba corrido
+     a la izquierda del centro. Sin max-width no puede volver a pasar. */
+  --card-w: 46vw;
+  --card-gap: 24px;
 }
 
 .carousel-viewport {
   width: 100%;
   overflow: hidden;
   padding: 8px 0;
+  /* Ancla del caption absoluto (ver .carousel-caption). */
+  position: relative;
   /* Grab-and-drag the slider with the mouse; allow vertical page scroll (pan-y)
      while we capture horizontal drags. */
   cursor: grab;
@@ -54,7 +64,17 @@
 
 .carousel-track {
   display: flex;
-  gap: 24px;
+  gap: var(--card-gap);
+  --slide: 0;
+  --drag: 0px;
+  /* Centrado del slot activo: 50% es del propio track (bloque, mide igual que el
+     viewport del carrusel, así que es a prueba de scrollbar) menos media card,
+     menos el paso por cada slide. Ver --card-w/--card-gap en .projects-carousel. */
+  transform: translateX(
+    calc(
+      50% - var(--card-w) / 2 - var(--slide) * (var(--card-w) + var(--card-gap)) + var(--drag)
+    )
+  );
   /* Snappy, strong ease-out so a drag release glides with "force"/momentum. */
   transition: transform 850ms cubic-bezier(0.16, 1, 0.3, 1);
   will-change: transform;
@@ -65,14 +85,20 @@
   transition: none;
 }
 
+/* Rebase del loop: la tira salta a la copia del medio sin animar (si animara se
+   vería el recorrido completo de vuelta). Lo pone Projects.tsx por un frame. */
+.carousel-track.is-rebasing {
+  transition: none;
+}
+
 .project-card {
   /* Faithful to Figma carousel geometry (data extracted via MCP):
      - Active slot: w=847, y=72 (full size, top)
      - Side slots:  w=703, y=159 (83% size, pushed down 87/2188 = ~4%)
      scale(703/847) = 0.83 reproduces the depth illusion exactly. */
-  /* Narrower than before (was 56.25vw) so the whole section fits in one screen. */
-  flex: 0 0 46vw;
-  max-width: 900px;
+  /* Narrower than before (was 56.25vw) so the whole section fits in one screen.
+     Sin max-width a propósito: ver la nota de --card-w en .projects-carousel. */
+  flex: 0 0 var(--card-w);
   aspect-ratio: 847 / 509;
   border-radius: 20px;
   overflow: hidden;
@@ -94,6 +120,12 @@
 }
 
 .project-card img {
+  /* Absoluto y no height:100%: la altura de la card la deriva aspect-ratio, y ese
+     alto no cuenta como definido para resolver porcentajes — la imagen caía a su
+     alto natural y quedaba una banda del fondo de la card arriba (la card no se
+     "renderizaba completa"). Con inset:0 llena la caja siempre. */
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -105,16 +137,75 @@
   pointer-events: none;
 }
 
-.project-card-overlay {
+/* Caption del proyecto activo — FUERA de la card (requerimiento 4): pegado al
+   borde izquierdo de la pantalla y centrado verticalmente contra ella, solapando
+   apenas su borde, como en el diseño.
+   Vive DENTRO de .carousel-viewport (no en .projects-carousel) porque ese es el
+   único ancestro cuya altura es exactamente la de la card: colgado del bloque
+   completo, el top:50% caería más abajo, contando también los dots.
+   OJO con el overflow:hidden de ese viewport: recorta el caption si crece más
+   que la card. Con los títulos actuales (una palabra) y el font de abajo entran
+   hasta 4 líneas en los 398px de card a 1440px; un título mucho más largo
+   pediría bajar el font-size, no hay guarda automática. */
+.carousel-caption {
   position: absolute;
-  inset: auto 0 0 0;
-  padding: clamp(20px, 2.5vw, 40px);
-  background: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.55) 100%);
+  /* El bloque NO se pega al borde de la pantalla: cuelga del borde izquierdo de
+     la card activa (que empieza en 50% - media card) --caption-hang hacia
+     afuera, así que el título sale de la card y la pisa con su cola. Anclarlo al
+     borde de la card y no al del viewport es lo que mantiene el solape parejo en
+     cualquier ancho.
+     El tope de 88px NO es estético: el hueco visible hasta la card vecina es
+     `gap + 0.085*card-w` (la lateral está escalada a 0.83, así que su borde
+     derecho se mete 8.5% del ancho), o sea 24px + 3.91vw. Con el tope en 110px
+     el caption se le montaba encima entre ~2116px y ~2290px de viewport; con 88
+     queda por debajo del hueco en TODO ancho (5.2vw < 24px + 3.91vw se cumple
+     hasta 1860px, y de ahí en adelante manda el tope). */
+  --caption-hang: clamp(48px, 5.2vw, 88px);
+  left: calc(50% - var(--card-w) / 2 - var(--caption-hang));
+  max-width: calc(var(--caption-hang) + 22vw);
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: clamp(10px, 1vw, 18px);
   pointer-events: none;
+  /* Difuminación al cambiar de card (requerimiento 6). */
+  transition:
+    opacity var(--caption-fade) var(--ease-figma-in-out),
+    filter var(--caption-fade) var(--ease-figma-in-out);
+  --caption-fade: 260ms;
+}
+
+.carousel-caption.is-fading {
+  opacity: 0;
+  filter: blur(14px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* OJO: no alcanza con apagar transition y filter. `is-fading` sigue poniendo
+     opacity 0, y sin transición eso es un corte en seco de 260ms y vuelta de
+     golpe — un destello, exactamente lo que el usuario con movimiento reducido
+     pidió no ver (y algo que antes no pasaba, con el caption dentro de la card).
+     El cambio de proyecto queda instantáneo, sin difuminado y sin parpadeo. */
+  .carousel-caption { transition: none; }
+  .carousel-caption.is-fading { filter: none; opacity: 1; }
+}
+
+.project-tag-label {
+  display: inline-block;
+  padding: 8px 16px;
+  background: #0b0a0f;
+  border-radius: 4px;
+  font-size: clamp(13px, 1vw, 17px);
+  font-weight: 600;
+  color: #fff;
+  letter-spacing: 0;
 }
 
 .project-title {
-  font-size: clamp(40px, 4.5vw, 84px);
+  font-size: clamp(42px, 5.6vw, 104px);
   font-weight: 500;
   letter-spacing: -0.01em;
   line-height: 1;
@@ -134,26 +225,35 @@
   letter-spacing: 0;
 }
 
+/* Centro de control (requerimiento 5): el paso entre dots era 17px (10 de dot +
+   7 de gap) y no se leía como control. Ahora 45px (18 + 27), con el arco
+   escalado en la misma proporción (ver dropY en Projects.tsx). */
 .carousel-dots {
   display: flex;
-  gap: 7px;
+  gap: 27px;
+  /* Amplitud del arco. La consume el transform inline de cada dot. */
+  --arc-drop: 34px;
   justify-content: center;
   /* Dots ride a convex arc (per-dot translateY set inline) — align from the top
      and reserve room below so the dropped edge dots aren't clipped. */
   align-items: flex-start;
-  padding-bottom: 18px;
+  padding-bottom: 40px;
   margin-top: clamp(18px, 3vh, 44px);
 }
 
 .carousel-dot {
-  width: 10px;
-  height: 10px;
+  width: 18px;
+  height: 18px;
   border-radius: 999px;
   /* Inactive dot: #d9d9d9 at 20% opacity (from Figma S1 in inactive state) */
   background: rgba(217, 217, 217, 0.3);
   padding: 0;
   border: none;
   transition: background var(--dur-hover) var(--ease-figma-out);
+}
+
+.carousel-dot:hover {
+  background: rgba(217, 217, 217, 0.55);
 }
 
 .carousel-dot.is-active {
@@ -173,8 +273,11 @@
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   z-index: 200;
-  padding: 5vw;
+  /* Sin padding: el detalle TAPA la pantalla entera (requerimiento 10). Antes
+     quedaba una card centrada con 5vw de aire alrededor. */
+  padding: 0;
   overflow-y: auto;
+  overscroll-behavior: contain;
   animation: projectModalIn 400ms ease both;
 }
 
@@ -183,10 +286,17 @@
   --from-y: 50vh;
   --from-w: 0px;
   --from-h: 0px;
-  max-width: 1280px;
-  margin: 0 auto;
-  border-radius: 24px;
-  overflow: hidden;
+  --from-scale: 0.5;
+  /* Alto de la banda de foto. Lo consumen .project-modal-image y el top del riel
+     de la X: escrito dos veces como literal, cambiar uno desfasaba el otro. */
+  --modal-hero-h: clamp(240px, 40vh, 520px);
+  max-width: none;
+  margin: 0;
+  border-radius: 0;
+  /* NO overflow:hidden: el riel de la X necesita que el sticky pueda trabajar
+     contra el scroll del overlay, y un overflow distinto de visible en el medio
+     lo convertiría en su propio scrollport. */
+  min-height: 100%;
   position: relative;
   transform-origin: top left;
   animation: modalFlipIn 900ms cubic-bezier(0.7, 0.01, 0.23, 1.01) both;
@@ -194,12 +304,15 @@
 
 @keyframes modalFlipIn {
   0% {
-    transform:
-      translate(
-        calc(var(--from-x) - 50vw + var(--from-w) / 2),
-        calc(var(--from-y) - 50vh + var(--from-h) / 2)
-      )
-      scale(calc(var(--from-w) / 1280));
+    /* El modal es a pantalla completa y su origen de transform es la esquina
+       superior izquierda, que ya coincide con (0,0) del viewport: escalado desde
+       ahí, para aterrizar sobre la card basta con trasladarlo a su posición.
+       El calc de antes (`--from-x - 50vw + --from-w/2`) era para el modal viejo,
+       que estaba CENTRADO con max-width 1280 — con el full-screen arrancaba
+       fuera de la pantalla, arriba a la izquierda. No se notaba porque el scale
+       llevaba unidad y volvía inválido el transform entero; al arreglar el scale
+       quedó a la vista. */
+    transform: translate(var(--from-x), var(--from-y)) scale(var(--from-scale));
     opacity: 0.85;
     border-radius: 24px;
   }
@@ -272,11 +385,21 @@
   }
 }
 
+/* Hero del detalle: la foto a sangre arriba, y encima —sin recortar— el título
+   montado sobre el borde inferior de la foto. */
+.project-modal-hero {
+  position: relative;
+  width: 100%;
+}
+
 .project-modal-image {
   position: relative;
   width: 100%;
-  aspect-ratio: 3 / 2;
-  border-radius: 24px 24px 0 0;
+  /* Banda relativa al viewport y no aspect-ratio: el detalle ocupa la pantalla
+     completa, así que lo que importa es cuánto alto se lleva la foto (~40%),
+     no la proporción de la imagen. */
+  height: var(--modal-hero-h);
+  border-radius: 0;
   overflow: hidden;
 }
 
@@ -287,13 +410,19 @@
   display: block;
 }
 
+/* El título CRUZA el borde de la foto: arranca sobre la imagen y termina sobre
+   el panel oscuro, con el tag ya del lado oscuro. Por eso cuelga del hero (que
+   no recorta) y no de .project-modal-image. */
 .project-modal-image-overlay {
   position: absolute;
   left: clamp(24px, 4vw, 64px);
-  bottom: clamp(20px, 3vw, 48px);
+  bottom: 0;
+  transform: translateY(46%);
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  align-items: flex-start;
+  gap: 10px;
+  z-index: 2;
   pointer-events: none;
 }
 
@@ -308,9 +437,35 @@
 }
 
 .project-modal-card {
-  background: var(--bg-card);
+  position: relative;
+  background: #17161c;
   padding: clamp(32px, 4vw, 64px);
-  border-radius: 0 0 24px 24px;
+  border-radius: 20px;
+  /* El panel ya no es el pie de una card: es un bloque suelto sobre el fondo de
+     pantalla completa, con aire arriba para que entre el título que baja del
+     hero. */
+  margin: clamp(56px, 7vh, 104px) clamp(20px, 5vw, 96px) clamp(40px, 6vh, 88px);
+}
+
+/* Borde degradado respetando el radio (border-image lo ignora). Mismo anillo
+   enmascarado que el panel del menú mobile. */
+.project-modal-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(160deg, var(--grad-from) 0%, var(--grad-to) 100%);
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0.55;
+  pointer-events: none;
 }
 
 .project-modal-text {
@@ -373,22 +528,41 @@
   }
 }
 
-.project-modal-close {
+/* Riel de la X. Arranca en el borde de la foto y llega hasta el fondo del
+   modal; el botón es sticky ADENTRO, así que se queda junto a la foto hasta que
+   el scroll lo alcanza y de ahí en adelante baja con el contenido en vez de
+   perderse arriba (requerimiento 10). Un sticky necesita recorrido: si el botón
+   colgara del hero, que mide lo que la foto, no tendría por dónde viajar. */
+.project-modal-close-rail {
   position: absolute;
-  top: 24px;
-  right: 24px;
-  width: 48px;
-  height: 48px;
+  top: calc(var(--modal-hero-h) - 76px);
+  right: clamp(20px, 4vw, 72px);
+  bottom: 0;
+  width: 56px;
+  z-index: 3;
+  /* El riel es una guía, no una superficie: los clicks lo atraviesan y solo el
+     botón los recibe. */
+  pointer-events: none;
+}
+
+.project-modal-close {
+  position: sticky;
+  top: 28px;
+  width: 56px;
+  height: 56px;
   border-radius: 999px;
-  border: none;
-  background: rgba(18, 17, 21, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  /* Bastante opaco a propósito: cuando el detalle no llega a scrollear (textos
+     cortos en mobile) el sticky nunca engancha y la X se queda sobre la foto,
+     que puede ser clarísima. */
+  background: rgba(12, 11, 15, 0.72);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
   color: #fff;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  z-index: 2;
+  pointer-events: auto;
   transition: background 200ms;
 }
 
@@ -398,16 +572,131 @@
 }
 
 @media (max-width: 720px) {
+  /* La geometría se cambia en las custom properties, no en la card ni en el
+     track por separado: el desplazamiento del track se calcula con las mismas. */
+  .projects-carousel {
+    --card-w: 86vw;
+    --card-gap: 16px;
+  }
   .project-card {
-    flex-basis: 86vw;
     aspect-ratio: 4 / 5;
   }
-  .carousel-track {
-    gap: 16px;
+  /* En mobile la card ocupa 86vw: no hay calle afuera, así que el caption va
+     sobre la imagen (izquierda, centrado vertical) en vez de colgado del borde. */
+  .carousel-caption {
+    left: 10vw;
+    max-width: 76vw;
   }
+
+  /* Velo para el caption. El .project-card-overlay que había antes traía su propio
+     degradado a negro; al sacar el texto de la card eso se perdió y la legibilidad
+     quedó colgada solo del text-shadow — sobre un cielo quemado como el de Haru
+     está al límite. En desktop no hace falta: ahí el texto cae casi todo fuera de
+     la foto.
+     (Con la lista apilada esta regla aplica a las stack-cards, que son las
+     únicas que se montan en mobile.)
+     Va en la CARD y no en el caption: colgado del caption, sus insets negativos
+     se resuelven contra el ancho del propio bloque (que es shrink-to-fit, o sea
+     imprevisible) y el degradado se derramaba por fuera del borde izquierdo de la
+     card, sobre el fondo de la página, como una mancha. Acá el overflow:hidden de
+     la card lo contiene por construcción. */
+  .project-card.is-active::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      90deg,
+      rgba(0, 0, 0, 0.5) 0%,
+      rgba(0, 0, 0, 0.24) 38%,
+      transparent 62%
+    );
+    pointer-events: none;
+  }
+  .carousel-dots { gap: 18px; padding-bottom: 30px; --arc-drop: 20px; }
+  .carousel-dot { width: 13px; height: 13px; }
   .project-title { font-size: clamp(48px, 14vw, 80px); }
   .project-modal-title { font-size: clamp(40px, 12vw, 64px); }
-  .project-modal-overlay { padding: 16px; }
-  .project-modal-card { padding: 24px; }
-  .project-modal-close { top: 12px; right: 12px; width: 40px; height: 40px; }
+  /* El detalle también va a pantalla completa en mobile (requerimiento 11): sin
+     padding en el overlay y sin reposicionar la X, que acá es sticky dentro de su
+     riel — un top/right absolutos la sacarían del riel y dejaría de acompañar al
+     scroll. Solo se achica. */
+  .project-modal-overlay { padding: 0; }
+  .project-modal-card { padding: 24px; margin: 48px 16px 40px; }
+  .project-modal-close { width: 46px; height: 46px; top: 20px; }
+  .project-modal-close-rail { right: 16px; }
+}
+
+/* ============================================================
+   Vista APILADA de mobile (requerimiento 9)
+   El carrusel con vecinos recortados a los costados no se lee en una pantalla
+   angosta: en mobile las 7 cards van una debajo de otra. Estas reglas viven
+   fuera de un @media a propósito — quien decide es Projects.tsx (useIsMobile),
+   porque la diferencia es de ESTRUCTURA, no de layout, y así no hay reglas de
+   apilado peleando con las del carrusel en el mismo breakpoint.
+   ============================================================ */
+.projects-stack-section {
+  /* La lista es más alta que la pantalla: acá el min-height de una pantalla y el
+     justify-content del carrusel no aplican. */
+  padding: clamp(24px, 4vh, 48px) 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(20px, 3vh, 36px);
+  overflow: visible;
+}
+
+.projects-stack {
+  list-style: none;
+  margin: 0;
+  padding: 0 7vw;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.stack-card {
+  /* Reset de la card del carrusel: en una columna flex, su `flex: 0 0 var(--card-w)`
+     pasaría a dimensionar el ALTO, y su scale(0.83)/opacity 0.4 son estados de
+     "card lateral" que en la lista no existen. */
+  flex: none;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  transform: none;
+  opacity: 1;
+  transition:
+    transform 500ms var(--ease-figma-out),
+    opacity 500ms var(--ease-figma-out);
+}
+
+/* La card que cruza el centro de la pantalla se agranda apenas y es la única que
+   muestra su título, como en el diseño. */
+.stack-card.is-active {
+  transform: scale(1.04);
+}
+
+.stack-card:focus-visible {
+  outline: 2px solid var(--accent-blue-active);
+  outline-offset: 3px;
+}
+
+/* El caption solo aparece en la card activa; en el resto ocupa lugar pero no se
+   ve (no se desmonta para no reflotar el layout en cada scroll). */
+.stack-caption {
+  left: 8%;
+  max-width: 78%;
+  opacity: 0;
+  transition: opacity 400ms var(--ease-figma-out);
+}
+
+.stack-card.is-active .stack-caption {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stack-card,
+  .stack-caption {
+    transition: none;
+  }
+  .stack-card.is-active {
+    transform: none;
+  }
 }

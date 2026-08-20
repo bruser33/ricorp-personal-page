@@ -10,18 +10,27 @@ import './App.css';
 
 /* Scroll-driven morph of body::before "Blue Light" blob.
    Stops match Figma Smart Animate scale_factor deltas:
-   Hero 1 → Projects 2.27 → News 5.7 → Contact 0.18.
+   Hero 1 → Projects 2.27 → Contact 0.18 → News 5.7.
+   El array va en ORDEN DE DOCUMENTO (el barrido de abajo asume que cada parada
+   está más abajo que la anterior); cada escala viaja con SU sección, no con la
+   posición, así que reordenar secciones es reordenar este array y nada más.
+   `bump` es el recorrido lateral del tramo que ENTRA a esa parada: el blob se
+   contrae a un solo círculo, se va hacia la derecha y vuelve al mismo lugar
+   justo cuando aparece "Let's start a new .project" (ver el sin(πt) abajo).
    Skipped on browsers that support scroll-timeline (CSS handles it). */
 function useBlobMorph(enabled: boolean) {
   useEffect(() => {
     if (!enabled) return;
-    if (typeof CSS !== 'undefined' && CSS.supports?.('animation-timeline: scroll()')) return;
+    /* Ya no se cede a la scroll-timeline nativa en Chromium: sus keyframes se
+       reparten sobre el scroll total y las secciones no miden lo mismo, así que
+       la coreografía caía en la sección equivocada (ver la nota larga en
+       index.css). Este camino lee el offsetTop real y acierta siempre. */
     if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
-    const stops: { id: string; scale: number; y: number }[] = [
+    const stops: { id: string; scale: number; y: number; bump?: number }[] = [
       { id: 'home', scale: 1.0, y: 0 },
       { id: 'about', scale: 2.27, y: 0 },
+      { id: 'contact', scale: 0.18, y: -800, bump: 620 },
       { id: 'news', scale: 5.7, y: -1797 },
-      { id: 'contact', scale: 0.18, y: -800 },
     ];
     let raf = 0;
     const tick = () => {
@@ -47,8 +56,14 @@ function useBlobMorph(enabled: boolean) {
       const t = Math.min(1, Math.max(0, (fold - a.top) / span));
       const scale = a.scale + (b.scale - a.scale) * t;
       const y = a.y + (b.y - a.y) * t;
+      /* Ida y vuelta lateral. sin(πt) y no una interpolación: vale 0 en los dos
+         extremos del tramo y 1 en el medio, así que el círculo sale hacia la
+         derecha y REGRESA exactamente al lugar de donde salió, sin saltos en los
+         bordes del tramo ni estado que resetear. */
+      const x = b.bump ? b.bump * Math.sin(Math.PI * t) : 0;
       document.body.style.setProperty('--blob-scale', scale.toFixed(3));
       document.body.style.setProperty('--blob-y', `${y.toFixed(1)}px`);
+      document.body.style.setProperty('--blob-x', `${x.toFixed(1)}px`);
     };
     const onScroll = () => {
       if (!raf) raf = requestAnimationFrame(tick);
@@ -60,6 +75,31 @@ function useBlobMorph(enabled: boolean) {
       cancelAnimationFrame(raf);
     };
   }, [enabled]);
+}
+
+/* Fin del intro del Home = beat B completo, leído de las custom properties que
+   definen la coreografía en index.css (--intro-beat-b-delay + --intro-beat-b-dur),
+   más un respiro para que el ojo lo registre. Se lee en runtime a propósito: si
+   se duplicaran los números acá, retocar la coreografía en el CSS dejaría el
+   auto-advance armándose en pleno intro sin que nada fallara.
+   Las custom properties se serializan tal cual se escribieron (el navegador NO
+   las normaliza), así que hay que interpretar la unidad a mano: "4850ms" y
+   "4.85s" son ambos válidos, y un número pelado se toma como ms — leerlo como
+   segundos daría 4.850.000ms y el auto-advance no se armaría nunca. */
+const INTRO_MS_MAX = 30_000; // cota de sanidad: nada del intro dura medio minuto
+
+function readMs(name: string, fallback: number): number {
+  if (typeof window === 'undefined') return fallback;
+  const raw = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  if (!raw) return fallback;
+  const n = parseFloat(raw);
+  if (!Number.isFinite(n) || n < 0) return fallback;
+  const ms = raw.endsWith('ms') || !raw.endsWith('s') ? n : n * 1000;
+  return ms > INTRO_MS_MAX ? fallback : ms;
+}
+
+function introTotalMs(): number {
+  return readMs('--intro-beat-b-delay', 4850) + readMs('--intro-beat-b-dur', 1000) + 150;
 }
 
 /* "Movie" auto-advance: once the hero intro has finished (title + face settled,
@@ -75,10 +115,12 @@ function useAutoAdvanceToProjects(enabled: boolean) {
 
     let armed = false;
     let fired = false;
-    // Arm only after the intro choreography has played out (~1.85s of transitions).
+    // Arm only after the intro choreography has played out. Va SIEMPRE por
+    // detrás del beat B (ver introTotalMs); si no, el primer scroll se lleva la
+    // página a proyectos antes de que el subtítulo llegue a verse.
     const armTimer = window.setTimeout(() => {
       armed = true;
-    }, 2000);
+    }, introTotalMs());
 
     const advance = (e: Event) => {
       if (!armed || fired) return;
@@ -127,8 +169,19 @@ function useAutoAdvanceToProjects(enabled: boolean) {
   }, [enabled]);
 }
 
+/* El blob global vive en body::before, fuera del árbol de React, así que no
+   alcanza con la clase del wrapper: marcamos el propio <body> para que arranque
+   su fade del beat B (ver index.css). */
+function useBodyLit(enabled: boolean) {
+  useEffect(() => {
+    document.body.classList.toggle('site-lit', enabled);
+    return () => document.body.classList.remove('site-lit');
+  }, [enabled]);
+}
+
 export default function App() {
   const [siteReady, setSiteReady] = useState(false);
+  useBodyLit(siteReady);
   useReveal(siteReady);
   useBlobMorph(siteReady);
   useAutoAdvanceToProjects(siteReady);
@@ -137,12 +190,16 @@ export default function App() {
     <>
       <Splash onDone={() => setSiteReady(true)} />
       <div className={siteReady ? 'site-ready' : 'site-pre'} aria-hidden={!siteReady}>
-        <Header />
+        <Header introDone={siteReady} />
         <main>
           <Hero startAnim={siteReady} />
           <Projects />
-          <News />
+          {/* Contact ANTES de News: el recorrido va proyectos → "Let's start a
+              new .project" → "Análisis". Si se vuelve a mover, hay que reordenar
+              también los stops de useBlobMorph (van en orden de documento) y los
+              keyframes de blob-morph en index.css. */}
           <Contact />
+          <News />
         </main>
       </div>
     </>

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useLang } from '../i18n';
+import { Footline } from './Footline';
 import './News.css';
 
 type Item = {
@@ -121,6 +122,11 @@ export function News() {
           <a href="#news" className="news-cta">{t('news.cta')}</a>
         </div>
       </div>
+      {/* News quedó como ÚLTIMA sección del documento, así que carga el
+          footline: si no, la página termina en el botón "See all" y un vacío, y
+          el pie (privacy / © / Santiago) queda a mitad de página dentro de
+          Contact. */}
+      <Footline />
     </section>
   );
 }

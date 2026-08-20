@@ -7,12 +7,14 @@
   position: relative;
 }
 
-/* Hero Blue Light — local 228px purple/blue circle that runs the 3-state
-   intro animation (extracted from Ricorp_animation Design→Home→Enter):
-   State 1: visible at (447, 618) — Figma frame coords scaled to viewport
-   State 2: opacity 1 → 0 (fades out in place) at ~800ms
-   State 3: re-translates to y=-510 (1129px above) and fades back in
-   Smart Animate timing: 2400ms ease_out per state cycle.
+/* Hero Blue Light — local 228px purple/blue circle at (447, 618) en coords del
+   frame Figma, escalado a viewport.
+   La grabación de referencia manda: el lower-left NO tiene glow hasta 4.85s y
+   desde ahí sube en un solo tramo y se queda quieto (medido: banda de luminancia
+   plana en 15.3 hasta 4.9s, ramp hasta 5.85s, plana hasta el final del clip).
+   Por eso el ciclo de 3 estados del Smart Animate (visible → fade out → re-entra
+   desde arriba, 2400ms) se cae: con el nuevo delay habría un flash de glow en
+   medio del hold negro. Queda un fade-in simple en el beat B, en su sitio.
    This is SEPARATE from the global body::before that morphs across sections. */
 .hero::before {
   content: '';
@@ -37,27 +39,20 @@
   opacity: 0;
   transform: translateY(0);
   will-change: opacity, transform;
+  /* Entra con el subtítulo (beat B), en su sitio. */
+  transition: opacity var(--intro-beat-b-dur) var(--ease-figma-in-out) var(--intro-beat-b-delay);
 }
 
 .hero.hero-intro::before {
-  /* Run the 3-state Smart Animate sequence. Total 2400ms.
-     0-33%: state 1 (visible, in place)
-     33-66%: state 2 (fade out, no movement)
-     66-100%: state 3 (re-enter from -1129px above) */
-  animation: hero-blue-light 2400ms var(--ease-figma-out) 200ms both;
-}
-
-@keyframes hero-blue-light {
-  0%   { opacity: 0; transform: translateY(0); }
-  15%  { opacity: 1; transform: translateY(0); }      /* state 1: visible */
-  45%  { opacity: 1; transform: translateY(0); }      /* hold state 1 */
-  60%  { opacity: 0; transform: translateY(0); }      /* state 2: fade out */
-  75%  { opacity: 0; transform: translateY(-58%); }   /* jump above (1129/1920 ≈ 58%) */
-  100% { opacity: 1; transform: translateY(-58%); }   /* state 3: re-enter from above */
+  opacity: 1;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .hero::before { animation: none; opacity: 0.6; transform: none; }
+  /* La regla .hero.hero-intro::before gana por especificidad, así que hay que
+     apagarla acá también — si no, con reduced-motion el glow terminaría en 1
+     en vez del 0.6 atenuado de siempre. */
+  .hero::before,
+  .hero.hero-intro::before { transition: none; opacity: 0.6; transform: none; }
 }
 
 /* Film-grain confined to the hero CIRCLES (Figma: the noise lives only inside the
@@ -83,9 +78,10 @@
   opacity: 0;
 }
 
+/* El grano vive dentro del orbe, así que entra con él: mismo beat B. */
 .hero.hero-intro::after {
   opacity: 0.5;
-  transition: opacity 900ms var(--ease-figma-out) 400ms;
+  transition: opacity var(--intro-beat-b-dur) var(--ease-figma-in-out) var(--intro-beat-b-delay);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -110,14 +106,18 @@
   color: #e3e3e3;
   letter-spacing: 0;
   /* Intro (video): the title + the face move TOGETHER — softly from ABOVE moving
-     DOWN into place while scaling from BIG → small. Shared 1000ms timing with the
-     portrait so they arrive as one motion; the subtitle comes AFTER (see below). */
+     DOWN into place while scaling from BIG → small. Shared timing with the
+     portrait so they arrive as one motion; the subtitle comes AFTER (see below).
+     Cadencia medida frame a frame sobre la grabación de referencia (ver
+     --intro-beat-a-* en index.css): beat A arranca a 1750ms del reveal y tarda
+     2150ms, con curva ease-in-out (la referencia entra despacio, acelera al medio
+     y se asienta suave — NO es un ease-out). */
   opacity: 0;
   transform: translateY(-52px) scale(1.08);
   transform-origin: left top;
   transition:
-    opacity 1000ms var(--ease-figma-out) 250ms,
-    transform 1000ms var(--ease-figma-out) 250ms;
+    opacity var(--intro-beat-a-dur) var(--ease-intro) var(--intro-beat-a-delay),
+    transform var(--intro-beat-a-dur) var(--ease-intro) var(--intro-beat-a-delay);
 }
 
 .hero.hero-intro .hero-title {
@@ -144,13 +144,18 @@
   white-space: pre-line;
   /* Intro (video): the subtitle "Software {development}…" enters LAST, sliding
      from the LEFT moving RIGHT into place + fade — clearly AFTER the title and
-     face have settled (long delay so the two motions read as separate beats). */
+     face have settled (long delay so the two motions read as separate beats).
+     Beat B medido en la referencia: arranca a 4850ms del reveal (≈950ms después
+     de que el beat A se asienta) y tarda 1000ms. El recorrido lateral se deja
+     como estaba: el método de medición (luminancia por bandas) no resuelve
+     desplazamiento horizontal de texto con gradiente, así que tocarlo sería
+     adivinar. */
   opacity: 0;
   transform: translateX(-64px);
   transition:
-    opacity 700ms var(--ease-figma-out),
-    transform 700ms var(--ease-figma-out);
-  transition-delay: 1.15s;
+    opacity var(--intro-beat-b-dur) var(--ease-figma-in-out),
+    transform var(--intro-beat-b-dur) var(--ease-figma-in-out);
+  transition-delay: var(--intro-beat-b-delay);
 }
 
 .hero.hero-intro .hero-sub {
@@ -158,10 +163,14 @@
   transform: translateX(0);
 }
 
-/* When user scrolls beyond hero, subtitle slides further left and fades out. */
+/* When user scrolls beyond hero, subtitle slides further left and fades out.
+   OJO: el transition-delay del beat B vive en la regla base, así que sin este
+   reset la salida heredaría los 4.85s de espera del intro y el subtítulo se
+   quedaría pegado casi 5s después de dejar el hero. La salida es inmediata. */
 .hero.hero-scrolled .hero-sub {
   opacity: 0;
   transform: translateX(-99px);
+  transition-delay: 0s;
 }
 
 .hero-portrait {
@@ -198,12 +207,12 @@
     linear-gradient(180deg, transparent 0%, #000 12%, #000 82%, transparent 100%);
   -webkit-mask-composite: source-in;
   /* Intro (video): the face moves TOGETHER with the title — from ABOVE moving
-     DOWN into place, same 1000ms/250ms cadence, so they arrive as one motion. */
+     DOWN into place, misma cadencia del beat A, so they arrive as one motion. */
   opacity: 0;
   transform: translateY(-52px);
   transition:
-    opacity 1000ms var(--ease-figma-out) 250ms,
-    transform 1000ms var(--ease-figma-out) 250ms;
+    opacity var(--intro-beat-a-dur) var(--ease-intro) var(--intro-beat-a-delay),
+    transform var(--intro-beat-a-dur) var(--ease-intro) var(--intro-beat-a-delay);
 }
 
 .hero.hero-intro .hero-portrait {
@@ -219,42 +228,13 @@
   }
 }
 
-/* ──────────────────────────────────────────────────────────────────
-   Hero post-splash continuous loops (TV circle drift + camera + blob)
-   Replicates the 3 Home keyframes Smart Animate from Figma.
-   Loops only run when .hero.hero-intro is active (post-splash).
-   ────────────────────────────────────────────────────────────────── */
-
-/* tv-circle-drift removed: the radial mask drift was estimated and didn't
-   match Figma's static linear-gradient mask. Keeping portrait static until
-   real Smart Animate deltas are extracted from Ricorp_animation file. */
-
-@keyframes hero-camera-drift {
-  0%   { object-position: 50% 38%; transform: scale(1.00); }
-  33%  { object-position: 48% 37%; transform: scale(1.03); }
-  66%  { object-position: 52% 39%; transform: scale(1.015); }
-  100% { object-position: 50% 38%; transform: scale(1.00); }
-}
-
-@keyframes hero-blob-drift {
-  0%   { transform: translate(0, 0) scale(1);          opacity: 1; }
-  50%  { transform: translate(24px, -18px) scale(1.08); opacity: 0.92; }
-  100% { transform: translate(0, 0) scale(1);          opacity: 1; }
-}
-
-.hero.hero-intro .hero-portrait img {
-  transform: scale(1);
-}
-
-/* hero-blob-drift no longer applies — local blob is removed (see global blob in index.css) */
-
-@media (prefers-reduced-motion: reduce) {
-  .hero.hero-intro .hero-portrait,
-  .hero.hero-intro .hero-portrait img,
-  .hero.hero-intro::before {
-    animation: none !important;
-  }
-}
+/* Post-splash el hero no corre ningún loop continuo: tv-circle-drift ya se había
+   sacado antes (su drift estaba estimado y no coincidía con el linear-gradient
+   estático de Figma), y hero-camera-drift / hero-blob-drift quedaron definidos
+   pero nunca aplicados. Al pasar la luz azul de animation a transition (beat B)
+   no quedó ni un @keyframes vivo acá, así que se eliminaron junto con la regla
+   no-op `.hero.hero-intro .hero-portrait img { transform: scale(1) }` y con el
+   bloque reduced-motion que anulaba animaciones ya inexistentes. */
 
 .hero-portrait img {
   /* Sized + offset by hand inside the clip window (see .hero-portrait). width sets
@@ -315,4 +295,79 @@
   }
   .hero-title { font-size: 54px; line-height: 0.957; font-weight: 600; }
   .hero-sub { font-size: 20px; line-height: 1.257; font-weight: 600; }
+
+  /* Requerimiento 2 — el orbe y el grano del hero están anclados a coordenadas
+     del frame de Figma (left 23.3% / top 56% del hero). En desktop eso cae bajo
+     el subtítulo; en mobile el hero se apila en columna con el avatar arriba, así
+     que el 56% aterriza en cualquier parte y el efecto se lee "disperso". Se
+     apagan y se vuelven a montar colgados del bloque de texto, que es donde
+     realmente tienen que estar. */
+  .hero::before,
+  .hero::after {
+    display: none;
+  }
+
+  .hero-text {
+    position: relative;
+  }
+
+  /* Orbe: centrado en el ancho del texto y a la altura del subtítulo (el
+     translateY sube el centro de la caja desde el borde inferior del bloque
+     hasta la mitad de "Software {development}"). */
+  .hero-text::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    bottom: 0;
+    transform: translate(-50%, 28%);
+    width: clamp(200px, 66vw, 320px);
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background: radial-gradient(
+      circle at 50% 50%,
+      rgba(151, 140, 255, 0.26) 0%,
+      rgba(81, 88, 252, 0.15) 38%,
+      rgba(110, 68, 164, 0.09) 62%,
+      transparent 80%
+    );
+    filter: blur(34px);
+    z-index: -1;
+    pointer-events: none;
+    opacity: 0;
+    /* Mismo beat B que el subtítulo y que el orbe de desktop. */
+    transition: opacity var(--intro-beat-b-dur) var(--ease-figma-in-out) var(--intro-beat-b-delay);
+  }
+
+  /* Grano: mismo tile de siempre, enmascarado al círculo del orbe para que el
+     "estática de televisor" viva solo ahí y no sobre toda la página. */
+  .hero-text::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    bottom: 0;
+    transform: translate(-50%, 28%);
+    width: clamp(260px, 82vw, 400px);
+    aspect-ratio: 1;
+    background-image: url('/noise.png');
+    background-repeat: repeat;
+    background-size: 200px 200px;
+    -webkit-mask-image: radial-gradient(circle at 50% 50%, #000 0%, #000 38%, transparent 70%);
+    mask-image: radial-gradient(circle at 50% 50%, #000 0%, #000 38%, transparent 70%);
+    z-index: -1;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity var(--intro-beat-b-dur) var(--ease-figma-in-out) var(--intro-beat-b-delay);
+  }
+
+  .hero.hero-intro .hero-text::after { opacity: 1; }
+  .hero.hero-intro .hero-text::before { opacity: 0.5; }
+}
+
+@media (max-width: 720px) and (prefers-reduced-motion: reduce) {
+  /* Las reglas .hero.hero-intro ... ganan por especificidad, así que hay que
+     apagar la transición en ambas y dejarlas visibles sin animación. */
+  .hero-text::after,
+  .hero.hero-intro .hero-text::after { transition: none; opacity: 0.6; }
+  .hero-text::before,
+  .hero.hero-intro .hero-text::before { transition: none; opacity: 0.5; }
 }

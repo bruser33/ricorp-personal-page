@@ -51,3 +51,10 @@ export function Splash({ onDone }: { onDone?: () => void }) {
 // Re-export timing constants for App-level coordination
 export const SPLASH_TOTAL_MS = REMOVE_AT;
 export const SPLASH_HOLD_END = TRAVEL_AT;
+/* Cuánto sigue vivo el logo del splash DESPUÉS del reveal. Cualquier cosa que
+   tenga que pasar recién cuando ese logo ya no está (en mobile: retirar el
+   wordmark del header, ver Header.css) tiene que esperar al menos esto, contado
+   desde el reveal. Se exporta en vez de copiarse: mover REMOVE_AT o REVEAL_AT
+   acá dejaría al header apagando su logo mientras el del splash todavía está
+   encima, sin que nada falle. */
+export const SPLASH_OUTRO_MS = REMOVE_AT - REVEAL_AT;

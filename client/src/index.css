@@ -49,6 +49,31 @@
   --dur-vertical-scroll: 1200ms;
   --dur-carousel: 2400ms;      /* horizontal carousel slide */
 
+  /* Coreografía del intro del Home, medida frame a frame sobre la grabación de
+     referencia (2978x1544, ~7.7s útiles). t=0 = el reveal, o sea justo cuando el
+     logo del splash aterriza en el header — esa parte no se toca.
+       beat A · título + retrato: aparecen a 1.75s, asentados a 3.90s → 2150ms
+       beat B · subtítulo + luz azul + grano: a 4.85s, asentados a 5.85s → 1000ms
+     Los tiempos son firmes (arranque y meseta se leen limpios). Las curvas NO
+     se pueden despejar con la misma confianza, así que van con su margen:
+       · beat A: dos métodos independientes sobre el mismo clip — luminancia
+         media de la banda (50% a x≈0.46) y centroide vertical del retrato, que
+         es invariante a la opacidad (50% a x≈0.57, ruidoso en la primera mitad
+         por poca masa). La luminancia tira hacia temprano porque mezcla opacidad
+         con el área que va entrando; el centroide tira hacia tarde por el ruido.
+         El punto medio de ambos es ~0.50 → curva simétrica, --ease-intro.
+       · beat B: 50% a x≈0.385, más cerca de --ease-figma-in-out (0.35).
+     Lo único categórico es que NINGUNO es --ease-figma-out (50% a x=0.20), que
+     es lo que había: por eso casi todo el movimiento pasaba en el primer quinto
+     y se sentía brusco.
+     App.tsx lee --intro-beat-b-* en runtime para armar el auto-advance DESPUÉS
+     del intro, así que no hay que sincronizar nada a mano. */
+  --intro-beat-a-delay: 1750ms;
+  --intro-beat-a-dur: 2150ms;
+  --intro-beat-b-delay: 4850ms;
+  --intro-beat-b-dur: 1000ms;
+  --ease-intro: cubic-bezier(0.42, 0, 0.58, 1);
+
   font-synthesis: none;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
@@ -105,6 +130,7 @@ body {
      --blob-scale and --blob-y custom props set via scroll listener. */
   --blob-scale: 1;
   --blob-y: 0px;
+  --blob-x: 0px;
 }
 
 body::before {
@@ -124,31 +150,44 @@ body::before {
   pointer-events: none;
   z-index: 0;
   transform-origin: 50% 50%;
-  transform: translate3d(0, var(--blob-y), 0) scale(var(--blob-scale));
+  transform: translate3d(var(--blob-x), var(--blob-y), 0) scale(var(--blob-scale));
+  /* Este blob es global (vive en body, no en el hero) y antes se pintaba apenas
+     se iba el backdrop del splash — o sea que durante el "hold" negro del intro
+     ya había un resplandor abajo-izquierda. En la referencia esa zona está
+     apagada hasta 4.85s. Así que entra con el beat B, igual que el subtítulo y
+     el orbe local; de ahí en adelante queda siempre visible y el morph por
+     scroll no se toca. La clase la pone App.tsx al quedar listo el sitio. */
+  opacity: 0;
   transition:
-    transform var(--dur-vertical-scroll) var(--ease-figma-out);
-  will-change: transform;
+    transform var(--dur-vertical-scroll) var(--ease-figma-out),
+    opacity var(--intro-beat-b-dur) var(--ease-figma-in-out) var(--intro-beat-b-delay);
+  will-change: transform, opacity;
 }
 
+body.site-lit::before {
+  opacity: 1;
+}
+
+/* Por qué NO hay ruta de scroll-timeline nativa acá.
+   La había: `@supports (animation-timeline: scroll())` con un @keyframes
+   blob-morph y `animation-timeline: scroll(root block)`. El problema es que los
+   porcentajes de un @keyframes se reparten sobre el scroll TOTAL del documento,
+   y las secciones no ocupan tramos parejos — News mide varias pantallas. Medido:
+   con el keyframe de contact en 75%, contact empieza en el 34% del scroll real,
+   así que en Chromium la coreografía se disparaba adentro de News y el usuario
+   no veía nada en la transición que le correspondía. Y no tiene arreglo dentro
+   del CSS: los porcentajes de un keyframe no aceptan custom properties.
+   useBlobMorph (App.tsx) lee el offsetTop real de cada sección, así que acierta
+   por construcción; corre en rAF sobre un listener pasivo. Si algún día se
+   vuelve a intentar la ruta nativa, tiene que ser con ViewTimeline por sección
+   (`view()`), no con una sola scroll() global. */
+
+/* Movimiento reducido para el blob global.
+   Anular la transición es seguro: `body.site-lit::before` sigue ganando por
+   especificidad, así que el blob salta a opacity 1 en cuanto App.tsx pone la
+   clase (en el reveal) en vez de desvanecerse — visible, sin animación. */
 @media (prefers-reduced-motion: reduce) {
   body::before { transition: none; }
-}
-
-/* Native scroll-timeline progressive enhancement — Chrome/Edge 115+
-   Falls back gracefully to JS-driven --blob-scale/--blob-y. */
-@supports (animation-timeline: scroll()) {
-  @keyframes blob-morph {
-    0%   { transform: translate3d(0, 0, 0) scale(1); }
-    25%  { transform: translate3d(0, 0, 0) scale(1); }
-    50%  { transform: translate3d(0, -40vh, 0) scale(2.27); }
-    80%  { transform: translate3d(0, -180vh, 0) scale(5.7); }
-    100% { transform: translate3d(0, -50vh, 0) scale(0.18); }
-  }
-  body::before {
-    animation: blob-morph linear both;
-    animation-timeline: scroll(root block);
-    transition: none;
-  }
 }
 
 /* Film grain is NOT a full-page background — in the Figma home the noise lives
@@ -248,5 +287,24 @@ h1, h2, h3, h4 {
     opacity: 1 !important;
     transform: none !important;
     transition: none !important;
+  }
+}
+
+/* Requerimiento 2 — en mobile el efecto "televisor" (morado difuso + grano) NO
+   se reparte por toda la pantalla: queda SOLO bajo el subtítulo
+   "Software {development}" (ver .hero-text::before/::after en Hero.css).
+   Acá se apagan las dos capas globales que lo esparcían:
+     · los radiales del fondo del body, que cubren el 80% y el 60% del viewport;
+     · el blob de body::before, que con el scroll escala hasta 5.7x — en desktop
+       lee como ambiente, en una pantalla de 390px es la pantalla completa.
+   Va al FINAL del archivo a propósito: los @media no aportan especificidad, así
+   que estas reglas ganan por orden de declaración sobre las de arriba (incluido
+   el bloque @supports de scroll-timeline). */
+@media (max-width: 720px) {
+  body {
+    background: var(--bg);
+  }
+  body::before {
+    display: none;
   }
 }
