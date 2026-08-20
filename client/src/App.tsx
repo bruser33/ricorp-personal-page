@@ -17,6 +17,9 @@ import './App.css';
    `bump` es el recorrido lateral del tramo que ENTRA a esa parada: el blob se
    contrae a un solo círculo, se va hacia la derecha y vuelve al mismo lugar
    justo cuando aparece "Let's start a new .project" (ver el sin(πt) abajo).
+   `opacity` apaga el blob al salir del bloque de contacto: en Análisis (#news)
+   el fondo tiene que estar limpio, así que el tramo contact-form → news lo lleva
+   de 1 a 0 (ver la nota del ease abajo).
    Skipped on browsers that support scroll-timeline (CSS handles it). */
 function useBlobMorph(enabled: boolean) {
   useEffect(() => {
@@ -25,12 +28,28 @@ function useBlobMorph(enabled: boolean) {
        reparten sobre el scroll total y las secciones no miden lo mismo, así que
        la coreografía caía en la sección equivocada (ver la nota larga en
        index.css). Este camino lee el offsetTop real y acierta siempre. */
-    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
-    const stops: { id: string; scale: number; y: number; bump?: number }[] = [
-      { id: 'home', scale: 1.0, y: 0 },
-      { id: 'about', scale: 2.27, y: 0 },
-      { id: 'contact', scale: 0.18, y: -800, bump: 620 },
-      { id: 'news', scale: 5.7, y: -1797 },
+    /* Con movimiento reducido NO se sale de una: el apagado del blob sigue
+       corriendo y lo único que se omite es la coreografía de transform (escala,
+       viaje vertical y el bump lateral). Un fade de opacidad no es movimiento
+       vestibular, y si acá se retornaba temprano el blob quedaba encendido
+       adentro de Análisis — justo el fondo que el requerimiento pide limpio —
+       porque nadie escribía --blob-opacity nunca. */
+    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+    const stops: {
+      id: string;
+      scale: number;
+      y: number;
+      opacity: number;
+      bump?: number;
+    }[] = [
+      { id: 'home', scale: 1.0, y: 0, opacity: 1 },
+      { id: 'about', scale: 2.27, y: 0, opacity: 1 },
+      /* Las dos pantallas de contacto comparten escala y posición: el blob llega
+         contraído con el bump y se queda quieto mientras el titular y el
+         formulario ocupan la pantalla. */
+      { id: 'contact', scale: 0.18, y: -800, opacity: 1, bump: 620 },
+      { id: 'contact-form', scale: 0.18, y: -800, opacity: 1 },
+      { id: 'news', scale: 5.7, y: -1797, opacity: 0 },
     ];
     let raf = 0;
     const tick = () => {
@@ -61,6 +80,15 @@ function useBlobMorph(enabled: boolean) {
          derecha y REGRESA exactamente al lugar de donde salió, sin saltos en los
          bordes del tramo ni estado que resetear. */
       const x = b.bump ? b.bump * Math.sin(Math.PI * t) : 0;
+      /* La opacidad NO va lineal: con t³ el fade se concentra en el final del
+         tramo, así que el blob acompaña toda la pantalla de contacto y recién se
+         apaga justo antes de que entre Análisis. Lineal lo dejaba a media luz en
+         plena pantalla de contacto. En los tramos donde las dos paradas tienen
+         la misma opacidad la curva no cambia nada. */
+      const fade = t * t * t;
+      const opacity = a.opacity + (b.opacity - a.opacity) * fade;
+      document.body.style.setProperty('--blob-opacity', opacity.toFixed(3));
+      if (reduced) return;
       document.body.style.setProperty('--blob-scale', scale.toFixed(3));
       document.body.style.setProperty('--blob-y', `${y.toFixed(1)}px`);
       document.body.style.setProperty('--blob-x', `${x.toFixed(1)}px`);
@@ -195,9 +223,10 @@ export default function App() {
           <Hero startAnim={siteReady} />
           <Projects />
           {/* Contact ANTES de News: el recorrido va proyectos → "Let's start a
-              new .project" → "Análisis". Si se vuelve a mover, hay que reordenar
-              también los stops de useBlobMorph (van en orden de documento) y los
-              keyframes de blob-morph en index.css. */}
+              new .project" (#contact) → el formulario (#contact-form) →
+              "Análisis". <Contact/> renderiza ESAS DOS secciones. Si se vuelve a
+              mover, hay que reordenar también los stops de useBlobMorph (van en
+              orden de documento) y el scroll-snap de index.css. */}
           <Contact />
           <News />
         </main>

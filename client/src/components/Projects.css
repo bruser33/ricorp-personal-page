@@ -624,6 +624,86 @@
   .project-modal-card { padding: 24px; margin: 48px 16px 40px; }
   .project-modal-close { width: 46px; height: 46px; top: 20px; }
   .project-modal-close-rail { right: 16px; }
+
+  /* Requerimiento 15 — el detalle en mobile pedía titular y descripción "un poco
+     más grandes y más visibles". El cuerpo estaba en clamp(14px, 0.85vw, 16px):
+     en una pantalla de 390px el término vw vale 3.3px, así que SIEMPRE colapsaba
+     al piso de 14px y el clamp no hacía nada. Acá se fija en 16px con interlínea
+     más suelta y justificado, como en el diseño. */
+  .project-modal-text {
+    font-size: 16px;
+    line-height: 1.6;
+    color: rgba(255, 255, 255, 0.86);
+    text-align: justify;
+    text-wrap: pretty;
+  }
+
+  /* El tag deja de ser una etiqueta chica y pasa a ser el subtítulo del título:
+     sin pastilla (el fondo oscuro competía con el título que baja de la foto),
+     más grande y en blanco pleno. */
+  .project-modal-image-overlay .project-tag-label {
+    padding: 0;
+    background: none;
+    font-size: 21px;
+    font-weight: 600;
+    color: #fff;
+    text-shadow: 0 2px 14px rgba(0, 0, 0, 0.6);
+  }
+
+  /* El título arranca sobre la foto y baja al panel, así que el gap con el tag
+     va corto: en el diseño el subtítulo queda pegado debajo del título. */
+  .project-modal-image-overlay { gap: 2px; }
+
+  /* Disposición de los mockups (requerimiento 15): uno grande a la izquierda y
+     el otro DESBORDANDO el borde derecho de la pantalla, solapados en vertical.
+     El desborde es intencional y es lo que hace que se lea como composición y
+     no como dos capturas apiladas; lo permite el overflow-x del overlay, que ya
+     recorta a nivel de pantalla. */
+  /* El alto de la columna tiene que CONTENER al mockup 2 ya desplazado. Antes
+     esto era `min-height: 68vw` + `translateY(38%)`: ese porcentaje se resuelve
+     sobre el alto del PROPIO mockup (240px), no sobre la columna, así que
+     empujaba la imagen ~90px hacia abajo mientras la columna medía 265px —
+     resultado medido: 55px de mockup colgando FUERA de la card, sobre el fondo
+     del overlay, sin nada que lo recorte (.project-modal y .project-modal-card
+     son overflow:visible a propósito, ver la nota de .project-modal).
+     Ahora el desfase va en `top`, que SÍ es relativo a la columna, así que el
+     alto se puede calcular: el mockup 2 mide 52% del ancho con ratio ~1.565 y
+     arranca en el 32% → necesita ~32% + 52%·1.565 ≈ 113% del ancho. 120vw deja
+     margen para la rotación, que ensancha la caja envolvente. */
+  .project-modal-mockups-col {
+    min-height: 120vw;
+    align-items: flex-start;
+    justify-content: flex-start;
+  }
+  .project-modal-mockup.mockup-1 {
+    width: 62%;
+    left: -4%;
+    top: 0;
+    transform: rotate(-6deg);
+  }
+  .project-modal-mockup.mockup-2 {
+    width: 52%;
+    left: auto;
+    /* Solapa al mockup 1 sin salirse por abajo. */
+    top: 32%;
+    /* Pasado el borde del viewport a propósito: con -14% quedaba a 14px del
+       borde, que se lee como "mal centrado" y no como sangrado. El % resuelve
+       contra .project-modal-mockups-col (295px en 390), así que -26% lo saca
+       ~20px afuera de la pantalla. Lo recorta el overflow-x del overlay. */
+    right: -26%;
+    transform: rotate(7deg);
+  }
+
+  /* El sangrado del mockup 2 desborda hacia la derecha y el overlay es el
+     scrollport (overflow-y: auto), así que sin esto aparecía barra horizontal.
+     Se declara `clip`, pero OJO: el spec dice que si un eje es `clip` y el otro
+     es `auto`/`scroll`, el `clip` COMPUTA A `hidden` — verificado, acá computa
+     hidden. En la práctica alcanza: `hidden` no ofrece scroll al usuario (ni
+     barra ni arrastre táctil), solo queda desplazable por JS y nadie escribe
+     scrollLeft. Y como el recorte es sobre X, el sticky de la X sigue
+     trabajando contra el scroll vertical de este mismo overlay (ver la nota de
+     .project-modal). */
+  .project-modal-overlay { overflow-x: clip; }
 }
 
 /* ============================================================

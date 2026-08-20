@@ -6,13 +6,174 @@
   justify-content: center;
   position: relative;
   isolation: isolate;
+  /* clip y NO hidden: `overflow: hidden` convierte a .news en contenedor de
+     scroll, y entonces el sticky del destacado se pegaría a ESE contenedor (que
+     nunca scrollea) en vez de al viewport — el pin de R1 no ocurriría nunca.
+     `clip` recorta igual pero no crea scroll container. */
+  overflow: clip;
+
+  /* Caída de la última línea del título del destacado por debajo del borde de la
+     imagen, y recorrido del pin. Van como custom properties porque los dos
+     números se ajustan a ojo contra la referencia. */
+  --news-featured-drop: clamp(22px, 2.6vw, 46px);
+  --news-pin-travel: 42vh;
+}
+
+/* ============================================================
+   Destacado full-bleed (R9) — primer item, de borde a borde.
+   ============================================================ */
+
+/* El track existe SOLO para darle recorrido al pin: el sticky retiene al
+   destacado mientras el scroll consume este padding, así que el tramo de
+   retención se declara acá y no depende del alto real de la imagen. */
+.news-featured-track {
+  position: relative;
+  width: 100%;
+}
+
+.news-featured {
+  position: relative;
+  /* Este aire es lo que deja caer la ÚLTIMA línea del título por debajo de la
+     imagen, sobre el fondo de la sección: el texto se ancla al pie del article,
+     no al de la imagen. */
+  padding-bottom: var(--news-featured-drop);
+}
+
+.news-featured__media {
+  position: relative;
+  width: 100%;
+  height: clamp(320px, 50vh, 620px);
   overflow: hidden;
 }
 
-/* Timeline container: alternating rows with center axis line. */
+.news-featured__media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Scrim: el título va ENCIMA de la foto y sin esto se pierde en las zonas
+   claras. Solo cubre la imagen — el tramo que sobresale ya está sobre el fondo. */
+.news-featured__media::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to top,
+    rgba(18, 17, 21, 0.92) 0%,
+    rgba(18, 17, 21, 0.5) 30%,
+    transparent 64%
+  );
+  pointer-events: none;
+}
+
+/* El titular del destacado tiene que compartir el borde izquierdo con los
+   cuadraditos de abajo, que viven en `.container` (max-width 1280 + 32px de
+   padding). Con un inset propio en `clamp(20px, 5vw, 96px)` NUNCA coincidían:
+   a 1440px daban 72px vs 112px, y a 1920px 96px vs 352px — el título quedaba
+   corrido respecto de la grilla. Así que se replica la caja del container en vez
+   de inventar un inset. */
+.news-featured__text {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1;
+  width: 100%;
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: 0 32px;
+}
+
+.news-featured__kicker {
+  margin: 0 0 clamp(6px, 0.6vw, 12px) 0;
+  color: rgba(227, 227, 227, 0.72);
+  font-size: clamp(14px, 1.1vw, 22px);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.news-featured__title {
+  margin: 0;
+  font-size: clamp(34px, 5.6vw, 92px);
+  font-weight: 500;
+  line-height: 1.02;
+  letter-spacing: -0.02em;
+  color: var(--fg);
+  max-width: 20ch;
+}
+
+/* ============================================================
+   Fila de cuadrados (R9) — items 2..4 en desktop, todo el resto en mobile.
+   ============================================================ */
+.news-cards {
+  list-style: none;
+  margin: clamp(56px, 6vw, 104px) 0 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(20px, 2.4vw, 44px);
+}
+
+.news-card__media {
+  position: relative;
+  /* Cuadrado perfecto: las fuentes vienen en 4:3 y 16:10, el recorte es a
+     propósito. */
+  aspect-ratio: 1 / 1;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.news-card__media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform .4s var(--ease-figma-out);
+}
+
+.news-card:hover .news-card__media img { transform: scale(1.04); }
+
+.news-card__text {
+  margin-top: clamp(12px, 1.2vw, 22px);
+  text-align: left;
+}
+
+.news-card__kicker {
+  margin: 0 0 4px 0;
+  color: rgba(227, 227, 227, 0.7);
+  font-size: clamp(12px, 0.9vw, 17px);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+/* La fecha se muestra tambien en las cards: en mobile la timeline no se monta y
+   sin esto NINGUNA fecha quedaba visible, cuando antes todas las filas la
+   traian. */
+.news-card__date {
+  display: block;
+  margin-top: 6px;
+  font-size: clamp(11px, 0.78vw, 14px);
+  color: rgba(227, 227, 227, 0.55);
+  letter-spacing: 0.02em;
+}
+
+.news-card__title {
+  margin: 0;
+  font-size: clamp(15px, 1.35vw, 26px);
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: -0.005em;
+  color: var(--fg);
+}
+
+/* ============================================================
+   Línea de tiempo (R11) — va DESPUÉS del bloque de 4, con los items restantes.
+   ============================================================ */
 .news-timeline {
   list-style: none;
-  margin: 0 auto;
+  margin: clamp(64px, 7vw, 120px) auto 0;
   padding: 0;
   position: relative;
   max-width: 1280px;
@@ -169,9 +330,45 @@
   transition: opacity var(--dur-vertical-scroll) var(--ease-figma-out) 600ms;
 }
 
-/* Mobile: collapse into single column with axis on the left. */
+/* ============================================================
+   Pin del destacado (R1) — solo desktop.
+   ============================================================ */
+@media (min-width: 721px) {
+  .news-featured-track { padding-bottom: var(--news-pin-travel); }
+  /* El header es fixed (80px): pegado a 0 el título quedaría debajo de él. */
+  .news-featured {
+    position: sticky;
+    top: var(--header-h);
+  }
+}
+
+/* ============================================================
+   Mobile (R14) — destacado + cuadraditos 2 por fila; timeline no se monta.
+   ============================================================ */
 @media (max-width: 720px) {
-  .news-timeline { gap: 32px; }
+  .news-featured__media { height: clamp(260px, 46vh, 460px); }
+  /* `.container` baja a 20px de padding en mobile (index.css); el destacado
+     tiene que seguirlo o el titular se desalinea de los cuadraditos. */
+  .news-featured__text { padding: 0 20px; }
+  .news-featured__title { max-width: 100%; }
+
+  .news-cards {
+    margin-top: clamp(28px, 7vw, 44px);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px 14px;
+  }
+  .news-card__media { border-radius: 10px; }
+
+  /* Los clamp de escritorio tienen termino `vw`, que en 390px vale ~3.5px: el
+     preferido pierde siempre y quedaba el PISO (kicker 12px, titulo 15px), o sea
+     letra mas chica que el cuerpo del sitio. En mobile van fijos. */
+  .news-card__kicker { font-size: 14px; }
+  .news-card__title { font-size: 17px; }
+  .news-card__date { font-size: 12px; }
+
+  /* La timeline no se renderiza en mobile, pero el CSS se conserva por si el
+     resize devuelve el layout de desktop sin recargar. */
+  .news-timeline { gap: 32px; margin-top: 48px; }
   .news-timeline::before { left: 18px; transform: none; }
   .news-row,
   .news-row--right {
@@ -201,14 +398,19 @@
   }
 }
 
+/* Va DESPUÉS del @media del pin: los media queries no aportan especificidad, así
+   que este bloque solo gana por orden de cascada. */
 @media (prefers-reduced-motion: reduce) {
+  .news-featured-track { padding-bottom: 0; }
+  .news-featured { position: static; }
   .news-row.reveal-delay-1,
   .news-row.reveal-delay-2,
   .news-row.reveal-delay-3,
   .news-row.reveal-delay-4,
   .news-row.reveal-delay-5,
   .news-cta-wrap.reveal-fade { transition-delay: 0s; }
-  .news-row__media img { transition: none; }
+  .news-row__media img,
+  .news-card__media img { transition: none; }
 }
 
 /* News es la última sección del documento: su footline cierra la página. Va con

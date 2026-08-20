@@ -103,7 +103,7 @@ html {
   scroll-padding-top: var(--header-h);
 }
 
-#home, #about, #news, #contact {
+#home, #about, #news, #contact, #contact-form {
   scroll-snap-align: start;
   scroll-snap-stop: normal;
 }
@@ -131,6 +131,9 @@ body {
   --blob-scale: 1;
   --blob-y: 0px;
   --blob-x: 0px;
+  /* Apagado del blob por parada (lo escribe useBlobMorph). Arranca en 1 para que
+     con movimiento reducido — donde el hook no corre — el blob quede visible. */
+  --blob-opacity: 1;
 }
 
 body::before {
@@ -146,7 +149,13 @@ body::before {
     rgba(153, 74, 123, 0.18) 38%,
     transparent 72%
   );
-  filter: blur(40px);
+  /* El apagado por scroll va como filtro y NO en `opacity` a propósito: la
+     propiedad `opacity` ya está tomada por el fade de entrada del intro, que
+     lleva un delay de --intro-beat-b-delay (~4.85s). Si el scroll escribiera ahí,
+     cada cambio arrastraría ese delay y el blob se apagaría casi cinco segundos
+     tarde. `filter` es una propiedad aparte, sin transición, y se actualiza en el
+     mismo rAF del scroll. */
+  filter: blur(40px) opacity(var(--blob-opacity, 1));
   pointer-events: none;
   z-index: 0;
   transform-origin: 50% 50%;
@@ -161,7 +170,7 @@ body::before {
   transition:
     transform var(--dur-vertical-scroll) var(--ease-figma-out),
     opacity var(--intro-beat-b-dur) var(--ease-figma-in-out) var(--intro-beat-b-delay);
-  will-change: transform, opacity;
+  will-change: transform, opacity, filter;
 }
 
 body.site-lit::before {

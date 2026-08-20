@@ -1,15 +1,27 @@
+/* Base compartida por las DOS pantallas de contacto (#contact = solo el titular,
+   #contact-form = el contacto completo). Cada una ocupa una pantalla ENTERA menos
+   el header: la sección engancha en y=header, así que este min-height deja su
+   borde inferior justo en el borde del viewport — ahí el <Footline> de la segunda
+   pantalla (margin-top:auto) queda al pie sin scroll extra. */
 .contact {
   position: relative;
   overflow: hidden;
   padding-top: clamp(72px, 7vw, 120px);
   padding-bottom: clamp(32px, 3vw, 56px);
-  /* One full screen MINUS the fixed header — the section snaps to y=header, so this
-     keeps its bottom at the viewport bottom, where the embedded .contact-footer
-     (margin-top:auto) pins the © rights + "Santiago de Chile" so they're visible on
-     the final screen (no extra scroll, no duplicate global footer). */
   min-height: calc(100vh - var(--header-h));
   display: flex;
   flex-direction: column;
+}
+
+/* Pantalla 1: el titular manda solo, centrado verticalmente y a todo el ancho
+   (no hay orbe a la derecha para el que reservar columna). */
+.contact-intro {
+  justify-content: center;
+  padding-bottom: clamp(72px, 7vw, 120px);
+}
+
+.contact-intro .contact-inner {
+  grid-template-columns: 1fr;
 }
 
 /* Lower-left purple glow visible in Figma frame 1 (Contact.png) — soft mauve halo. */
@@ -325,51 +337,6 @@
   opacity: 1;
 }
 
-/* Inline footer (frame 1+) — privacy/copyright centered, location right. */
-.contact-footer {
-  position: relative;
-  z-index: 1;
-  margin-top: auto;
-  padding-top: clamp(40px, 4vw, 80px);
-  display: grid;
-  grid-template-columns: 1fr auto;
-  align-items: end;
-  gap: 16px;
-  font-size: clamp(10px, 0.7vw, 13px);
-  color: rgba(255, 255, 255, 0.35);
-  line-height: 1.6;
-}
-
-.contact-footer-center {
-  grid-column: 1 / -1;
-  justify-self: center;
-  text-align: center;
-  grid-row: 1;
-}
-
-.contact-footer-center p {
-  margin: 0;
-}
-
-.contact-footer-loc {
-  margin: 0;
-  grid-column: 2;
-  grid-row: 1;
-  justify-self: end;
-}
-
-@media (max-width: 720px) {
-  .contact-footer {
-    grid-template-columns: 1fr;
-    text-align: center;
-  }
-  .contact-footer-loc {
-    grid-column: 1;
-    grid-row: 2;
-    justify-self: center;
-  }
-}
-
 @media (max-width: 720px) {
   .contact-inner {
     grid-template-columns: 1fr;
@@ -382,6 +349,34 @@
     top: auto;
     width: min(280px, 70vw);
   }
+  /* Al salir de `position: absolute` el orbe pasa a ser un ítem del flex y cae en
+     ORDEN DE DOM, o sea arriba del titular. Se reordena con `order` y no moviendo
+     el DOM porque su lugar en el marcado es el que lo deja detrás del contenido
+     (la lluvia de código y el orbe se pintan antes; sin z-index propios, el orden
+     de documento es el que resuelve el apilado). */
+  .contact-compose .contact-inner { order: 1; }
+  .contact-compose .contact-orb-3d { order: 2; }
+  .contact-compose .contact-form { order: 3; }
+  .contact-compose .footline { order: 4; }
+
+  /* La lluvia de código no puede leerse encima del titular ni del email: en
+     mobile queda confinada a una franja angosta del borde izquierdo (más angosta
+     que el padding del .container, así que no pisa texto), atenuada y difuminada
+     hacia la derecha. */
+  .contact-bg {
+    right: auto;
+    width: 18px;
+    overflow: hidden;
+    padding-left: 0;
+    font-size: 10px;
+    -webkit-mask-image: linear-gradient(to right, #000 40%, transparent 100%);
+    mask-image: linear-gradient(to right, #000 40%, transparent 100%);
+  }
+  .contact-bg .code-line { color: rgba(170, 180, 230, 0.10); }
+  /* Anclada a `right`, esta columna caería sobre el texto una vez que el
+     contenedor es una franja de 18px. */
+  .contact-bg .code-line-right { display: none; }
+
   .contact-spacer { display: none; }
   .contact-form { max-width: 100%; }
   .contact-sub { margin-top: 16px; }

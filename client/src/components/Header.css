@@ -6,6 +6,10 @@
   height: var(--header-h);
   z-index: 50;
   background: transparent;
+  /* isolation: el scrim de ::before va en z-index -1, que es RELATIVO a este
+     contexto. Sin aislarlo, -1 lo manda detrás del fondo de la página y el
+     scrim no se ve. */
+  isolation: isolate;
 }
 
 .header-inner {
@@ -23,37 +27,39 @@
   justify-content: center;
 }
 
-/* On scroll, a single frosted panel spans from just before the RICORP logo
-   (centre) to the right edge past "about" — a deliberate asymmetric header,
-   NOT the usual full-width bar. "eng" (left) stays floating free. The panel
-   sits behind the text (z -1 within the header-inner stacking context). */
-.header-inner::before {
+/* Requerimiento 12 — el header NO lleva pastilla ni contorno.
+   Antes acá vivía un panel escarchado (fondo blanco al 7%, borde al 10% y
+   backdrop-filter) que iba del centro al borde derecho: sobre el fondo casi
+   negro de la página ese panel se leía como una CÁPSULA con contorno flotando
+   en el header, que es justo lo que el diseño no tiene — el header tiene que
+   perder su fondo en el background de la página.
+   El reemplazo es un scrim: un degradado de borde a borde que oscurece apenas
+   la franja de arriba y muere en transparente. Cumple la única función que el
+   panel cumplía de verdad (que el wordmark y el nav se lean cuando pasa una
+   imagen a sangre completa por debajo, como el destacado de Análisis) sin
+   dibujar ningún borde: al no tener geometría propia ni radio, no hay nada que
+   se pueda leer como contorno. Va sin blur a propósito: un backdrop-filter
+   recorta su propio rectángulo y el corte inferior vuelve a verse como borde. */
+.site-header::before {
   content: '';
   position: absolute;
+  inset: 0;
   z-index: -1;
-  top: 50%;
-  transform: translateY(-50%);
-  height: 44px;
-  left: calc(50% - 72px);
-  right: -14px;
-  border-radius: 999px;
-  background: transparent;
-  border: 1px solid transparent;
-  transition:
-    background var(--dur-hover) var(--ease-figma-out),
-    backdrop-filter var(--dur-hover) var(--ease-figma-out),
-    border-color var(--dur-hover) var(--ease-figma-out);
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    rgba(18, 17, 21, 0.82) 0%,
+    rgba(18, 17, 21, 0.55) 55%,
+    rgba(18, 17, 21, 0) 100%
+  );
+  opacity: 0;
+  transition: opacity var(--dur-hover) var(--ease-figma-out);
 }
 
-.site-header.scrolled .header-inner::before {
-  background: rgba(255, 255, 255, 0.07);
-  -webkit-backdrop-filter: blur(14px);
-  backdrop-filter: blur(14px);
-  border-color: rgba(255, 255, 255, 0.10);
+.site-header.scrolled::before {
+  opacity: 1;
 }
 
-/* Custom RICORP wordmark (exported SVG). Height matches the splash logo's
-   final scaled size so the intro center→top handoff is seamless. */
 .brand-logo {
   height: 22px;
   width: auto;
@@ -105,19 +111,6 @@
      SEGUNDA fila: el header queda con dos filas de 40px y el wordmark sube 25px,
      justo el punto donde tiene que aterrizar el logo del splash. */
   .brand { grid-column: 2; grid-row: 1; justify-self: center; padding-left: 0; }
-
-  /* El panel escarchado sigue existiendo en mobile, pero se MUEVE con el botón.
-     En desktop va de la mitad hacia la derecha porque ahí están el logo y el nav;
-     en mobile el único control es el botón de menú, y al pasarlo a la izquierda
-     el panel quedaba flotando detrás de nada a la derecha. Apagarlo era peor:
-     era lo que hacía legible a "R MENU" sobre el contenido al scrollear. Así que
-     se reancla como pastilla a la izquierda, cubriendo el botón. */
-  .header-inner::before {
-    left: -14px;
-    right: auto;
-    width: 124px;
-    height: 52px;
-  }
 
   /* Terminado el viaje del logo (centro → arriba) el wordmark se retira y queda
      solo el botón (requerimiento 1). "Terminado" es el aterrizaje del splash, que
