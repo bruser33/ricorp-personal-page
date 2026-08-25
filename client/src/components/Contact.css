@@ -39,32 +39,6 @@
   z-index: 0;
 }
 
-.contact-bg {
-  position: absolute;
-  inset: 0;
-  font-family: ui-monospace, 'SF Mono', monospace;
-  font-size: clamp(11px, 0.83vw, 16px);
-  color: rgba(170, 180, 230, 0.18);
-  font-weight: 400;
-  letter-spacing: 0.02em;
-  line-height: 1.7;
-  pointer-events: none;
-  user-select: none;
-  z-index: 0;
-  padding-left: clamp(8px, 1vw, 24px);
-  /* Phase B: code-rain fades in after headline + orb begin */
-  opacity: 0;
-  transition: opacity 700ms var(--ease-figma-out) 700ms;
-}
-
-.contact-bg.reveal.visible { opacity: 1; }
-
-.contact-bg span {
-  position: absolute;
-  white-space: pre;
-  color: rgba(170, 180, 230, 0.18);
-}
-
 .contact-orb {
   position: absolute;
   left: 78%;
@@ -100,10 +74,16 @@
     transform var(--dur-vertical-scroll) var(--ease-figma-out) 800ms;
 }
 
+/* El delay iguala al del reveal (transición + 800ms) para que el loop arranque
+   recién cuando el orbe terminó de entrar y no pelee con el scale de entrada. */
 .contact-orb-3d.reveal.visible {
   opacity: 1;
   transform: scale(1);
-  animation: orb-float 14s ease-in-out calc(var(--dur-vertical-scroll) + 800ms) infinite;
+  animation: orb-float 9s ease-in-out calc(var(--dur-vertical-scroll) + 800ms) infinite;
+}
+
+.contact-orb-3d.reveal.visible .iridescent-img {
+  animation: orb-turn 22s ease-in-out infinite;
 }
 
 .iridescent-svg {
@@ -118,6 +98,9 @@
   display: block;
   object-fit: contain;
   filter: drop-shadow(0 18px 38px rgba(180, 156, 255, 0.35));
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+  will-change: transform;
 }
 
 .contact-orb-3d::after {
@@ -131,40 +114,39 @@
   pointer-events: none;
 }
 
+/* --- Movimiento del objeto 3D -----------------------------------------------
+   Son DOS animaciones en dos elementos distintos, no una sola: el contenedor ya
+   gasta su `transform` en el reveal (scale), y una sola propiedad `transform` no
+   puede llevar dos animaciones a la vez. Por eso el giro va sobre la <img> de
+   adentro y el flotado sobre el contenedor.
+   Todo es `transform` (nunca top/left) para que corra en el compositor. */
+
+/* Flotado: sube y baja apenas, ciclo largo para que se lea calmo. */
 @keyframes orb-float {
-  0%, 100% { transform: translateY(0) rotate(0deg); }
-  50% { transform: translateY(-10px) rotate(2deg); }
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50%      { transform: translate3d(0, -16px, 0); }
 }
 
-/* El objeto de la derecha TIENE que leerse en movimiento (requerimiento 13): el
-   orb-float de arriba (±10px y 2°) es un acento, no movimiento visible. El giro
-   va sobre la IMAGEN y no sobre el contenedor a propósito: el contenedor ya usa
-   su transform para el reveal (scale) y para orb-float, y una sola propiedad
-   transform no puede llevar las dos animaciones.
-   Es un vaivén de ida y vuelta, no un giro completo: la referencia muestra el
+/* Giro: vaivén de ida y vuelta, no una vuelta completa. La referencia muestra el
    objeto orientándose distinto en cada toma, y un PNG plano girando 360° se lee
-   como una calcomanía dando vueltas. */
+   como una calcomanía dando vueltas. 22s por ciclo entra en el rango calmo. */
 @keyframes orb-turn {
-  0%   { transform: rotateY(-20deg) rotateZ(-4deg); }
+  0%   { transform: rotateY(-22deg) rotateZ(-5deg); }
   25%  { transform: rotateY(0deg) rotateZ(0deg); }
-  50%  { transform: rotateY(20deg) rotateZ(4deg); }
+  50%  { transform: rotateY(22deg) rotateZ(5deg); }
   75%  { transform: rotateY(0deg) rotateZ(0deg); }
-  100% { transform: rotateY(-20deg) rotateZ(-4deg); }
-}
-
-.contact-orb-3d.reveal.visible .iridescent-img {
-  animation: orb-turn 18s ease-in-out infinite;
+  100% { transform: rotateY(-22deg) rotateZ(-5deg); }
 }
 
 @media (prefers-reduced-motion: reduce) {
+  /* El objeto SIGUE VISIBLE, solo se le apaga el loop. La regla del giro gana por
+     especificidad, así que hay que apagarla acá también o seguiría girando. */
   .contact-orb-3d,
   .contact-orb-3d.reveal.visible {
     animation: none;
     transform: scale(1);
     opacity: 1;
   }
-  /* La regla del giro gana por especificidad, así que hay que apagarla acá
-     también o el orbe seguiría girando con movimiento reducido. */
   .contact-orb-3d.reveal.visible .iridescent-img {
     animation: none;
     transform: none;
@@ -337,6 +319,164 @@
   opacity: 1;
 }
 
+/* --- Adjuntos ---------------------------------------------------------------
+   El bloque entra con el MISMO beat que el campo de email: hasta que no hay
+   asunto escrito, el formulario es una sola línea (esa es la coreografía del
+   diseño) y un botón de adjuntar suelto ahí abajo la rompía. */
+.field-attach {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  opacity: 0;
+  transform: translateY(8px);
+  pointer-events: none;
+  transition:
+    opacity 320ms var(--ease-figma-out),
+    transform 320ms var(--ease-figma-out);
+}
+
+.contact-form[data-stage="subject-filled"] .field-attach,
+.contact-form[data-stage="composing"] .field-attach,
+.contact-form[data-stage="sent"] .field-attach {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.attach-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+/* Oculto pero FOCUSABLE: con `display: none` el input sale del orden de
+   tabulación y el control quedaría inalcanzable por teclado. */
+.file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Mismo tratamiento que .field: pill de radio 999px con borde blanco al 14%. */
+.attach-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  border-radius: 999px;
+  padding: clamp(10px, 0.83vw, 15px) clamp(18px, 1.35vw, 26px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(20, 20, 28, 0.92);
+  color: rgba(255, 255, 255, 0.78);
+  font-family: inherit;
+  font-size: clamp(14px, 0.94vw, 17px);
+  font-weight: 400;
+  cursor: pointer;
+  transition:
+    border-color 280ms var(--ease-figma-out),
+    color 280ms var(--ease-figma-out);
+}
+
+.attach-label:hover {
+  border-color: rgba(255, 255, 255, 0.3);
+  color: var(--fg);
+}
+
+.file-input:focus-visible + .attach-label {
+  outline: 2px solid var(--accent-violet);
+  outline-offset: 2px;
+}
+
+.file-input:disabled + .attach-label {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.attach-hint {
+  font-size: clamp(12px, 0.83vw, 14px);
+  color: var(--fg-muted);
+}
+
+.file-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.file-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  max-width: 100%;
+  border-radius: 999px;
+  padding: 6px 7px 6px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.78);
+  font-size: clamp(12px, 0.83vw, 15px);
+}
+
+/* El nombre es lo ÚNICO elástico del chip: sin truncar, un archivo de nombre
+   largo empuja la X fuera de la pantalla en mobile. `min-width: 0` es lo que
+   habilita el ellipsis dentro de un flex item. */
+.file-name {
+  min-width: 0;
+  max-width: 40ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-size {
+  flex: none;
+  color: var(--fg-muted);
+}
+
+.file-remove {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.78);
+  transition:
+    background 200ms var(--ease-figma-out),
+    color 200ms var(--ease-figma-out);
+}
+
+.file-remove:hover {
+  background: rgba(255, 255, 255, 0.18);
+  color: var(--fg);
+}
+
+.file-remove:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.form-error {
+  margin: 0;
+  font-size: clamp(13px, 0.9vw, 15px);
+  color: #ff8fa3;
+}
+
+/* Estado de error del envío: el botón vuelve a estar habilitado (reintentar) y
+   se distingue del violeta normal para que no parezca que no pasó nada. */
+.submit.failed { color: #ff8fa3; }
+
 @media (max-width: 720px) {
   .contact-inner {
     grid-template-columns: 1fr;
@@ -352,32 +492,21 @@
   /* Al salir de `position: absolute` el orbe pasa a ser un ítem del flex y cae en
      ORDEN DE DOM, o sea arriba del titular. Se reordena con `order` y no moviendo
      el DOM porque su lugar en el marcado es el que lo deja detrás del contenido
-     (la lluvia de código y el orbe se pintan antes; sin z-index propios, el orden
-     de documento es el que resuelve el apilado). */
+     (el resplandor se pinta antes; sin z-index propios, el orden de documento es
+     el que resuelve el apilado). */
   .contact-compose .contact-inner { order: 1; }
   .contact-compose .contact-orb-3d { order: 2; }
   .contact-compose .contact-form { order: 3; }
   .contact-compose .footline { order: 4; }
 
-  /* La lluvia de código no puede leerse encima del titular ni del email: en
-     mobile queda confinada a una franja angosta del borde izquierdo (más angosta
-     que el padding del .container, así que no pisa texto), atenuada y difuminada
-     hacia la derecha. */
-  .contact-bg {
-    right: auto;
-    width: 18px;
-    overflow: hidden;
-    padding-left: 0;
-    font-size: 10px;
-    -webkit-mask-image: linear-gradient(to right, #000 40%, transparent 100%);
-    mask-image: linear-gradient(to right, #000 40%, transparent 100%);
-  }
-  .contact-bg .code-line { color: rgba(170, 180, 230, 0.10); }
-  /* Anclada a `right`, esta columna caería sobre el texto una vez que el
-     contenedor es una franja de 18px. */
-  .contact-bg .code-line-right { display: none; }
-
   .contact-spacer { display: none; }
   .contact-form { max-width: 100%; }
   .contact-sub { margin-top: 16px; }
+
+  /* Adjuntos a 390px: el hint baja a su propia línea y cada chip ocupa el ancho
+     completo, así el nombre truncado nunca empuja la X fuera del viewport. */
+  .attach-row { gap: 10px; }
+  .attach-hint { flex-basis: 100%; }
+  .file-chip { width: 100%; }
+  .file-name { max-width: none; flex: 1 1 auto; }
 }

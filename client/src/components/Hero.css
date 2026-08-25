@@ -7,93 +7,24 @@
   position: relative;
 }
 
-/* Hero Blue Light — local 228px purple/blue circle at (447, 618) en coords del
-   frame Figma, escalado a viewport.
-   La grabación de referencia manda: el lower-left NO tiene glow durante el hold
-   negro y entra recién con el subtítulo, en un solo tramo, quedándose quieto
-   hasta el final del clip. Por eso el ciclo de 3 estados del Smart Animate
-   (visible → fade out → re-entra desde arriba, 2400ms) se cae: habría un flash
-   de glow en medio del hold negro. Queda un fade-in simple en el beat B, en su
-   sitio. Los ms concretos viven en --intro-beat-b-* (index.css), no acá.
-   This is SEPARATE from the global body::before that morphs across sections. */
-.hero::before {
-  content: '';
-  position: absolute;
-  /* Figma frame is 1920w; Blue Light at x=447 = 23.3% from left, y=618 = 28.2% of 2188h.
-     Translate to relative units bound to viewport. */
-  left: 23.3%;
-  top: 56%;
-  width: clamp(120px, 11.875vw, 228px);
-  aspect-ratio: 1;
-  border-radius: 50%;
-  /* Intensidad a la mitad y más difuso. Medido sobre el prototipo con el mapa de
-     moradez ((r+b)/2−g, grilla 16×12 del viewport): el pico del target es 18.7 y
-     acá marcaba 37.7 — el doble. Y el perfil del target es un VELO (cae suave,
-     sin borde), no un círculo definido: por eso el blur sube de 28 a 32px en vez
-     de solo bajar las alfas. El ancho a media altura del conjunto (este orbe más
-     la falda del blob global) quedó en 0.31 del viewport contra 0.24 del target;
-     el resto sale de body::before, que se achicó en index.css. */
-  background: radial-gradient(
-    circle at 50% 50%,
-    rgba(81, 88, 252, 0.28) 0%,
-    rgba(81, 88, 252, 0.15) 35%,
-    rgba(110, 68, 164, 0.1) 60%,
-    transparent 80%
-  );
-  filter: blur(32px);
-  pointer-events: none;
-  z-index: 0;
-  opacity: 0;
-  transform: translateY(0);
-  will-change: opacity, transform;
-  /* Entra con el subtítulo (beat B), en su sitio. */
-  transition: opacity var(--intro-beat-b-dur) var(--ease-figma-in-out) var(--intro-beat-b-delay);
-}
+/* Acá vivían .hero::before (orbe local) y .hero::after (su grano), y se
+   ELIMINARON: eran el segundo círculo morado.
 
-.hero.hero-intro::before {
-  opacity: 1;
-}
+   En la web se leían DOS círculos donde el Figma tiene uno. Verificado apagando
+   una capa a la vez en el navegador: el magenta grande de arriba es el blob
+   global (body::before) y la mancha azul de abajo era este orbe local. No solo
+   estaban desfasados — tenían PALETAS distintas (este cerraba en violeta, el
+   global en magenta), así que el ojo los separaba en dos objetos en vez de
+   sumarlos en un velo.
 
-@media (prefers-reduced-motion: reduce) {
-  /* La regla .hero.hero-intro::before gana por especificidad, así que hay que
-     apagarla acá también — si no, con reduced-motion el glow terminaría en 1
-     en vez del 0.6 atenuado de siempre. */
-  .hero::before,
-  .hero.hero-intro::before { transition: none; opacity: 0.6; transform: none; }
-}
+   Se conserva el global y no éste porque el pedido es explícito: el círculo
+   grande tiene que mantener su efecto de movimiento de cámara, y ese movimiento
+   (la coreografía por scroll de useBlobMorph) vive en body::before.
 
-/* Film-grain confined to the hero CIRCLES (Figma: the noise lives only inside the
-   glowing orbs beneath "Software {development}", not across the whole page). A
-   crisp (un-blurred) noise tile, radially masked to a soft circle co-located with
-   the blue-light blob at lower-left, so the grain reads only inside that orb. */
-.hero::after {
-  content: '';
-  position: absolute;
-  left: 23.3%;
-  top: 56%;
-  width: clamp(200px, 20vw, 380px);
-  aspect-ratio: 1;
-  transform: translate(-25%, -25%);
-  background-image: url('/noise.png');
-  background-repeat: repeat;
-  background-size: 200px 200px;
-  /* Soft circular mask → grain only inside the orb, fading to nothing at the edge. */
-  -webkit-mask-image: radial-gradient(circle at 50% 50%, #000 0%, #000 40%, transparent 72%);
-  mask-image: radial-gradient(circle at 50% 50%, #000 0%, #000 40%, transparent 72%);
-  pointer-events: none;
-  z-index: 0;
-  opacity: 0;
-}
-
-/* El grano vive dentro del orbe, así que entra con él: mismo beat B. */
-.hero.hero-intro::after {
-  opacity: 0.5;
-  transition: opacity var(--intro-beat-b-dur) var(--ease-figma-in-out) var(--intro-beat-b-delay);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .hero::after { opacity: 0.5; transition: none; }
-}
+   El grano NO se pierde con esto: .blob-grain (index.css) acompaña al blob que
+   queda, con el mismo transform. Si algún día hace falta un glow anclado al hero
+   que NO viaje con el scroll, tiene que nacer con la MISMA paleta que el global
+   o vuelve a leerse como un segundo círculo. */
 
 .hero-inner {
   display: grid;
@@ -289,7 +220,7 @@
   }
   .hero-inner { grid-template-columns: 1fr; gap: 24px; text-align: center; }
   .hero-portrait {
-    /* Back into flow for the round mobile avatar (desktop is absolute). */
+    /* Vuelve al flujo para el retrato de mobile (en desktop es absolute). */
     position: static;
     inset: auto;
     order: -1;
@@ -298,13 +229,28 @@
     max-width: 320px;
     margin: 0 auto;
     justify-self: center;
-    border-radius: 999px;
-    /* Reset the desktop edge fades — the mobile avatar is a round crop, not a
-       fade-into-hero panel. */
-    mask-image: none;
-    -webkit-mask-image: none;
+    /* El rostro se DISUELVE, no se recorta.
+       Acá había `border-radius: 999px` con `overflow: hidden` (avatar redondo) y
+       `mask-image: none`. Ese recorte circular es un borde DURO: donde la foto es
+       oscura no se nota, pero el arco superior-izquierdo cruza la frente y el
+       nacimiento del pelo —la zona clara— y ahí quedaba una línea recta cortando
+       la cabeza. En desktop no pasa porque el retrato se disuelve con máscara.
+       La elipse va dimensionada en % de la CAJA: 60% 60% = 192px de radio sobre
+       320, transparente al 88% de ese radio = 169px. OJO con la aritmética, que
+       no es la cómoda: 169 > 160 (media caja), así que la máscara NO llega a
+       cero antes de los bordes — al costado queda en ~13% y arriba, con el centro
+       en 44%, en ~40%. Que igual no se vea ningún canto es porque la foto ahí ya
+       es negra: medido, el salto en el borde superior de la caja es 3.0 sobre 255
+       y en el lateral 0.0. Si algún día se cambia portrait.png por una con
+       contenido claro en los bordes, ESTO se va a ver y hay que apretar la elipse
+       (44% 44% la apaga de verdad antes del borde, a costa de comer más cabeza).
+       Un `circle` por defecto se mide al vértice más lejano (~226px acá) y
+       cortaría peor. */
+    border-radius: 0;
+    -webkit-mask-image: radial-gradient(ellipse 60% 60% at 50% 44%, #000 0%, #000 52%, transparent 88%);
+    mask-image: radial-gradient(ellipse 60% 60% at 50% 44%, #000 0%, #000 52%, transparent 88%);
   }
-  /* Fill the circular avatar — reset the desktop hand-positioning. */
+  /* Llena la caja del retrato — resetea el posicionamiento a mano de desktop. */
   .hero-portrait img {
     position: static;
     top: auto;
@@ -318,17 +264,12 @@
   .hero-title { font-size: 54px; line-height: 0.957; font-weight: 600; }
   .hero-sub { font-size: 20px; line-height: 1.257; font-weight: 600; }
 
-  /* Requerimiento 2 — el orbe y el grano del hero están anclados a coordenadas
-     del frame de Figma (left 23.3% / top 56% del hero). En desktop eso cae bajo
-     el subtítulo; en mobile el hero se apila en columna con el avatar arriba, así
-     que el 56% aterriza en cualquier parte y el efecto se lee "disperso". Se
-     apagan y se vuelven a montar colgados del bloque de texto, que es donde
-     realmente tienen que estar. */
-  .hero::before,
-  .hero::after {
-    display: none;
-  }
-
+  /* El orbe y el grano de mobile cuelgan del bloque de TEXTO, no del hero. El
+     hero acá se apila en columna con el avatar arriba, así que cualquier
+     coordenada porcentual sobre el hero aterriza en cualquier parte y el efecto
+     se lee "disperso"; colgado del texto queda siempre bajo el subtítulo.
+     (Antes había que apagar .hero::before/::after acá; esas dos reglas ya no
+     existen — ver la nota arriba del archivo.) */
   .hero-text {
     position: relative;
   }
@@ -356,7 +297,7 @@
     z-index: -1;
     pointer-events: none;
     opacity: 0;
-    /* Mismo beat B que el subtítulo y que el orbe de desktop. */
+    /* Mismo beat B que el subtítulo y que el velo global (body::before). */
     transition: opacity var(--intro-beat-b-dur) var(--ease-figma-in-out) var(--intro-beat-b-delay);
   }
 

@@ -141,7 +141,7 @@ body {
      el código viejo sacarlas daba delta 0 mientras sacar body::before movía el
      hero de 32.1 a 19.9.
      O sea: la mejora del requerimiento 2 NO vino de acá, vino de bajar alfas y
-     achicar cajas en .hero::before y body::before. Si algún día vuelve a sobrar
+     achicar cajas en el velo del hero (hoy body::before). Si vuelve a sobrar
      morado, el velo a tocar es ESE, no el fondo del body. */
   background: var(--bg);
   position: relative;
@@ -164,22 +164,30 @@ body::before {
   position: fixed;
   left: 8%;
   bottom: 8%;
-  /* Caja achicada (era 600x500). En el hero este blob y el orbe local se
-     superponen, y medido contra el prototipo el conjunto quedaba con la falda
-     demasiado ancha: el ancho a media altura daba 0.34 del viewport contra 0.24
-     de la referencia. La escala de la coreografía por scroll multiplica ESTA
-     caja, así que achicarla acá aprieta el efecto en todas las secciones sin
+  /* Caja achicada (era 600x500). Se achicó cuando en el hero había DOS velos
+     superpuestos —este y un orbe local, ya eliminado— y el conjunto medía 0.34
+     del viewport a media altura contra 0.24 de la referencia. Hoy este blob es
+     el único velo del hero, así que el número quedó heredado de un contexto que
+     ya no existe: si el velo se ve chico, ESTE es el lugar. La escala de la
+     coreografía por scroll multiplica ESTA caja, así que tocarla acá aprieta o
+     suelta el efecto en todas las secciones sin
      tocar el recorrido. .blob-grain la copia — moverla es mover las dos. */
   width: 480px;
   height: 400px;
-  /* Alfas bajadas junto con el orbe del hero (ver .hero::before): este blob y
-     aquel se suman en el hero, así que dejarlo fuerte devolvía el wash que el
-     prototipo no tiene. */
+  /* Paleta alineada a la del orbe de mobile (.hero-text::after en Hero.css), que
+     es la que coincide con el Figma: violeta claro → azul → púrpura.
+     Antes cerraba en MAGENTA (153,74,123) mientras el orbe local del hero cerraba
+     en violeta; con dos paletas distintas superpuestas el ojo los separaba en dos
+     círculos en vez de sumarlos en un velo. El orbe local ya no existe, pero el
+     magenta igual tiraba el conjunto hacia un rosa que el Figma no tiene.
+     Si se toca acá, tocar también el de mobile: son el MISMO efecto en dos
+     layouts, y que se despinten entre sí es justo el bug que esto arregla. */
   background: radial-gradient(
     ellipse 60% 70% at 50% 50%,
-    rgba(81, 88, 252, 0.2) 0%,
-    rgba(153, 74, 123, 0.11) 38%,
-    transparent 72%
+    rgba(151, 140, 255, 0.2) 0%,
+    rgba(81, 88, 252, 0.13) 38%,
+    rgba(110, 68, 164, 0.08) 62%,
+    transparent 78%
   );
   /* El apagado por scroll va como filtro y NO en `opacity` a propósito: la
      propiedad `opacity` ya está tomada por el fade de entrada del intro, que
@@ -196,7 +204,7 @@ body::before {
      se iba el backdrop del splash — o sea que durante el "hold" negro del intro
      ya había un resplandor abajo-izquierda. En la referencia esa zona está
      apagada durante todo el hold negro. Así que entra con el beat B, igual que el subtítulo y
-     el orbe local; de ahí en adelante queda siempre visible y el morph por
+     el velo del hero; de ahí en adelante queda siempre visible y el morph por
      scroll no se toca. La clase la pone App.tsx al quedar listo el sitio. */
   opacity: 0;
   transition:
@@ -302,8 +310,9 @@ body.site-lit::before {
 /* El grano NUNCA es un fondo de página completa — en el Figma del Home el ruido
    vive solo DENTRO de los círculos que brillan bajo "Software {development}".
    Por eso hay exactamente dos capas de grano, las dos enmascaradas a su círculo:
-   el orbe quieto del hero (Hero.css .hero::after) y el blob que viaja con el
-   scroll (.blob-grain, más arriba). Fuera de esas dos máscaras el negro queda
+   el blob que viaja con el scroll (.blob-grain, más arriba) en desktop, y en
+   mobile el orbe anclado al bloque de texto (Hero.css .hero-text::before).
+   OJO: nunca las dos a la vez — en ≤720px .blob-grain está en display:none. Fuera de esas dos máscaras el negro queda
    uniforme en #121115 de punta a punta, sin costura de ruido. */
 
 a { color: inherit; text-decoration: none; }
