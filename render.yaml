@@ -10,7 +10,21 @@ services:
     envVars:
       - key: NODE_VERSION
         value: 20
+      # El sitio se sirve en ricorp.cl (dominio propio sobre Pages), NO en
+      # bruser33.github.io. Con solo el github.io acá, el preflight del
+      # formulario de contacto desde ricorp.cl moría en 500 y el envío nunca
+      # salía. Van los dos, y con y sin www: el origin que manda el navegador es
+      # el de la barra de direcciones, no el del hosting.
       - key: ALLOWED_ORIGINS
-        value: https://bruser33.github.io
+        value: https://ricorp.cl,https://www.ricorp.cl,https://bruser33.github.io
       - key: MONGO_URI
+        sync: false
+      # Envío del formulario de contacto por Resend. Sin RESEND_API_KEY el
+      # endpoint NO falla: queda en dry-run (loguea el mail y responde
+      # dryRun: true). Cargar la key en el dashboard de Render para que salga
+      # de verdad. CONTACT_TO tiene default en el código, pero se declara acá
+      # para poder cambiar el destinatario sin tocar el repo.
+      - key: RESEND_API_KEY
+        sync: false
+      - key: CONTACT_TO
         sync: false

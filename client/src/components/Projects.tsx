@@ -1,78 +1,41 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useLang } from '../i18n';
 import { Footline } from './Footline';
+import { hitosDestacados } from '../data/trayectoria';
+import type { HitoTrayectoria } from '../data/trayectoria';
 import './Projects.css';
-
-type Project = {
-  id: number;
-  title: string;
-  tag: string;
-  image: string;
-  description: string;
-  mockups?: string[];
-};
 
 const BASE = import.meta.env.BASE_URL;
 
-const projects: Project[] = [
-  {
-    id: 1,
-    title: 'Haru',
-    tag: 'App development',
-    image: BASE + 'figma-frames/image-7.png',
-    description:
-      'Lorem ipsum dolor sit amet consectetur. Quis sed ultrices sed ornare iaculis viverra nec vivamus. Eu ullamcorper sed in dictumst mauris nunc a posuere. Quam faucibus sem sed odio augue lectus cursus ultricies morbi. Eu elit cursus orci justo accumsan sit. Felis leo eleifend elit urna habitasse integer. Ornare donec vivamus eget facilisi interdum.',
-    mockups: [BASE + 'figma-frames/project-haru-1.png', BASE + 'figma-frames/project-haru-2.png'],
-  },
-  {
-    id: 2,
-    title: 'Project 2',
-    tag: 'Brand identity',
-    image: BASE + 'figma-frames/image-1.png',
-    description:
-      'Lorem ipsum dolor sit amet consectetur. Vestibulum feugiat massa nibh justo proin dignissim purus tristique nisl. Faucibus ipsum mauris sed augue dui. Sodales ultrices cursus condimentum hac scelerisque elementum morbi nisl.',
-  },
-  {
-    id: 3,
-    title: 'Project 3',
-    tag: 'Web design',
-    image: BASE + 'figma-frames/image-4.png',
-    description:
-      'Lorem ipsum dolor sit amet consectetur. Quis sed ultrices sed ornare iaculis viverra nec vivamus. Eu ullamcorper sed in dictumst mauris nunc a posuere.',
-  },
-  {
-    id: 4,
-    title: 'Project 4',
-    tag: 'Illustration',
-    image: BASE + 'figma-frames/image-5.png',
-    description:
-      'Lorem ipsum dolor sit amet consectetur. Pulvinar congue sed eu blandit fusce. Lorem vivamus elementum vitae faucibus malesuada dictum diam.',
-  },
-  {
-    id: 5,
-    title: 'Project 5',
-    tag: 'Product design',
-    image: BASE + 'figma-frames/image-6.png',
-    description:
-      'Lorem ipsum dolor sit amet consectetur. Quam faucibus sem sed odio augue lectus cursus ultricies morbi. Eu elit cursus orci justo accumsan sit.',
-  },
-  {
-    id: 6,
-    title: 'Project 6',
-    tag: 'Editorial',
-    image: BASE + 'figma-frames/news-1.png',
-    description:
-      'Lorem ipsum dolor sit amet consectetur. Felis leo eleifend elit urna habitasse integer. Ornare donec vivamus eget facilisi interdum.',
-  },
-  {
-    id: 7,
-    title: 'Project 7',
-    tag: 'Motion',
-    image: BASE + 'figma-frames/news-2.png',
-    description:
-      'Lorem ipsum dolor sit amet consectetur. Sodales ultrices cursus condimentum hac scelerisque elementum morbi nisl.',
-  },
-];
+/* En `trayectoria.ts` las rutas se guardan relativas a `client/public`
+   ('figma-frames/x.png') para que quien edita ese archivo no tenga que saber
+   nada del base path de GitHub Pages. El prefijo se agrega acá, igual que en
+   News.tsx. */
+function rutaImagen(ruta: string): string {
+  if (/^(https?:)?\/\//.test(ruta) || ruta.startsWith('/')) return ruta;
+  return BASE + ruta;
+}
+
+/* La tarjeta de Proyectos ES la imagen (el título vive afuera), así que un
+   destacado sin `imagen` no se puede dibujar. Se DESCARTA acá en vez de
+   renderizar una card hueca: en la línea de tiempo sigue apareciendo igual, que
+   es donde un hito sin foto se lee bien. */
+type Proyecto = HitoTrayectoria & { imagen: string };
+
+/* Fuente única: esta sección ya no tiene lista propia. Muestra los hitos de
+   `src/data/trayectoria.ts` marcados con `destacado: true`, más nuevos primero.
+   Se resuelve a nivel de módulo porque `trayectoria` es una constante: así la
+   referencia es estable entre renders y no hace falta memoizar nada. */
+const projects: Proyecto[] = hitosDestacados().filter((h): h is Proyecto => !!h.imagen);
+
+/* El título admite un \n forzado (lo usa la línea de tiempo); en las tarjetas y
+   en los textos accesibles se aplana a una sola línea. */
+const tituloPlano = (titulo: string) => titulo.replace(/\n/g, ' ');
+
+/* Texto accesible de una tarjeta. `etiqueta` es opcional: sin ella el rótulo es
+   solo el título. */
+const rotulo = (p: Proyecto) =>
+  p.etiqueta ? `${tituloPlano(p.titulo)} — ${p.etiqueta}` : tituloPlano(p.titulo);
 
 /* Loop visual del carrusel. La lista se repite REPEATS veces y el índice que
    manda es VIRTUAL (un entero sin acotar sobre esa tira): así el slot activo
@@ -84,10 +47,27 @@ const projects: Project[] = [
 const REPEATS = 3;
 const MIDDLE_COPY = 1;
 
+// ¿El índice virtual está dentro de la copia del medio (o sea, no hay que rebasear)?
+const inMiddleCopy = (v: number, total: number) =>
+  v >= total * MIDDLE_COPY && v < total * (MIDDLE_COPY + 1);
+
 /* Difuminación del caption al cambiar de card (requerimiento 6): el bloque
    título+tag se va en blur+fade, se cambia el proyecto con el caption invisible
    y vuelve a entrar. Este es el medio tiempo, no la duración total. */
 const CAPTION_FADE_MS = 260;
+
+/* Auto-play del carrusel (solo desktop). El número sale de MEDIR el prototipo de
+   Figma del video de referencia: ~5 proyectos en 10.4s → ~2100ms por proyecto, y
+   el perfil de movimiento cuadro a cuadro NUNCA cae a cero entre proyectos.
+   Por eso el track, mientras manda el auto-play, transiciona en `AUTOPLAY_MS
+   linear` (clase .is-autoplaying, ver Projects.css): si la duración de la
+   transición es igual al intervalo y la curva es lineal, el track nunca queda
+   quieto y se lee como un desplazamiento continuo en vez de saltos con reposo. */
+const AUTOPLAY_MS = 2100;
+
+/* Respiro tras una interacción explícita (drag, dot, teclas) antes de que el
+   auto-play retome: si retomara enseguida, le pelearía al usuario el control. */
+const AUTOPLAY_RESUME_MS = 4000;
 
 /* El carrusel y la lista apilada son ESTRUCTURAS distintas, no un layout que se
    pueda intercambiar con CSS: el carrusel necesita la tira repetida, el track
@@ -96,27 +76,40 @@ const CAPTION_FADE_MS = 260;
    El valor inicial sale de matchMedia y no de un efecto: montar el carrusel y
    cambiarlo en el primer efecto haría parpadear la sección en cada carga mobile. */
 function useIsMobile(query = '(max-width: 720px)') {
-  const [isMobile, setIsMobile] = useState(
+  return useMediaQuery(query);
+}
+
+/* Mismo patrón que el resto del repo (window.matchMedia): valor inicial sincrónico
+   + listener de cambios. Lo usan el breakpoint de mobile y prefers-reduced-motion. */
+function useMediaQuery(query: string) {
+  const [matches, setMatches] = useState(
     () => typeof window !== 'undefined' && window.matchMedia(query).matches
   );
   useEffect(() => {
     const mq = window.matchMedia(query);
-    const onChange = () => setIsMobile(mq.matches);
+    const onChange = () => setMatches(mq.matches);
     mq.addEventListener('change', onChange);
     return () => mq.removeEventListener('change', onChange);
   }, [query]);
-  return isMobile;
+  return matches;
 }
 
 export function Projects() {
   const { t } = useLang();
   const total = projects.length;
+  /* Con 0 ó 1 destacado NO hay carrusel posible: el índice virtual da por hecho
+     que el slot activo tiene vecinos a ambos lados (por eso la tira repetida), y
+     con un solo proyecto el rebase del loop y el auto-play quedarían girando
+     sobre la misma card para siempre. Con 1 se muestra la card sola —sin loop,
+     sin dots y sin auto-play— y con 0 la sección se queda solo con su
+     encabezado. */
+  const hasLoop = total > 1;
   const isMobile = useIsMobile();
   // Card apilada que está en el centro de la pantalla (solo mobile).
   const [activeStack, setActiveStack] = useState(0);
   const stackRefs = useRef<(HTMLElement | null)[]>([]);
   // Índice virtual sobre la tira repetida (arranca en la copia del medio).
-  const [vSlide, setVSlide] = useState(total * MIDDLE_COPY);
+  const [vSlide, setVSlide] = useState(hasLoop ? total * MIDDLE_COPY : 0);
   const [noTransition, setNoTransition] = useState(false);
   const [expandedSlide, setExpandedSlide] = useState<number | null>(null);
   const [originRect, setOriginRect] = useState<DOMRect | null>(null);
@@ -127,8 +120,40 @@ export function Projects() {
   const [dragDX, setDragDX] = useState(0);
   const drag = useRef({ startX: 0, lastX: 0, lastT: 0, vel: 0, moved: false, pointerId: -1 });
 
-  const currentSlide = ((vSlide % total) + total) % total;
-  const loopProjects = Array.from({ length: total * REPEATS }, (_, i) => projects[i % total]);
+  /* --- Auto-play (solo desktop) ------------------------------------------- */
+  const prefersReducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
+  const sectionRef = useRef<HTMLElement | null>(null);
+  // La sección está a la vista: fuera de pantalla el auto-play se apaga.
+  const [inView, setInView] = useState(false);
+  // El puntero está sobre el carrusel: mientras mira de cerca, no se mueve solo.
+  const [hovering, setHovering] = useState(false);
+  // Interacción explícita reciente (drag, dot, teclas): ver AUTOPLAY_RESUME_MS.
+  const [autoplaySuspended, setAutoplaySuspended] = useState(false);
+  const resumeTimer = useRef(0);
+  /* ¿El último paso lo dio el auto-play? Lo consume el rebase de normalización
+     para saber cuánto dura la transición en curso (2100ms lineales vs 850ms). */
+  const lastStepWasAutoplay = useRef(false);
+
+  /* Toda interacción del usuario pasa por acá: apaga el auto-play y lo vuelve a
+     encender recién tras AUTOPLAY_RESUME_MS de inactividad (el timer se reinicia
+     con cada gesto, así que gestos encadenados no lo reviven en el medio). */
+  const suspendAutoplay = useCallback(() => {
+    lastStepWasAutoplay.current = false;
+    setAutoplaySuspended(true);
+    window.clearTimeout(resumeTimer.current);
+    resumeTimer.current = window.setTimeout(
+      () => setAutoplaySuspended(false),
+      AUTOPLAY_RESUME_MS
+    );
+  }, []);
+
+  useEffect(() => () => window.clearTimeout(resumeTimer.current), []);
+
+  // Sin loop no hay aritmética modular que valga (con total 0 sería un NaN).
+  const currentSlide = hasLoop ? ((vSlide % total) + total) % total : 0;
+  const loopProjects = hasLoop
+    ? Array.from({ length: total * REPEATS }, (_, i) => projects[i % total])
+    : projects;
 
   // Caption con un frame de retardo: el proyecto que se MUESTRA cambia recién
   // cuando el bloque ya está difuminado (requerimiento 6).
@@ -159,11 +184,11 @@ export function Projects() {
      El rebase del useEffect de más abajo sigue siendo el camino elegante: cuando
      el usuario para, normaliza sin que se note y este atajo casi nunca corre.
      Se reserva un slot a cada punta para que el activo siempre tenga vecinos. */
-  const slideRef = useRef(total * MIDDLE_COPY);
+  const slideRef = useRef(hasLoop ? total * MIDDLE_COPY : 0);
 
   const moveBy = useCallback(
     (delta: number) => {
-      if (delta === 0) return;
+      if (delta === 0 || !hasLoop) return;
       const cur = slideRef.current;
       const next = cur + delta;
       if (next >= 1 && next <= total * REPEATS - 2) {
@@ -184,13 +209,15 @@ export function Projects() {
       slideRef.current = rebased;
       setVSlide(rebased);
     },
-    [total]
+    [total, hasLoop]
   );
 
   // goTo recibe un índice REAL de proyecto (los dots) y viaja por el camino
   // corto sobre la tira virtual.
   const goTo = useCallback(
     (i: number) => {
+      // Los dots y las cards vecinas son interacción explícita: cortan el auto-play.
+      suspendAutoplay();
       const target = ((i % total) + total) % total;
       const cur = ((slideRef.current % total) + total) % total;
       let d = target - cur;
@@ -198,7 +225,7 @@ export function Projects() {
       if (d < -total / 2) d += total;
       moveBy(d);
     },
-    [total, moveBy]
+    [total, moveBy, suspendAutoplay]
   );
 
   /* El elemento de origen llega POR PARÁMETRO. Antes se buscaba en `cardRefs`,
@@ -220,20 +247,92 @@ export function Projects() {
   const next = useCallback(() => moveBy(1), [moveBy]);
   const prev = useCallback(() => moveBy(-1), [moveBy]);
 
+  /* El auto-play manda solo si: hay carrusel (desktop; en mobile la lista apilada
+     no tiene qué mover), el usuario no pidió menos movimiento, la sección está a
+     la vista, nadie está arrastrando, no hay detalle abierto, el puntero no está
+     sobre el carrusel y no hubo interacción reciente. */
+  const autoplayActive =
+    hasLoop &&
+    !isMobile &&
+    !prefersReducedMotion &&
+    inView &&
+    !dragging &&
+    expandedSlide === null &&
+    !hovering &&
+    !autoplaySuspended;
+
+  /* Visibilidad de la sección. Sin esto el carrusel seguiría avanzando (y
+     repintando) con la sección fuera de pantalla, y al volver el usuario se
+     encontraría el orden cambiado sin haber visto el movimiento. */
+  useEffect(() => {
+    if (isMobile) return;
+    const el = sectionRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[entries.length - 1];
+        if (entry) setInView(entry.isIntersecting);
+      },
+      { threshold: 0.35 }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [isMobile]);
+
+  // Motor del auto-play: un paso cada AUTOPLAY_MS, que es lo que dura la propia
+  // transición del track mientras la clase .is-autoplaying está puesta.
+  useEffect(() => {
+    if (!autoplayActive) return;
+    const id = window.setInterval(() => {
+      const track = trackRef.current;
+      /* Rebase del loop SIN el camino de noTransition. Ese camino apaga la
+         transición durante un par de frames, y en un movimiento que tiene que
+         leerse continuo eso es un tirón. Este tick cae justo cuando la
+         transición anterior terminó, o sea con el track EN REPOSO: ahí correr el
+         índice una periodicidad completa de la tira renderiza exactamente la
+         misma imagen. Se pinta en el mismo tick (transición apagada a mano +
+         reflow forzado para que el navegador la dé por comprometida) y el paso
+         de abajo ya anima con la transición de la clase, sin frames muertos. */
+      if (track && !inMiddleCopy(slideRef.current, total)) {
+        const home = total * MIDDLE_COPY + (((slideRef.current % total) + total) % total);
+        track.style.transition = 'none';
+        track.style.setProperty('--slide', String(home));
+        track.getBoundingClientRect();
+        track.style.transition = '';
+        slideRef.current = home;
+      }
+      lastStepWasAutoplay.current = true;
+      moveBy(1);
+    }, AUTOPLAY_MS);
+    return () => window.clearInterval(id);
+  }, [autoplayActive, moveBy, total]);
+
   /* Normalización del loop: al terminar el desplazamiento, si el índice virtual
      salió de la copia del medio se lo rebasa a la posición equivalente de esa
      copia. El rebase va SIN transición (noTransition) o se vería un salto de
      toda la tira. */
   useEffect(() => {
-    if (vSlide >= total * MIDDLE_COPY && vSlide < total * (MIDDLE_COPY + 1)) return;
-    const id = window.setTimeout(() => {
-      const home = total * MIDDLE_COPY + (((slideRef.current % total) + total) % total);
-      setNoTransition(true);
-      slideRef.current = home;
-      setVSlide(home);
-    }, 900);
+    if (!hasLoop) return;
+    if (inMiddleCopy(vSlide, total)) return;
+    /* Con el auto-play corriendo el rebase lo hace el propio tick (en reposo y
+       sin apagar la transición): si además saltara acá, cortaría el
+       deslizamiento de 2100ms a la mitad. */
+    if (autoplayActive) return;
+    const id = window.setTimeout(
+      () => {
+        const home = total * MIDDLE_COPY + (((slideRef.current % total) + total) % total);
+        setNoTransition(true);
+        slideRef.current = home;
+        setVSlide(home);
+      },
+      /* Hay que esperar a que termine la transición EN CURSO o el rebase la
+         corta: 850ms las del usuario, pero 2100ms lineales si el último paso lo
+         dio el auto-play y recién ahora se apagó (p.ej. el puntero entró al
+         carrusel a mitad del deslizamiento). */
+      lastStepWasAutoplay.current ? AUTOPLAY_MS + 60 : 900
+    );
     return () => window.clearTimeout(id);
-  }, [vSlide, total]);
+  }, [vSlide, total, autoplayActive, hasLoop]);
 
   /* Reactivar la transición recién cuando el navegador ya pintó la posición
      rebasada: un solo rAF no alcanza (el estilo puede no estar comprometido
@@ -258,12 +357,14 @@ export function Projects() {
       }
       // Las flechas manejan el carrusel; en la lista apilada no hay qué mover.
       if (isMobile) return;
+      if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+      suspendAutoplay();
       if (e.key === 'ArrowRight') next();
-      if (e.key === 'ArrowLeft') prev();
+      else prev();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [next, prev, expandedSlide, closeProject, isMobile]);
+  }, [next, prev, expandedSlide, closeProject, isMobile, suspendAutoplay]);
 
   /* Card "activa" de la lista apilada = la que está cruzando el centro de la
      pantalla. En el diseño es la única que muestra su título y va un poco más
@@ -331,6 +432,7 @@ export function Projects() {
     d.vel = 0;
     d.moved = false;
     d.pointerId = e.pointerId;
+    suspendAutoplay();
     setDragging(true);
     e.currentTarget.setPointerCapture?.(e.pointerId);
   };
@@ -355,6 +457,7 @@ export function Projects() {
     const projected = d.vel * 180;
     const rawSlides = -(dx + projected) / stepPx();
     const move = Math.max(-3, Math.min(3, Math.round(rawSlides)));
+    suspendAutoplay();
     setDragging(false);
     setDragDX(0);
     // Loop: la tira virtual se encarga de que el último conecte con el primero.
@@ -374,9 +477,10 @@ export function Projects() {
   };
 
   /* Lista apilada de mobile (requerimiento 9): el carrusel con vecinos recortados
-     a los costados no se lee en una pantalla angosta. Acá van las 7 cards reales,
-     una debajo de otra, sin tira repetida, sin dots y sin drag. */
-  const stack = (
+     a los costados no se lee en una pantalla angosta. Acá van las cards reales
+     (una por destacado), una debajo de otra, sin tira repetida, sin dots y sin
+     drag. */
+  const stack = total === 0 ? null : (
     <ul className="projects-stack">
       {projects.map((p, i) => (
         <li key={p.id}>
@@ -388,14 +492,14 @@ export function Projects() {
             className={`project-card stack-card${i === activeStack ? ' is-active' : ''}`}
             role="button"
             tabIndex={0}
-            aria-label={`${p.title} — ${p.tag}`}
+            aria-label={rotulo(p)}
             onClick={() => openProject(i, stackRefs.current[i])}
             onKeyDown={(e) => onCardKey(e, i, stackRefs.current[i])}
           >
-            <img src={p.image} alt="" draggable={false} />
+            <img src={rutaImagen(p.imagen)} alt="" draggable={false} />
             <div className="carousel-caption stack-caption">
-              <h3 className="project-title">{p.title}</h3>
-              <span className="project-tag-label">{p.tag}</span>
+              <h3 className="project-title">{tituloPlano(p.titulo)}</h3>
+              {p.etiqueta && <span className="project-tag-label">{p.etiqueta}</span>}
             </div>
           </article>
         </li>
@@ -403,10 +507,17 @@ export function Projects() {
     </ul>
   );
 
-  const carousel = (
+  /* Sin destacados no hay nada que montar: ni carrusel ni lista. La sección se
+     queda con su encabezado (y el footline), sin dots huérfanos. */
+  const carousel = total === 0 ? null : (
       <div className="projects-carousel reveal-scale">
         <div
           className={`carousel-viewport${dragging ? ' is-dragging' : ''}`}
+          /* El puntero encima pausa el auto-play (y NO lo reanuda al salir por sí
+             solo: al salir vuelve a estar activo, pero si además hubo gesto manda
+             el respiro de AUTOPLAY_RESUME_MS). */
+          onPointerEnter={() => setHovering(true)}
+          onPointerLeave={() => setHovering(false)}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={endDrag}
@@ -414,9 +525,9 @@ export function Projects() {
         >
           <div
             ref={trackRef}
-            className={`carousel-track${dragging ? ' is-dragging' : ''}${
-              noTransition ? ' is-rebasing' : ''
-            }`}
+            className={`carousel-track${autoplayActive ? ' is-autoplaying' : ''}${
+              dragging ? ' is-dragging' : ''
+            }${noTransition ? ' is-rebasing' : ''}`}
             style={
               {
                 /* El desplazamiento lo arma el CSS a partir del ancho de card y
@@ -426,6 +537,10 @@ export function Projects() {
                    así que el slot activo queda centrado en pantalla. */
                 ['--slide' as string]: vSlide,
                 ['--drag' as string]: `${dragDX}px`,
+                /* El intervalo del auto-play viaja al CSS en vez de repetir el
+                   número allá: la transición del track dura exactamente lo mismo
+                   que el intervalo (ver AUTOPLAY_MS). */
+                ['--autoplay-ms' as string]: `${AUTOPLAY_MS}ms`,
               } as React.CSSProperties
             }
           >
@@ -469,10 +584,14 @@ export function Projects() {
                      mostrarlo. */
                   role={isActive ? 'button' : undefined}
                   tabIndex={isActive ? 0 : -1}
-                  aria-label={isActive ? `${p.title} — ${p.tag}` : undefined}
+                  aria-label={isActive ? rotulo(p) : undefined}
                   aria-hidden={!isActive}
                 >
-                  <img src={p.image} alt={isClone ? '' : p.title} draggable={false} />
+                  <img
+                    src={rutaImagen(p.imagen)}
+                    alt={isClone ? '' : tituloPlano(p.titulo)}
+                    draggable={false}
+                  />
                 </article>
               );
             })}
@@ -483,42 +602,48 @@ export function Projects() {
               (requerimiento 4). Va dentro del viewport porque su altura es la de
               la card — ver la nota en .carousel-caption. */}
           <div className={`carousel-caption${captionFading ? ' is-fading' : ''}`}>
-            <h3 className="project-title">{projects[shownSlide].title}</h3>
-            <span className="project-tag-label">{projects[shownSlide].tag}</span>
+            <h3 className="project-title">{tituloPlano(projects[shownSlide].titulo)}</h3>
+            {projects[shownSlide].etiqueta && (
+              <span className="project-tag-label">{projects[shownSlide].etiqueta}</span>
+            )}
           </div>
         </div>
 
-        <div className="carousel-dots" role="tablist" aria-label="Projects pagination">
-          {projects.map((p, i) => {
-            /* Figma: the dots sit on a convex arc (dome ∩) — apex in the centre,
-               dropping down toward both edges. Parabolic offset per position. */
-            const mid = (total - 1) / 2;
-            const t = mid === 0 ? 0 : (i - mid) / mid; // -1 … 0 … 1
-            /* 0 en el centro → --arc-drop en los extremos. La amplitud vive en el
-               CSS (y baja en mobile) para que escale junto con el tamaño del dot
-               y el gap: con el centro de control chico el arco medía 14px y no se
-               leía como arco. */
-            const arc = (t * t).toFixed(3);
-            return (
-              <button
-                key={p.id}
-                type="button"
-                role="tab"
-                aria-selected={i === currentSlide}
-                aria-label={`Go to project ${i + 1}`}
-                className={`carousel-dot ${i === currentSlide ? 'is-active' : ''}`}
-                style={{ transform: `translateY(calc(var(--arc-drop) * ${arc}))` }}
-                onClick={() => goTo(i)}
-              />
-            );
-          })}
-        </div>
+        {/* Un solo proyecto no se pagina: el dot único no diría nada. */}
+        {hasLoop && (
+          <div className="carousel-dots" role="tablist" aria-label="Projects pagination">
+            {projects.map((p, i) => {
+              /* Figma: the dots sit on a convex arc (dome ∩) — apex in the centre,
+                 dropping down toward both edges. Parabolic offset per position. */
+              const mid = (total - 1) / 2;
+              const t = mid === 0 ? 0 : (i - mid) / mid; // -1 … 0 … 1
+              /* 0 en el centro → --arc-drop en los extremos. La amplitud vive en el
+                 CSS (y baja en mobile) para que escale junto con el tamaño del dot
+                 y el gap: con el centro de control chico el arco medía 14px y no se
+                 leía como arco. */
+              const arc = (t * t).toFixed(3);
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={i === currentSlide}
+                  aria-label={`Go to project ${i + 1}`}
+                  className={`carousel-dot ${i === currentSlide ? 'is-active' : ''}`}
+                  style={{ transform: `translateY(calc(var(--arc-drop) * ${arc}))` }}
+                  onClick={() => goTo(i)}
+                />
+              );
+            })}
+          </div>
+        )}
       </div>
   );
 
   return (
     <section
       id="about"
+      ref={sectionRef}
       className={`projects ${isMobile ? 'projects-stack-section' : 'projects-carousel-section'}`}
     >
       <div className="container projects-header">
@@ -534,7 +659,7 @@ export function Projects() {
           className="project-modal-overlay"
           role="dialog"
           aria-modal="true"
-          aria-label={`${expanded.title} — ${expanded.tag}`}
+          aria-label={rotulo(expanded)}
           onClick={closeProject}
         >
           <div
@@ -565,11 +690,13 @@ export function Projects() {
                 scroll — quedarían recortados. Viven en el hero, que no recorta. */}
             <div className="project-modal-hero">
               <div className="project-modal-image">
-                <img src={expanded.image} alt={expanded.title} />
+                <img src={rutaImagen(expanded.imagen)} alt={tituloPlano(expanded.titulo)} />
               </div>
               <div className="project-modal-image-overlay">
-                <h3 className="project-modal-title">{expanded.title}</h3>
-                <span className="project-tag-label">{expanded.tag}</span>
+                <h3 className="project-modal-title">{tituloPlano(expanded.titulo)}</h3>
+                {expanded.etiqueta && (
+                  <span className="project-tag-label">{expanded.etiqueta}</span>
+                )}
               </div>
             </div>
             {/* Riel de la X: va desde el borde de la foto hasta el fondo del
@@ -597,14 +724,14 @@ export function Projects() {
               {expanded.mockups && expanded.mockups.length > 0 ? (
                 <div className="project-modal-layout">
                   <div className="project-modal-text-col">
-                    <p className="project-modal-text">{expanded.description}</p>
-                    <p className="project-modal-text">{expanded.description}</p>
+                    <p className="project-modal-text">{expanded.descripcion}</p>
+                    <p className="project-modal-text">{expanded.descripcion}</p>
                   </div>
                   <div className="project-modal-mockups-col">
                     {expanded.mockups.map((src, i) => (
                       <img
                         key={i}
-                        src={src}
+                        src={rutaImagen(src)}
                         alt=""
                         className={`project-modal-mockup mockup-${i + 1}`}
                       />
@@ -613,9 +740,9 @@ export function Projects() {
                 </div>
               ) : (
                 <>
-                  <p className="project-modal-text">{expanded.description}</p>
-                  <p className="project-modal-text">{expanded.description}</p>
-                  <p className="project-modal-text">{expanded.description}</p>
+                  <p className="project-modal-text">{expanded.descripcion}</p>
+                  <p className="project-modal-text">{expanded.descripcion}</p>
+                  <p className="project-modal-text">{expanded.descripcion}</p>
                 </>
               )}
             </div>

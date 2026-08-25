@@ -80,6 +80,18 @@
   will-change: transform;
 }
 
+/* Auto-play: la transición dura EXACTAMENTE lo que el intervalo entre pasos
+   (--autoplay-ms lo pone Projects.tsx desde AUTOPLAY_MS, para no repetir el
+   número acá) y la curva es LINEAL. Así el track nunca llega a quedarse quieto
+   entre proyectos y el avance se lee continuo, como en el prototipo de Figma;
+   con los 850ms de cubic-bezier de arriba se leía como saltos con reposo.
+   Va ANTES de .is-dragging y .is-rebasing a propósito: misma especificidad, así
+   que el `transition: none` de esas dos gana por orden y ni el arrastre ni el
+   salto del rebase quedan animados en lineal. */
+.carousel-track.is-autoplaying {
+  transition: transform var(--autoplay-ms, 2100ms) linear;
+}
+
 /* While dragging, follow the pointer 1:1 (no easing). */
 .carousel-track.is-dragging {
   transition: none;
@@ -290,6 +302,19 @@
   /* Alto de la banda de foto. Lo consumen .project-modal-image y el top del riel
      de la X: escrito dos veces como literal, cambiar uno desfasaba el otro. */
   --modal-hero-h: clamp(240px, 40vh, 520px);
+  /* Calle lateral del detalle. La consumen el margen de .project-modal-card (o
+     sea, DÓNDE cae el borde azul) y el `right` del riel de la X. En el diseño la
+     X está CENTRADA sobre la línea vertical derecha del panel —la línea la
+     atraviesa—, así que el riel se deriva de este mismo valor:
+     right = gutter - ancho/2. Si los dos vuelven a escribirse por separado, el
+     centro de la X se despega de la línea (era el bug: 1354 vs borde en 1368).
+     El piso es 26px y no 20 porque tiene que ser mayor que --modal-close-size/2:
+     con una calle más angosta la X, que sobresale medio botón, se saldría de la
+     pantalla en mobile. */
+  --modal-gutter: clamp(26px, 5vw, 96px);
+  /* Diámetro de la X. Lo consumen el botón, el ancho del riel y la fórmula de
+     centrado de arriba. */
+  --modal-close-size: 56px;
   max-width: none;
   margin: 0;
   border-radius: 0;
@@ -444,7 +469,7 @@
   /* El panel ya no es el pie de una card: es un bloque suelto sobre el fondo de
      pantalla completa, con aire arriba para que entre el título que baja del
      hero. */
-  margin: clamp(56px, 7vh, 104px) clamp(20px, 5vw, 96px) clamp(40px, 6vh, 88px);
+  margin: clamp(56px, 7vh, 104px) var(--modal-gutter) clamp(40px, 6vh, 88px);
 }
 
 /* Borde degradado respetando el radio (border-image lo ignora). Mismo anillo
@@ -536,9 +561,12 @@
 .project-modal-close-rail {
   position: absolute;
   top: calc(var(--modal-hero-h) - 76px);
-  right: clamp(20px, 4vw, 72px);
+  /* El CENTRO del botón cae exactamente sobre el borde derecho del panel azul
+     (que está a --modal-gutter del borde de pantalla): medio botón queda del
+     lado de adentro y medio del lado de afuera, y la línea lo atraviesa. */
+  right: calc(var(--modal-gutter) - var(--modal-close-size) / 2);
   bottom: 0;
-  width: 56px;
+  width: var(--modal-close-size);
   z-index: 3;
   /* El riel es una guía, no una superficie: los clicks lo atraviesan y solo el
      botón los recibe. */
@@ -548,8 +576,8 @@
 .project-modal-close {
   position: sticky;
   top: 28px;
-  width: 56px;
-  height: 56px;
+  width: var(--modal-close-size);
+  height: var(--modal-close-size);
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.45);
   /* Bastante opaco a propósito: cuando el detalle no llega a scrollear (textos
@@ -621,9 +649,12 @@
      riel — un top/right absolutos la sacarían del riel y dejaría de acompañar al
      scroll. Solo se achica. */
   .project-modal-overlay { padding: 0; }
-  .project-modal-card { padding: 24px; margin: 48px 16px 40px; }
-  .project-modal-close { width: 46px; height: 46px; top: 20px; }
-  .project-modal-close-rail { right: 16px; }
+  /* La calle y el diámetro se cambian en las custom properties, no en el panel y
+     el riel por separado: el centrado de la X sobre el borde azul sale de esos
+     dos valores (ver .project-modal). */
+  .project-modal { --modal-close-size: 46px; }
+  .project-modal-card { padding: 24px; margin: 48px var(--modal-gutter) 40px; }
+  .project-modal-close { top: 20px; }
 
   /* Requerimiento 15 — el detalle en mobile pedía titular y descripción "un poco
      más grandes y más visibles". El cuerpo estaba en clamp(14px, 0.85vw, 16px):
@@ -742,9 +773,12 @@
   aspect-ratio: 16 / 10;
   transform: none;
   opacity: 1;
+  /* 260ms y no 500: a 500ms el cambio de card mientras se scrollea se leía lento
+     (la card seguía creciendo cuando ya había pasado el centro de la pantalla).
+     Misma curva, solo se acorta el tiempo. */
   transition:
-    transform 500ms var(--ease-figma-out),
-    opacity 500ms var(--ease-figma-out);
+    transform 260ms var(--ease-figma-out),
+    opacity 260ms var(--ease-figma-out);
 }
 
 /* La card que cruza el centro de la pantalla se agranda apenas y es la única que
@@ -764,7 +798,9 @@
   left: 8%;
   max-width: 78%;
   opacity: 0;
-  transition: opacity 400ms var(--ease-figma-out);
+  /* 240ms (era 400): acompaña el nuevo tiempo de .stack-card, apenas por debajo
+     para que el título termine de entrar junto con la card y no después. */
+  transition: opacity 240ms var(--ease-figma-out);
 }
 
 .stack-card.is-active .stack-caption {

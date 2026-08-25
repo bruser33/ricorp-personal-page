@@ -130,7 +130,10 @@
   .hamburger {
     display: flex;
     align-items: center;
-    gap: 10px;
+    /* 17 y no 10: la R se corre 7px a la izquierda por la compensación óptica de
+       abajo, y el gap la devuelve para que el label "Menu" no se mueva. Los dos
+       números son el mismo 7px: si se toca uno, se toca el otro. */
+    gap: 17px;
     grid-column: 1;
     grid-row: 1;
     justify-self: start;
@@ -143,6 +146,14 @@
     font-size: 40px;
     font-weight: 600;
     line-height: 1;
+    /* Compensación ÓPTICA del side bearing del glifo, NO un padding de layout:
+       la CAJA del botón ya está en left:20px igual que .section-label, pero la
+       TINTA de la "R" a 40px arranca en x=29 mientras la del título "IT projects"
+       (28px) arranca en x=22 — el título sobresalía 7px a la izquierda del logo.
+       Con -7px las dos primeras columnas con tinta caen en x≈22.
+       El número está atado al font-size de arriba: si la R cambia de tamaño,
+       cambia el bearing y este valor hay que volver a medirlo. */
+    margin-left: -7px;
   }
   .hamburger-label {
     font-size: 22px;
@@ -192,7 +203,7 @@
     #141319;
 }
 
-/* Grano — mismo tile que el orbe del hero, acá a tamaño completo del panel para
+/* Grano — mismo tile (noise.png) que usan los velos del hero, acá a tamaño completo del panel para
    que se lea "pixeleado" y no traslúcido. */
 .mobile-overlay-panel::before {
   content: '';
