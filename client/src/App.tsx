@@ -6,6 +6,7 @@ import { Projects } from './components/Projects';
 import { News } from './components/News';
 import { Contact } from './components/Contact';
 import { useReveal } from './hooks/useReveal';
+import { introTotalMs } from './intro';
 import './App.css';
 
 /* Scroll-driven morph of body::before "Blue Light" blob.
@@ -105,31 +106,6 @@ function useBlobMorph(enabled: boolean) {
   }, [enabled]);
 }
 
-/* Fin del intro del Home = beat B completo, leído de las custom properties que
-   definen la coreografía en index.css (--intro-beat-b-delay + --intro-beat-b-dur),
-   más un respiro para que el ojo lo registre. Se lee en runtime a propósito: si
-   se duplicaran los números acá, retocar la coreografía en el CSS dejaría el
-   auto-advance armándose en pleno intro sin que nada fallara.
-   Las custom properties se serializan tal cual se escribieron (el navegador NO
-   las normaliza), así que hay que interpretar la unidad a mano: "4850ms" y
-   "4.85s" son ambos válidos, y un número pelado se toma como ms — leerlo como
-   segundos daría 4.850.000ms y el auto-advance no se armaría nunca. */
-const INTRO_MS_MAX = 30_000; // cota de sanidad: nada del intro dura medio minuto
-
-function readMs(name: string, fallback: number): number {
-  if (typeof window === 'undefined') return fallback;
-  const raw = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-  if (!raw) return fallback;
-  const n = parseFloat(raw);
-  if (!Number.isFinite(n) || n < 0) return fallback;
-  const ms = raw.endsWith('ms') || !raw.endsWith('s') ? n : n * 1000;
-  return ms > INTRO_MS_MAX ? fallback : ms;
-}
-
-function introTotalMs(): number {
-  return readMs('--intro-beat-b-delay', 4850) + readMs('--intro-beat-b-dur', 1000) + 150;
-}
-
 /* "Movie" auto-advance: once the hero intro has finished (title + face settled,
    "Software {development}" revealed), the FIRST interaction — a scroll in ANY
    direction, a key, or a click — glides the page down to the projects section
@@ -146,9 +122,11 @@ function useAutoAdvanceToProjects(enabled: boolean) {
     // Arm only after the intro choreography has played out. Va SIEMPRE por
     // detrás del beat B (ver introTotalMs); si no, el primer scroll se lleva la
     // página a proyectos antes de que el subtítulo llegue a verse.
+    // El +150 es un respiro para que el ojo registre el fin del intro antes de
+    // que el primer gesto se lleve la página.
     const armTimer = window.setTimeout(() => {
       armed = true;
-    }, introTotalMs());
+    }, introTotalMs() + 150);
 
     const advance = (e: Event) => {
       if (!armed || fired) return;
@@ -217,6 +195,11 @@ export default function App() {
   return (
     <>
       <Splash onDone={() => setSiteReady(true)} />
+      {/* Grano del blob global. Va acá, ANTES del wrapper de contenido, porque el
+          orden del DOM es lo que lo mantiene por debajo de la página — ver la
+          nota larga de .blob-grain en index.css, que explica por qué no puede
+          ser un pseudo-elemento del body. */}
+      <div className={`blob-grain ${siteReady ? 'is-lit' : ''}`} aria-hidden="true" />
       <div className={siteReady ? 'site-ready' : 'site-pre'} aria-hidden={!siteReady}>
         <Header introDone={siteReady} />
         <main>

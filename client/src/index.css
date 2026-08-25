@@ -49,29 +49,41 @@
   --dur-vertical-scroll: 1200ms;
   --dur-carousel: 2400ms;      /* horizontal carousel slide */
 
-  /* Coreografía del intro del Home, medida frame a frame sobre la grabación de
-     referencia (2978x1544, ~7.7s útiles). t=0 = el reveal, o sea justo cuando el
-     logo del splash aterriza en el header — esa parte no se toca.
-       beat A · título + retrato: aparecen a 1.75s, asentados a 3.90s → 2150ms
-       beat B · subtítulo + luz azul + grano: a 4.85s, asentados a 5.85s → 1000ms
-     Los tiempos son firmes (arranque y meseta se leen limpios). Las curvas NO
-     se pueden despejar con la misma confianza, así que van con su margen:
-       · beat A: dos métodos independientes sobre el mismo clip — luminancia
-         media de la banda (50% a x≈0.46) y centroide vertical del retrato, que
-         es invariante a la opacidad (50% a x≈0.57, ruidoso en la primera mitad
-         por poca masa). La luminancia tira hacia temprano porque mezcla opacidad
-         con el área que va entrando; el centroide tira hacia tarde por el ruido.
-         El punto medio de ambos es ~0.50 → curva simétrica, --ease-intro.
-       · beat B: 50% a x≈0.385, más cerca de --ease-figma-in-out (0.35).
-     Lo único categórico es que NINGUNO es --ease-figma-out (50% a x=0.20), que
-     es lo que había: por eso casi todo el movimiento pasaba en el primer quinto
-     y se sentía brusco.
-     App.tsx lee --intro-beat-b-* en runtime para armar el auto-advance DESPUÉS
-     del intro, así que no hay que sincronizar nada a mano. */
-  --intro-beat-a-delay: 1750ms;
-  --intro-beat-a-dur: 2150ms;
-  --intro-beat-b-delay: 4850ms;
-  --intro-beat-b-dur: 1000ms;
+  /* Coreografía del intro del Home. t=0 = el reveal, o sea justo cuando el logo
+     del splash aterriza en el header.
+
+     Re-medida sobre el clip del 2026-08-24 (36.3s). OJO con ese video: NO es una
+     sola toma. La barra de URL muestra tres tramos — ricorp.cl (0–2.5s), el
+     PROTOTIPO de Figma (2.6–19.6s) y ricorp.cl otra vez (19.8s–fin). El target
+     es el tramo de Figma; los otros dos son el comportamiento que había. Leerlo
+     al revés hace "corregir" hacia lo que ya estaba mal.
+
+     Medido con luminancia por bandas, t=0 = la página se pone en negro:
+                                    TARGET (Figma)   lo que había
+       fin del hold negro / reveal      1.60s           2.15s
+       beat A · título + retrato        1.60s → 4.00s   4.05s → 5.95s
+       beat B · subtítulo + luz         4.42s → 5.52s   7.05s → 7.95s
+
+     Las DURACIONES de los beats ya estaban casi bien (2.4 vs 2.15, 1.1 vs 1.0);
+     lo que sobraba eran las ESPERAS: 2.15s de splash + 1.75s de delay del beat A.
+     Por eso el beat A ahora arranca en 0 (el título entra en cuanto el logo
+     aterriza, igual que en el prototipo, donde el negro simplemente termina) y el
+     splash se comprimió a 1600ms. Total: 1600 + 2820 + 1100 = 5520ms ≈ los 5.52s
+     de la referencia.
+
+     Las CURVAS no se tocaron: el t50% del beat A cae en x≈0.48 del tramo, que es
+     la curva simétrica que ya había (--ease-intro). La luminancia sola no despeja
+     bien un easing (mezcla opacidad con área que entra), así que sin una segunda
+     métrica que lo contradiga, no se adivina.
+
+     Splash.tsx tiene los ms del splash apareados a esto (REVEAL_AT = 1600).
+     Los ms NO se copian a mano en el JS: client/src/intro.ts los lee de estas
+     custom properties en runtime, y de ahí cuelgan el auto-advance (App.tsx) y
+     el fin del intro que apaga el delay del subtítulo (Hero.tsx). */
+  --intro-beat-a-delay: 0ms;
+  --intro-beat-a-dur: 2400ms;
+  --intro-beat-b-delay: 2820ms;
+  --intro-beat-b-dur: 1100ms;
   --ease-intro: cubic-bezier(0.42, 0, 0.58, 1);
 
   font-synthesis: none;
@@ -116,11 +128,22 @@ body {
   min-height: 100vh;
   font-size: clamp(16px, 1.04vw, 20px);
   line-height: 1.6;
-  background:
-    radial-gradient(ellipse 80% 50% at 50% 50%, rgba(52, 60, 255, 0.10), transparent 60%),
-    radial-gradient(ellipse 60% 40% at 30% 80%, rgba(153, 74, 123, 0.10), transparent 60%),
-    var(--bg);
-  background-attachment: fixed;
+  /* Fondo PLANO. Acá había dos radial-gradients moradas con
+     `background-attachment: fixed`, y se borraron por CÓDIGO MUERTO: no pintaban
+     nada. `#root` (ver la regla `html, body, #root` de arriba) tiene el mismo
+     `background: var(--bg)` OPACO y mide toda la página — 1440x6396 medido —, así
+     que tapa el fondo del body de punta a punta. El blob de body::before sí se ve
+     porque es un pseudo POSICIONADO (z-index: 0) y los elementos posicionados se
+     pintan después de los fondos de bloques en flujo como #root; un `background`
+     del body no tiene esa suerte.
+     Comprobado de dos formas: re-inyectando las dos gradients sobre el build
+     actual el mapa de moradez da idéntico al decimal en las 4 secciones, y sobre
+     el código viejo sacarlas daba delta 0 mientras sacar body::before movía el
+     hero de 32.1 a 19.9.
+     O sea: la mejora del requerimiento 2 NO vino de acá, vino de bajar alfas y
+     achicar cajas en .hero::before y body::before. Si algún día vuelve a sobrar
+     morado, el velo a tocar es ESE, no el fondo del body. */
+  background: var(--bg);
   position: relative;
 
   /* Shared "Blue Light" blob — single fixed pseudo that morphs across sections.
@@ -141,18 +164,27 @@ body::before {
   position: fixed;
   left: 8%;
   bottom: 8%;
-  width: 600px;
-  height: 500px;
+  /* Caja achicada (era 600x500). En el hero este blob y el orbe local se
+     superponen, y medido contra el prototipo el conjunto quedaba con la falda
+     demasiado ancha: el ancho a media altura daba 0.34 del viewport contra 0.24
+     de la referencia. La escala de la coreografía por scroll multiplica ESTA
+     caja, así que achicarla acá aprieta el efecto en todas las secciones sin
+     tocar el recorrido. .blob-grain la copia — moverla es mover las dos. */
+  width: 480px;
+  height: 400px;
+  /* Alfas bajadas junto con el orbe del hero (ver .hero::before): este blob y
+     aquel se suman en el hero, así que dejarlo fuerte devolvía el wash que el
+     prototipo no tiene. */
   background: radial-gradient(
     ellipse 60% 70% at 50% 50%,
-    rgba(81, 88, 252, 0.32) 0%,
-    rgba(153, 74, 123, 0.18) 38%,
+    rgba(81, 88, 252, 0.2) 0%,
+    rgba(153, 74, 123, 0.11) 38%,
     transparent 72%
   );
   /* El apagado por scroll va como filtro y NO en `opacity` a propósito: la
      propiedad `opacity` ya está tomada por el fade de entrada del intro, que
-     lleva un delay de --intro-beat-b-delay (~4.85s). Si el scroll escribiera ahí,
-     cada cambio arrastraría ese delay y el blob se apagaría casi cinco segundos
+     lleva el delay del beat B (--intro-beat-b-delay). Si el scroll escribiera ahí,
+     cada cambio arrastraría ese delay y el blob se apagaría varios segundos
      tarde. `filter` es una propiedad aparte, sin transición, y se actualiza en el
      mismo rAF del scroll. */
   filter: blur(40px) opacity(var(--blob-opacity, 1));
@@ -163,7 +195,7 @@ body::before {
   /* Este blob es global (vive en body, no en el hero) y antes se pintaba apenas
      se iba el backdrop del splash — o sea que durante el "hold" negro del intro
      ya había un resplandor abajo-izquierda. En la referencia esa zona está
-     apagada hasta 4.85s. Así que entra con el beat B, igual que el subtítulo y
+     apagada durante todo el hold negro. Así que entra con el beat B, igual que el subtítulo y
      el orbe local; de ahí en adelante queda siempre visible y el morph por
      scroll no se toca. La clase la pone App.tsx al quedar listo el sitio. */
   opacity: 0;
@@ -175,6 +207,74 @@ body::before {
 
 body.site-lit::before {
   opacity: 1;
+}
+
+/* Grano del blob global — el "morado tipo noisi" en la parte que se MUEVE con el
+   scroll (antes el grano existía SOLO en el orbe quieto del hero; el blob que
+   viaja era gradiente liso).
+
+   Por qué es un <div> y no un pseudo-elemento del body:
+   · Dentro de body::before no puede ir — ese elemento lleva `filter: blur(40px)`
+     y el blur convertiría el ruido en un gris plano.
+   · body::after tampoco sirve: los pseudos del body son su primer y su último
+     hijo, así que ::after va DESPUÉS de #root y con el mismo z-index pintaría
+     encima del contenido de la página.
+   · Y bajarlo a z-index:-1 lo escondería: body tiene fondo opaco propio, y el
+     fondo de una caja en flujo se pinta por encima de los hijos con z negativo.
+     (Ese es justamente el motivo por el que body::before usa z-index: 0.)
+   Queda como elemento real montado ANTES del wrapper de contenido (App.tsx).
+   OJO con el invariante que lo mantiene abajo: NO alcanza el orden del DOM. Esta
+   capa tiene `z-index: 0`, así que compite en el mismo escalón que el contenido
+   posicionado; lo que la deja debajo es que las secciones son
+   `section { position: relative }` (App.css) y que `.hero-inner` lleva
+   `z-index: 1` (Hero.css), o sea que todo lo de arriba está posicionado y viene
+   después en el árbol. Contenido nuevo de nivel superior SIN posicionar quedaría
+   por DEBAJO del grano. Verificado a mano en hero/proyectos/contacto/análisis.
+
+   La geometría está apareada con body::before a mano — son dos capas que tienen
+   que ocupar el mismo lugar, así que mover una es mover la otra. */
+.blob-grain {
+  position: fixed;
+  left: 8%;
+  bottom: 8%;
+  width: 480px;
+  height: 400px;
+  background-image: url('/noise.png');
+  background-repeat: repeat;
+  background-size: 200px 200px;
+  /* Misma elipse del blob, pero los stops NO son los del gradiente de
+     body::before (0/38/72) sino 0/30/66, a propósito: el gradiente puede llegar
+     difuminado hasta el borde de su caja porque lleva blur, y esta capa no. El
+     grano tiene que estar en cero bastante ANTES del borde o se ve el corte recto
+     del tile de 200x200. Si se toca uno, el otro no lo sigue solo. */
+  -webkit-mask-image: radial-gradient(ellipse 60% 70% at 50% 50%, #000 0%, #000 30%, transparent 66%);
+  mask-image: radial-gradient(ellipse 60% 70% at 50% 50%, #000 0%, #000 30%, transparent 66%);
+  /* Sin blur: el grano tiene que leerse crocante. El apagado por scroll va por
+     filter y no por opacity, por la misma razón que en body::before: opacity ya
+     está tomada por el fade de entrada del beat B, que lleva delay. */
+  filter: opacity(var(--blob-opacity, 1));
+  pointer-events: none;
+  z-index: 0;
+  transform-origin: 50% 50%;
+  transform: translate3d(var(--blob-x), var(--blob-y), 0) scale(var(--blob-scale));
+  opacity: 0;
+  transition:
+    transform var(--dur-vertical-scroll) var(--ease-figma-out),
+    opacity var(--intro-beat-b-dur) var(--ease-figma-in-out) var(--intro-beat-b-delay);
+  /* Mismo `will-change` que body::before, a propósito: las dos capas comparten
+     transform y tienen que moverse juntas durante el morph de 1200ms. Si una va
+     por el compositor y la otra por el main thread, bajo carga se separan y el
+     grano se despega de su morado. */
+  will-change: transform, opacity, filter;
+}
+
+/* Entra con el beat B, igual que el blob al que acompaña. */
+.blob-grain.is-lit {
+  opacity: 0.32;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .blob-grain { transition: none; }
 }
 
 /* Por qué NO hay ruta de scroll-timeline nativa acá.
@@ -199,11 +299,12 @@ body.site-lit::before {
   body::before { transition: none; }
 }
 
-/* Film grain is NOT a full-page background — in the Figma home the noise lives
-   ONLY inside the glowing circles beneath "Software {development}", not washed
-   across the whole page. The grain is therefore scoped to the hero blob circles
-   (see Hero.css .hero::after). With no global overlay the black stays a uniform
-   #121115 across header + hero + sections (no grain seam). */
+/* El grano NUNCA es un fondo de página completa — en el Figma del Home el ruido
+   vive solo DENTRO de los círculos que brillan bajo "Software {development}".
+   Por eso hay exactamente dos capas de grano, las dos enmascaradas a su círculo:
+   el orbe quieto del hero (Hero.css .hero::after) y el blob que viaja con el
+   scroll (.blob-grain, más arriba). Fuera de esas dos máscaras el negro queda
+   uniforme en #121115 de punta a punta, sin costura de ruido. */
 
 a { color: inherit; text-decoration: none; }
 
@@ -302,18 +403,19 @@ h1, h2, h3, h4 {
 /* Requerimiento 2 — en mobile el efecto "televisor" (morado difuso + grano) NO
    se reparte por toda la pantalla: queda SOLO bajo el subtítulo
    "Software {development}" (ver .hero-text::before/::after en Hero.css).
-   Acá se apagan las dos capas globales que lo esparcían:
-     · los radiales del fondo del body, que cubren el 80% y el 60% del viewport;
-     · el blob de body::before, que con el scroll escala hasta 5.7x — en desktop
-       lee como ambiente, en una pantalla de 390px es la pantalla completa.
+   Acá se apagan las capas globales que lo esparcían: el blob de body::before y
+   SU GRANO (.blob-grain), que con el scroll escalan hasta 5.7x — en desktop leen
+   como ambiente, en una pantalla de 390px son la pantalla completa. Las dos van
+   juntas SIEMPRE: son la misma capa partida en dos elementos, así que apagar una
+   sola dejaría el ruido crocante flotando sin su morado debajo.
+   (Los radiales del fondo del body que también se apagaban acá ya no existen:
+   el fondo es plano en todos los tamaños, ver la nota en `body`.)
    Va al FINAL del archivo a propósito: los @media no aportan especificidad, así
    que estas reglas ganan por orden de declaración sobre las de arriba (incluido
    el bloque @supports de scroll-timeline). */
 @media (max-width: 720px) {
-  body {
-    background: var(--bg);
-  }
-  body::before {
+  body::before,
+  .blob-grain {
     display: none;
   }
 }

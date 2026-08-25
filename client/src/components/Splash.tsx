@@ -7,10 +7,16 @@ const BASE = import.meta.env.BASE_URL;
 // header slot; once it lands the site is revealed underneath (the header logo
 // sits at the exact same spot, so the handoff is seamless) and the dark
 // backdrop fades out.
-const LOGO_IN_AT = 150;
-const TRAVEL_AT = 1250;
-const REVEAL_AT = 2150; // logo has arrived at the header → show site + fade backdrop
-const REMOVE_AT = 2750;
+/* Tiempos medidos sobre el prototipo de Figma del clip de referencia: ahí el
+   hold negro previo al hero dura 1.60s, contra los 2.15s que tardaba este
+   splash. El gesto NO cambia — se comprime entero por ×0.744 (1600/2150), así
+   que el fade, el hold y el viaje conservan sus proporciones. Los ms del CSS
+   (Splash.css) van apareados a estas constantes: mover una sin la otra deja el
+   logo aterrizando después del reveal. */
+const LOGO_IN_AT = 110;
+const TRAVEL_AT = 930;
+const REVEAL_AT = 1600; // logo has arrived at the header → show site + fade backdrop
+const REMOVE_AT = 2100;
 
 export function Splash({ onDone }: { onDone?: () => void }) {
   const [logoIn, setLogoIn] = useState(false);
