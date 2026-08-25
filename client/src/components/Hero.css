@@ -9,12 +9,12 @@
 
 /* Hero Blue Light — local 228px purple/blue circle at (447, 618) en coords del
    frame Figma, escalado a viewport.
-   La grabación de referencia manda: el lower-left NO tiene glow hasta 4.85s y
-   desde ahí sube en un solo tramo y se queda quieto (medido: banda de luminancia
-   plana en 15.3 hasta 4.9s, ramp hasta 5.85s, plana hasta el final del clip).
-   Por eso el ciclo de 3 estados del Smart Animate (visible → fade out → re-entra
-   desde arriba, 2400ms) se cae: con el nuevo delay habría un flash de glow en
-   medio del hold negro. Queda un fade-in simple en el beat B, en su sitio.
+   La grabación de referencia manda: el lower-left NO tiene glow durante el hold
+   negro y entra recién con el subtítulo, en un solo tramo, quedándose quieto
+   hasta el final del clip. Por eso el ciclo de 3 estados del Smart Animate
+   (visible → fade out → re-entra desde arriba, 2400ms) se cae: habría un flash
+   de glow en medio del hold negro. Queda un fade-in simple en el beat B, en su
+   sitio. Los ms concretos viven en --intro-beat-b-* (index.css), no acá.
    This is SEPARATE from the global body::before that morphs across sections. */
 .hero::before {
   content: '';
@@ -26,14 +26,21 @@
   width: clamp(120px, 11.875vw, 228px);
   aspect-ratio: 1;
   border-radius: 50%;
+  /* Intensidad a la mitad y más difuso. Medido sobre el prototipo con el mapa de
+     moradez ((r+b)/2−g, grilla 16×12 del viewport): el pico del target es 18.7 y
+     acá marcaba 37.7 — el doble. Y el perfil del target es un VELO (cae suave,
+     sin borde), no un círculo definido: por eso el blur sube de 28 a 32px en vez
+     de solo bajar las alfas. El ancho a media altura del conjunto (este orbe más
+     la falda del blob global) quedó en 0.31 del viewport contra 0.24 del target;
+     el resto sale de body::before, que se achicó en index.css. */
   background: radial-gradient(
     circle at 50% 50%,
-    rgba(81, 88, 252, 0.55) 0%,
-    rgba(81, 88, 252, 0.28) 35%,
-    rgba(110, 68, 164, 0.18) 60%,
+    rgba(81, 88, 252, 0.28) 0%,
+    rgba(81, 88, 252, 0.15) 35%,
+    rgba(110, 68, 164, 0.1) 60%,
     transparent 80%
   );
-  filter: blur(28px);
+  filter: blur(32px);
   pointer-events: none;
   z-index: 0;
   opacity: 0;
@@ -108,10 +115,11 @@
   /* Intro (video): the title + the face move TOGETHER — softly from ABOVE moving
      DOWN into place while scaling from BIG → small. Shared timing with the
      portrait so they arrive as one motion; the subtitle comes AFTER (see below).
-     Cadencia medida frame a frame sobre la grabación de referencia (ver
-     --intro-beat-a-* en index.css): beat A arranca a 1750ms del reveal y tarda
-     2150ms, con curva ease-in-out (la referencia entra despacio, acelera al medio
-     y se asienta suave — NO es un ease-out). */
+     Cadencia medida sobre la grabación de referencia (los ms viven en
+     --intro-beat-a-* en index.css, con la tabla de medición): el beat A arranca
+     JUNTO con el reveal — en el prototipo el hold negro simplemente termina y el
+     título entra — y lleva curva ease-in-out (la referencia entra despacio,
+     acelera al medio y se asienta suave — NO es un ease-out). */
   opacity: 0;
   transform: translateY(-52px) scale(1.08);
   transform-origin: left top;
@@ -145,9 +153,9 @@
   /* Intro (video): the subtitle "Software {development}…" enters LAST, sliding
      from the LEFT moving RIGHT into place + fade — clearly AFTER the title and
      face have settled (long delay so the two motions read as separate beats).
-     Beat B medido en la referencia: arranca a 4850ms del reveal (≈950ms después
-     de que el beat A se asienta) y tarda 1000ms. El recorrido lateral se deja
-     como estaba: el método de medición (luminancia por bandas) no resuelve
+     Beat B medido en la referencia: arranca ~420ms después de que el beat A se
+     asienta (ms exactos en --intro-beat-b-* , index.css). El recorrido lateral se
+     deja como estaba: el método de medición (luminancia por bandas) no resuelve
      desplazamiento horizontal de texto con gradiente, así que tocarlo sería
      adivinar. */
   opacity: 0;
@@ -165,11 +173,25 @@
 
 /* When user scrolls beyond hero, subtitle slides further left and fades out.
    OJO: el transition-delay del beat B vive en la regla base, así que sin este
-   reset la salida heredaría los 4.85s de espera del intro y el subtítulo se
-   quedaría pegado casi 5s después de dejar el hero. La salida es inmediata. */
+   reset la salida heredaría la espera del intro y el subtítulo se quedaría
+   pegado varios segundos después de dejar el hero. La salida es inmediata. */
 .hero.hero-scrolled .hero-sub {
   opacity: 0;
   transform: translateX(-99px);
+  transition-delay: 0s;
+}
+
+/* …y la RE-ENTRADA también. Con el reset de arriba solamente, el subtítulo salía
+   al toque pero volvía con el delay del intro colgado: bajar a proyectos y subir
+   dejaba "Software {development}" invisible casi 6s (medido: 5957ms). El
+   delay del intro es de un solo uso, así que en cuanto el intro terminó
+   (Hero.tsx pone .hero-settled, cronometrado con las mismas custom properties)
+   el subtítulo pasa a entrar y salir sin espera.
+   Tiene la misma especificidad que la regla de .hero-scrolled de arriba (0,3,0)
+   y las dos declaran lo mismo (0s), así que conviven sin importar el orden; lo
+   que sí importa es que ambas le ganan a la regla base .hero-sub, que es de
+   donde salía la espera. */
+.hero.hero-settled .hero-sub {
   transition-delay: 0s;
 }
 

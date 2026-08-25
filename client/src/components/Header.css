@@ -115,7 +115,7 @@
   /* Terminado el viaje del logo (centro → arriba) el wordmark se retira y queda
      solo el botón (requerimiento 1). "Terminado" es el aterrizaje del splash, que
      es la animación que describe el requerimiento — NO el fin de la coreografía
-     del hero, que sigue 3s más con el beat B.
+     del hero, que sigue varios segundos más y termina con el beat B.
      --brand-exit-delay lo pone Header.tsx desde SPLASH_OUTRO_MS: el fade tiene
      que arrancar cuando el logo del splash ya se desmontó, o se verían dos logos
      superpuestos apagándose. */
