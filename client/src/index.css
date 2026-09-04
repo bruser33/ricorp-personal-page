@@ -169,6 +169,20 @@ body {
      redimensionar— no cambia un píxel: en pantallas angostas el texto arranca casi
      en el borde y correr el velo a la derecha lo despegaría igual. */
   --blob-cx: max(calc(8% + 240px), calc(50% - 352px));
+  /* Ancla VERTICAL del velo, hermana de --blob-cx: también es el CENTRO de la
+     caja, de ahí el -200px al escribir `top`.
+     Antes era `bottom: 8%`, o sea el centro en 0.92·H − 200px: colgado del borde
+     de abajo, mientras el bloque de texto del hero vive centrado en el viewport.
+     Con eso el velo quedaba por debajo del texto en vez de envolverlo. Medido en
+     bandas contra el subtítulo, el pico del velo caía 5 bandas por debajo cuando
+     las dos frames de Figma lo tienen a +4 (6.54) y +1.5 (6.57).
+     `50% + 180px` lo deja a +1: el núcleo llega al subtítulo, como la 6.57.
+     Al ser relativo al 50% sigue al texto en cualquier ALTO de ventana, que es el
+     mismo motivo por el que --blob-cx sigue a la columna.
+     OJO: esto corre la base de TODA la coreografía, no solo el hero — los `y` de
+     useBlobMorph son deltas contra esta posición. Verificado a ojo en proyectos,
+     contacto y análisis antes de subirlo. */
+  --blob-cy: calc(50% + 180px);
   --blob-scale: 1;
   --blob-y: 0px;
   --blob-x: 0px;
@@ -181,7 +195,7 @@ body::before {
   content: '';
   position: fixed;
   left: calc(var(--blob-cx) - 240px);
-  bottom: 8%;
+  top: calc(var(--blob-cy) - 200px);
   /* Caja achicada (era 600x500). Se achicó cuando en el hero había DOS velos
      superpuestos —este y un orbe local, ya eliminado— y el conjunto medía 0.34
      del viewport a media altura contra 0.24 de la referencia. Hoy este blob es
@@ -265,7 +279,7 @@ body.site-lit::before {
 .blob-grain {
   position: fixed;
   left: calc(var(--blob-cx) - 240px);
-  bottom: 8%;
+  top: calc(var(--blob-cy) - 200px);
   width: 480px;
   height: 400px;
   background-image: url('/noise.png');
