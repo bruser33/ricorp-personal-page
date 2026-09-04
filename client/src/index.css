@@ -151,6 +151,23 @@ body {
      Hero 1 → Projects 2.27 → News 5.7 → Contact 0.18 (the literal scale_factor
      values from Pair B/D/E in the Figma keyframe deltas). Driven by
      --blob-scale and --blob-y custom props set via scroll listener. */
+  /* Ancla horizontal del velo (la usan body::before y .blob-grain: es el CENTRO
+     de la caja, de ahí el -240px al escribir `left`).
+     Antes cada capa llevaba `left: 8%` sobre una caja de 480px FIJOS, así que el
+     centro caía en 8%·W + 240px — casi clavado en píxeles — mientras la columna
+     de contenido (max-width 1280, centrada) se va a la derecha con la ventana.
+     Medido con capturas a varios anchos: la distancia entre el centro del velo y
+     el borde izquierdo del texto pasa de −17% del ancho en 1440px a +17% en
+     3440px. O sea que el círculo se despega del título y en pantallas anchas
+     queda pegado al borde izquierdo, que es justo el síntoma reportado.
+     Acá el centro se engancha a la columna y queda ~105px a su izquierda, que es
+     la relación que tiene la maqueta. La otra rama del max() es EXACTAMENTE la
+     posición vieja (8% + 240px es el centro que daba `left: 8%` sobre la caja de
+     480px), así que por debajo del cruce —~2260px— no cambia un píxel y el velo
+     nunca puede terminar más a la izquierda que antes: este ajuste solo lo trae
+     hacia el centro, nunca al revés. Las dos ramas valen lo mismo en el cruce,
+     así que al redimensionar no hay salto. */
+  --blob-cx: max(calc(8% + 240px), calc(50% - 710px));
   --blob-scale: 1;
   --blob-y: 0px;
   --blob-x: 0px;
@@ -162,7 +179,7 @@ body {
 body::before {
   content: '';
   position: fixed;
-  left: 8%;
+  left: calc(var(--blob-cx) - 240px);
   bottom: 8%;
   /* Caja achicada (era 600x500). Se achicó cuando en el hero había DOS velos
      superpuestos —este y un orbe local, ya eliminado— y el conjunto medía 0.34
@@ -171,7 +188,9 @@ body::before {
      ya no existe: si el velo se ve chico, ESTE es el lugar. La escala de la
      coreografía por scroll multiplica ESTA caja, así que tocarla acá aprieta o
      suelta el efecto en todas las secciones sin
-     tocar el recorrido. .blob-grain la copia — moverla es mover las dos. */
+     tocar el recorrido. .blob-grain copia el tamaño a mano — tocarlo acá es
+     tocarlo allá también. La posición horizontal ya NO se duplica: las dos
+     capas leen --blob-cx. */
   width: 480px;
   height: 400px;
   /* Paleta alineada a la del orbe de mobile (.hero-text::after en Hero.css), que
@@ -239,11 +258,12 @@ body.site-lit::before {
    después en el árbol. Contenido nuevo de nivel superior SIN posicionar quedaría
    por DEBAJO del grano. Verificado a mano en hero/proyectos/contacto/análisis.
 
-   La geometría está apareada con body::before a mano — son dos capas que tienen
-   que ocupar el mismo lugar, así que mover una es mover la otra. */
+   El tamaño está apareado con body::before a mano — son dos capas que tienen
+   que ocupar el mismo lugar, así que cambiar la caja de una es cambiar la otra.
+   La posición horizontal sí es compartida: las dos leen --blob-cx. */
 .blob-grain {
   position: fixed;
-  left: 8%;
+  left: calc(var(--blob-cx) - 240px);
   bottom: 8%;
   width: 480px;
   height: 400px;
