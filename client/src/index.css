@@ -157,17 +157,18 @@ body {
      centro caía en 8%·W + 240px — casi clavado en píxeles — mientras la columna
      de contenido (max-width 1280, centrada) se va a la derecha con la ventana.
      Medido con capturas a varios anchos: la distancia entre el centro del velo y
-     el borde izquierdo del texto pasa de −17% del ancho en 1440px a +17% en
-     3440px. O sea que el círculo se despega del título y en pantallas anchas
-     queda pegado al borde izquierdo, que es justo el síntoma reportado.
-     Acá el centro se engancha a la columna y queda ~105px a su izquierda, que es
-     la relación que tiene la maqueta. La otra rama del max() es EXACTAMENTE la
-     posición vieja (8% + 240px es el centro que daba `left: 8%` sobre la caja de
-     480px), así que por debajo del cruce —~2260px— no cambia un píxel y el velo
-     nunca puede terminar más a la izquierda que antes: este ajuste solo lo trae
-     hacia el centro, nunca al revés. Las dos ramas valen lo mismo en el cruce,
-     así que al redimensionar no hay salto. */
-  --blob-cx: max(calc(8% + 240px), calc(50% - 710px));
+     el borde izquierdo del texto pasaba de −219px en 1440 a +601px en 3440. O sea
+     que el círculo se despegaba del título y en pantallas grandes quedaba pegado
+     al borde izquierdo, que es el síntoma reportado.
+     `50% - 352px` es `borde de la columna + 288px`: como el bloque del hero mide
+     ~510px de ancho y arranca 32px adentro de la columna, el velo queda centrado
+     DEBAJO de «{Desarrollo} de software», y sigue ahí a cualquier ancho.
+     La otra rama del max() es EXACTAMENTE la posición vieja (8% + 240px es el
+     centro que daba `left: 8%` sobre la caja de 480px). Por debajo del cruce
+     —~1410px, donde las dos ramas valen lo mismo, así que no hay salto al
+     redimensionar— no cambia un píxel: en pantallas angostas el texto arranca casi
+     en el borde y correr el velo a la derecha lo despegaría igual. */
+  --blob-cx: max(calc(8% + 240px), calc(50% - 352px));
   --blob-scale: 1;
   --blob-y: 0px;
   --blob-x: 0px;
