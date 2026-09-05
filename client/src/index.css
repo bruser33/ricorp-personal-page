@@ -160,19 +160,21 @@ body {
      el borde izquierdo del texto pasaba de −219px en 1440 a +601px en 3440. O sea
      que el círculo se despegaba del título y en pantallas grandes quedaba pegado
      al borde izquierdo, que es el síntoma reportado.
-     Hoy el velo NO cuelga del texto sino del centro de la pantalla: `50% - 120px`
-     lo deja apenas a la izquierda del centro exacto del viewport. Ese fue el
-     pedido explícito («que quede justo en el centro»), y los 120px de corrimiento
-     son a propósito: en el centro exacto el núcleo del velo cae DEBAJO del
-     retrato y le ilumina la mandíbula, con lo que el efecto deja de leerse como
-     halo y pasa a ser luz sobre la foto. 120px es lo más cerca del centro que se
-     puede ir sin eso.
+     `50% - 452px` centra el velo bajo la TINTA del título («Hazlo simple.»), no
+     bajo la caja del contenedor ni en el centro de la pantalla. Sale de medir el
+     rango de texto real: a 2152px de ancho la tinta del título va de 461 a 788,
+     o sea centro en 624, que es `borde de la columna + 188px`; de ahí
+     640 − 188 = 452. Medir la caja en vez de la tinta daba otro número, porque
+     `.hero-title` ocupa todo el ancho de la columna.
+     Este número se movió tres veces (borde del viewport → columna → centro de la
+     pantalla → centro del título): si hay que tocarlo otra vez, medí la tinta con
+     un Range sobre los text nodes, no `getBoundingClientRect` del h1.
      La otra rama del max() es EXACTAMENTE la posición vieja (8% + 240px es el
-     centro que daba `left: 8%` sobre la caja de 480px). Ahora las dos ramas se
-     cruzan en ~857px, o sea que en la práctica manda siempre la del 50%: queda
-     como piso para que el velo no pueda terminar más a la izquierda que antes.
+     centro que daba `left: 8%` sobre la caja de 480px) y hace de piso: cruzan en
+     ~1648px, así que abajo de ese ancho el velo se queda donde estuvo siempre, un
+     poco a la derecha del título, en vez de irse al borde izquierdo.
      (Abajo de 720px las dos capas van display:none, ver el final del archivo.) */
-  --blob-cx: max(calc(8% + 240px), calc(50% - 120px));
+  --blob-cx: max(calc(8% + 240px), calc(50% - 452px));
   /* Ancla VERTICAL del velo, hermana de --blob-cx: también es el CENTRO de la
      caja, de ahí el -200px al escribir `top`.
      Antes era `bottom: 8%`, o sea el centro en 0.92·H − 200px: colgado del borde
