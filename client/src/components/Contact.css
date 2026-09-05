@@ -79,7 +79,7 @@
 .contact-orb-3d.reveal.visible {
   opacity: 1;
   transform: scale(1);
-  animation: orb-float 9s ease-in-out calc(var(--dur-vertical-scroll) + 800ms) infinite;
+  animation: orb-float 18s linear calc(var(--dur-vertical-scroll) + 800ms) infinite;
 }
 
 .contact-orb-3d.reveal.visible .iridescent-img {
@@ -122,9 +122,39 @@
    Todo es `transform` (nunca top/left) para que corra en el compositor. */
 
 /* Flotado: sube y baja apenas, ciclo largo para que se lea calmo. */
+/* Deriva del orbe: arriba-abajo Y izquierda-derecha, no solo vertical.
+   Las amplitudes salen de medir el video de referencia cuadro a cuadro: con el
+   orbe ya asentado su centroide recorre 29px en X y 37px en Y sobre un orbe de
+   ~475px de ancho, o sea ±3.1% y ±3.9% de su propio tamaño. Escalado a los 400px
+   que mide el nuestro: ±12px y ±16px. El vertical ya estaba bien (era 16px); lo
+   que faltaba era el horizontal.
+   Los PERÍODOS son distintos a propósito, y eso es lo que hace que se lea como
+   deriva y no como un vaivén en diagonal: en el video el ciclo vertical dura
+   ~8.8s y el horizontal ~17s, o sea el doble. Acá el keyframe dura 18s, con Y
+   completando DOS ciclos y X uno solo — el vertical queda en 9s, que es lo que
+   ya tenía.
+   Van 17 pasos y `linear` porque la forma de seno ya está en los keyframes: con
+   ease-in-out entre cada par el recorrido se escalona. Si hay que retocar las
+   amplitudes, son los dos números de arriba (12 y 16) y se regeneran todos los
+   pasos: x = 12·cos(2πp), y = −16·sin(4πp). */
 @keyframes orb-float {
-  0%, 100% { transform: translate3d(0, 0, 0); }
-  50%      { transform: translate3d(0, -16px, 0); }
+  0%      { transform: translate3d(12.0px, -0.0px, 0); }
+  6.25%   { transform: translate3d(11.1px, -11.3px, 0); }
+  12.5%   { transform: translate3d(8.5px, -16.0px, 0); }
+  18.75%  { transform: translate3d(4.6px, -11.3px, 0); }
+  25%     { transform: translate3d(0.0px, -0.0px, 0); }
+  31.25%  { transform: translate3d(-4.6px, 11.3px, 0); }
+  37.5%   { transform: translate3d(-8.5px, 16.0px, 0); }
+  43.75%  { transform: translate3d(-11.1px, 11.3px, 0); }
+  50%     { transform: translate3d(-12.0px, 0.0px, 0); }
+  56.25%  { transform: translate3d(-11.1px, -11.3px, 0); }
+  62.5%   { transform: translate3d(-8.5px, -16.0px, 0); }
+  68.75%  { transform: translate3d(-4.6px, -11.3px, 0); }
+  75%     { transform: translate3d(-0.0px, -0.0px, 0); }
+  81.25%  { transform: translate3d(4.6px, 11.3px, 0); }
+  87.5%   { transform: translate3d(8.5px, 16.0px, 0); }
+  93.75%  { transform: translate3d(11.1px, 11.3px, 0); }
+  100%    { transform: translate3d(12.0px, 0.0px, 0); }
 }
 
 /* Giro: vaivén de ida y vuelta, no una vuelta completa. La referencia muestra el
