@@ -40,7 +40,11 @@
      a mano en el JSX en vw, así que en pantallas anchas la card tocaba el
      max-width, la fórmula seguía contando 46vw y el slot activo quedaba corrido
      a la izquierda del centro. Sin max-width no puede volver a pasar. */
-  --card-w: 46vw;
+  /* 36vw sale de medir la maqueta: en la frame de Figma la card activa ocupa el
+     36% del ancho (x 1134-2434 de 3608, centrada en 49.4%), contra el 46vw que
+     había acá. El valor viejo hacía que las cards se leyeran "muy grandes"
+     respecto del prototipo. Sin max-width, a propósito: ver la nota de arriba. */
+  --card-w: 36vw;
   --card-gap: 24px;
 }
 
