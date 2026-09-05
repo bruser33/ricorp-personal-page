@@ -56,14 +56,19 @@ const inMiddleCopy = (v: number, total: number) =>
    y vuelve a entrar. Este es el medio tiempo, no la duración total. */
 const CAPTION_FADE_MS = 260;
 
-/* Auto-play del carrusel (solo desktop). El número sale de MEDIR el prototipo de
-   Figma del video de referencia: ~5 proyectos en 10.4s → ~2100ms por proyecto, y
-   el perfil de movimiento cuadro a cuadro NUNCA cae a cero entre proyectos.
-   Por eso el track, mientras manda el auto-play, transiciona en `AUTOPLAY_MS
-   linear` (clase .is-autoplaying, ver Projects.css): si la duración de la
-   transición es igual al intervalo y la curva es lineal, el track nunca queda
-   quieto y se lee como un desplazamiento continuo en vez de saltos con reposo. */
-const AUTOPLAY_MS = 2100;
+/* Auto-play del carrusel (solo desktop).
+   El valor original (2100ms) salía de medir un video del prototipo de Figma: ~5
+   proyectos en 10.4s. Se leía demasiado rápido, así que hoy son 4200ms, elegidos
+   a ojo. El video nuevo NO sirve para medir esto: ahí el prototipo lo mueven a
+   mano y los cambios de slide caen a 0.4, 1.0, 2.4, 2.6, 3.6, 3.8 y 7.8s, sin
+   patrón. Si hay que volver a tocar la velocidad, es este número y nada más.
+   Lo que sí se sostiene del análisis viejo: el perfil de movimiento cuadro a
+   cuadro NUNCA cae a cero entre proyectos. Por eso el track, mientras manda el
+   auto-play, transiciona en `AUTOPLAY_MS linear` (clase .is-autoplaying, ver
+   Projects.css): si la duración de la transición es igual al intervalo y la
+   curva es lineal, el track nunca queda quieto y se lee como un desplazamiento
+   continuo en vez de saltos con reposo. */
+const AUTOPLAY_MS = 4200;
 
 /* Respiro tras una interacción explícita (drag, dot, teclas) antes de que el
    auto-play retome: si retomara enseguida, le pelearía al usuario el control. */
@@ -131,7 +136,7 @@ export function Projects() {
   const [autoplaySuspended, setAutoplaySuspended] = useState(false);
   const resumeTimer = useRef(0);
   /* ¿El último paso lo dio el auto-play? Lo consume el rebase de normalización
-     para saber cuánto dura la transición en curso (2100ms lineales vs 850ms). */
+     para saber cuánto dura la transición en curso (4200ms lineales vs 850ms). */
   const lastStepWasAutoplay = useRef(false);
 
   /* Toda interacción del usuario pasa por acá: apaga el auto-play y lo vuelve a
@@ -316,7 +321,7 @@ export function Projects() {
     if (inMiddleCopy(vSlide, total)) return;
     /* Con el auto-play corriendo el rebase lo hace el propio tick (en reposo y
        sin apagar la transición): si además saltara acá, cortaría el
-       deslizamiento de 2100ms a la mitad. */
+       deslizamiento de 4200ms a la mitad. */
     if (autoplayActive) return;
     const id = window.setTimeout(
       () => {
@@ -326,7 +331,7 @@ export function Projects() {
         setVSlide(home);
       },
       /* Hay que esperar a que termine la transición EN CURSO o el rebase la
-         corta: 850ms las del usuario, pero 2100ms lineales si el último paso lo
+         corta: 850ms las del usuario, pero 4200ms lineales si el último paso lo
          dio el auto-play y recién ahora se apagó (p.ej. el puntero entró al
          carrusel a mitad del deslizamiento). */
       lastStepWasAutoplay.current ? AUTOPLAY_MS + 60 : 900
