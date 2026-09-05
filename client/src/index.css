@@ -160,15 +160,19 @@ body {
      el borde izquierdo del texto pasaba de −219px en 1440 a +601px en 3440. O sea
      que el círculo se despegaba del título y en pantallas grandes quedaba pegado
      al borde izquierdo, que es el síntoma reportado.
-     `50% - 352px` es `borde de la columna + 288px`: como el bloque del hero mide
-     ~510px de ancho y arranca 32px adentro de la columna, el velo queda centrado
-     DEBAJO de «{Desarrollo} de software», y sigue ahí a cualquier ancho.
+     Hoy el velo NO cuelga del texto sino del centro de la pantalla: `50% - 120px`
+     lo deja apenas a la izquierda del centro exacto del viewport. Ese fue el
+     pedido explícito («que quede justo en el centro»), y los 120px de corrimiento
+     son a propósito: en el centro exacto el núcleo del velo cae DEBAJO del
+     retrato y le ilumina la mandíbula, con lo que el efecto deja de leerse como
+     halo y pasa a ser luz sobre la foto. 120px es lo más cerca del centro que se
+     puede ir sin eso.
      La otra rama del max() es EXACTAMENTE la posición vieja (8% + 240px es el
-     centro que daba `left: 8%` sobre la caja de 480px). Por debajo del cruce
-     —~1410px, donde las dos ramas valen lo mismo, así que no hay salto al
-     redimensionar— no cambia un píxel: en pantallas angostas el texto arranca casi
-     en el borde y correr el velo a la derecha lo despegaría igual. */
-  --blob-cx: max(calc(8% + 240px), calc(50% - 352px));
+     centro que daba `left: 8%` sobre la caja de 480px). Ahora las dos ramas se
+     cruzan en ~857px, o sea que en la práctica manda siempre la del 50%: queda
+     como piso para que el velo no pueda terminar más a la izquierda que antes.
+     (Abajo de 720px las dos capas van display:none, ver el final del archivo.) */
+  --blob-cx: max(calc(8% + 240px), calc(50% - 120px));
   /* Ancla VERTICAL del velo, hermana de --blob-cx: también es el CENTRO de la
      caja, de ahí el -200px al escribir `top`.
      Antes era `bottom: 8%`, o sea el centro en 0.92·H − 200px: colgado del borde
