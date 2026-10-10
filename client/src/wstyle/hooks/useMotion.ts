@@ -8,7 +8,8 @@ import { useEffect } from 'react';
 // - GSAP ScrollTrigger: salida cinética del titular del hero (se abre y sube al bajar).
 // La secuencia/cámara leen scrollY, que Lenis anima. Lenis respeta los window.scrollTo externos, así que
 // barberia-3d/scripts/verify.mjs puede saltar a las anclas de forma inmediata.
-export function useMotion(active: boolean) {
+// content: al cambiar (p. ej. secciones que aparecen tras leer el JSON) se vuelven a observar los titulares nuevos.
+export function useMotion(active: boolean, content?: unknown) {
   useEffect(() => {
     const html = document.documentElement;
     if (!html.classList.contains('motion') || matchMedia('(prefers-reduced-motion: reduce)').matches) {
@@ -19,9 +20,9 @@ export function useMotion(active: boolean) {
     // Revelado por tiempo al entrar en vista
     const io = new IntersectionObserver((es) => es.forEach((e) => {
       if (e.isIntersecting) { e.target.classList.add('is-in'); io.unobserve(e.target); }
-    }), { threshold: .25 });
-    document.querySelectorAll('.kinetic').forEach((h) => {
-      h.querySelectorAll<HTMLElement>('.kinetic__word').forEach((w, i) => w.style.setProperty('--wd', `${i * 70}ms`));
+    }), { threshold: .1 });
+    document.querySelectorAll('.kinetic:not(.is-in)').forEach((h) => {
+      h.querySelectorAll<HTMLElement>('.kinetic__word').forEach((w, i) => w.style.setProperty('--wd', `${i * 45}ms`));
       io.observe(h);
     });
     let cleanup: (() => void) | null = null, cancelled = false;
@@ -39,5 +40,5 @@ export function useMotion(active: boolean) {
       cleanup = () => { ctx.revert(); gsap.ticker.remove(raf); lenis.destroy(); };
     });
     return () => { cancelled = true; io.disconnect(); cleanup?.(); };
-  }, [active]);
+  }, [active, content]);
 }

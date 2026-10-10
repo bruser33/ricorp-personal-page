@@ -154,8 +154,8 @@ h2 { font-size: clamp(52px, 7.6vw, 128px); line-height: .9; }
 
 /* ─── PR #9 ────────────────────────────────────────────────────────────────────────────────────────────────── */
 /* D3: revelado de titulares por tiempo al entrar en vista (solo con <html class="motion">; useMotion añade .is-in). */
-.motion .kinetic__word { transform: translateY(110%); transition: transform .9s cubic-bezier(.2, .75, .1, 1) var(--wd, 0ms); }
+.motion .kinetic__word { transform: translateY(110%); transition: transform .62s cubic-bezier(.2, .75, .1, 1) var(--wd, 0ms); }
 .motion .kinetic.is-in .kinetic__word { transform: none; }
-/* D1: con la franja de demostración el contenido arranca un poco más abajo. */
-.panel { padding-top: calc(var(--nav-h) + 56px); }
-.compact .panel { padding-top: calc(var(--nav-h) + 52px); }
+/* D1: solo con la franja de demostración el contenido arranca más abajo (sin hueco con demo:false). */
+.is-demo .panel { padding-top: calc(var(--nav-h) + 56px); }
+.compact .is-demo .panel { padding-top: calc(var(--nav-h) + 52px); }

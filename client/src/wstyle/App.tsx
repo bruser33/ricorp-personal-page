@@ -37,7 +37,7 @@ export default function App({ initial }: { initial: Content | null }) {
   useEffect(() => { const t = setTimeout(() => setMinShown(true), 700); return () => clearTimeout(t); }, []);
   const loaderDone = ready && minShown;
   useReveal([content]);
-  useMotion(loaderDone);
+  useMotion(loaderDone, content);
   useFilmDim([content]);
 
   const site = content?.site ?? {}, services = content?.services ?? [];
@@ -47,7 +47,7 @@ export default function App({ initial }: { initial: Content | null }) {
   const booking = bookingLink(site), from = fromPrice(services);
   const city = str(site.contact?.address?.city);
   const stat = site.stat;
-  const demo = site.demo === true;
+  const demo = site.demo === true || String(site.demo).trim().toLowerCase() === 'true';
 
   // Capítulos numerados sin huecos (D4): 01… en el orden en que se publican (barberos/reseñas solo con enabled).
   const chapters = useMemo(() => {
@@ -86,7 +86,7 @@ export default function App({ initial }: { initial: Content | null }) {
       <Nav name={name} booking={booking} scrolled={scrolled} />
       {demo && <DemoStrip />}
       <ProgressDots chapters={chapters} />
-      <main ref={main}>
+      <main ref={main} className={demo ? 'is-demo' : undefined}>
         <Section id="hero" className="panel--hero" label={city ? `Barbería · ${city}` : 'Barbería'} headline={h.hero} copy={str(site.slogan)}>
           {str(site.concept) && <p className="concept reveal">{site.concept}</p>}
           <div className="hero__cta reveal">

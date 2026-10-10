@@ -15,3 +15,5 @@
 .compact .card [data-svc="price"] { font-size: 26px; }
 .compact .card h3 { font-size: 12px; letter-spacing: .14em; }
 .compact .card .card__meta { font-size: 13px; }
+/* En reposo la carta entera queda sobre la zona del badge/dock: descripción en una línea. */
+.compact .card [data-svc="description"] { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }

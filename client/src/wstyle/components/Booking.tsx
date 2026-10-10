@@ -11,7 +11,7 @@ export default function Booking({ booking, whatsapp }: Props) {
     const el = document.querySelector('[data-cta="hero-booking"]');
     if (!el) { const t = setTimeout(() => setHeroCta(false)); return () => clearTimeout(t); }
     // "En vista" = entero y fuera de la franja del header (arriba) y del dock (abajo); si no, aparece la píldora.
-    const io = new IntersectionObserver(([e]) => setHeroCta(e.intersectionRatio > .99), { threshold: [0, .5, 1], rootMargin: '-120px 0px -96px 0px' });
+    const io = new IntersectionObserver(([e]) => setHeroCta(e.intersectionRatio > .9), { threshold: [0, .25, .5, .75, .9, .95, 1], rootMargin: '-120px 0px -96px 0px' });
     io.observe(el);
     return () => io.disconnect();
   }, [booking]);
