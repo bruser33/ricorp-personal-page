@@ -1,6 +1,6 @@
 {
   "formato": "webp",
-  "generado": "2026-10-10T20:37:28.659Z",
+  "generado": "2026-10-10T22:17:36.179Z",
   "maxBytes": 12582912,
   "formats": {
     "desktop": {
@@ -129,6 +129,31 @@
             "height": 1600
           },
           "path": "seq/mobile/"
+        },
+        "hd": {
+          "count": 150,
+          "available": 150,
+          "complete": true,
+          "size": [
+            900,
+            1600
+          ],
+          "anchorFrames": [
+            1,
+            26,
+            51,
+            76,
+            100,
+            125,
+            150
+          ],
+          "anchorsAvailable": true,
+          "bytes": 11078684,
+          "renderViewport": {
+            "width": 900,
+            "height": 1600
+          },
+          "path": "seq/mobile-hd/"
         }
       }
     }
