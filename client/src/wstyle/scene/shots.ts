@@ -1,7 +1,7 @@
 // Medidas supuestas del local (L) y tomas de cámara del recorrido (SHOTS). Puerto TS de barberia-3d/shared/scene.js:
 // mismos valores que usó Blender para renderizar la secuencia. Sin dependencias de WebGL (lo usa la matemática de
 // cámara también en modo secuencia); la geometría vive en scene.ts y se carga solo en modo 3D.
-import * as THREE from 'three';
+import { Vector3 } from 'three';
 
 // ─── Medidas SUPUESTAS (metros). Origen = esquina noroeste a nivel de piso.
 // x: oeste→este (largo), z: norte→sur (ancho), y: altura. Muro del espejo = norte (z=0).
@@ -18,7 +18,7 @@ export const L = {
 };
 
 // ─── Cámara: vistas y recorrido (guion SPEC-05)
-const V = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
+const V = (x: number, y: number, z: number) => new Vector3(x, y, z);
 export const TOUR = [
   { t: 'Bienvenido',           pos: V(6.7, 1.6, 2.6),  target: V(1.6, 1.2, .9) },
   { t: 'Donde se sientan los reyes', pos: V(4.6, 1.55, 2.5), target: V(2.4, .9, .6) },
@@ -34,7 +34,7 @@ export const TOUR = [
 // `up` (opcional, por defecto +y) fija hacia dónde queda "arriba" en pantalla; es obligatorio en las cenitales,
 // donde mirar casi en vertical hace que lookAt con +y degenere y la imagen gire de golpe.
 // `fov` (opcional) = FOV vertical de esa toma; si falta, el del dispositivo (50° horizontal / 68° vertical).
-export interface ShotPose { pos: THREE.Vector3; target: THREE.Vector3; up?: THREE.Vector3; fov?: number }
+export interface ShotPose { pos: Vector3; target: Vector3; up?: Vector3; fov?: number }
 export interface Shot extends ShotPose { id: string; mobile?: ShotPose }
 export const SHOTS: Shot[] = [
   { id: 'hero',      pos: TOUR[0].pos.clone(), target: TOUR[0].target.clone() },

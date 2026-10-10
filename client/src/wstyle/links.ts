@@ -12,9 +12,11 @@ export function ctaLinks(site: SiteContent) {
   };
 }
 
-// Link de reserva: la agenda online si está configurada (AgendaPro/Reservo), si no WhatsApp.
+// Link de reserva (regla documentada en docs/direccion-de-arte.md): agenda online (AgendaPro/Reservo) → WhatsApp →
+// teléfono. Así el CTA fijo siempre lleva a un canal real; sin ninguno de los tres no se muestra.
 export function bookingLink(site: SiteContent) {
-  return str(site.booking?.url) ?? ctaLinks(site).whatsapp;
+  const l = ctaLinks(site);
+  return str(site.booking?.url) ?? l.whatsapp ?? l.tel;
 }
 
 // Precio "desde" para el hero: el del corte si existe ("Corte desde $12.000"); si no, el más bajo de la carta.

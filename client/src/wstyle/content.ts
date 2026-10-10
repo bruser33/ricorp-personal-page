@@ -15,8 +15,10 @@ export interface SiteContent {
   marquee?: string[];
   booking?: { provider?: string; url?: string };
   membership?: { name?: string; priceCLP?: unknown; period?: string; perks?: string[]; note?: string };
-  reviews?: { source?: string; placeholder?: boolean; items?: { author?: string; rating?: number; text?: string }[] };
-  barbers?: { name?: string; role?: string; instagram?: string; bookingUrl?: string; placeholder?: boolean }[];
+  // Bloques que solo se publican con datos reales (enabled:true); mientras tanto no se muestra relleno.
+  reviews?: { enabled?: boolean; source?: string; items?: { author?: string; rating?: number; text?: string }[] };
+  barbers?: { enabled?: boolean; items?: { name?: string; role?: string; instagram?: string; bookingUrl?: string }[] };
+  demo?: boolean;
   policies?: { title?: string; text?: string }[];
 }
 export interface Service { id?: string; name?: string; description?: string; priceCLP?: unknown; durationMin?: unknown }

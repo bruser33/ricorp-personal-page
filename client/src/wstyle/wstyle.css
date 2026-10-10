@@ -1,4 +1,4 @@
-/* W Style — base del sitio (SPEC-12/15). Paleta del local (SPEC-02): gris frío + naranja de acento + madera rojiza. */
+/* W Style — base del sitio (SPEC-12/15), dirección de arte "Noir de oficio" (barberia-3d/docs/direccion-de-arte.md). */
 :root {
   /* Dirección de arte "Noir de oficio" (barberia-3d/docs/direccion-de-arte.md): negro cálido, hueso, un único acento
      latón (las tiras de 2800 K del render) y la madera de la puerta como secundario raro. Sin naranja saturado. */
@@ -11,10 +11,12 @@
   /* Alias usados por los componentes portados */
   --bg: var(--ink);
   --steel: var(--muted);
-  --steel-line: rgba(184, 135, 90, .24);
+  --steel-line: var(--brass-line);
+  /* Variantes del único acento (mismo latón #B8875A, distinta opacidad): no hay otros latones sueltos. */
+  --brass-line: rgba(184, 135, 90, .24);
+  --brass-soft: rgba(184, 135, 90, .38);
   --accent: var(--brass);
   --accent-ink: var(--ink);
-  --brass-hi: #CFA478;
   --panel: rgba(26, 24, 22, .92);
   --nav-h: 68px;
   --font-display: "Anton", "Bebas Neue", Impact, "Arial Narrow", sans-serif;
@@ -51,7 +53,7 @@ a { color: inherit; }
   transition: transform .15s ease, background-color .15s ease, border-color .15s ease;
 }
 .btn--primary { background: var(--accent); color: var(--accent-ink); }
-.btn--primary:hover { background: var(--brass-hi); transform: translateY(-1px); }
+.btn--primary:hover { background: var(--wood); color: var(--bone); }
 .btn--ghost { border: 1px solid rgba(242, 237, 228, .55); color: var(--bone); background: rgba(11, 10, 9, .78); }
 .btn--ghost:hover { border-color: var(--bone); }
 
@@ -78,7 +80,7 @@ h2 { font-size: clamp(48px, 7.4vw, 112px); }
 .lead { margin: 20px 0 0; max-width: 46ch; font-size: clamp(16px, 1.4vw, 19px); color: var(--muted); text-shadow: 0 2px 12px rgba(0, 0, 0, .6); }
 .hint { margin: 36px 0 0; font-size: 12px; letter-spacing: .24em; text-transform: uppercase; color: var(--steel); }
 /* Concepto de marca (supuesto: "El estilo se hace a mano") y precio temprano en el hero. */
-.concept { margin: 22px 0 0; font: italic 400 clamp(26px, 2.6vw, 40px)/1.1 var(--font-serif); color: var(--brass-hi); }
+.concept { margin: 22px 0 0; font: italic 400 clamp(26px, 2.6vw, 40px)/1.1 var(--font-serif); color: var(--brass); }
 .hero__from { margin: 18px 0 0; font-size: 15px; letter-spacing: .04em; color: var(--muted); }
 .hero__from strong { font: italic 400 1.5em/1 var(--font-serif); color: var(--bone); letter-spacing: 0; }
 /* Titulares cinéticos: cada palabra en su máscara (GSAP la revela por tramo, ver useMotion). */
@@ -146,6 +148,14 @@ h2 { font-size: clamp(52px, 7.6vw, 128px); line-height: .9; }
 /* Paneles sólidos que se deslizan sobre la película (la carta y los paneles de venta). */
 .panel--sheet.panel--extra { background: linear-gradient(180deg, rgba(26, 24, 22, 0) 0, rgba(26, 24, 22, .96) 90px, rgba(26, 24, 22, .96) calc(100% - 90px), rgba(26, 24, 22, 0) 100%); }
 #servicios .panel__inner { padding: 34px 36px 36px; background: rgba(26, 24, 22, .94); border: 1px solid rgba(184, 135, 90, .2); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
-.compact #servicios .panel__inner { padding: 0; background: none; border: 0; backdrop-filter: none; -webkit-backdrop-filter: none; }
+.compact #servicios .panel__inner { padding: 26px 20px 22px; margin: 0 -8px; }
 .panel--wide .panel__inner { max-width: min(560px, 44vw); }
 .panel--wide h2 { font-size: clamp(44px, 5vw, 76px); }
+
+/* ─── PR #9 ────────────────────────────────────────────────────────────────────────────────────────────────── */
+/* D3: revelado de titulares por tiempo al entrar en vista (solo con <html class="motion">; useMotion añade .is-in). */
+.motion .kinetic__word { transform: translateY(110%); transition: transform .9s cubic-bezier(.2, .75, .1, 1) var(--wd, 0ms); }
+.motion .kinetic.is-in .kinetic__word { transform: none; }
+/* D1: con la franja de demostración el contenido arranca un poco más abajo. */
+.panel { padding-top: calc(var(--nav-h) + 56px); }
+.compact .panel { padding-top: calc(var(--nav-h) + 52px); }

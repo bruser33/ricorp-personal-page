@@ -10,12 +10,14 @@
 .hours li span:first-child { color: var(--muted); }
 address { font-style: normal; font-size: 15px; }
 .phone { margin: 8px 0 0; font-size: 15px; color: var(--muted); }
-.panel--last { padding-bottom: 0; }
+/* D9: el bloque de Llega queda centrado en vertical y el footer anclado abajo (sobre la zona del dock). */
+.panel--last { justify-content: flex-start; padding-bottom: 72px; }
+.panel--last > .panel__inner { margin: auto 0; }
 .footer {
-  margin: auto 0 72px; margin-right: 200px; align-self: flex-start; padding: 10px 16px; border-radius: 10px;
+  margin: 0; margin-right: 200px; align-self: flex-start; padding: 10px 16px; border-radius: 10px;
   display: flex; flex-wrap: wrap; gap: 6px 24px; font-size: 13px; color: var(--muted);
   background: rgba(11, 10, 9, .82); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
 }
 .footer a { color: var(--bone); }
-.compact .footer { margin: auto 0 calc(84px + env(safe-area-inset-bottom)); align-self: stretch; }
+.compact .footer { margin: 0 0 env(safe-area-inset-bottom); align-self: stretch; }
 .panel--last .ctas { margin: 22px 0 0; }

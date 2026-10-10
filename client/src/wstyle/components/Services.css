@@ -9,13 +9,9 @@
 .card .card__meta { display: flex; justify-content: space-between; gap: 18px; margin: 8px 0 0; font-size: 14px; color: var(--muted); }
 .card [data-svc="duration"] { white-space: nowrap; font-size: 12px; letter-spacing: .2em; text-transform: uppercase; color: var(--muted); }
 
-/* Compacto: carrusel horizontal (la sección cabe arriba y la planta queda visible abajo). */
-.compact .cards {
-  display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; overscroll-behavior-x: contain;
-  margin: 20px calc(-1 * var(--gutter)) 0; padding: 0 var(--gutter) 6px; scroll-padding: 0 var(--gutter);
-  scrollbar-width: none;
-}
-.compact .cards::-webkit-scrollbar { display: none; }
-.compact .card { flex: 0 0 80%; scroll-snap-align: start; padding: 18px 18px 16px; border: 1px solid rgba(184, 135, 90, .28); background: var(--graphite); }
-.compact .card:last-child { border-bottom: 1px solid rgba(184, 135, 90, .28); }
-.compact .card .card__meta { flex-direction: column; gap: 10px; }
+/* Compacto (PR #9 D6): lista vertical con filete guía dentro de un panel graphite (no carrusel de tarjetas). */
+.compact .cards { margin-top: 22px; }
+.compact .card { padding: 14px 0 12px; }
+.compact .card [data-svc="price"] { font-size: 26px; }
+.compact .card h3 { font-size: 12px; letter-spacing: .14em; }
+.compact .card .card__meta { font-size: 13px; }

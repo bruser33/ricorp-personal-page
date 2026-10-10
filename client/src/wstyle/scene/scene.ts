@@ -8,6 +8,14 @@ import { L } from './shots';
 
 export interface BuiltScene { scene: THREE.Scene; mirror: Reflector; dispose: () => void }
 
+// Renderer WebGL del respaldo 3D (vive en este chunk diferido junto con la escena).
+export function createRenderer(canvas: HTMLCanvasElement, antialias: boolean) {
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias });
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.05;
+  return renderer;
+}
+
 // Arma la escena completa. mirrorSize: resolución del Reflector; cape: capa negra sobre la silla (cliente sentado).
 export function buildScene({ mirrorSize = [1024, 512] as [number, number], cape: withCape = true } = {}): BuiltScene {
   const scene = new THREE.Scene();

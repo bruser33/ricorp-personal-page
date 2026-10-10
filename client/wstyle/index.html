@@ -19,6 +19,8 @@
   // ancho ≤ 768 px o pantalla vertical. Se aplica antes del primer pintado y en cada resize.
   (function () {
     var h = document.documentElement; h.classList.replace('no-js', 'js');
+    // Movimiento (titulares que se revelan al entrar en vista): solo si el usuario no pidió reducirlo.
+    if (!matchMedia('(prefers-reduced-motion: reduce)').matches) h.classList.add('motion');
     window.isCompactLayout = function () { return innerWidth <= 768 || innerWidth < innerHeight; };
     var u = function () { h.classList.toggle('compact', window.isCompactLayout()); };
     u(); addEventListener('resize', u);

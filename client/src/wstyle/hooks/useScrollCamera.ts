@@ -11,14 +11,13 @@ interface Options {
 }
 
 // Recorrido ligado al scroll: crea el motor (cámara + secuencia/3D + window.__site) al montar y lo libera al
-// desmontar. El estado de React solo cambia en eventos discretos (modo, progreso de carga, sección activa,
+// desmontar. El estado de React solo cambia en eventos discretos (modo, progreso de carga,
 // nav con fondo); la barra de progreso se actualiza por ref para no re-renderizar en cada scroll.
 export function useScrollCamera({ seqCanvas, main, progressBar, content, contentLoaded }: Options) {
   const exp = useRef<Experience | null>(null);
   const [mode, setMode] = useState<Mode | null>(null);
   const [progress, setProgress] = useState(0);
   const [ready, setReady] = useState(false);
-  const [active, setActive] = useState(0);
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
@@ -28,7 +27,7 @@ export function useScrollCamera({ seqCanvas, main, progressBar, content, content
       seqCanvas: seqCanvas.current!, main: main.current!,
       sections: [...main.current!.querySelectorAll<HTMLElement>('section[data-shot]')],
       reduced, force3d,
-      onProgress: setProgress, onMode: setMode, onReady: () => setReady(true), onActive: setActive,
+      onProgress: setProgress, onMode: setMode, onReady: () => setReady(true), onActive: () => {},
       onScroll: (y, max) => {
         if (progressBar.current) progressBar.current.style.transform = `scaleX(${Math.min(1, y / max)})`;
         setScrolled(y > 24);
@@ -42,5 +41,5 @@ export function useScrollCamera({ seqCanvas, main, progressBar, content, content
   useEffect(() => { if (contentLoaded) exp.current?.setContent(content); }, [content, contentLoaded]);
 
   const setRenderer3D = useCallback((r: Renderer3D | null) => exp.current?.setRenderer3D(r), []);
-  return { mode, progress, ready, active, scrolled, setRenderer3D };
+  return { mode, progress, ready, scrolled, setRenderer3D };
 }

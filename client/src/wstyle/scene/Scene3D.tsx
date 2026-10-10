@@ -16,15 +16,13 @@ export default function Scene3D({ active, onRenderer }: Props) {
     if (!active) return;
     let cancelled = false;
     let cleanup: (() => void) | null = null;
-    // La escena (y WebGLRenderer) se descargan aparte: en modo secuencia no se bajan.
-    void Promise.all([import('three'), import('./scene')]).then(([THREE, { buildScene }]) => {
+    // La escena y el WebGLRenderer se descargan aparte (chunk diferido): en modo secuencia no se bajan.
+    void import('./scene').then(({ buildScene, createRenderer }) => {
       if (cancelled || !canvasRef.current) return;
       const canvas = canvasRef.current;
       let mobile = innerWidth <= 768 || innerWidth < innerHeight;
-      const renderer = new THREE.WebGLRenderer({ canvas, antialias: !mobile });
+      const renderer = createRenderer(canvas, !mobile);
       renderer.setPixelRatio(Math.min(devicePixelRatio, mobile ? 1.5 : 2));
-      renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      renderer.toneMappingExposure = 1.05;
       // Sin capa sobre la silla: el sitio muestra el "trono" vacío.
       const built = buildScene({ cape: false, mirrorSize: mobile ? [512, 256] : [1024, 512] });
       const r: Renderer3D = {

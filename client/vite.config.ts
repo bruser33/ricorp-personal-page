@@ -10,6 +10,12 @@ const base = '/'
 export default defineConfig({
   plugins: [react()],
   base,
+  resolve: {
+    // three desde sus módulos fuente (ESM sin efectos secundarios): en modo secuencia /wstyle/ solo empaqueta la
+    // matemática de cámara (Vector3, Quaternion, PerspectiveCamera…); el renderer WebGL y la escena quedan en el
+    // chunk diferido del respaldo 3D. Solo el import exacto 'three' (los addons siguen igual, y también lo usan).
+    alias: [{ find: /^three$/, replacement: 'three/src/Three.js' }],
+  },
   build: {
     // Force the minifier to keep the UNPREFIXED `backdrop-filter`. With the
     // default target esbuild collapses `backdrop-filter` + `-webkit-` down to
@@ -26,18 +32,18 @@ export default defineConfig({
         main: resolve(import.meta.dirname, 'index.html'),
         wstyle: resolve(import.meta.dirname, 'wstyle/index.html'),
       },
-      // Chunks explícitos: React (compartido por ambas páginas) y three.js (solo wstyle). Sin esto el bundler arma
-      // un chunk común que mezcla ambos y la home terminaría precargando three.js.
+      // Chunk explícito para React (compartido por ambas páginas): sin esto el bundler arma un chunk común que
+      // mezcla React con la matemática de three y la home terminaría precargándola.
       output: {
         codeSplitting: {
           groups: [
-            { name: 'three', test: /node_modules[\\/]three[\\/]/, priority: 2 },
             { name: 'react', test: /node_modules[\\/](react|react-dom|scheduler)[\\/]/, priority: 1 },
           ],
         },
       },
     },
-    // three.js (~680 kB, ~170 kB gzip) solo lo descarga /wstyle/.
+    // El chunk del respaldo 3D (renderer + escena) supera los 500 kB; solo se descarga con ?mode=3d o si falla la
+    // secuencia.
     chunkSizeWarningLimit: 750,
   },
 })

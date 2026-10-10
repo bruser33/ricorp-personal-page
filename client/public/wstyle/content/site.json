@@ -16,6 +16,8 @@
     "stat"
   ],
   "_nota": "Todos los campos listados en _placeholders son SUPUESTOS hasta recibir los datos reales del negocio (SPEC-01).",
+  "_demo": "Mientras demo sea true se muestra la franja «Versión de demostración · precios y datos de ejemplo». Pasar a false al cargar los datos reales.",
+  "demo": true,
   "name": "W Style",
   "slogan": "Cortes clásicos y barba con oficio, en un local hecho para quedarse.",
   "concept": "El estilo se hace a mano",
@@ -99,8 +101,9 @@
     "note": "Sin matrícula. Se renueva cada mes; cancelas cuando quieras."
   },
   "reviews": {
+    "_nota": "Se publica solo con enabled:true y reseñas reales (Google).",
+    "enabled": false,
     "source": "Google",
-    "placeholder": true,
     "items": [
       {
         "author": "Cliente de ejemplo",
@@ -119,22 +122,24 @@
       }
     ]
   },
-  "barbers": [
-    {
-      "name": "Barbero de ejemplo",
-      "role": "Fundador · degradados y navaja",
-      "instagram": "",
-      "bookingUrl": "",
-      "placeholder": true
-    },
-    {
-      "name": "Barbero de ejemplo",
-      "role": "Barba y perfilado",
-      "instagram": "",
-      "bookingUrl": "",
-      "placeholder": true
-    }
-  ],
+  "barbers": {
+    "_nota": "Se publica solo con enabled:true y datos reales (foto/Instagram/agenda por barbero).",
+    "enabled": false,
+    "items": [
+      {
+        "name": "Barbero de ejemplo",
+        "role": "Fundador · degradados y navaja",
+        "instagram": "",
+        "bookingUrl": ""
+      },
+      {
+        "name": "Barbero de ejemplo",
+        "role": "Barba y perfilado",
+        "instagram": "",
+        "bookingUrl": ""
+      }
+    ]
+  },
   "policies": [
     {
       "title": "Atrasos",

@@ -5,7 +5,7 @@
   left: calc(14px + env(safe-area-inset-left)); bottom: calc(14px + env(safe-area-inset-bottom));   /* abajo a la izquierda: abajo a la derecha van Reservar + WhatsApp (SPEC-11 lo permite) */
   display: flex; align-items: center; gap: 7px; height: 28px; padding: 0 10px; border-radius: 8px;
   /* Fondo opaco + texto blanco: con opacity .6 sobre la toma más clara (blanco) el contraste queda ≈ 5.2:1. */
-  background: #0a0a0c; border: 1px solid rgba(255, 255, 255, .14);
+  background: var(--graphite); border: 1px solid rgba(237, 230, 218, .14);
   color: #fff; text-decoration: none; font: 500 11px/1 var(--font-body); letter-spacing: .02em; white-space: nowrap;
   opacity: .6; transition: opacity .2s ease;
 }

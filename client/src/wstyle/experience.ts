@@ -5,14 +5,15 @@
 // - Fondo: secuencia de Blender ('seq', SequencePlayer) o 3D en tiempo real ('3d', Scene3D) como respaldo.
 //   La matemática de cámara corre siempre: es la trayectoria con la que se renderizó la secuencia.
 // - Expone window.__site (contrato que prueba barberia-3d/scripts/verify.mjs).
-import * as THREE from 'three';
+// Solo la matemática de three (imports con nombre): el renderer y la escena viven en el chunk diferido del 3D.
+import { PerspectiveCamera, Quaternion, Vector3, type Camera } from 'three';
 import { shotsFor, type EffectiveShot } from './scene/shots';
 import { SequencePlayer } from './seq/SequencePlayer';
 import type { Content } from './content';
 
 const TAU = .12;      // s, constante de tiempo del suavizado
 const SETTLE = .005;  // m
-const Y = new THREE.Vector3(0, 1, 0);
+const Y = new Vector3(0, 1, 0);
 
 declare global {
   interface Window { isCompactLayout?: () => boolean; __site?: unknown }
@@ -21,7 +22,7 @@ declare global {
 export const isCompact = () => (window.isCompactLayout ? window.isCompactLayout() : innerWidth <= 768 || innerWidth < innerHeight);
 
 export interface Renderer3D {
-  render(camera: THREE.PerspectiveCamera): void;
+  render(camera: PerspectiveCamera): void;
   resize(w: number, h: number, compact: boolean): void;
 }
 export type Mode = 'seq' | '3d';
@@ -40,15 +41,15 @@ export interface ExperienceOptions {
 }
 
 export class Experience {
-  readonly camera = new THREE.PerspectiveCamera(50, 1, .05, 100);
-  private readonly target = new THREE.Vector3();
-  private readonly dPos = new THREE.Vector3(); private readonly dTgt = new THREE.Vector3(); private readonly dUp = new THREE.Vector3();
-  private readonly curUp = new THREE.Vector3(0, 1, 0);
-  private readonly lastPos = new THREE.Vector3(NaN); private readonly lastTgt = new THREE.Vector3(NaN); private readonly lastUp = new THREE.Vector3(NaN);
-  private readonly probeCam = new THREE.PerspectiveCamera();
-  private readonly projCam = new THREE.PerspectiveCamera();
-  private readonly qTmp = new THREE.Quaternion();
-  private SH: EffectiveShot[] = []; private SHQ: THREE.Quaternion[] = [];
+  readonly camera = new PerspectiveCamera(50, 1, .05, 100);
+  private readonly target = new Vector3();
+  private readonly dPos = new Vector3(); private readonly dTgt = new Vector3(); private readonly dUp = new Vector3();
+  private readonly curUp = new Vector3(0, 1, 0);
+  private readonly lastPos = new Vector3(NaN); private readonly lastTgt = new Vector3(NaN); private readonly lastUp = new Vector3(NaN);
+  private readonly probeCam = new PerspectiveCamera();
+  private readonly projCam = new PerspectiveCamera();
+  private readonly qTmp = new Quaternion();
+  private SH: EffectiveShot[] = []; private SHQ: Quaternion[] = [];
   private baseFov = 50; private curFov = 50; private lastFov = NaN;
   private anchors: number[] = [];
   private mode: Mode | null = null;
@@ -149,9 +150,9 @@ export class Experience {
     outUp.copy(Y).applyQuaternion(this.qTmp.slerpQuaternions(SHQ[i], SHQ[i + 1], f));
     return { idx: f < .5 ? i : i + 1, fov: this.fovOf(SH[i]) + (this.fovOf(SH[i + 1]) - this.fovOf(SH[i])) * f };
   }
-  private orient(cam: THREE.PerspectiveCamera, pos: THREE.Vector3, tgt: THREE.Vector3, up: THREE.Vector3) { cam.position.copy(pos); cam.up.copy(up); cam.lookAt(tgt); }
-  private axes(cam: THREE.Camera) {
-    return { up: new THREE.Vector3(0, 1, 0).applyQuaternion(cam.quaternion).toArray(), forward: new THREE.Vector3(0, 0, -1).applyQuaternion(cam.quaternion).toArray() };
+  private orient(cam: PerspectiveCamera, pos: Vector3, tgt: Vector3, up: Vector3) { cam.position.copy(pos); cam.up.copy(up); cam.lookAt(tgt); }
+  private axes(cam: Camera) {
+    return { up: new Vector3(0, 1, 0).applyQuaternion(cam.quaternion).toArray(), forward: new Vector3(0, 0, -1).applyQuaternion(cam.quaternion).toArray() };
   }
 
   // ─── Loop
@@ -192,19 +193,19 @@ export class Experience {
   // ─── Contrato window.__site (lo prueba barberia-3d/scripts/verify.mjs)
   private installContract() {
     const self = this; // eslint-disable-line @typescript-eslint/no-this-alias
-    const chkPos = new THREE.Vector3(), chkTgt = new THREE.Vector3(), chkUp = new THREE.Vector3();
+    const chkPos = new Vector3(), chkTgt = new Vector3(), chkUp = new Vector3();
     window.__site = {
       get ready() { return self.ready; },
       get mode() { return self.mode; },
       get gl() { return !!self.r3d; },
       get seqFrame() { return self.player ? self.player.shown : null; },
-      get seq() { const p = self.player; return p ? { count: p.count, total: p.total, loaded: p.loaded, anchorFrames: p.anchorFrames, size: p.size, wanted: p.wanted, format: p.format } : null; },
+      get seq() { const p = self.player; return p ? { count: p.count, total: p.total, loaded: p.loaded, anchorFrames: p.anchorFrames, size: p.size, wanted: p.wanted, format: p.format, variant: p.variant } : null; },
       get shots() { return self.SH.map((s) => ({ id: s.id, pos: s.pos.toArray(), target: s.target.toArray() })); },
       // up/forward = ejes reales de la cámara (para medir el giro sobre el eje de visión).
       get camera() { return { pos: self.camera.position.toArray(), target: self.target.toArray(), ...self.axes(self.camera) }; },
       // Pose para un scroll dado sin mover la cámara. fov = FOV vertical (grados), idx = sección activa.
       poseAt(y: number) {
-        const p = new THREE.Vector3(), t = new THREE.Vector3(), u = new THREE.Vector3();
+        const p = new Vector3(), t = new Vector3(), u = new Vector3();
         const { idx, fov } = self.desired(y, p, t, u); self.orient(self.probeCam, p, t, u);
         return { pos: p.toArray(), target: t.toArray(), ...self.axes(self.probeCam), fov, idx };
       },
@@ -215,10 +216,10 @@ export class Experience {
       // Proyección a pantalla: [px, py, zNDC]. En modo seq con la cámara del render (aspecto del frame) + "cover".
       project(pts: [number, number, number][]) {
         self.camera.updateMatrixWorld();
-        if (self.mode !== 'seq') return pts.map((p) => { const v = new THREE.Vector3(...p).project(self.camera); return [(v.x + 1) / 2 * innerWidth, (1 - v.y) / 2 * innerHeight, v.z]; });
+        if (self.mode !== 'seq') return pts.map((p) => { const v = new Vector3(...p).project(self.camera); return [(v.x + 1) / 2 * innerWidth, (1 - v.y) / 2 * innerHeight, v.z]; });
         const [fw, fh] = self.player!.size, s = Math.max(innerWidth / fw, innerHeight / fh), pc = self.projCam;
         pc.copy(self.camera); pc.aspect = fw / fh; pc.updateProjectionMatrix(); pc.updateMatrixWorld();
-        return pts.map((p) => { const v = new THREE.Vector3(...p).project(pc); return [(innerWidth - fw * s) / 2 + (v.x + 1) / 2 * fw * s, (innerHeight - fh * s) / 2 + (1 - v.y) / 2 * fh * s, v.z]; });
+        return pts.map((p) => { const v = new Vector3(...p).project(pc); return [(innerWidth - fw * s) / 2 + (v.x + 1) / 2 * fw * s, (innerHeight - fh * s) / 2 + (1 - v.y) / 2 * fh * s, v.z]; });
       },
       get compact() { return isCompact(); },
       // Quieta = lo dibujado coincide con lo deseado para el scroll ACTUAL (se calcula al leer: un scrollTo recién

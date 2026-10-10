@@ -4,8 +4,9 @@ import { str, type Service } from '../content';
 import './Services.css';
 
 // La carta (dirección "Noir de oficio"): una carta de barbería, no tarjetas genéricas. Nombre en versalitas, filete
-// de puntos, precio grande en Cormorant itálica y duración. En layout compacto es un carrusel horizontal
-// accesible (región con foco, flechas). Sin precio o duración válidos no se inventa nada: "Consultar".
+// de puntos, precio grande en Cormorant itálica y duración. En layout compacto es la misma lista vertical dentro
+// del panel graphite (PR #9 D6). Región con nombre y foco para lectores de pantalla. Sin precio o duración válidos
+// no se inventa nada: "Consultar".
 export default function Services({ services }: { services: Service[] }) {
   return (
     <div className="cards reveal" data-list="services" role="region" aria-label="Servicios" tabIndex={0}>
