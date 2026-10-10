@@ -1,0 +1,19 @@
+/* Persistentes abajo a la derecha (SPEC-15 AC-08): píldora RESERVAR latón + WhatsApp flotante. */
+.dock { position: fixed; z-index: 75; right: calc(18px + env(safe-area-inset-right)); bottom: calc(18px + env(safe-area-inset-bottom)); display: flex; align-items: center; gap: 10px; }
+.book-fab {
+  display: inline-flex; align-items: center; min-height: 52px; padding: 0 28px; border-radius: 999px;
+  background: var(--brass); color: var(--ink); text-decoration: none;
+  font: 600 12px/1 var(--font-body); letter-spacing: .26em; text-transform: uppercase;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, .55); transition: background-color .25s ease, color .25s ease;
+}
+.book-fab:hover { background: var(--wood); color: var(--bone); }
+.wa-fab {
+  display: grid; place-items: center; width: 52px; height: 52px; border-radius: 50%;
+  background: var(--graphite); border: 1px solid rgba(184, 135, 90, .35); color: var(--bone);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, .55); transition: border-color .25s ease, color .25s ease;
+}
+.wa-fab:hover { border-color: var(--brass); color: var(--brass); }
+.compact .dock { right: calc(12px + env(safe-area-inset-right)); bottom: calc(12px + env(safe-area-inset-bottom)); gap: 8px; }
+.compact .book-fab { min-height: 46px; padding: 0 22px; font-size: 11px; }
+.compact .wa-fab { width: 46px; height: 46px; }
+@media (prefers-reduced-motion: reduce) { .book-fab, .wa-fab { transition: none; } }

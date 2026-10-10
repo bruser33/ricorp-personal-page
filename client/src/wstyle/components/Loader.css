@@ -1,0 +1,14 @@
+/* Pantalla de carga (puerto de barberia-3d/site/style.css). Layout compacto: <html class="compact"> (criterio único en wstyle/index.html). */
+/* Pantalla de carga (SPEC-13): progreso real de los frames ancla de la secuencia. El badge Ricorp queda encima. */
+.loader {
+  position: fixed; inset: 0; z-index: 70; display: grid; place-items: center;
+  background: radial-gradient(120% 80% at 50% 40%, #1c1814 0%, var(--bg) 60%);
+  transition: opacity .6s ease, visibility 0s .6s;
+}
+.no-js .loader { display: none; }
+.loader.is-done { opacity: 0; visibility: hidden; pointer-events: none; }
+.loader__inner { display: grid; justify-items: center; gap: 18px; }
+.loader__brand { margin: 0; font: 400 clamp(44px, 8vw, 88px)/1 var(--font-display); letter-spacing: .06em; }
+.loader__track { width: min(260px, 60vw); height: 2px; background: rgba(255, 255, 255, .12); overflow: hidden; }
+.loader__bar { display: block; height: 100%; transform-origin: 0 50%; transform: scaleX(0); background: linear-gradient(90deg, var(--wood), var(--accent)); transition: transform .3s ease; }
+.loader__pct { margin: 0; font: 600 12px/1 var(--font-body); letter-spacing: .24em; color: var(--steel); }

@@ -6,26 +6,47 @@
     "contact.whatsapp",
     "contact.address",
     "contact.mapsUrl",
-    "hours"
+    "hours",
+    "concept",
+    "booking",
+    "membership",
+    "reviews",
+    "barbers",
+    "policies",
+    "stat"
   ],
   "_nota": "Todos los campos listados en _placeholders son SUPUESTOS hasta recibir los datos reales del negocio (SPEC-01).",
   "name": "W Style",
   "slogan": "Cortes clásicos y barba con oficio, en un local hecho para quedarse.",
+  "concept": "El estilo se hace a mano",
+  "stat": {
+    "value": "1",
+    "label": "silla.",
+    "note": "Toda la atención."
+  },
+  "marquee": [
+    "Corte",
+    "Barba",
+    "Navaja",
+    "Vapor",
+    "Perfilado",
+    "Lavado"
+  ],
   "headlines": {
-    "hero": "BIENVENIDO",
-    "reyes": "DONDE SE SIENTAN LOS REYES",
-    "linea": "CADA LÍNEA CON INTENCIÓN",
-    "afilado": "SAL MÁS AFILADO",
-    "trono": "TOMA TU TRONO",
-    "servicios": "SERVICIOS Y PRECIOS",
-    "llega": "LLEGA"
+    "hero": "W STYLE.",
+    "reyes": "DONDE SE SIENTAN LOS REYES.",
+    "linea": "CADA LÍNEA CON INTENCIÓN.",
+    "afilado": "SAL MÁS AFILADO.",
+    "trono": "TOMA TU TRONO.",
+    "servicios": "LA CARTA.",
+    "llega": "LLEGA."
   },
   "copy": {
     "reyes": "Una sola silla, toda la atención. Sillón hidráulico, espejo de pared a pared y luz fría para ver cada detalle.",
     "linea": "Navaja, tijera y máquina en manos de quien conoce tu perfil. Sin apuros, sin cortes en serie.",
     "afilado": "Te miras al espejo y lo notas: el degradado limpio, la barba en su sitio.",
     "trono": "Reserva tu hora por WhatsApp o llámanos. Te esperamos con la silla lista.",
-    "servicios": "Precios en pesos chilenos. Pregunta por combinaciones.",
+    "servicios": "Precios en pesos chilenos, con la duración de cada servicio. Pregunta por combinaciones.",
     "llega": "Estamos a pasos de ti. Revisa el horario y pasa."
   },
   "contact": {
@@ -41,8 +62,91 @@
   },
   "_hours": "Horario (única fuente: también genera openingHours del JSON-LD). dayCodes = días en formato schema.org (Mo, Tu, We, Th, Fr, Sa, Su; rangos con guion). Si falta opens o closes se muestra \"desde\"/\"hasta\"; sin ambos = Cerrado.",
   "hours": [
-    { "days": "Lunes a viernes", "dayCodes": "Mo-Fr", "opens": "10:00", "closes": "20:00" },
-    { "days": "Sábado", "dayCodes": "Sa", "opens": "10:00", "closes": "18:00" },
-    { "days": "Domingo", "dayCodes": "Su", "opens": null, "closes": null }
+    {
+      "days": "Lunes a viernes",
+      "dayCodes": "Mo-Fr",
+      "opens": "10:00",
+      "closes": "20:00"
+    },
+    {
+      "days": "Sábado",
+      "dayCodes": "Sa",
+      "opens": "10:00",
+      "closes": "18:00"
+    },
+    {
+      "days": "Domingo",
+      "dayCodes": "Su",
+      "opens": null,
+      "closes": null
+    }
+  ],
+  "booking": {
+    "_nota": "Link de agenda online (AgendaPro, Reservo, etc.). Vacío ⇒ el botón Reservar abre WhatsApp.",
+    "provider": "",
+    "url": ""
+  },
+  "membership": {
+    "name": "Club W",
+    "priceCLP": 25000,
+    "period": "mes",
+    "perks": [
+      "2 cortes al mes",
+      "Perfilado de barba sin límite",
+      "Lavado + masaje incluido",
+      "10 % en productos"
+    ],
+    "note": "Sin matrícula. Se renueva cada mes; cancelas cuando quieras."
+  },
+  "reviews": {
+    "source": "Google",
+    "placeholder": true,
+    "items": [
+      {
+        "author": "Cliente de ejemplo",
+        "rating": 5,
+        "text": "Texto de ejemplo: aquí irá una reseña real de Google cuando tengamos la ficha del local."
+      },
+      {
+        "author": "Cliente de ejemplo",
+        "rating": 5,
+        "text": "Texto de ejemplo: el degradado, la atención y el local, contados por un cliente real."
+      },
+      {
+        "author": "Cliente de ejemplo",
+        "rating": 5,
+        "text": "Texto de ejemplo: reemplazar por reseñas verificadas antes de publicar con datos reales."
+      }
+    ]
+  },
+  "barbers": [
+    {
+      "name": "Barbero de ejemplo",
+      "role": "Fundador · degradados y navaja",
+      "instagram": "",
+      "bookingUrl": "",
+      "placeholder": true
+    },
+    {
+      "name": "Barbero de ejemplo",
+      "role": "Barba y perfilado",
+      "instagram": "",
+      "bookingUrl": "",
+      "placeholder": true
+    }
+  ],
+  "policies": [
+    {
+      "title": "Atrasos",
+      "text": "Te esperamos 10 minutos. Pasado ese tiempo, puede que tengamos que acortar el servicio o reagendar."
+    },
+    {
+      "title": "Inasistencias",
+      "text": "Si no puedes venir, avísanos con 3 horas de anticipación por WhatsApp para liberar la hora."
+    },
+    {
+      "title": "Pagos",
+      "text": "Efectivo, débito y crédito. Precios en pesos chilenos con IVA incluido."
+    }
   ]
 }

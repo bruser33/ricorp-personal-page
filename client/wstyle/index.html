@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="es" class="no-js">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title><!--wstyle-title--></title>
+<meta name="description" content="<!--wstyle-description-->">
+<meta property="og:title" content="<!--wstyle-og-title-->">
+<!-- noindex mientras los datos del negocio sean placeholder (SPEC-14); quitar al recibir datos reales -->
+<meta name="robots" content="noindex,nofollow">
+<meta property="og:type" content="website">
+<meta name="theme-color" content="#0d0d12">
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Cormorant+Garamond:ital,wght@1,400;1,500;1,600&family=Inter:wght@400;500;600;700&display=swap">
+<script>
+  // Criterio ÚNICO de layout compacto (CSS vía <html class="compact"> y experience.ts vía isCompactLayout()):
+  // ancho ≤ 768 px o pantalla vertical. Se aplica antes del primer pintado y en cada resize.
+  (function () {
+    var h = document.documentElement; h.classList.replace('no-js', 'js');
+    window.isCompactLayout = function () { return innerWidth <= 768 || innerWidth < innerHeight; };
+    var u = function () { h.classList.toggle('compact', window.isCompactLayout()); };
+    u(); addEventListener('resize', u);
+  })();
+</script>
+</head>
+<body>
+<div id="root"><!--wstyle-app--></div>
+<!--wstyle-data-->
+<script type="module" src="/src/wstyle/main.tsx"></script>
+</body>
+</html>
