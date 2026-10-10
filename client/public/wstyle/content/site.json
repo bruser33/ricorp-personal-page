@@ -1,0 +1,48 @@
+{
+  "_placeholders": [
+    "name",
+    "slogan",
+    "contact.phone",
+    "contact.whatsapp",
+    "contact.address",
+    "contact.mapsUrl",
+    "hours"
+  ],
+  "_nota": "Todos los campos listados en _placeholders son SUPUESTOS hasta recibir los datos reales del negocio (SPEC-01).",
+  "name": "W Style",
+  "slogan": "Cortes clásicos y barba con oficio, en un local hecho para quedarse.",
+  "headlines": {
+    "hero": "BIENVENIDO",
+    "reyes": "DONDE SE SIENTAN LOS REYES",
+    "linea": "CADA LÍNEA CON INTENCIÓN",
+    "afilado": "SAL MÁS AFILADO",
+    "trono": "TOMA TU TRONO",
+    "servicios": "SERVICIOS Y PRECIOS",
+    "llega": "LLEGA"
+  },
+  "copy": {
+    "reyes": "Una sola silla, toda la atención. Sillón hidráulico, espejo de pared a pared y luz fría para ver cada detalle.",
+    "linea": "Navaja, tijera y máquina en manos de quien conoce tu perfil. Sin apuros, sin cortes en serie.",
+    "afilado": "Te miras al espejo y lo notas: el degradado limpio, la barba en su sitio.",
+    "trono": "Reserva tu hora por WhatsApp o llámanos. Te esperamos con la silla lista.",
+    "servicios": "Precios en pesos chilenos. Pregunta por combinaciones.",
+    "llega": "Estamos a pasos de ti. Revisa el horario y pasa."
+  },
+  "contact": {
+    "phone": "+56 9 0000 0000",
+    "whatsapp": "+56 9 0000 0000",
+    "whatsappText": "Hola, quiero reservar una hora",
+    "address": {
+      "street": "Calle Falsa 123",
+      "city": "Santiago",
+      "region": "Región Metropolitana"
+    },
+    "mapsUrl": "https://www.google.com/maps/search/?api=1&query=Calle+Falsa+123+Santiago"
+  },
+  "_hours": "Horario (única fuente: también genera openingHours del JSON-LD). dayCodes = días en formato schema.org (Mo, Tu, We, Th, Fr, Sa, Su; rangos con guion). Si falta opens o closes se muestra \"desde\"/\"hasta\"; sin ambos = Cerrado.",
+  "hours": [
+    { "days": "Lunes a viernes", "dayCodes": "Mo-Fr", "opens": "10:00", "closes": "20:00" },
+    { "days": "Sábado", "dayCodes": "Sa", "opens": "10:00", "closes": "18:00" },
+    { "days": "Domingo", "dayCodes": "Su", "opens": null, "closes": null }
+  ]
+}

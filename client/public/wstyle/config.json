@@ -1,0 +1,4 @@
+{
+  "_nota": "Configuración de Ricorp (no es contenido del dueño: no se edita desde site/content). poweredBy: marca de agua 'Powered by ricorp.cl' (SPEC-11). Solo se oculta con el literal false; si falta el archivo o el campo = visible.",
+  "poweredBy": true
+}
