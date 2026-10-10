@@ -84,7 +84,8 @@ h2 { font-size: clamp(48px, 7.4vw, 112px); }
 .hero__from { margin: 18px 0 0; font-size: 15px; letter-spacing: .04em; color: var(--muted); }
 .hero__from strong { font: italic 400 1.5em/1 var(--font-serif); color: var(--bone); letter-spacing: 0; }
 /* Titulares cinéticos: cada palabra en su máscara (GSAP la revela por tramo, ver useMotion). */
-.kinetic__mask { display: inline-block; overflow: hidden; vertical-align: top; padding: .1em .02em .04em; margin: -.1em -.02em -.04em; }
+/* B1 (ronda 4): .3em de aire arriba en la máscara: en Anton la tilde (Í, Ó, Á) sube ~.24em sobre la mayúscula. */
+.kinetic__mask { display: inline-block; overflow: hidden; vertical-align: top; padding: .3em .02em .04em; margin: -.3em -.02em -.04em; }
 .kinetic__word { display: inline-block; will-change: transform; }
 .kinetic--sm { font-size: clamp(40px, 5.2vw, 76px); }
 /* Secciones intermedias (reseñas, barberos, membresía, políticas): sin toma propia, la cámara sigue su tramo. */
@@ -126,19 +127,24 @@ html.lenis, html.lenis body { height: auto; }
 .shade { background: linear-gradient(90deg, rgba(14, 13, 12, .9) 0%, rgba(14, 13, 12, .55) 36%, rgba(14, 13, 12, 0) 64%); }
 .compact .shade { background: linear-gradient(180deg, rgba(14, 13, 12, .94) 0%, rgba(14, 13, 12, .86) 26%, rgba(14, 13, 12, .66) 40%, rgba(14, 13, 12, .3) 54%, rgba(14, 13, 12, .08) 70%, rgba(14, 13, 12, 0) 84%); }
 h1 { font-size: clamp(72px, 15vw, 230px); line-height: .86; letter-spacing: -.005em; }
-h2 { font-size: clamp(52px, 7.6vw, 128px); line-height: .9; }
+/* B1: en Anton la tilde sube ~.24em sobre la mayúscula: con .9 se recortaba y con 1 todavía se metía ~.1em en los
+   glifos de la línea de arriba; 1.1 es el mínimo sin choque (medido en verify, carril de tildes). */
+h2 { font-size: clamp(52px, 7.6vw, 128px); line-height: 1.1; }
+/* B1: la sombra va en el titular entero (drop-shadow) y no por palabra: con interlineado apretado la máscara de una
+   línea se mete en la de arriba y su text-shadow mordía los glifos de esa línea. */
+h1, h2 { text-shadow: none; filter: drop-shadow(0 6px 16px rgba(0, 0, 0, .55)); }
 .panel--hero .panel__inner { max-width: 960px; }
 .concept { margin: 18px 0 0; font: italic 500 clamp(30px, 3vw, 48px)/1.05 var(--font-serif); color: var(--brass); }
 .lead { color: #c9c1b4; }
 .hero__cta { display: flex; flex-wrap: wrap; align-items: center; gap: 22px 28px; margin-top: 30px; }
 .hero__from { margin: 0; font-size: 13px; letter-spacing: .24em; text-transform: uppercase; color: var(--muted); }
-.hero__from strong { font: italic 500 2.4em/1 var(--font-serif); color: var(--bone); letter-spacing: 0; text-transform: none; margin-left: .2em; }
+.hero__from strong { font: italic 500 2.4em/1 var(--font-serif); font-variant-numeric: lining-nums; color: var(--bone); letter-spacing: 0; text-transform: none; margin-left: .2em; }
 .btn { border-radius: 999px; letter-spacing: .24em; font-weight: 600; font-size: 12px; min-height: 48px; padding: 0 26px; }
 .btn--primary { background: var(--brass); color: var(--ink); }
 .btn--primary:hover { background: var(--wood); color: var(--bone); transform: none; }
 .btn--ghost { border-color: rgba(237, 230, 218, .45); background: rgba(14, 13, 12, .8); }
 .stat { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0 12px; margin: 26px 0 0; }
-.stat__value { font: italic 500 clamp(80px, 9vw, 140px)/.8 var(--font-serif); color: var(--brass); }
+.stat__value { font: italic 500 clamp(80px, 9vw, 140px)/.8 var(--font-serif); font-variant-numeric: lining-nums; color: var(--brass); }
 .stat__label { font: 400 clamp(28px, 3vw, 44px)/1 var(--font-display); text-transform: uppercase; }
 .stat em { flex-basis: 100%; margin-top: 8px; font: italic 500 22px/1.2 var(--font-serif); color: var(--muted); }
 .eyebrow { color: var(--brass); }
@@ -147,8 +153,21 @@ h2 { font-size: clamp(52px, 7.6vw, 128px); line-height: .9; }
 
 /* Paneles sólidos que se deslizan sobre la película (la carta y los paneles de venta). */
 .panel--sheet.panel--extra { background: linear-gradient(180deg, rgba(26, 24, 22, 0) 0, rgba(26, 24, 22, .96) 90px, rgba(26, 24, 22, .96) calc(100% - 90px), rgba(26, 24, 22, 0) 100%); }
-#servicios .panel__inner { padding: 34px 36px 36px; background: rgba(26, 24, 22, .94); border: 1px solid rgba(184, 135, 90, .2); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+#servicios .panel__inner { padding: 34px 36px 36px; background: rgba(26, 24, 22, .94); border: 1px solid rgba(184, 135, 90, .2); backdrop-filter: blur(6px); }
 .compact #servicios .panel__inner { padding: 26px 20px 22px; margin: 0 -8px; }
+/* P2 (ronda 4): las descripciones envuelven (sin «…»); para que en reposo la carta entera quede sobre el badge y el
+   dock, en compacto se ajustan los aires del panel y de las filas. */
+.compact #servicios .panel__inner { padding: 20px 20px 16px; }
+.compact #servicios .lead { margin-top: 12px; font-size: 15px; }
+.compact .is-demo #servicios.panel { padding-top: calc(var(--nav-h) + 36px); }
+/* T1 (ronda 4): en compacto la película respira entre la carta y el primer panel de venta: más aire bajo la carta y
+   ese panel entra fundiéndose desde la película (degradado largo, el contenido arranca ya sobre graphite). */
+.compact #servicios.panel { padding-bottom: 14vh; }
+/* :where() deja la especificidad baja a propósito: una regla propia de la sección (p. ej. #membresia) sigue mandando. */
+.compact main .panel--sheet.panel--extra:where(#servicios + *) {
+  padding-top: calc(34vh + 24px);
+  background: linear-gradient(180deg, rgba(26, 24, 22, 0) 0, rgba(26, 24, 22, .96) 34vh, rgba(26, 24, 22, .96) calc(100% - 90px), rgba(26, 24, 22, 0) 100%);
+}
 .panel--wide .panel__inner { max-width: min(560px, 44vw); }
 .panel--wide h2 { font-size: clamp(44px, 5vw, 76px); }
 

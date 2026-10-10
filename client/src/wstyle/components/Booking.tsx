@@ -15,6 +15,8 @@ export default function Booking({ booking, whatsapp }: Props) {
     io.observe(el);
     return () => io.disconnect();
   }, [booking]);
+  // Sin agenda, WhatsApp ni teléfono no hay nada que fijar: no queda un contenedor vacío.
+  if (!booking && !whatsapp) return null;
   return (
     <div className="dock">
       {booking && <a className={`book-fab${heroCta ? ' is-hidden' : ''}`} data-cta="booking" href={booking} target={booking.startsWith('tel:') ? undefined : '_blank'} rel="noopener" aria-hidden={heroCta || undefined} tabIndex={heroCta ? -1 : undefined}>Reservar</a>}

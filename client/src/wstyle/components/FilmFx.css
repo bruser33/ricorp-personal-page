@@ -8,9 +8,12 @@
   position: absolute; inset: 0; opacity: .04; background-size: 160px 160px;
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
 }
-.film-fx__bar { position: absolute; left: 0; right: 0; height: calc(max(0px, (100vh - 100vw / 2.39) / 2) * var(--letterbox, 0)); background: #000; }
-.film-fx__bar--top { top: 0; }
-.film-fx__bar--bottom { bottom: 0; }
+/* P1 (ronda 4): el borde de la barra se degrada hacia la imagen (sin línea dura cruzando etiquetas y titulares) y en
+   compacto la barra no pasa del 12 % del alto (en vertical el 2.39:1 completo taparía media pantalla). */
+.film-fx__bar { position: absolute; left: 0; right: 0; height: calc(max(0px, (100vh - 100vw / 2.39) / 2) * var(--letterbox, 0)); }
+.film-fx__bar--top { top: 0; background: linear-gradient(180deg, #000 45%, rgba(0, 0, 0, 0)); }
+.film-fx__bar--bottom { bottom: 0; background: linear-gradient(0deg, #000 45%, rgba(0, 0, 0, 0)); }
+.compact .film-fx__bar { height: calc(min(12vh, max(0px, (100vh - 100vw / 2.39) / 2)) * var(--letterbox, 0)); }
 
 /* Paneles sólidos de venta (membresía, barberos, reseñas, políticas): la película sigue detrás, atenuada al 35 %.
    La carta (toma cenital) no se atenúa: su panel va a un lado y la planta queda a la vista. */

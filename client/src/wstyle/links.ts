@@ -26,4 +26,6 @@ export function fromPrice(services: Service[]): { label: string; price: number }
   const p = services.map((s) => toCLP(s?.priceCLP)).filter((n) => Number.isFinite(n));
   return p.length ? { label: 'Servicios', price: Math.min(...p) } : null;
 }
+// Atributos de un enlace externo: tel: abre el marcador en la misma pestaña (con _blank queda una pestaña vacía).
+export const ext = (href: string) => (href.startsWith('tel:') ? {} : { target: '_blank', rel: 'noopener' });
 export const clp = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 });

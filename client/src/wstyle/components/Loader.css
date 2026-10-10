@@ -9,7 +9,8 @@
 .loader__inner { display: grid; justify-items: center; gap: 22px; }
 .loader__brand { margin: 0; font: 400 clamp(56px, 10vw, 128px)/.9 var(--font-display); letter-spacing: .04em; text-transform: uppercase; color: var(--bone); }
 .loader__track { width: min(280px, 60vw); height: 1px; background: rgba(237, 230, 218, .14); overflow: hidden; }
-.loader__bar { display: block; height: 100%; transform-origin: 0 50%; transform: scaleX(0); background: var(--brass); transition: transform .3s ease; }
+/* P4 (ronda 4): sin transición: la barra y el % salen del mismo valor en el mismo cuadro. */
+.loader__bar { display: block; height: 100%; transform-origin: 0 50%; transform: scaleX(0); background: var(--brass); }
 .loader__pct { margin: 0; font: 500 11px/1 var(--font-body); letter-spacing: .3em; color: var(--muted); }
 .loader__by { position: absolute; left: 0; right: 0; bottom: calc(28px + env(safe-area-inset-bottom)); margin: 0; text-align: center; font: 500 11px/1 var(--font-body); letter-spacing: .24em; text-transform: uppercase; color: var(--muted); }
 .loader__by span { color: var(--bone); }

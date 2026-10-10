@@ -1,11 +1,16 @@
 // SPEC-13/15: reproductor de la secuencia pre-renderizada en Blender (public/wstyle/seq/<formato>/NNNN.webp) como
 // fondo. Puerto TS de barberia-3d/site/seq.js.
-// - Carga progresiva: primero los 7 frames ancla (progreso real para la pantalla de carga), luego 1 de cada 5 y luego
-//   el resto, siempre priorizando los más cercanos al frame actual. Mientras un frame no está se dibuja el más
-//   cercano ya cargado.
+// - Carga progresiva: primero los 7 frames ancla (progreso real para la pantalla de carga), luego los de la ventana
+//   alrededor del frame actual, priorizando los más cercanos. Mientras un frame no está se dibuja el más cercano ya
+//   cargado.
+// - Memoria acotada (PR #9 ronda 4, R1): decodificados como máximo las anclas + una ventana de ±WINDOW frames
+//   alrededor del frame actual; los demás se liberan y se vuelven a pedir al volver (150 frames hd decodificados en
+//   un móvil DPR 3 son ~860 MB y iOS mata la pestaña).
 // - Canvas 2D a pantalla completa con ajuste "cover".
-// - Si el manifest o algún ancla falla (404, decode), create() devuelve null y el sitio cae al 3D en tiempo real.
+// - Si falla un ancla de la variante hd se reintenta con la sd; si el manifest o un ancla sd falla (404, decode) o el
+//   manifest no responde en MANIFEST_TIMEOUT ms, create() devuelve null y el sitio cae al 3D en tiempo real.
 const pad = (i: number) => String(i).padStart(4, '0');
+const MANIFEST_TIMEOUT = 8000;
 
 export interface SeqVariant {
   count: number; available: number; complete: boolean; size: [number, number];
@@ -30,31 +35,46 @@ interface CreateOptions {
   // En layout compacto, si el formato móvil todavía no está (render en curso) se usa desktop (documentado).
   fallbackFmt?: 'desktop' | 'mobile';
 }
+interface StartOptions extends CreateOptions { base: string; f: SeqFormat; used: 'desktop' | 'mobile'; forceSd?: boolean }
+const usable = (f?: SeqVariant) => !!f && f.anchorsAvailable && f.available > 0;
+
+// Manifest con timeout: si el servidor no responde, se aborta y se cae al 3D (no queda el loader colgado).
+async function fetchManifest(base: string): Promise<SeqManifest | null> {
+  const ac = new AbortController(), t = setTimeout(() => ac.abort(), MANIFEST_TIMEOUT);
+  try {
+    const r = await fetch(base + 'manifest.json', { cache: 'no-cache', signal: ac.signal });
+    return r.ok ? await r.json() : null;
+  } catch { return null; } finally { clearTimeout(t); }
+}
 
 export class SequencePlayer {
-  static async create({ canvas, fmt, base = './seq/', reduced = false, onProgress = () => {}, fallbackFmt }: CreateOptions): Promise<SequencePlayer | null> {
-    let manifest: SeqManifest;
-    try {
-      const r = await fetch(base + 'manifest.json', { cache: 'no-cache' });
-      if (!r.ok) return null;
-      manifest = await r.json();
-    } catch { return null; }
-    const usable = (f?: SeqVariant) => !!f && f.anchorsAvailable && f.available > 0;
+  static async create(o: CreateOptions): Promise<SequencePlayer | null> {
+    const base = o.base ?? './seq/', { fmt, fallbackFmt } = o;
+    const manifest = await fetchManifest(base);
+    if (!manifest) return null;
     let used: 'desktop' | 'mobile' = fmt;
     let f = manifest.formats?.[fmt];
     if (!usable(f) && fallbackFmt && usable(manifest.formats?.[fallbackFmt])) { used = fallbackFmt; f = manifest.formats[fallbackFmt]; }
     // Sin las anclas no hay recorrido: se usa el 3D.
     if (!f || !usable(f)) return null;
-    const { name: variant, v: m } = pickVariant(f, innerWidth, devicePixelRatio || 1);
+    return SequencePlayer.start({ ...o, base, f, used });
+  }
+
+  private static async start(o: StartOptions): Promise<SequencePlayer | null> {
+    const { canvas, base, f, used, reduced = false, onProgress = () => {} } = o;
+    const { name: variant, v: m } = o.forceSd ? { name: 'sd' as const, v: f.variants?.sd ?? f } : pickVariant(f, innerWidth, devicePixelRatio || 1);
     if (!usable(m)) return null;
     const p = new SequencePlayer(canvas, base + m.path.replace(/^seq\//, ''), m, reduced, used, variant);
     let done = 0;
     onProgress(0, m.anchorFrames.length);
-    try {
-      // allSettled: si un ancla falla (404/decode) no quedan promesas rechazadas sin manejar y se cae al 3D.
-      const rs = await Promise.allSettled(m.anchorFrames.map((n) => p.load(n).then(() => onProgress(++done, m.anchorFrames.length))));
-      if (rs.some((r) => r.status === 'rejected')) { p.dispose(); return null; }
-    } catch { return null; }
+    // allSettled: si un ancla falla (404/decode) no quedan promesas rechazadas sin manejar.
+    const rs = await Promise.allSettled(m.anchorFrames.map((n) => p.load(n).then(() => onProgress(++done, m.anchorFrames.length))));
+    if (rs.some((r) => r.status === 'rejected')) {
+      p.dispose();
+      // R2: un ancla hd rota no tira la secuencia: se reintenta con la variante sd antes de caer al 3D.
+      if (variant === 'hd') return SequencePlayer.start({ ...o, forceSd: true });
+      return null;
+    }
     if (!reduced) p.startBackground();
     return p;
   }
@@ -62,7 +82,9 @@ export class SequencePlayer {
   readonly ctx: CanvasRenderingContext2D;
   readonly count: number; readonly total: number; readonly size: [number, number];
   readonly anchorFrames: number[];
-  readonly imgs = new Map<number, HTMLImageElement>();
+  readonly imgs = new Map<number, HTMLImageElement>();   // decodificados retenidos (anclas + ventana)
+  private seen = new Set<number>();                       // frames distintos cargados alguna vez
+  private center = NaN;                                   // centro de la ventana de retención
   private failed = new Set<number>();
   private inflight = new Set<number>();
   private disposed = false;
@@ -83,7 +105,20 @@ export class SequencePlayer {
     this.count = m.available; this.total = m.count; this.size = m.size; this.anchorFrames = m.anchorFrames;
   }
 
-  get loaded() { return this.imgs.size; }
+  get loaded() { return this.seen.size; }
+  get retained() { return this.imgs.size; }
+
+  // Ventana de retención: anclas siempre; el resto solo a ±WINDOW del frame actual.
+  static readonly WINDOW = 20;
+  private keep(n: number) {
+    const c = Number.isFinite(this.center) ? this.center : this.wanted;
+    return this.anchorFrames.includes(n) || Math.abs(n - c) <= SequencePlayer.WINDOW;
+  }
+  private release(img: HTMLImageElement) { img.src = ''; }   // suelta el bitmap decodificado
+  private evict(center: number) {
+    this.center = center;
+    for (const [n, img] of this.imgs) if (!this.keep(n)) { this.release(img); this.imgs.delete(n); }
+  }
 
   load(n: number): Promise<HTMLImageElement> {
     const have = this.imgs.get(n);
@@ -95,23 +130,24 @@ export class SequencePlayer {
     return img.decode().then(() => {
       this.inflight.delete(n);
       if (this.disposed) return img;
+      this.seen.add(n);
+      if (!this.keep(n)) { this.release(img); return img; }   // el usuario ya se fue de esa zona
       this.imgs.set(n, img);
       if (Math.abs(n - this.wanted) < Math.abs(this.shown - this.wanted)) this.dirty = true;   // hay uno más cercano
       return img;
     }, (e) => { this.inflight.delete(n); this.failed.add(n); throw e; });
   }
 
-  // Carga progresiva REAL (PR #9 D12): después de las anclas, 1 de cada 5; el resto SOLO cerca del frame actual
-  // (± NEAR). Si no hay nada que bajar, vuelve a mirar en un rato (el usuario pudo haber scrolleado).
-  static readonly NEAR = 10;
+  // Carga progresiva REAL (PR #9 D12): después de las anclas, SOLO la ventana alrededor del frame actual (primero 1 de
+  // cada 5, después el resto, los más cercanos antes). Si no hay nada que bajar, vuelve a mirar en un rato (el usuario
+  // pudo haber scrolleado).
   startBackground(concurrency = 4) {
     const pending = () => {
       const c = Number.isFinite(this.cur) ? this.cur : this.wanted;
       const want = (n: number) => !this.imgs.has(n) && !this.failed.has(n) && !this.inflight.has(n);
       const coarse: number[] = [], near: number[] = [];
-      for (let n = 1; n <= this.count; n++) if (want(n)) {
-        if ((n - 1) % 5 === 0) coarse.push(n);
-        else if (Math.abs(n - c) <= SequencePlayer.NEAR) near.push(n);
+      for (let n = Math.max(1, Math.round(c) - SequencePlayer.WINDOW); n <= Math.min(this.count, Math.round(c) + SequencePlayer.WINDOW); n++) if (want(n)) {
+        ((n - 1) % 5 === 0 ? coarse : near).push(n);
       }
       const pool = coarse.length ? coarse : near;
       return pool.sort((a, b) => Math.abs(a - c) - Math.abs(b - c));
@@ -141,7 +177,9 @@ export class SequencePlayer {
     this.wanted = wanted;
     if (!Number.isFinite(this.cur) || this.reduced) this.cur = wanted;
     else { this.cur += (wanted - this.cur) * k; if (Math.abs(wanted - this.cur) < .01) this.cur = wanted; }
-    const n = this.nearest(Math.min(this.count, Math.max(1, Math.round(this.cur))));
+    const at = Math.min(this.count, Math.max(1, Math.round(this.cur)));
+    if (at !== this.center) this.evict(at);
+    const n = this.nearest(at);
     if (n !== this.shown || this.dirty) { this.draw(n); return true; }
     return false;
   }
@@ -161,5 +199,5 @@ export class SequencePlayer {
     this.shown = n; this.dirty = false;
   }
 
-  dispose() { this.disposed = true; clearTimeout(this.idle); this.imgs.clear(); }
+  dispose() { this.disposed = true; clearTimeout(this.idle); for (const img of this.imgs.values()) this.release(img); this.imgs.clear(); }
 }

@@ -199,7 +199,8 @@ export class Experience {
       get mode() { return self.mode; },
       get gl() { return !!self.r3d; },
       get seqFrame() { return self.player ? self.player.shown : null; },
-      get seq() { const p = self.player; return p ? { count: p.count, total: p.total, loaded: p.loaded, anchorFrames: p.anchorFrames, size: p.size, wanted: p.wanted, format: p.format, variant: p.variant } : null; },
+      // loaded = frames distintos cargados alguna vez; retained = decodificados en memoria ahora (anclas + ventana).
+      get seq() { const p = self.player; return p ? { count: p.count, total: p.total, loaded: p.loaded, retained: p.retained, anchorFrames: p.anchorFrames, size: p.size, wanted: p.wanted, format: p.format, variant: p.variant } : null; },
       get shots() { return self.SH.map((s) => ({ id: s.id, pos: s.pos.toArray(), target: s.target.toArray() })); },
       // up/forward = ejes reales de la cámara (para medir el giro sobre el eje de visión).
       get camera() { return { pos: self.camera.position.toArray(), target: self.target.toArray(), ...self.axes(self.camera) }; },

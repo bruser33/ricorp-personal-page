@@ -1,5 +1,5 @@
 import { toCLP } from '../lib';
-import { clp } from '../links';
+import { clp, ext } from '../links';
 import { str, type SiteContent } from '../content';
 import { Extra } from './Section';
 import './Extras.css';
@@ -40,7 +40,7 @@ export function Barbers({ site, booking, label }: { site: SiteContent; booking: 
                 <h3>{b.name}</h3>
                 {str(b.role) && <p>{b.role}</p>}
                 <p className="barber__links">
-                  {agenda && <a href={agenda} target="_blank" rel="noopener">Agendar con {b.name}</a>}
+                  {agenda && <a href={agenda} {...ext(agenda)}>Agendar con {b.name}</a>}
                   {str(b.instagram) && <a href={b.instagram} target="_blank" rel="noopener">Instagram</a>}
                 </p>
               </div>
@@ -64,7 +64,7 @@ export function Membership({ site, booking, label }: { site: SiteContent; bookin
           <h3>{m.name}</h3>
           {Number.isFinite(price) && <p className="member__price"><span>{clp.format(price)}</span> al {m.period || 'mes'}</p>}
           {str(m.note) && <p className="member__note">{m.note}</p>}
-          {booking && <a className="btn btn--primary" href={booking} target="_blank" rel="noopener">Quiero el club</a>}
+          {booking && <a className="btn btn--primary" href={booking} {...ext(booking)}>Quiero el club</a>}
         </div>
         <ul>{(m.perks ?? []).filter(str).map((p, i) => <li key={i}>{p}</li>)}</ul>
       </article>
@@ -84,7 +84,13 @@ export function Policies({ site, label }: { site: SiteContent; label: string }) 
   );
 }
 
-// Franja de demostración (D1): discreta, bajo el header, mientras site.json tenga demo:true.
+// Franja de demostración (D1): discreta, bajo el header, mientras site.json tenga demo:true. En compacto va el texto
+// corto, en una sola línea.
 export function DemoStrip() {
-  return <p className="demo-strip" data-demo-banner="">Versión de demostración · precios y datos de ejemplo</p>;
+  return (
+    <p className="demo-strip" data-demo-banner="">
+      <span className="demo-strip__long">Versión de demostración · precios y datos de ejemplo</span>
+      <span className="demo-strip__short">Demo · datos de ejemplo</span>
+    </p>
+  );
 }

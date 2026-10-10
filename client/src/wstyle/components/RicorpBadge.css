@@ -4,12 +4,12 @@
   position: fixed; z-index: 80;
   left: calc(14px + env(safe-area-inset-left)); bottom: calc(14px + env(safe-area-inset-bottom));   /* abajo a la izquierda: abajo a la derecha van Reservar + WhatsApp (SPEC-11 lo permite) */
   display: flex; align-items: center; gap: 7px; height: 28px; padding: 0 10px; border-radius: 8px;
-  /* Fondo opaco + texto blanco: con opacity .6 sobre la toma más clara (blanco) el contraste queda ≈ 5.2:1. */
+  /* D7: badge sólido (opacidad 1, fondo graphite). Discreto por el color del texto, no por transparencia. */
   background: var(--graphite); border: 1px solid rgba(237, 230, 218, .14);
-  color: #fff; text-decoration: none; font: 500 11px/1 var(--font-body); letter-spacing: .02em; white-space: nowrap;
-  opacity: .6; transition: opacity .2s ease;
+  color: rgba(237, 230, 218, .78); text-decoration: none; font: 500 11px/1 var(--font-body); letter-spacing: .02em; white-space: nowrap;
+  opacity: 1; transition: color .2s ease;
 }
-.ricorp-badge:hover, .ricorp-badge:focus-visible { opacity: 1; }
+.ricorp-badge:hover, .ricorp-badge:focus-visible { color: var(--bone); }
 .ricorp-badge img { height: 13px; width: auto; display: block; }
 .ricorp-badge__domain { font-weight: 600; }
 .compact .ricorp-badge { height: 22px; padding: 0 8px; gap: 5px; font-size: 10px; left: calc(10px + env(safe-area-inset-left)); bottom: calc(10px + env(safe-area-inset-bottom)); }

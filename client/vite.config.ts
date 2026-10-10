@@ -17,12 +17,12 @@ export default defineConfig({
     alias: [{ find: /^three$/, replacement: 'three/src/Three.js' }],
   },
   build: {
-    // Force the minifier to keep the UNPREFIXED `backdrop-filter`. With the
-    // default target esbuild collapses `backdrop-filter` + `-webkit-` down to
-    // the `-webkit-` variant only, which current Chromium no longer supports
-    // (CSS.supports('-webkit-backdrop-filter',...) === false) → the header
-    // blur silently dies. Targeting browsers that ship the unprefixed
-    // property keeps it in the output.
+    // CSS targets for lightningcss (Vite's CSS minifier). With safari16 in the
+    // list it ADDS `-webkit-backdrop-filter` next to the standard property, so
+    // the sources must write ONLY `backdrop-filter`: if both are written by
+    // hand, lightningcss collapses the pair down to the `-webkit-` one, which
+    // current Chromium ignores → no blur in Chrome (PR #9 round 4, B2; checked
+    // by barberia-3d/scripts/verify.mjs on dist/assets/*.css).
     cssTarget: ['chrome100', 'safari16', 'firefox100', 'edge100'],
     // Multi-página: la home (index.html) y la landing W Style (wstyle/index.html → ricorp.cl/wstyle/).
     // Cada entrada tiene su propio JS/CSS: three.js y el código de wstyle no entran en el bundle de la home.
