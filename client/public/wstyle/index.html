@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="es" class="no-js">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>W Style — Cortes clásicos y barba con oficio, en un local hecho para quedarse.</title>
+<meta name="description" content="W Style: Cortes clásicos y barba con oficio, en un local hecho para quedarse.">
+<meta property="og:title" content="W Style">
+<!-- noindex mientras los datos del negocio sean placeholder (SPEC-14); quitar al recibir datos reales -->
+<meta name="robots" content="noindex,nofollow">
+<meta property="og:type" content="website">
+<meta name="theme-color" content="#0d0d12">
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="style.css">
+<script>
+  // Criterio ÚNICO de layout compacto (CSS vía <html class="compact"> y main.js vía isCompactLayout()):
+  // ancho ≤ 768 px o pantalla vertical. Se aplica antes del primer pintado y en cada resize.
+  (function () {
+    var h = document.documentElement; h.classList.replace('no-js', 'js');
+    window.isCompactLayout = function () { return innerWidth <= 768 || innerWidth < innerHeight; };
+    var u = function () { h.classList.toggle('compact', window.isCompactLayout()); };
+    u(); addEventListener('resize', u);
+  })();
+</script>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+} }
+</script>
+<script type="module" src="main.js"></script>
+</head>
+<body>
+<canvas id="scene" aria-hidden="true"></canvas>
+<div class="shade" aria-hidden="true"></div>
+<div class="progress" aria-hidden="true"><span class="progress__bar"></span></div>
+
+<header class="nav">
+  <a class="nav__logo" href="#hero" data-field="name">W Style</a>
+  <nav class="nav__menu" aria-label="Principal">
+    <ul class="nav-links" id="nav-links">
+      <li><a href="#reyes">EL LOCAL</a></li>
+      <li><a href="#servicios">SERVICIOS</a></li>
+      <li><a href="#llega">VISÍTANOS</a></li>
+    </ul>
+    <a class="btn btn--primary nav-cta" data-cta="whatsapp" href="https://wa.me/56900000000?text=Hola%2C%20quiero%20reservar%20una%20hora" target="_blank" rel="noopener">Reservar</a>
+  </nav>
+  <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links" aria-label="Abrir menú"><span></span></button>
+</header>
+
+<nav class="dots" aria-label="Secciones">
+  <a href="#hero" aria-label="Bienvenido" class="is-active"></a>
+  <a href="#reyes" aria-label="El local"></a>
+  <a href="#linea" aria-label="El oficio"></a>
+  <a href="#afilado" aria-label="El resultado"></a>
+  <a href="#trono" aria-label="Reservar"></a>
+  <a href="#servicios" aria-label="Servicios y precios"></a>
+  <a href="#llega" aria-label="Cómo llegar"></a>
+</nav>
+
+<main>
+  <section id="hero" data-shot="hero" class="panel panel--hero">
+    <div class="panel__inner">
+      <p class="eyebrow reveal" data-field="name">W Style</p>
+      <h1 class="reveal" data-field="headlines.hero">BIENVENIDO</h1>
+      <p class="lead reveal" data-field="slogan">Cortes clásicos y barba con oficio, en un local hecho para quedarse.</p>
+      <p class="hint reveal" aria-hidden="true">Desliza para recorrer el local ↓</p>
+    </div>
+  </section>
+
+  <section id="reyes" data-shot="reyes" class="panel">
+    <div class="panel__inner">
+      <p class="eyebrow reveal">El local</p>
+      <h2 class="reveal" data-field="headlines.reyes">DONDE SE SIENTAN LOS REYES</h2>
+      <p class="lead reveal" data-field="copy.reyes">Una sola silla, toda la atención. Sillón hidráulico, espejo de pared a pared y luz fría para ver cada detalle.</p>
+    </div>
+  </section>
+
+  <section id="linea" data-shot="linea" class="panel">
+    <div class="panel__inner">
+      <p class="eyebrow reveal">El oficio</p>
+      <h2 class="reveal" data-field="headlines.linea">CADA LÍNEA CON INTENCIÓN</h2>
+      <p class="lead reveal" data-field="copy.linea">Navaja, tijera y máquina en manos de quien conoce tu perfil. Sin apuros, sin cortes en serie.</p>
+    </div>
+  </section>
+
+  <section id="afilado" data-shot="afilado" class="panel">
+    <div class="panel__inner">
+      <p class="eyebrow reveal">El resultado</p>
+      <h2 class="reveal" data-field="headlines.afilado">SAL MÁS AFILADO</h2>
+      <p class="lead reveal" data-field="copy.afilado">Te miras al espejo y lo notas: el degradado limpio, la barba en su sitio.</p>
+    </div>
+  </section>
+
+  <section id="trono" data-shot="trono" class="panel">
+    <div class="panel__inner">
+      <p class="eyebrow reveal">Reserva</p>
+      <h2 class="reveal" data-field="headlines.trono">TOMA TU TRONO</h2>
+      <p class="lead reveal" data-field="copy.trono">Reserva tu hora por WhatsApp o llámanos. Te esperamos con la silla lista.</p>
+      <div class="ctas reveal">
+        <a class="btn btn--primary" data-cta="whatsapp" href="https://wa.me/56900000000?text=Hola%2C%20quiero%20reservar%20una%20hora" target="_blank" rel="noopener">Reservar por WhatsApp</a>
+        <a class="btn btn--ghost" data-cta="tel" href="tel:+56900000000">Llamar</a>
+      </div>
+    </div>
+  </section>
+
+  <section id="servicios" data-shot="servicios" class="panel panel--wide">
+    <div class="panel__inner">
+      <p class="eyebrow reveal">Carta</p>
+      <h2 class="reveal" data-field="headlines.servicios">SERVICIOS Y PRECIOS</h2>
+      <p class="lead reveal" data-field="copy.servicios">Precios en pesos chilenos. Pregunta por combinaciones.</p>
+      <div class="cards reveal" data-list="services" role="region" aria-label="Servicios" tabindex="0">
+        <article class="card" data-service="corte"><h3 data-svc="name">Corte</h3><p data-svc="description">Corte clásico o degradado, con lavado rápido y terminación a navaja.</p><p class="card__meta"><span data-svc="price">$12.000</span><span data-svc="duration">40 min</span></p></article>
+        <article class="card" data-service="corte-barba"><h3 data-svc="name">Corte + barba</h3><p data-svc="description">Corte completo más perfilado y arreglo de barba con toalla caliente.</p><p class="card__meta"><span data-svc="price">$18.000</span><span data-svc="duration">60 min</span></p></article>
+        <article class="card" data-service="barba"><h3 data-svc="name">Perfilado de barba</h3><p data-svc="description">Diseño de líneas, rebaje y aceite para barba.</p><p class="card__meta"><span data-svc="price">$8.000</span><span data-svc="duration">25 min</span></p></article>
+        <article class="card" data-service="lavado-masaje"><h3 data-svc="name">Lavado + masaje</h3><p data-svc="description">Lavado en el lavacabezas con masaje capilar relajante.</p><p class="card__meta"><span data-svc="price">$7.000</span><span data-svc="duration">20 min</span></p></article>
+        <article class="card" data-service="limpieza-facial"><h3 data-svc="name">Limpieza facial (vapor)</h3><p data-svc="description">Vapor facial, exfoliación y mascarilla.</p><p class="card__meta"><span data-svc="price">$15.000</span><span data-svc="duration">35 min</span></p></article>
+      </div>
+    </div>
+  </section>
+
+  <section id="llega" data-shot="llega" class="panel panel--last">
+    <div class="panel__inner">
+      <p class="eyebrow reveal">Visítanos</p>
+      <h2 class="reveal" data-field="headlines.llega">LLEGA</h2>
+      <p class="lead reveal" data-field="copy.llega">Estamos a pasos de ti. Revisa el horario y pasa.</p>
+      <div class="info reveal">
+        <div>
+          <h3>Horario</h3>
+          <ul class="hours" data-field="hours">
+            <li><span>Lunes a viernes</span><span>10:00 – 20:00</span></li>
+            <li><span>Sábado</span><span>10:00 – 18:00</span></li>
+            <li><span>Domingo</span><span>Cerrado</span></li>
+          </ul>
+        </div>
+        <div>
+          <h3>Dirección</h3>
+          <address data-field="address">Calle Falsa 123<br>Santiago, Región Metropolitana</address>
+          <p class="phone" data-field-line>Teléfono: <span data-field="phone">+56 9 0000 0000</span></p>
+        </div>
+      </div>
+      <div class="ctas reveal">
+        <a class="btn btn--primary" data-cta="maps" href="https://www.google.com/maps/search/?api=1&amp;query=Calle+Falsa+123+Santiago" target="_blank" rel="noopener">Cómo llegar</a>
+        <a class="btn btn--ghost" data-cta="whatsapp" href="https://wa.me/56900000000?text=Hola%2C%20quiero%20reservar%20una%20hora" target="_blank" rel="noopener">WhatsApp</a>
+        <a class="btn btn--ghost" data-cta="tel" href="tel:+56900000000">Llamar</a>
+      </div>
+    </div>
+    <footer class="footer">
+      <span>© <span data-field="name">W Style</span></span>
+      <span data-powered>Sitio desarrollado por <a href="https://ricorp.cl" target="_blank" rel="noopener">ricorp.cl</a></span>
+    </footer>
+  </section>
+</main>
+
+<a class="ricorp-badge" href="https://ricorp.cl" target="_blank" rel="noopener" aria-label="Sitio desarrollado por Ricorp">
+  <span>Powered by</span><img src="brand/ricorp-logo.svg" alt="Ricorp" width="104" height="24"><span class="ricorp-badge__domain">ricorp.cl</span>
+</a>
+</body>
+</html>

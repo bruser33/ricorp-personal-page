@@ -1,0 +1,7 @@
+[
+  { "id": "corte", "name": "Corte", "description": "Corte clásico o degradado, con lavado rápido y terminación a navaja.", "priceCLP": 12000, "durationMin": 40, "placeholder": true },
+  { "id": "corte-barba", "name": "Corte + barba", "description": "Corte completo más perfilado y arreglo de barba con toalla caliente.", "priceCLP": 18000, "durationMin": 60, "placeholder": true },
+  { "id": "barba", "name": "Perfilado de barba", "description": "Diseño de líneas, rebaje y aceite para barba.", "priceCLP": 8000, "durationMin": 25, "placeholder": true },
+  { "id": "lavado-masaje", "name": "Lavado + masaje", "description": "Lavado en el lavacabezas con masaje capilar relajante.", "priceCLP": 7000, "durationMin": 20, "placeholder": true },
+  { "id": "limpieza-facial", "name": "Limpieza facial (vapor)", "description": "Vapor facial, exfoliación y mascarilla.", "priceCLP": 15000, "durationMin": 35, "placeholder": true }
+]
