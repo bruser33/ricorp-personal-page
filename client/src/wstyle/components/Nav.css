@@ -1,0 +1,55 @@
+/* Header fijo (PR #9 D3/D7/D8). */
+.nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 40; height: var(--nav-h);
+  display: flex; align-items: center; gap: 24px;
+  padding: 0 var(--gutter); padding-top: env(safe-area-inset-top);
+  background: linear-gradient(180deg, rgba(14, 13, 12, .85), rgba(14, 13, 12, 0));
+  transition: background-color .25s ease, box-shadow .25s ease;
+}
+/* Al dejar el hero: fondo casi opaco + blur fuerte para que el texto no se mezcle. */
+.nav.is-scrolled {
+  background: rgba(14, 13, 12, .96); box-shadow: 0 1px 0 var(--brass-line);
+  /* Solo la propiedad estándar: lightningcss agrega el -webkit- para Safari 16. Con el par escrito a mano deja solo
+     el prefijo y Chrome se queda sin blur (B2, ronda 4). */
+  backdrop-filter: blur(16px) saturate(1.2);
+}
+.nav__logo { font: 400 26px/1 var(--font-display); letter-spacing: .08em; text-transform: uppercase; text-decoration: none; margin-right: auto; }
+.nav__menu { display: flex; align-items: center; gap: 28px; }
+.nav-links { display: flex; gap: 28px; list-style: none; margin: 0; padding: 0; }
+.nav-links a { font: 600 12px/1 var(--font-body); letter-spacing: .2em; text-decoration: none; color: var(--muted); padding: 8px 0; }
+.nav-links a:hover { color: var(--bone); }
+.nav-links__num { display: none; }
+.nav-links__book { display: none; }
+.nav-toggle { display: none; }
+.nav-cta { min-height: 40px; padding: 0 20px; }
+
+/* Compacto: sin RESERVAR en el header (queda el dock); menú overlay a pantalla completa. */
+.compact .nav { gap: 12px; }
+.compact .nav__logo { font-size: 22px; }
+.compact .nav-cta { display: none; }
+.compact .nav-toggle {
+  display: inline-flex; align-items: center; justify-content: center; width: 42px; height: 42px; padding: 0; position: relative; z-index: 2;
+  border: 1px solid var(--brass-line); border-radius: 50%; background: rgba(14, 13, 12, .6); color: var(--bone); cursor: pointer;
+}
+.compact .nav-toggle span, .compact .nav-toggle span::before, .compact .nav-toggle span::after { display: block; width: 18px; height: 1.5px; background: currentColor; border-radius: 2px; position: relative; }
+.compact .nav-toggle span::before, .compact .nav-toggle span::after { content: ""; position: absolute; left: 0; }
+.compact .nav-toggle span::before { top: -6px; } .compact .nav-toggle span::after { top: 6px; }
+.compact .nav-toggle[aria-expanded="true"] span { background: transparent; }
+.compact .nav-toggle[aria-expanded="true"] span::before { top: 0; transform: rotate(45deg); }
+.compact .nav-toggle[aria-expanded="true"] span::after { top: 0; transform: rotate(-45deg); }
+.compact .nav-links {
+  position: fixed; inset: 0; z-index: 1; flex-direction: column; justify-content: center; gap: 4px;
+  padding: calc(var(--nav-h) + 20px) var(--gutter) 40px; background: var(--ink);
+  visibility: hidden; opacity: 0; transition: opacity .3s ease, visibility 0s .3s;
+}
+.compact .nav.is-open .nav-links { visibility: visible; opacity: 1; transition: opacity .3s ease; }
+.compact .nav-links a { display: flex; align-items: baseline; gap: 16px; padding: 10px 0; font: 400 clamp(44px, 13vw, 72px)/1 var(--font-display); letter-spacing: .01em; color: var(--bone); border-bottom: 1px solid var(--brass-line); }
+.compact .nav-links__num { display: inline; font: 500 12px/1 var(--font-body); letter-spacing: .2em; color: var(--brass); }
+.compact .nav-links__book { display: block; }
+.compact .nav-links__book a { color: var(--brass); }
+@media (prefers-reduced-motion: reduce) { .compact .nav-links, .compact .nav.is-open .nav-links { transition: none; } }
+/* backdrop-filter crea un bloque contenedor para hijos fixed: con el menú abierto se quita para que el overlay
+   cubra toda la pantalla. */
+.nav.is-open { backdrop-filter: none; background: var(--ink); }
+/* Con el menú abierto el wordmark sigue visible sobre el overlay. */
+.compact .nav__logo { position: relative; z-index: 2; }

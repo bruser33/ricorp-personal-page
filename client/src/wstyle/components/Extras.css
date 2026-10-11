@@ -1,0 +1,45 @@
+/* Paneles de venta (SPEC-15 AC-08). Sólidos sobre la película, sin tarjetas con sombra. */
+.reviews { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 28px; margin-top: 34px; }
+.review { margin: 0; padding: 22px 0 0; border-top: 1px solid var(--brass); }
+.review__stars { color: var(--brass); letter-spacing: .2em; font-size: 13px; }
+.review blockquote { margin: 14px 0 18px; font: italic 500 24px/1.25 var(--font-serif); color: var(--bone); }
+.review figcaption { font-size: 12px; letter-spacing: .18em; text-transform: uppercase; color: var(--muted); }
+
+.barbers { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 28px; margin-top: 34px; }
+.barber { display: flex; gap: 20px; align-items: flex-start; padding: 22px 0; border-top: 1px solid var(--brass-line); }
+.barber__mono { flex: 0 0 64px; height: 64px; display: grid; place-items: center; border-radius: 50%; border: 1px solid var(--brass); font: italic 500 34px/1 var(--font-serif); color: var(--brass); }
+.barber h3 { color: var(--bone); font-size: 15px; }
+.barber p { margin: 0; color: var(--muted); font-size: 14px; }
+.barber__links { display: flex; flex-wrap: wrap; gap: 18px; margin-top: 12px !important; }
+.barber__links a { color: var(--brass); font-weight: 600; font-size: 13px; letter-spacing: .06em; text-underline-offset: 4px; }
+
+/* Membresía protagonista: ancho completo, precio a la izquierda, beneficios a la derecha, filete latón arriba. */
+.member { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 32px 64px; margin-top: 34px; padding-top: 34px; border-top: 1px solid var(--brass); }
+.member h3 { margin: 0 0 14px; color: var(--brass); font-size: 13px; letter-spacing: .32em; }
+.member__price { margin: 0; color: var(--muted); font-size: 15px; letter-spacing: .04em; }
+.member__price span { display: block; font: italic 500 clamp(72px, 8vw, 120px)/.9 var(--font-serif); font-variant-numeric: lining-nums; color: var(--bone); letter-spacing: -.01em; }
+.member__note { margin: 18px 0 26px; font-size: 14px; color: var(--muted); max-width: 40ch; }
+.member ul { list-style: none; margin: 0; padding: 0; align-self: end; }
+.member li { display: flex; gap: 16px; padding: 16px 0; border-bottom: 1px solid var(--brass-line); font-size: 17px; }
+.member li::before { content: "—"; color: var(--brass); }
+
+.policies { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 28px; margin: 34px 0 0; }
+.policies > div { padding: 18px 0; border-top: 1px solid var(--brass); }
+.policies dt { font: italic 500 28px/1.1 var(--font-serif); color: var(--bone); }
+.policies dd { margin: 10px 0 0; color: var(--muted); font-size: 14px; }
+
+/* Franja de demostración (D1): discreta, bajo el header. */
+.demo-strip {
+  position: fixed; z-index: 39; top: calc(var(--nav-h) + env(safe-area-inset-top)); left: 0; right: 0; margin: 0;
+  padding: 7px var(--gutter); background: rgba(14, 13, 12, .9); border-bottom: 1px solid var(--brass-line);
+  backdrop-filter: blur(12px);
+  font: 500 10px/1.2 var(--font-body); letter-spacing: .3em; text-transform: uppercase; color: var(--muted); text-align: center;
+}
+.demo-strip__short { display: none; }
+
+.compact .reviews, .compact .barbers, .compact .policies, .compact .member { grid-template-columns: 1fr; }
+.compact .review blockquote { font-size: 21px; }
+.compact .demo-strip { letter-spacing: .18em; font-size: 9px; }
+/* P3 (ronda 4): en compacto el texto corto, en una línea (sin «EJEMPLO» huérfano). */
+.compact .demo-strip__long { display: none; }
+.compact .demo-strip__short { display: inline; }

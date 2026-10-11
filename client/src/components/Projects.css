@@ -286,8 +286,7 @@
   position: fixed;
   inset: 0;
   background: rgba(18, 17, 21, 0.95);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);   /* lightningcss agrega el -webkit- (con el par a mano deja solo el prefijo) */
   z-index: 200;
   /* Sin padding: el detalle TAPA la pantalla entera (requerimiento 10). Antes
      quedaba una card centrada con 5vw de aire alrededor. */
@@ -597,8 +596,7 @@
      cortos en mobile) el sticky nunca engancha y la X se queda sobre la foto,
      que puede ser clarísima. */
   background: rgba(12, 11, 15, 0.72);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);   /* lightningcss agrega el -webkit- (con el par a mano deja solo el prefijo) */
   color: #fff;
   display: inline-flex;
   align-items: center;

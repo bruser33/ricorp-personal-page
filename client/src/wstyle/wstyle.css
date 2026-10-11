@@ -1,0 +1,180 @@
+/* W Style — base del sitio (SPEC-12/15), dirección de arte "Noir de oficio" (barberia-3d/docs/direccion-de-arte.md). */
+:root {
+  /* Dirección de arte "Noir de oficio" (barberia-3d/docs/direccion-de-arte.md): negro cálido, hueso, un único acento
+     latón (las tiras de 2800 K del render) y la madera de la puerta como secundario raro. Sin naranja saturado. */
+  --ink: #0E0D0C;
+  --graphite: #1A1816;
+  --bone: #EDE6DA;
+  --muted: #8E877D;
+  --brass: #B8875A;
+  --wood: #7A3B22;
+  /* Alias usados por los componentes portados */
+  --bg: var(--ink);
+  --steel: var(--muted);
+  --steel-line: var(--brass-line);
+  /* Variantes del único acento (mismo latón #B8875A, distinta opacidad): no hay otros latones sueltos. */
+  --brass-line: rgba(184, 135, 90, .24);
+  --brass-soft: rgba(184, 135, 90, .38);
+  --accent: var(--brass);
+  --accent-ink: var(--ink);
+  --panel: rgba(26, 24, 22, .92);
+  --nav-h: 68px;
+  --font-display: "Anton", "Bebas Neue", Impact, "Arial Narrow", sans-serif;
+  --font-serif: "Cormorant Garamond", "Iowan Old Style", Georgia, serif;
+  --font-body: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --gutter: clamp(20px, 6vw, 112px);
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }   /* render() oculta lo que falta en el JSON (los .btn tienen display propio) */
+html { scroll-behavior: auto; -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--ink); color: var(--bone);
+  font: 400 16px/1.55 var(--font-body);
+  overflow-x: clip;          /* red de seguridad: el layout no debe desbordar */
+}
+a { color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+/* ─── Capas fijas: canvas 3D, sombreado para contraste, progreso */
+#scene, #seq { position: fixed; inset: 0; width: 100%; height: 100%; display: block; z-index: 0; background: var(--bg); }
+
+.shade {
+  position: fixed; inset: 0; z-index: 1; pointer-events: none;
+  background: linear-gradient(90deg, rgba(11, 10, 9, .86) 0%, rgba(11, 10, 9, .55) 34%, rgba(11, 10, 9, 0) 62%);
+}
+.progress { position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 60; background: rgba(255, 255, 255, .06); }
+.progress__bar { display: block; height: 100%; width: 100%; transform-origin: 0 50%; transform: scaleX(0); background: linear-gradient(90deg, var(--wood), var(--accent)); }
+
+/* ─── Botones */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 0 20px;
+  border-radius: 999px; font: 700 14px/1 var(--font-body); letter-spacing: .08em; text-transform: uppercase; text-decoration: none;
+  transition: transform .15s ease, background-color .15s ease, border-color .15s ease;
+}
+.btn--primary { background: var(--accent); color: var(--accent-ink); }
+.btn--primary:hover { background: var(--wood); color: var(--bone); }
+.btn--ghost { border: 1px solid rgba(242, 237, 228, .55); color: var(--bone); background: rgba(11, 10, 9, .78); }
+.btn--ghost:hover { border-color: var(--bone); }
+
+/* ─── Secciones */
+main { position: relative; z-index: 2; }
+.panel {
+  position: relative; min-height: 100vh; display: flex; flex-direction: column; justify-content: center;
+  padding: calc(var(--nav-h) + 32px) var(--gutter) 72px;
+}
+.panel__inner { max-width: 620px; }
+.panel--wide .panel__inner { max-width: min(520px, 42vw); }
+.panel--wide h2 { font-size: clamp(40px, 4.3vw, 60px); white-space: nowrap; }
+.eyebrow { display: flex; align-items: center; gap: 14px; margin: 0 0 18px; font: 600 12px/1 var(--font-body); letter-spacing: .3em; text-transform: uppercase; color: var(--brass); }
+.eyebrow::before { content: ""; width: 36px; height: 1px; background: currentColor; opacity: .7; }
+h1, h2 {
+  margin: 0; font-family: var(--font-display); font-weight: 400; text-transform: uppercase;
+  line-height: .92; letter-spacing: .01em; text-wrap: balance; overflow-wrap: break-word;
+  text-shadow: 0 6px 32px rgba(0, 0, 0, .55);
+}
+h1 { font-size: clamp(52px, 12.5vw, 150px); }
+.panel--hero .panel__inner { max-width: none; }
+.panel--hero .lead { max-width: 40ch; }
+h2 { font-size: clamp(48px, 7.4vw, 112px); }
+.lead { margin: 20px 0 0; max-width: 46ch; font-size: clamp(16px, 1.4vw, 19px); color: var(--muted); text-shadow: 0 2px 12px rgba(0, 0, 0, .6); }
+.hint { margin: 36px 0 0; font-size: 12px; letter-spacing: .24em; text-transform: uppercase; color: var(--steel); }
+/* Concepto de marca (supuesto: "El estilo se hace a mano") y precio temprano en el hero. */
+.concept { margin: 22px 0 0; font: italic 400 clamp(26px, 2.6vw, 40px)/1.1 var(--font-serif); color: var(--brass); }
+.hero__from { margin: 18px 0 0; font-size: 15px; letter-spacing: .04em; color: var(--muted); }
+.hero__from strong { font: italic 400 1.5em/1 var(--font-serif); color: var(--bone); letter-spacing: 0; }
+/* Titulares cinéticos: cada palabra en su máscara (GSAP la revela por tramo, ver useMotion). */
+/* B1 (ronda 4): .3em de aire arriba en la máscara: en Anton la tilde (Í, Ó, Á) sube ~.24em sobre la mayúscula. */
+.kinetic__mask { display: inline-block; overflow: hidden; vertical-align: top; padding: .3em .02em .04em; margin: -.3em -.02em -.04em; }
+.kinetic__word { display: inline-block; will-change: transform; }
+.kinetic--sm { font-size: clamp(40px, 5.2vw, 76px); }
+/* Secciones intermedias (reseñas, barberos, membresía, políticas): sin toma propia, la cámara sigue su tramo. */
+.panel--extra { min-height: auto; padding-top: clamp(96px, 14vh, 160px); padding-bottom: clamp(96px, 14vh, 160px); }
+.panel--extra .panel__inner { max-width: 1080px; }
+.placeholder-note { margin: 14px 0 0; font-size: 13px; color: var(--steel); }
+.tag { margin-left: 10px; padding: 3px 8px; border: 1px solid var(--steel-line); border-radius: 999px; font: 600 10px/1 var(--font-body); letter-spacing: .14em; text-transform: uppercase; color: var(--steel); vertical-align: middle; }
+.ctas { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
+h3 { margin: 0 0 8px; font: 700 13px/1.2 var(--font-body); letter-spacing: .16em; text-transform: uppercase; color: var(--brass); }
+
+/* Lenis (scroll suave) */
+html.lenis, html.lenis body { height: auto; }
+.lenis.lenis-smooth { scroll-behavior: auto !important; }
+.lenis.lenis-stopped { overflow: hidden; }
+
+/* ─── Entrada de texto (IntersectionObserver añade .in) */
+.js .reveal { opacity: 0; transform: translateY(26px); transition: opacity .7s ease, transform .7s cubic-bezier(.2, .7, .2, 1); transition-delay: var(--d, 0s); }
+.js .reveal.in { opacity: 1; transform: none; }
+
+/* ─── Layout compacto (móvil, tablet vertical, ventanas angostas): <html class="compact"> con el criterio ÚNICO
+   del sitio (ancho ≤ 768 px o pantalla vertical) que pone el script del <head>; experience.ts usa la misma función. */
+.compact { --nav-h: 56px; --gutter: 20px; }
+.compact .shade { background: linear-gradient(180deg, rgba(11, 10, 9, .92) 0%, rgba(11, 10, 9, .86) 24%, rgba(11, 10, 9, .72) 38%, rgba(11, 10, 9, .4) 50%, rgba(11, 10, 9, .2) 62%, rgba(11, 10, 9, .07) 74%, rgba(11, 10, 9, 0) 86%); }
+/* En móvil el texto va arriba, sobre el degradado; el 3D queda visible abajo y lejos del badge. */
+.compact .panel { justify-content: flex-start; padding: calc(var(--nav-h) + 40px) var(--gutter) 96px; }
+.compact .panel--extra { padding-top: 80px; padding-bottom: 96px; }
+.compact .ctas .btn { padding: 0 16px; }
+.compact .lead { text-shadow: 0 1px 2px rgba(0, 0, 0, .9), 0 2px 14px rgba(0, 0, 0, .8); }
+.compact .panel--wide .panel__inner { max-width: none; }
+.compact .panel--wide h2 { font-size: clamp(48px, 7.4vw, 112px); white-space: normal; }
+
+/* ─── Movimiento reducido: sin animaciones de entrada */
+@media (prefers-reduced-motion: reduce) {
+  .js .reveal, .js .reveal.in { opacity: 1; transform: none; transition: none; }
+  .ricorp-badge, .btn, .dots a, .nav-links, .loader, .loader__bar { transition: none; }
+}
+
+/* ─── Noir de oficio: hero, cifra, paneles sólidos ─────────────────────────────────────────────────────────── */
+.shade { background: linear-gradient(90deg, rgba(14, 13, 12, .9) 0%, rgba(14, 13, 12, .55) 36%, rgba(14, 13, 12, 0) 64%); }
+.compact .shade { background: linear-gradient(180deg, rgba(14, 13, 12, .94) 0%, rgba(14, 13, 12, .86) 26%, rgba(14, 13, 12, .66) 40%, rgba(14, 13, 12, .3) 54%, rgba(14, 13, 12, .08) 70%, rgba(14, 13, 12, 0) 84%); }
+h1 { font-size: clamp(72px, 15vw, 230px); line-height: .86; letter-spacing: -.005em; }
+/* B1: en Anton la tilde sube ~.24em sobre la mayúscula: con .9 se recortaba y con 1 todavía se metía ~.1em en los
+   glifos de la línea de arriba; 1.1 es el mínimo sin choque (medido en verify, carril de tildes). */
+h2 { font-size: clamp(52px, 7.6vw, 128px); line-height: 1.1; }
+/* B1: la sombra va en el titular entero (drop-shadow) y no por palabra: con interlineado apretado la máscara de una
+   línea se mete en la de arriba y su text-shadow mordía los glifos de esa línea. */
+h1, h2 { text-shadow: none; filter: drop-shadow(0 6px 16px rgba(0, 0, 0, .55)); }
+.panel--hero .panel__inner { max-width: 960px; }
+.concept { margin: 18px 0 0; font: italic 500 clamp(30px, 3vw, 48px)/1.05 var(--font-serif); color: var(--brass); }
+.lead { color: #c9c1b4; }
+.hero__cta { display: flex; flex-wrap: wrap; align-items: center; gap: 22px 28px; margin-top: 30px; }
+.hero__from { margin: 0; font-size: 13px; letter-spacing: .24em; text-transform: uppercase; color: var(--muted); }
+.hero__from strong { font: italic 500 2.4em/1 var(--font-serif); font-variant-numeric: lining-nums; color: var(--bone); letter-spacing: 0; text-transform: none; margin-left: .2em; }
+.btn { border-radius: 999px; letter-spacing: .24em; font-weight: 600; font-size: 12px; min-height: 48px; padding: 0 26px; }
+.btn--primary { background: var(--brass); color: var(--ink); }
+.btn--primary:hover { background: var(--wood); color: var(--bone); transform: none; }
+.btn--ghost { border-color: rgba(237, 230, 218, .45); background: rgba(14, 13, 12, .8); }
+.stat { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0 12px; margin: 26px 0 0; }
+.stat__value { font: italic 500 clamp(80px, 9vw, 140px)/.8 var(--font-serif); font-variant-numeric: lining-nums; color: var(--brass); }
+.stat__label { font: 400 clamp(28px, 3vw, 44px)/1 var(--font-display); text-transform: uppercase; }
+.stat em { flex-basis: 100%; margin-top: 8px; font: italic 500 22px/1.2 var(--font-serif); color: var(--muted); }
+.eyebrow { color: var(--brass); }
+.hint { display: flex; align-items: center; gap: 12px; }
+.hint::after { content: ""; width: 1px; height: 36px; background: linear-gradient(var(--brass), transparent); }
+
+/* Paneles sólidos que se deslizan sobre la película (la carta y los paneles de venta). */
+.panel--sheet.panel--extra { background: linear-gradient(180deg, rgba(26, 24, 22, 0) 0, rgba(26, 24, 22, .96) 90px, rgba(26, 24, 22, .96) calc(100% - 90px), rgba(26, 24, 22, 0) 100%); }
+#servicios .panel__inner { padding: 34px 36px 36px; background: rgba(26, 24, 22, .94); border: 1px solid rgba(184, 135, 90, .2); backdrop-filter: blur(6px); }
+.compact #servicios .panel__inner { padding: 26px 20px 22px; margin: 0 -8px; }
+/* P2 (ronda 4): las descripciones envuelven (sin «…»); para que en reposo la carta entera quede sobre el badge y el
+   dock, en compacto se ajustan los aires del panel y de las filas. */
+.compact #servicios .panel__inner { padding: 20px 20px 16px; }
+.compact #servicios .lead { margin-top: 12px; font-size: 15px; }
+.compact .is-demo #servicios.panel { padding-top: calc(var(--nav-h) + 36px); }
+/* T1 (ronda 4): en compacto la película respira entre la carta y el primer panel de venta: más aire bajo la carta y
+   ese panel entra fundiéndose desde la película (degradado largo, el contenido arranca ya sobre graphite). */
+.compact #servicios.panel { padding-bottom: 14vh; }
+/* :where() deja la especificidad baja a propósito: una regla propia de la sección (p. ej. #membresia) sigue mandando. */
+.compact main .panel--sheet.panel--extra:where(#servicios + *) {
+  padding-top: calc(34vh + 24px);
+  background: linear-gradient(180deg, rgba(26, 24, 22, 0) 0, rgba(26, 24, 22, .96) 34vh, rgba(26, 24, 22, .96) calc(100% - 90px), rgba(26, 24, 22, 0) 100%);
+}
+.panel--wide .panel__inner { max-width: min(560px, 44vw); }
+.panel--wide h2 { font-size: clamp(44px, 5vw, 76px); }
+
+/* ─── PR #9 ────────────────────────────────────────────────────────────────────────────────────────────────── */
+/* D3: revelado de titulares por tiempo al entrar en vista (solo con <html class="motion">; useMotion añade .is-in). */
+.motion .kinetic__word { transform: translateY(110%); transition: transform .62s cubic-bezier(.2, .75, .1, 1) var(--wd, 0ms); }
+.motion .kinetic.is-in .kinetic__word { transform: none; }
+/* D1: solo con la franja de demostración el contenido arranca más abajo (sin hueco con demo:false). */
+.is-demo .panel { padding-top: calc(var(--nav-h) + 56px); }
+.compact .is-demo .panel { padding-top: calc(var(--nav-h) + 52px); }

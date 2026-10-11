@@ -1,0 +1,6 @@
+/* Indicador de sección (puerto de barberia-3d/site/style.css). Layout compacto: <html class="compact"> (criterio único en wstyle/index.html). */
+/* ─── Indicador de sección */
+.dots { position: fixed; right: 22px; top: 50%; transform: translateY(-50%); z-index: 30; display: flex; flex-direction: column; gap: 12px; }
+.dots a { width: 10px; height: 10px; border-radius: 50%; border: 1px solid rgba(242, 237, 228, .6); transition: background-color .2s, transform .2s; }
+.dots a.is-active { background: var(--accent); border-color: var(--accent); transform: scale(1.25); }
+.compact .dots { display: none; }

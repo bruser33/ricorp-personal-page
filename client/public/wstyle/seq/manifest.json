@@ -1,0 +1,161 @@
+{
+  "formato": "webp",
+  "generado": "2026-10-10T22:17:36.179Z",
+  "maxBytes": 12582912,
+  "formats": {
+    "desktop": {
+      "count": 150,
+      "available": 150,
+      "complete": true,
+      "size": [
+        1280,
+        720
+      ],
+      "anchorFrames": [
+        1,
+        26,
+        51,
+        76,
+        100,
+        125,
+        150
+      ],
+      "anchorsAvailable": true,
+      "bytes": 7608060,
+      "renderViewport": {
+        "width": 1600,
+        "height": 900
+      },
+      "path": "seq/desktop/",
+      "variants": {
+        "sd": {
+          "count": 150,
+          "available": 150,
+          "complete": true,
+          "size": [
+            1280,
+            720
+          ],
+          "anchorFrames": [
+            1,
+            26,
+            51,
+            76,
+            100,
+            125,
+            150
+          ],
+          "anchorsAvailable": true,
+          "bytes": 7608060,
+          "renderViewport": {
+            "width": 1600,
+            "height": 900
+          },
+          "path": "seq/desktop/"
+        },
+        "hd": {
+          "count": 150,
+          "available": 150,
+          "complete": true,
+          "size": [
+            1600,
+            900
+          ],
+          "anchorFrames": [
+            1,
+            26,
+            51,
+            76,
+            100,
+            125,
+            150
+          ],
+          "anchorsAvailable": true,
+          "bytes": 10451404,
+          "renderViewport": {
+            "width": 1600,
+            "height": 900
+          },
+          "path": "seq/desktop-hd/"
+        }
+      }
+    },
+    "mobile": {
+      "count": 150,
+      "available": 150,
+      "complete": true,
+      "size": [
+        720,
+        1280
+      ],
+      "anchorFrames": [
+        1,
+        26,
+        51,
+        76,
+        100,
+        125,
+        150
+      ],
+      "anchorsAvailable": true,
+      "bytes": 7893820,
+      "renderViewport": {
+        "width": 900,
+        "height": 1600
+      },
+      "path": "seq/mobile/",
+      "variants": {
+        "sd": {
+          "count": 150,
+          "available": 150,
+          "complete": true,
+          "size": [
+            720,
+            1280
+          ],
+          "anchorFrames": [
+            1,
+            26,
+            51,
+            76,
+            100,
+            125,
+            150
+          ],
+          "anchorsAvailable": true,
+          "bytes": 7893820,
+          "renderViewport": {
+            "width": 900,
+            "height": 1600
+          },
+          "path": "seq/mobile/"
+        },
+        "hd": {
+          "count": 150,
+          "available": 150,
+          "complete": true,
+          "size": [
+            900,
+            1600
+          ],
+          "anchorFrames": [
+            1,
+            26,
+            51,
+            76,
+            100,
+            125,
+            150
+          ],
+          "anchorsAvailable": true,
+          "bytes": 11078684,
+          "renderViewport": {
+            "width": 900,
+            "height": 1600
+          },
+          "path": "seq/mobile-hd/"
+        }
+      }
+    }
+  }
+}

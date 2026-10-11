@@ -270,8 +270,7 @@
   border: none;
   border-radius: 999px;
   outline: none;
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);   /* lightningcss agrega el -webkit- (con el par a mano deja solo el prefijo) */
   font-weight: 400;
   display: block;
 }
