@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useLang } from '../i18n';
 import { Footline } from './Footline';
+import { ProjectLinks } from './ProjectLinks';
 import { hitosDestacados } from '../data/trayectoria';
 import type { HitoTrayectoria } from '../data/trayectoria';
 import './Projects.css';
@@ -750,6 +751,8 @@ export function Projects() {
                   <p className="project-modal-text">{expanded.descripcion}</p>
                 </>
               )}
+              {/* SPEC-20: "Ver sitio" / reel. Bloque autónomo, fácil de mover. */}
+              <ProjectLinks hito={expanded} />
             </div>
           </div>
         </div>
