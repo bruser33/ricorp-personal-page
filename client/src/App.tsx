@@ -11,16 +11,16 @@ import './App.css';
 
 /* Scroll-driven morph of body::before "Blue Light" blob.
    Stops match Figma Smart Animate scale_factor deltas:
-   Hero 1 → Projects 2.27 → Contact 0.18 → News 5.7.
+   Hero 1 → Projects 2.27 → Contact 0.18. (La parada de News 5.7 se fue con la
+   sección: desde SPEC-18 la trayectoria es una vista superpuesta, no scroll.)
    El array va en ORDEN DE DOCUMENTO (el barrido de abajo asume que cada parada
    está más abajo que la anterior); cada escala viaja con SU sección, no con la
    posición, así que reordenar secciones es reordenar este array y nada más.
    `bump` es el recorrido lateral del tramo que ENTRA a esa parada: el blob se
    contrae a un solo círculo, se va hacia la derecha y vuelve al mismo lugar
    justo cuando aparece "Let's start a new .project" (ver el sin(πt) abajo).
-   `opacity` apaga el blob al salir del bloque de contacto: en Análisis (#news)
-   el fondo tiene que estar limpio, así que el tramo contact-form → news lo lleva
-   de 1 a 0 (ver la nota del ease abajo).
+   `opacity` queda como palanca por parada (hoy todas valen 1: el tramo que lo
+   apagaba era contact-form → news, y News ya no está en el scroll).
    Skipped on browsers that support scroll-timeline (CSS handles it). */
 function useBlobMorph(enabled: boolean) {
   useEffect(() => {
@@ -50,7 +50,6 @@ function useBlobMorph(enabled: boolean) {
          formulario ocupan la pantalla. */
       { id: 'contact', scale: 0.18, y: -800, opacity: 1, bump: 620 },
       { id: 'contact-form', scale: 0.18, y: -800, opacity: 1 },
-      { id: 'news', scale: 5.7, y: -1797, opacity: 0 },
     ];
     let raf = 0;
     const tick = () => {
@@ -130,6 +129,10 @@ function useAutoAdvanceToProjects(enabled: boolean) {
 
     const advance = (e: Event) => {
       if (!armed || fired) return;
+      // Con la trayectoria abierta (vista superpuesta, SPEC-18) los gestos son
+      // de ESA capa: secuestrarlos bloquearía su scroll y movería el home por
+      // detrás. No se desarma: al cerrarla el home sigue en el hero.
+      if (document.documentElement.classList.contains('noticias-abiertas')) return;
       // Never hijack a click on an interactive control (nav links, language
       // toggle, buttons, carousel tabs) — the user's own action must win. A click
       // on empty hero space still triggers the "movie" advance, alongside
@@ -205,14 +208,16 @@ export default function App() {
         <main>
           <Hero startAnim={siteReady} />
           <Projects />
-          {/* Contact ANTES de News: el recorrido va proyectos → "Let's start a
-              new .project" (#contact) → el formulario (#contact-form) →
-              "Análisis". <Contact/> renderiza ESAS DOS secciones. Si se vuelve a
-              mover, hay que reordenar también los stops de useBlobMorph (van en
-              orden de documento) y el scroll-snap de index.css. */}
+          {/* El home termina en Contacto: proyectos → "Let's start a new
+              .project" (#contact) → el formulario (#contact-form). <Contact/>
+              renderiza ESAS DOS secciones. Si se reordena, hay que reordenar
+              también los stops de useBlobMorph (van en orden de documento) y el
+              scroll-snap de index.css. */}
           <Contact />
-          <News />
         </main>
+        {/* Trayectoria: vista superpuesta (SPEC-18), fuera del scroll. Solo se
+            dibuja con #news en la URL y recién cuando terminó el splash. */}
+        <News ready={siteReady} />
       </div>
     </>
   );

@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useLang } from '../i18n';
 import { SPLASH_OUTRO_MS } from './Splash';
+import { abrirNoticias } from '../noticiasVista';
 import './Header.css';
 
 const BASE = import.meta.env.BASE_URL;
@@ -13,6 +14,7 @@ export function Header({ introDone = false }: { introDone?: boolean }) {
   const [open, setOpen] = useState(false);
   const { lang, toggle, t } = useLang();
   const [scrolled, setScrolled] = useState(false);
+  const hamburgerRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 10);
@@ -50,10 +52,23 @@ export function Header({ introDone = false }: { introDone?: boolean }) {
           </a>
           <nav className="nav-desktop">
             <a href="#contact">{t('nav.contact')}</a>
-            <a href="#news">{t('nav.news')}</a>
+            {/* news ya no es un ancla: abre la vista superpuesta de la
+                trayectoria (SPEC-18). El href queda para abrir en otra pestaña. */}
+            <a
+              href="#news"
+              onClick={(e) => {
+                // Cmd/Ctrl/Shift+clic sigue abriendo /#news en otra pestaña.
+                if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+                e.preventDefault();
+                abrirNoticias(e.currentTarget);
+              }}
+            >
+              {t('nav.news')}
+            </a>
             <a href="#about">{t('nav.about')}</a>
           </nav>
           <button
+            ref={hamburgerRef}
             className="hamburger"
             aria-label={t('nav.menu')}
             onClick={() => setOpen(true)}
@@ -91,7 +106,17 @@ export function Header({ introDone = false }: { introDone?: boolean }) {
             <nav className="overlay-nav" onClick={() => setOpen(false)}>
               <a href="#home">{t('nav.home')}</a>
               <a href="#contact">{t('nav.contact')}</a>
-              <a href="#news">{t('nav.news')}</a>
+              {/* El panel se desmonta al abrir la vista (el onClick del nav lo
+                  cierra), así que el foco vuelve al botón de menú. */}
+              <a
+                href="#news"
+                onClick={(e) => {
+                  e.preventDefault();
+                  abrirNoticias(hamburgerRef.current);
+                }}
+              >
+                {t('nav.news')}
+              </a>
               <a href="#about">{t('nav.about')}</a>
             </nav>
             <button className="overlay-lang" onClick={toggle}>
