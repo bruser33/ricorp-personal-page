@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useLang } from '../i18n';
-import { Footline } from './Footline';
 import { DetailModal } from './DetailModal';
 import { ProjectLinks } from './ProjectLinks';
 import { hitosDestacados } from '../data/trayectoria';
@@ -76,6 +75,43 @@ const AUTOPLAY_MS = 4200;
    auto-play retome: si retomara enseguida, le pelearía al usuario el control. */
 const AUTOPLAY_RESUME_MS = 4000;
 
+/* Arrastre con la mano (SPEC-16). La "fuerza" del gesto es la velocidad del
+   puntero al soltar, medida sobre la ventana de los últimos DRAG_VELOCITY_WINDOW_MS
+   (una sola muestra entre dos pointermove es puro ruido: dos eventos a 1ms dan
+   velocidades absurdas). Reglas:
+   - menos de DRAG_CLICK_PX recorridos → no es un arrastre, es un clic;
+   - velocidad ≥ DRAG_FLICK_VELOCITY en el sentido del gesto Y al menos
+     DRAG_FLICK_MIN_PX recorridos → tirón fuerte, 2 cards (sin ese mínimo, un tap
+     con temblor de 6px en 5ms ya "vuela" a más de 1px/ms y saltaba 2 cards);
+   - recorrido ≥ DRAG_MIN_FRACTION del paso, o velocidad ≥ DRAG_NUDGE_VELOCITY
+     (con el mismo mínimo de DRAG_FLICK_MIN_PX) →
+     1 card (2 si el arrastre lento ya cruzó más de una card y media: el track
+     sigue al dedo 1:1, y devolverlo una card para atrás se leería como un rebote);
+   - si no, vuelve a la card actual.
+   Nunca más de DRAG_MAX_STEP cards por gesto. */
+const DRAG_CLICK_PX = 5;
+const DRAG_MIN_FRACTION = 0.15;
+const DRAG_FLICK_VELOCITY = 0.8; // px/ms — calibrado a ojo, ver la spec.
+const DRAG_NUDGE_VELOCITY = 0.3; // px/ms
+const DRAG_FLICK_MIN_PX = 30;
+const DRAG_VELOCITY_WINDOW_MS = 100;
+const DRAG_MAX_STEP = 2;
+
+/* Cuántas cards avanza un gesto. Positivo = siguiente (el dedo fue a la
+   izquierda, dx negativo). Función pura: no lee el DOM ni el estado. */
+function slidesForGesture(dx: number, velocity: number, step: number): number {
+  if (Math.abs(dx) < DRAG_CLICK_PX || step <= 0) return 0;
+  const dir = dx < 0 ? 1 : -1;
+  // Velocidad en el MISMO sentido que el recorrido: un tirón y vuelta atrás no suma.
+  const speed = Math.sign(velocity) === Math.sign(dx) ? Math.abs(velocity) : 0;
+  // Por debajo de DRAG_FLICK_MIN_PX la velocidad no cuenta (ni para 2 ni para 1).
+  const flickable = Math.abs(dx) >= DRAG_FLICK_MIN_PX;
+  if (flickable && speed >= DRAG_FLICK_VELOCITY) return dir * DRAG_MAX_STEP;
+  const fraction = Math.abs(dx) / step;
+  if (fraction < DRAG_MIN_FRACTION && !(flickable && speed >= DRAG_NUDGE_VELOCITY)) return 0;
+  return dir * Math.min(DRAG_MAX_STEP, Math.max(1, Math.round(fraction)));
+}
+
 /* El carrusel y la lista apilada son ESTRUCTURAS distintas, no un layout que se
    pueda intercambiar con CSS: el carrusel necesita la tira repetida, el track
    desplazado y los handlers de drag, y en una lista vertical el flex-basis de la
@@ -122,10 +158,20 @@ export function Projects() {
   const [originRect, setOriginRect] = useState<DOMRect | null>(null);
   const cardRefs = useRef<(HTMLElement | null)[]>([]);
   const trackRef = useRef<HTMLDivElement | null>(null);
-  // Pointer drag ("grab & move the slider" with momentum/force on release).
+  /* Arrastre con la mano (SPEC-16). `dragging` es estado porque pinta (cursor
+     grabbing, transición apagada, auto-play en pausa); el resto vive en un ref
+     porque los handlers de puntero corren varias veces por frame y no pueden
+     esperar a un re-render para leer dónde arrancó el gesto. */
   const [dragging, setDragging] = useState(false);
   const [dragDX, setDragDX] = useState(0);
-  const drag = useRef({ startX: 0, lastX: 0, lastT: 0, vel: 0, moved: false, pointerId: -1 });
+  const drag = useRef<{
+    active: boolean;
+    startX: number;
+    pointerId: number;
+    captured: boolean;
+    moved: boolean;
+    samples: { x: number; t: number }[];
+  }>({ active: false, startX: 0, pointerId: -1, captured: false, moved: false, samples: [] });
 
   /* --- Auto-play (solo desktop) ------------------------------------------- */
   const prefersReducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
@@ -204,7 +250,7 @@ export function Projects() {
         return;
       }
       /* El rebase parte de la copia del medio, así que con los deltas que llegan
-         acá (±1 de teclas, ±3 del drag, ±total/2 de los dots) el resultado cae
+         acá (±1 de teclas, ±2 del drag, ±total/2 de los dots) el resultado cae
          siempre dentro de la tira. El clamp final es para que la invariante "el
          índice nunca sale de la tira" valga por construcción y no por qué tan
          chico es el delta de cada llamador. */
@@ -430,46 +476,83 @@ export function Projects() {
     return w + gap;
   };
 
-  const onPointerDown = (e: React.PointerEvent) => {
-    if (expandedSlide !== null) return;
-    const d = drag.current;
-    d.startX = e.clientX;
-    d.lastX = e.clientX;
-    d.lastT = e.timeStamp;
-    d.vel = 0;
-    d.moved = false;
-    d.pointerId = e.pointerId;
-    suspendAutoplay();
-    setDragging(true);
-    e.currentTarget.setPointerCapture?.(e.pointerId);
+  /* Velocidad al soltar (px/ms) sobre la ventana reciente. Si el puntero se
+     quedó quieto antes de soltar, la ventana queda con una sola muestra y la
+     velocidad es 0: arrastrar, frenar y soltar NO es un tirón. */
+  const releaseVelocity = (x: number, t: number) => {
+    const samples = drag.current.samples.filter((s) => t - s.t <= DRAG_VELOCITY_WINDOW_MS);
+    const first = samples[0];
+    if (!first || t - first.t <= 0) return 0;
+    return (x - first.x) / (t - first.t);
   };
 
-  const onPointerMove = (e: React.PointerEvent) => {
-    if (!dragging) return;
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (expandedSlide !== null || !hasLoop) return;
+    // Solo el botón principal (el derecho abre el menú contextual, no arrastra).
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
     const d = drag.current;
-    const dt = e.timeStamp - d.lastT;
-    if (dt > 0) d.vel = (e.clientX - d.lastX) / dt; // px per ms
-    d.lastX = e.clientX;
-    d.lastT = e.timeStamp;
+    d.active = true;
+    d.startX = e.clientX;
+    d.pointerId = e.pointerId;
+    d.captured = false;
+    d.moved = false;
+    d.samples = [{ x: e.clientX, t: e.timeStamp }];
+    suspendAutoplay();
+    setDragging(true);
+    /* El pointer capture NO se toma acá. Con el capture puesto desde el
+       pointerdown, Chromium despacha el `click` al elemento que captura (el
+       viewport) y no a la card: el onClick de las cards nunca corría, así que ni
+       la vecina se centraba ni la activa abría el detalle (el "atrás/adelante no
+       funciona" del reporte). Se toma recién cuando el gesto pasa a ser un
+       arrastre, ver onPointerMove. */
+  };
+
+  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const d = drag.current;
+    if (!d.active || e.pointerId !== d.pointerId) return;
     const dx = e.clientX - d.startX;
-    if (Math.abs(dx) > 5) d.moved = true;
+    d.samples.push({ x: e.clientX, t: e.timeStamp });
+    // Ventana acotada: alcanza con lo que entra en DRAG_VELOCITY_WINDOW_MS.
+    if (d.samples.length > 32) d.samples.shift();
+    if (!d.moved && Math.abs(dx) >= DRAG_CLICK_PX) {
+      d.moved = true;
+      if (!d.captured) {
+        e.currentTarget.setPointerCapture?.(e.pointerId);
+        d.captured = true;
+      }
+    }
+    // 1:1 desde el primer px (el umbral decide si es clic, no si el track sigue).
     setDragDX(dx);
   };
 
-  const endDrag = (e: React.PointerEvent) => {
-    if (!dragging) return;
+  /* Fin del gesto. `cancel` = el navegador se quedó con el puntero (en touch,
+     un gesto mayormente vertical pasa a ser scroll de página por el
+     touch-action: pan-y): vuelve a la card actual sin avanzar. */
+  const finishDrag = (
+    el: HTMLElement,
+    e: { pointerId: number; clientX: number; timeStamp: number },
+    cancel: boolean
+  ) => {
     const d = drag.current;
+    if (!d.active || e.pointerId !== d.pointerId) return;
+    d.active = false;
     const dx = e.clientX - d.startX;
-    // Momentum: project the release velocity into extra travel ("force").
-    const projected = d.vel * 180;
-    const rawSlides = -(dx + projected) / stepPx();
-    const move = Math.max(-3, Math.min(3, Math.round(rawSlides)));
+    const move = cancel
+      ? 0
+      : slidesForGesture(dx, releaseVelocity(e.clientX, e.timeStamp), stepPx());
+    /* `moved` NO se resetea al cancelar: si al gesto abortado le sigue un click
+       (el pointerup llega después de perder el capture), ese click no es un
+       clic del usuario y no tiene que abrir el detalle. Lo resetea el próximo
+       pointerdown. */
     suspendAutoplay();
     setDragging(false);
     setDragDX(0);
     // Loop: la tira virtual se encarga de que el último conecte con el primero.
     moveBy(move);
-    e.currentTarget.releasePointerCapture?.(d.pointerId);
+    if (d.captured && el.hasPointerCapture?.(e.pointerId)) {
+      el.releasePointerCapture(e.pointerId);
+    }
+    d.captured = false;
   };
 
   const expanded = expandedSlide !== null ? projects[expandedSlide] : null;
@@ -515,7 +598,7 @@ export function Projects() {
   );
 
   /* Sin destacados no hay nada que montar: ni carrusel ni lista. La sección se
-     queda con su encabezado (y el footline), sin dots huérfanos. */
+     queda con su encabezado, sin dots huérfanos. */
   const carousel = total === 0 ? null : (
       <div className="projects-carousel reveal-scale">
         <div
@@ -524,11 +607,30 @@ export function Projects() {
              solo: al salir vuelve a estar activo, pero si además hubo gesto manda
              el respiro de AUTOPLAY_RESUME_MS). */
           onPointerEnter={() => setHovering(true)}
-          onPointerLeave={() => setHovering(false)}
+          onPointerLeave={(e) => {
+            setHovering(false);
+            /* Sin capture todavía (no pasó de DRAG_CLICK_PX), el pointerup fuera
+               del carrusel no llegaría nunca y el gesto quedaría colgado en
+               "grabbing" con el auto-play en pausa. */
+            if (drag.current.active && !drag.current.captured) {
+              finishDrag(e.currentTarget, e, true);
+            }
+          }}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
-          onPointerUp={endDrag}
-          onPointerCancel={endDrag}
+          onPointerUp={(e) => finishDrag(e.currentTarget, e, false)}
+          onPointerCancel={(e) => finishDrag(e.currentTarget, e, true)}
+          /* Capture perdido sin pointerup (blur de ventana, otro elemento que se
+             queda con el puntero): sin esto el gesto quedaba colgado en grabbing
+             con el auto-play en pausa. Tras un pointerup normal el gesto ya está
+             cerrado cuando llega, y finishDrag no hace nada.
+             OJO: solo el del PROPIO viewport. En touch Chromium captura el
+             puntero implícitamente sobre la card tocada; al pasarle el capture al
+             viewport, la card pierde el suyo y ese lostpointercapture BURBUJEA
+             hasta acá — sin el filtro, cada arrastre táctil se cancelaba solo. */
+          onLostPointerCapture={(e) => {
+            if (e.target === e.currentTarget) finishDrag(e.currentTarget, e, true);
+          }}
         >
           <div
             ref={trackRef}
@@ -658,8 +760,6 @@ export function Projects() {
       </div>
 
       {isMobile ? stack : carousel}
-
-      <Footline />
 
       {expanded && (
         <DetailModal
