@@ -255,6 +255,16 @@
   align-items: flex-start;
   padding-bottom: 40px;
   margin-top: clamp(18px, 3vh, 44px);
+  /* SPEC-21: aparecen con un fade cuando las cards ya casi llegaron. */
+  transition: opacity 500ms ease-out;
+}
+
+/* Mientras dura el comienzo del deslizamiento hero → Proyectos (glideTo.ts saca
+   la clase a los 1100 ms) los dots no se ven; sin transition para que se apaguen
+   en el acto al arrancar. */
+html.glide-dots-hidden .carousel-dots {
+  opacity: 0;
+  transition: none;
 }
 
 .carousel-dot {

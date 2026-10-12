@@ -7,6 +7,7 @@ import { News } from './components/News';
 import { Contact } from './components/Contact';
 import { useReveal } from './hooks/useReveal';
 import { introTotalMs } from './intro';
+import { glideToSection, isGliding, prefersReducedMotion } from './lib/glideTo';
 import './App.css';
 
 /* Scroll-driven morph of body::before "Blue Light" blob.
@@ -111,11 +112,12 @@ function useBlobMorph(enabled: boolean) {
    direction, a key, or a click — glides the page down to the projects section
    ONE time, so the site plays like a film instead of waiting for the user to find
    the carousel. Fires once, only while still in the hero, and never with reduced
-   motion. */
+   motion. El viaje es el deslizamiento propio de glideToSection (SPEC-21): ~2.3 s
+   con ease-out, el slider sube desde abajo como en el prototipo. */
 function useAutoAdvanceToProjects(enabled: boolean) {
   useEffect(() => {
     if (!enabled) return;
-    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+    if (prefersReducedMotion()) return;
 
     let armed = false;
     let fired = false;
@@ -129,7 +131,9 @@ function useAutoAdvanceToProjects(enabled: boolean) {
     }, introTotalMs() + 150);
 
     const advance = (e: Event) => {
-      if (!armed || fired) return;
+      // Si ya hay un deslizamiento en curso (p.ej. el link "about" del header),
+      // no se dispara otro encima.
+      if (!armed || fired || isGliding()) return;
       // Never hijack a click on an interactive control (nav links, language
       // toggle, buttons, carousel tabs) — the user's own action must win. A click
       // on empty hero space still triggers the "movie" advance, alongside
@@ -148,7 +152,7 @@ function useAutoAdvanceToProjects(enabled: boolean) {
         e.preventDefault();
       }
       fired = true;
-      document.getElementById('about')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      glideToSection('about');
       cleanup();
     };
 

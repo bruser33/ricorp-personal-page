@@ -1,9 +1,18 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type MouseEvent } from 'react';
 import { useLang } from '../i18n';
 import { SPLASH_OUTRO_MS } from './Splash';
+import { glideToSection, prefersReducedMotion } from '../lib/glideTo';
 import './Header.css';
 
 const BASE = import.meta.env.BASE_URL;
+
+/* "about" desde el hero viaja con el mismo deslizamiento que el auto-avance
+   (SPEC-21). Fuera del hero, o con movimiento reducido, queda el ancla nativa. */
+function onAboutClick(e: MouseEvent<HTMLAnchorElement>) {
+  if (prefersReducedMotion() || window.scrollY > window.innerHeight * 0.5) return;
+  e.preventDefault();
+  if (glideToSection('about')) history.pushState(null, '', '#about');
+}
 
 /* `introDone` = el logo del splash ya aterrizó en el header. En mobile ese es el
    momento en que el wordmark RICORP se retira y queda solo el botón de menú
@@ -51,7 +60,7 @@ export function Header({ introDone = false }: { introDone?: boolean }) {
           <nav className="nav-desktop">
             <a href="#contact">{t('nav.contact')}</a>
             <a href="#news">{t('nav.news')}</a>
-            <a href="#about">{t('nav.about')}</a>
+            <a href="#about" onClick={onAboutClick}>{t('nav.about')}</a>
           </nav>
           <button
             className="hamburger"
@@ -92,7 +101,7 @@ export function Header({ introDone = false }: { introDone?: boolean }) {
               <a href="#home">{t('nav.home')}</a>
               <a href="#contact">{t('nav.contact')}</a>
               <a href="#news">{t('nav.news')}</a>
-              <a href="#about">{t('nav.about')}</a>
+              <a href="#about" onClick={onAboutClick}>{t('nav.about')}</a>
             </nav>
             <button className="overlay-lang" onClick={toggle}>
               {t('lang.switch')}
