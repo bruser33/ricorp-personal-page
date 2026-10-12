@@ -5,8 +5,8 @@
   padding: clamp(36px, 6vh, 88px) 0 clamp(16px, 2vh, 32px);
   overflow: hidden;
   /* One screen minus the fixed header — the section snaps to y=header, so its
-     bottom lands at the viewport bottom where the <Footline> (margin-top:auto)
-     pins the © rights + Santiago, visible on the projects screen (like Figma). */
+     bottom lands at the viewport bottom. (El <Footline> ya no va en esta sección:
+     SPEC-16 sacó el texto de políticas del slider.) */
   min-height: calc(100vh - var(--header-h));
   display: flex;
   flex-direction: column;
@@ -62,7 +62,20 @@
   -webkit-user-select: none;
 }
 
-.carousel-viewport.is-dragging {
+/* La mano (SPEC-16): abierta sobre TODO el slider, cards incluidas, y cerrada
+   mientras se arrastra. Las cards traían cursor pointer / zoom-in propios, que
+   le ganaban al grab del viewport justo donde el usuario agarra. OJO con la
+   especificidad: `.project-card.is-active { cursor: zoom-in }` está más abajo,
+   así que acá cada selector lleva una clase más que la regla que pisa (un
+   `.is-dragging *` pierde contra la card activa y la mano no se cierra). */
+.carousel-viewport .project-card,
+.carousel-viewport .project-card.is-active {
+  cursor: grab;
+}
+
+.carousel-viewport.is-dragging,
+.carousel-viewport.is-dragging .project-card,
+.carousel-viewport.is-dragging .project-card.is-active {
   cursor: grabbing;
 }
 
@@ -825,5 +838,17 @@
   }
   .stack-card.is-active {
     transform: none;
+  }
+}
+
+/* Movimiento reducido (SPEC-16): el arrastre sigue funcionando, pero el snap al
+   soltar (y el de dots/teclas/auto-play) es instantáneo. Va al final del archivo
+   porque @media no suma especificidad y las reglas de transición del track
+   están más arriba. */
+@media (prefers-reduced-motion: reduce) {
+  .carousel-track,
+  .carousel-track.is-autoplaying,
+  .carousel-viewport .project-card {
+    transition: none;
   }
 }
