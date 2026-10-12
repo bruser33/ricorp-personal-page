@@ -1,58 +1,55 @@
-/* Base compartida por las DOS pantallas de contacto (#contact = solo el titular,
-   #contact-form = el contacto completo). Cada una ocupa una pantalla ENTERA menos
-   el header: la sección engancha en y=header, así que este min-height deja su
-   borde inferior justo en el borde del viewport — ahí el <Footline> de la segunda
-   pantalla (margin-top:auto) queda al pie sin scroll extra. */
+/* Contacto = UNA sola escena (como el prototipo de Figma): glow detrás del
+   título → título + subtítulo → orbe a la derecha → campo "Write here…", con las
+   políticas (<Footline>) al pie. Ocupa una pantalla entera menos el header: la
+   sección engancha en y=header, así que este min-height deja su borde inferior
+   en el borde del viewport y el Footline (margin-top:auto) queda al pie.
+   `overflow: clip` y no `hidden`: recorta el orbe cuando se va a la derecha sin
+   convertir la sección en scroll container. */
 .contact {
   position: relative;
-  overflow: hidden;
+  overflow: clip;
   padding-top: clamp(72px, 7vw, 120px);
   padding-bottom: clamp(32px, 3vw, 56px);
   min-height: calc(100vh - var(--header-h));
   display: flex;
   flex-direction: column;
+
+  /* Coreografía de entrada, medida cuadro a cuadro del video de referencia
+     (tramo 38–54 s, frames cada 0.25 s), con t=0 = el blob global empieza a
+     llegar a la sección:
+       · 0 → 1.5 s  el glow cruza a la derecha y vuelve, queda DETRÁS del título
+                    (eso es el `bump` de useBlobMorph, no se toca acá).
+       · +1.75 s    título + subtítulo aparecen (en ≤0.25 s: casi un corte).
+       · +3.25 s    el orbe empieza a entrar, chico y oscuro; llega a pleno ~2 s
+                    después.
+       · +3.75 s    sube el campo "Write here…" (asienta en ~0.8 s).
+     Los delays de acá cuentan desde que la sección llega a la vista
+     (.is-live), que coincide con la llegada del blob. */
+  --contact-title-delay: 1100ms;
+  --contact-title-dur: 500ms;
+  --contact-orb-delay: 2400ms;
+  --contact-orb-dur: 1900ms;
+  --contact-form-delay: 3100ms;
+  --contact-form-dur: 800ms;
+  /* Salida: al dejar la sección, título y orbe se apagan sin espera y el orbe
+     se va hacia la derecha (video: 51.5 → 52.5 s). */
+  --contact-exit-dur: 650ms;
 }
 
-/* Pantalla 1: el titular manda solo, centrado verticalmente y a todo el ancho
-   (no hay orbe a la derecha para el que reservar columna). */
-.contact-intro {
-  justify-content: center;
-  padding-bottom: clamp(72px, 7vw, 120px);
+/* Halo detrás del título SOLO en mobile: ahí el blob global (body::before +
+   .blob-grain) va display:none, así que sin esto el glow desaparece. Misma
+   paleta que el blob y que el orbe móvil del hero (si se despintan entre sí se
+   leen como dos círculos — ver index.css). El grano es el mismo tile. */
+.contact-glow-mobile {
+  display: none;
 }
 
-.contact-intro .contact-inner {
-  grid-template-columns: 1fr;
-}
-
-/* Lower-left purple glow visible in Figma frame 1 (Contact.png) — soft mauve halo. */
-.contact::before {
-  content: '';
-  position: absolute;
-  left: 14%;
-  top: 38%;
-  width: clamp(220px, 22vw, 360px);
-  aspect-ratio: 1;
-  background: radial-gradient(circle, rgba(149, 92, 196, 0.22) 0%, rgba(110, 68, 164, 0.10) 40%, transparent 70%);
-  filter: blur(70px);
-  opacity: 0.55;
-  pointer-events: none;
-  z-index: 0;
-}
-
-.contact-orb {
-  position: absolute;
-  left: 78%;
-  top: 22%;
-  transform: translate(-50%, -50%);
-  width: clamp(220px, 17vw, 290px);
-  height: clamp(220px, 17vw, 290px);
-  border-radius: 50%;
-  background: radial-gradient(ellipse, rgba(149, 92, 196, 0.35) 0%, rgba(110, 68, 164, 0.16) 35%, transparent 70%);
-  filter: blur(60px);
-  pointer-events: none;
-  z-index: 0;
-}
-
+/* --- Orbe 3D ----------------------------------------------------------------
+   Entrada: crece desde chico + aparece. Salida: se apaga y se va a la derecha.
+   La salida usa la propiedad `translate` (independiente de `transform`) porque
+   `transform` ya lo usan el scale de entrada y, al quedar en vista, la
+   animación de deriva — una animación sobre `transform` le ganaría a cualquier
+   transition de esa misma propiedad. */
 .contact-orb-3d {
   position: absolute;
   right: clamp(20px, 3vw, 60px);
@@ -64,32 +61,32 @@
   /* Da profundidad al giro de .iridescent-img: sin perspective, un rotateY sobre
      una imagen plana se ve como un simple achatamiento horizontal. */
   perspective: 900px;
-  /* Phase B entrance — orb fades + scales after headline lands. The 800ms
-     delay creates a visible Frame 1 (headline only) → Frame 2 (orb appears)
-     beat matching the Figma Smart Animate cascade. */
   opacity: 0;
   transform: scale(0.18);
+  translate: 45vw 0;
   transition:
-    opacity var(--dur-vertical-scroll) var(--ease-figma-out) 800ms,
-    transform var(--dur-vertical-scroll) var(--ease-figma-out) 800ms;
+    opacity var(--contact-exit-dur) var(--ease-figma-out),
+    transform var(--contact-exit-dur) var(--ease-figma-out),
+    translate var(--contact-exit-dur) var(--ease-figma-in-out, ease-in-out);
 }
 
-/* El delay iguala al del reveal (transición + 800ms) para que el loop arranque
-   recién cuando el orbe terminó de entrar y no pelee con el scale de entrada. */
-.contact-orb-3d.reveal.visible {
+.contact.is-live .contact-orb-3d {
   opacity: 1;
   transform: scale(1);
-  animation: orb-float 18s linear calc(var(--dur-vertical-scroll) + 800ms) infinite;
+  translate: 0 0;
+  /* `translate` vuelve a 0 sin transición (el orbe NO entra desde la derecha:
+     en el video crece en su lugar). Por eso su duración acá es 0s. */
+  transition:
+    opacity var(--contact-orb-dur) var(--ease-figma-out) var(--contact-orb-delay),
+    transform var(--contact-orb-dur) var(--ease-figma-out) var(--contact-orb-delay),
+    translate 0s linear 0s;
+  /* El loop arranca recién cuando el orbe terminó de entrar, para no pelear con
+     el scale de entrada. */
+  animation: orb-float 18s linear calc(var(--contact-orb-delay) + var(--contact-orb-dur)) infinite;
 }
 
-.contact-orb-3d.reveal.visible .iridescent-img {
+.contact.is-live .contact-orb-3d .iridescent-img {
   animation: orb-turn 22s ease-in-out infinite;
-}
-
-.iridescent-svg {
-  width: 100%;
-  height: 100%;
-  display: block;
 }
 
 .iridescent-img {
@@ -116,7 +113,7 @@
 
 /* --- Movimiento del objeto 3D -----------------------------------------------
    Son DOS animaciones en dos elementos distintos, no una sola: el contenedor ya
-   gasta su `transform` en el reveal (scale), y una sola propiedad `transform` no
+   gasta su `transform` en la entrada (scale), y una sola propiedad `transform` no
    puede llevar dos animaciones a la vez. Por eso el giro va sobre la <img> de
    adentro y el flotado sobre el contenedor.
    Todo es `transform` (nunca top/left) para que corra en el compositor. */
@@ -168,21 +165,6 @@
   100% { transform: rotateY(-22deg) rotateZ(-5deg); }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  /* El objeto SIGUE VISIBLE, solo se le apaga el loop. La regla del giro gana por
-     especificidad, así que hay que apagarla acá también o seguiría girando. */
-  .contact-orb-3d,
-  .contact-orb-3d.reveal.visible {
-    animation: none;
-    transform: scale(1);
-    opacity: 1;
-  }
-  .contact-orb-3d.reveal.visible .iridescent-img {
-    animation: none;
-    transform: none;
-  }
-}
-
 .contact-inner {
   position: relative;
   z-index: 1;
@@ -194,6 +176,26 @@
 
 .contact-spacer { min-height: 1px; }
 
+/* `fit-content`: la caja del titular es la de su tinta y no la de toda la
+   columna — useBlobMorph centra el glow sobre ESTA caja. */
+.contact-headline {
+  width: fit-content;
+  max-width: 100%;
+  opacity: 0;
+  transform: translateY(24px);
+  transition:
+    opacity var(--contact-exit-dur) var(--ease-figma-out),
+    transform var(--contact-exit-dur) var(--ease-figma-out);
+}
+
+.contact.is-live .contact-headline {
+  opacity: 1;
+  transform: translateY(0);
+  transition:
+    opacity var(--contact-title-dur) var(--ease-figma-out) var(--contact-title-delay),
+    transform var(--contact-title-dur) var(--ease-figma-out) var(--contact-title-delay);
+}
+
 .contact-headline h2 {
   font-size: clamp(48px, 5.2vw, 88px);
   font-weight: 700;
@@ -201,23 +203,23 @@
   letter-spacing: -0.025em;
 }
 
-/* Smart Animate Pair E entrance: headline slide-up + fade. */
-.contact-headline.reveal { transform: translateY(60px); }
-.contact-headline.reveal.visible { transform: translateY(0); }
-
-.contact-sub {
+/* El campo sube desde abajo, una sola vez (.has-entered no se quita): al salir
+   de la sección NO se apaga, solo título y orbe. */
+.contact-form {
   opacity: 0;
-  transform: translateY(24px);
+  transform: translateY(48px);
   transition:
-    opacity var(--dur-vertical-scroll) var(--ease-figma-out) 200ms,
-    transform var(--dur-vertical-scroll) var(--ease-figma-out) 200ms;
+    opacity var(--contact-exit-dur) var(--ease-figma-out),
+    transform var(--contact-exit-dur) var(--ease-figma-out);
 }
-.contact-headline.reveal.visible .contact-sub {
+
+.contact.has-entered .contact-form {
   opacity: 1;
   transform: translateY(0);
+  transition:
+    opacity var(--contact-form-dur) var(--ease-figma-out) var(--contact-form-delay),
+    transform var(--contact-form-dur) var(--ease-figma-out) var(--contact-form-delay);
 }
-
-.contact-form.reveal { transition-delay: 1000ms; }
 
 .contact-headline h2 span {
   display: block;
@@ -523,10 +525,31 @@
      el DOM porque su lugar en el marcado es el que lo deja detrás del contenido
      (el resplandor se pinta antes; sin z-index propios, el orden de documento es
      el que resuelve el apilado). */
-  .contact-compose .contact-inner { order: 1; }
-  .contact-compose .contact-orb-3d { order: 2; }
-  .contact-compose .contact-form { order: 3; }
-  .contact-compose .footline { order: 4; }
+  .contact .contact-inner { order: 1; }
+  .contact .contact-orb-3d { order: 2; }
+  .contact .contact-form { order: 3; }
+  .contact .footline { order: 4; }
+
+  /* Glow con grano detrás del título (ver la nota de .contact-glow-mobile). Va
+     en el flujo de la sección, centrado sobre el titular. */
+  .contact-glow-mobile {
+    display: block;
+    position: absolute;
+    left: 50%;
+    top: clamp(72px, 7vw, 120px);
+    width: clamp(260px, 82vw, 400px);
+    aspect-ratio: 1;
+    transform: translate(-50%, -22%);
+    border-radius: 50%;
+    background:
+      url('/noise.png') repeat 0 0 / 200px 200px,
+      radial-gradient(circle at 50% 50%, rgba(151, 140, 255, 0.26) 0%, rgba(81, 88, 252, 0.15) 38%, rgba(110, 68, 164, 0.09) 62%, transparent 80%);
+    -webkit-mask-image: radial-gradient(circle at 50% 50%, #000 0%, #000 34%, transparent 68%);
+    mask-image: radial-gradient(circle at 50% 50%, #000 0%, #000 34%, transparent 68%);
+    opacity: 0.55;
+    z-index: 0;
+    pointer-events: none;
+  }
 
   .contact-spacer { display: none; }
   .contact-form { max-width: 100%; }
@@ -538,4 +561,26 @@
   .attach-hint { flex-basis: 100%; }
   .file-chip { width: 100%; }
   .file-name { max-width: none; flex: 1 1 auto; }
+}
+
+/* Movimiento reducido: la escena aparece entera y quieta. Va al FINAL del
+   archivo porque los @media no suman especificidad y las reglas .is-live de
+   arriba le ganarían si estuviera antes. */
+@media (prefers-reduced-motion: reduce) {
+  .contact-headline,
+  .contact-form,
+  .contact-orb-3d,
+  .contact.is-live .contact-headline,
+  .contact.has-entered .contact-form,
+  .contact.is-live .contact-orb-3d {
+    opacity: 1;
+    transform: none;
+    translate: none;
+    transition: none;
+    animation: none;
+  }
+  .contact.is-live .contact-orb-3d .iridescent-img {
+    animation: none;
+    transform: none;
+  }
 }

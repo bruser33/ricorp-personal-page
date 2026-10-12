@@ -11,17 +11,51 @@ import './App.css';
 
 /* Scroll-driven morph of body::before "Blue Light" blob.
    Stops match Figma Smart Animate scale_factor deltas:
-   Hero 1 → Projects 2.27 → Contact 0.18 → News 5.7.
+   Hero 1 → Projects 2.27 → Contact → News 5.7.
    El array va en ORDEN DE DOCUMENTO (el barrido de abajo asume que cada parada
    está más abajo que la anterior); cada escala viaja con SU sección, no con la
    posición, así que reordenar secciones es reordenar este array y nada más.
-   `bump` es el recorrido lateral del tramo que ENTRA a esa parada: el blob se
-   contrae a un solo círculo, se va hacia la derecha y vuelve al mismo lugar
-   justo cuando aparece "Let's start a new .project" (ver el sin(πt) abajo).
+   Una parada cuya sección no existe se ignora (así sacar una sección no rompe
+   el orden del barrido).
+   `edge: 'mid'` ancla la parada a la MITAD de la sección en vez de a su borde
+   superior. Contacto lleva dos paradas iguales (borde y mitad) para que el
+   blob se quede QUIETO detrás del título mientras la escena está en vista:
+   con la sección enganchada, el pliegue (mitad del viewport) cae entre esas
+   dos paradas.
+   `bump` es el recorrido lateral del tramo que ENTRA a esa parada: el blob sale
+   hacia la derecha y vuelve justo cuando aparece "Let's start a new .project"
+   (ver el sin(πt) abajo; en el video ese cruce dura ~1.5 s).
+   `anchor` reemplaza x/y fijos: la parada se calcula para que el CENTRO del
+   blob caiga sobre el centro de ese elemento con la sección enganchada. Antes
+   contacto iba con y=-800 y escala 0.18 — un círculo de 86px por encima del
+   borde del viewport, o sea que el glow "noisy" del video no se veía.
    `opacity` apaga el blob al salir del bloque de contacto: en Análisis (#news)
-   el fondo tiene que estar limpio, así que el tramo contact-form → news lo lleva
-   de 1 a 0 (ver la nota del ease abajo).
-   Skipped on browsers that support scroll-timeline (CSS handles it). */
+   el fondo tiene que estar limpio. */
+type BlobStop = {
+  id: string;
+  edge?: 'top' | 'mid';
+  scale: number;
+  x?: number;
+  y?: number;
+  anchor?: string;
+  opacity: number;
+  bump?: number;
+};
+
+/* Posición de layout en el documento sumando offsetTop/Left: los rects
+   mienten mientras corren las transiciones de entrada (translateY, scale). */
+function docOffset(el: HTMLElement) {
+  let top = 0;
+  let left = 0;
+  let node: HTMLElement | null = el;
+  while (node) {
+    top += node.offsetTop;
+    left += node.offsetLeft;
+    node = node.offsetParent as HTMLElement | null;
+  }
+  return { top, left };
+}
+
 function useBlobMorph(enabled: boolean) {
   useEffect(() => {
     if (!enabled) return;
@@ -36,30 +70,45 @@ function useBlobMorph(enabled: boolean) {
        adentro de Análisis — justo el fondo que el requerimiento pide limpio —
        porque nadie escribía --blob-opacity nunca. */
     const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
-    const stops: {
-      id: string;
-      scale: number;
-      y: number;
-      opacity: number;
-      bump?: number;
-    }[] = [
+    /* Escala del glow en contacto: en el video el círculo mide ~40 % del ancho
+       del viewport; la caja base de 480px con su gradiente da ~440px de
+       diámetro visible, así que 1.3 lo deja en ~570px a 1440. */
+    const contactGlow = { scale: 1.3, anchor: '.contact-headline', opacity: 1 };
+    const stops: BlobStop[] = [
       { id: 'home', scale: 1.0, y: 0, opacity: 1 },
       { id: 'about', scale: 2.27, y: 0, opacity: 1 },
-      /* Las dos pantallas de contacto comparten escala y posición: el blob llega
-         contraído con el bump y se queda quieto mientras el titular y el
-         formulario ocupan la pantalla. */
-      { id: 'contact', scale: 0.18, y: -800, opacity: 1, bump: 620 },
-      { id: 'contact-form', scale: 0.18, y: -800, opacity: 1 },
+      { id: 'contact', ...contactGlow, bump: 620 },
+      { id: 'contact', edge: 'mid', ...contactGlow },
       { id: 'news', scale: 5.7, y: -1797, opacity: 0 },
     ];
+    const grain = document.querySelector<HTMLElement>('.blob-grain');
+    const header = () =>
+      parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop) || 0;
     let raf = 0;
     const tick = () => {
       raf = 0;
       const fold = window.scrollY + window.innerHeight * 0.5;
-      const positions = stops.map((s) => ({
-        ...s,
-        top: document.getElementById(s.id)?.offsetTop ?? 0,
-      }));
+      /* Centro base del blob en el viewport: .blob-grain comparte caja y
+         posición con body::before (las dos leen --blob-cx/--blob-cy). */
+      const baseCx = grain ? grain.offsetLeft + grain.offsetWidth / 2 : 0;
+      const baseCy = grain ? grain.offsetTop + grain.offsetHeight / 2 : 0;
+      const positions = stops.flatMap((s) => {
+        const el = document.getElementById(s.id);
+        if (!el) return [];
+        let { x = 0, y = 0 } = s;
+        if (s.anchor) {
+          const target = el.querySelector<HTMLElement>(s.anchor);
+          if (target && grain) {
+            const snapped = el.offsetTop - header();
+            const o = docOffset(target);
+            x = o.left + target.offsetWidth / 2 - baseCx;
+            y = o.top + target.offsetHeight / 2 - snapped - baseCy;
+          }
+        }
+        const top = el.offsetTop + (s.edge === 'mid' ? el.offsetHeight / 2 : 0);
+        return [{ ...s, x, y, top }];
+      });
+      if (!positions.length) return;
       let a = positions[0];
       let b = positions[0];
       for (let i = 0; i < positions.length - 1; i++) {
@@ -80,12 +129,11 @@ function useBlobMorph(enabled: boolean) {
          extremos del tramo y 1 en el medio, así que el círculo sale hacia la
          derecha y REGRESA exactamente al lugar de donde salió, sin saltos en los
          bordes del tramo ni estado que resetear. */
-      const x = b.bump ? b.bump * Math.sin(Math.PI * t) : 0;
+      const x = a.x + (b.x - a.x) * t + (b.bump && a !== b ? b.bump * Math.sin(Math.PI * t) : 0);
       /* La opacidad NO va lineal: con t³ el fade se concentra en el final del
-         tramo, así que el blob acompaña toda la pantalla de contacto y recién se
-         apaga justo antes de que entre Análisis. Lineal lo dejaba a media luz en
-         plena pantalla de contacto. En los tramos donde las dos paradas tienen
-         la misma opacidad la curva no cambia nada. */
+         tramo, así que el blob acompaña la escena de contacto y recién se
+         apaga justo antes de que entre Análisis. En los tramos donde las dos
+         paradas tienen la misma opacidad la curva no cambia nada. */
       const fade = t * t * t;
       const opacity = a.opacity + (b.opacity - a.opacity) * fade;
       document.body.style.setProperty('--blob-opacity', opacity.toFixed(3));
@@ -98,9 +146,11 @@ function useBlobMorph(enabled: boolean) {
       if (!raf) raf = requestAnimationFrame(tick);
     };
     window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll);
     tick();
     return () => {
       window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onScroll);
       cancelAnimationFrame(raf);
     };
   }, [enabled]);
@@ -205,11 +255,10 @@ export default function App() {
         <main>
           <Hero startAnim={siteReady} />
           <Projects />
-          {/* Contact ANTES de News: el recorrido va proyectos → "Let's start a
-              new .project" (#contact) → el formulario (#contact-form) →
-              "Análisis". <Contact/> renderiza ESAS DOS secciones. Si se vuelve a
-              mover, hay que reordenar también los stops de useBlobMorph (van en
-              orden de documento) y el scroll-snap de index.css. */}
+          {/* Contact ANTES de News: el recorrido va proyectos → contacto (UNA
+              sola escena: título, orbe y formulario) → "Análisis". Si se vuelve
+              a mover, hay que reordenar también los stops de useBlobMorph (van
+              en orden de documento) y el scroll-snap de index.css. */}
           <Contact />
           <News />
         </main>
