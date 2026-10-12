@@ -115,7 +115,7 @@ html {
   scroll-padding-top: var(--header-h);
 }
 
-#home, #about, #news, #contact {
+#home, #about, #contact {
   scroll-snap-align: start;
   scroll-snap-stop: normal;
 }
@@ -148,8 +148,9 @@ body {
 
   /* Shared "Blue Light" blob — single fixed pseudo that morphs across sections.
      Scale stops extracted from Ricorp_animation Smart Animate deltas:
-     Hero 1 → Projects 2.27 → News 5.7 → Contact 0.18 (the literal scale_factor
-     values from Pair B/D/E in the Figma keyframe deltas). Driven by
+     Hero 1 → Projects 2.27 → Contact 0.18 (the literal scale_factor values
+     from Pair B/D/E in the Figma keyframe deltas; la parada News 5.7 salió con
+     SPEC-18, la trayectoria ya no está en el scroll). Driven by
      --blob-scale and --blob-y custom props set via scroll listener. */
   /* Ancla horizontal del velo (la usan body::before y .blob-grain: es el CENTRO
      de la caja, de ahí el -240px al escribir `left`).

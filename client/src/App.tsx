@@ -12,7 +12,8 @@ import './App.css';
 
 /* Scroll-driven morph of body::before "Blue Light" blob.
    Stops match Figma Smart Animate scale_factor deltas:
-   Hero 1 → Projects 2.27 → Contact → News 5.7.
+   Hero 1 → Projects 2.27 → Contact. (La parada de News 5.7 se fue con la
+   sección: desde SPEC-18 la trayectoria es una vista superpuesta, no scroll.)
    El array va en ORDEN DE DOCUMENTO (el barrido de abajo asume que cada parada
    está más abajo que la anterior); cada escala viaja con SU sección, no con la
    posición, así que reordenar secciones es reordenar este array y nada más.
@@ -30,8 +31,7 @@ import './App.css';
    blob caiga sobre el centro de ese elemento con la sección enganchada. Antes
    contacto iba con y=-800 y escala 0.18 — un círculo de 86px por encima del
    borde del viewport, o sea que el glow "noisy" del video no se veía.
-   `opacity` apaga el blob al salir del bloque de contacto: en Análisis (#news)
-   el fondo tiene que estar limpio. */
+   `opacity` queda como palanca por parada (hoy todas valen 1). */
 type BlobStop = {
   id: string;
   edge?: 'top' | 'mid';
@@ -80,7 +80,6 @@ function useBlobMorph(enabled: boolean) {
       { id: 'about', scale: 2.27, y: 0, opacity: 1 },
       { id: 'contact', ...contactGlow, bump: 620 },
       { id: 'contact', edge: 'mid', ...contactGlow },
-      { id: 'news', scale: 5.7, y: -1797, opacity: 0 },
     ];
     const grain = document.querySelector<HTMLElement>('.blob-grain');
     const header = () =>
@@ -184,6 +183,10 @@ function useAutoAdvanceToProjects(enabled: boolean) {
       // Si ya hay un deslizamiento en curso (p.ej. el link "about" del header),
       // no se dispara otro encima.
       if (!armed || fired || isGliding()) return;
+      // Con la trayectoria abierta (vista superpuesta, SPEC-18) los gestos son
+      // de ESA capa: secuestrarlos bloquearía su scroll y movería el home por
+      // detrás. No se desarma: al cerrarla el home sigue en el hero.
+      if (document.documentElement.classList.contains('noticias-abiertas')) return;
       // Never hijack a click on an interactive control (nav links, language
       // toggle, buttons, carousel tabs) — the user's own action must win. A click
       // on empty hero space still triggers the "movie" advance, alongside
@@ -259,13 +262,15 @@ export default function App() {
         <main>
           <Hero startAnim={siteReady} />
           <Projects />
-          {/* Contact ANTES de News: el recorrido va proyectos → contacto (UNA
-              sola escena: título, orbe y formulario) → "Análisis". Si se vuelve
+          {/* El home termina en Contacto: el recorrido va proyectos → contacto (UNA
+              sola escena: título, orbe y formulario). Si se vuelve
               a mover, hay que reordenar también los stops de useBlobMorph (van
               en orden de documento) y el scroll-snap de index.css. */}
           <Contact />
-          <News />
         </main>
+        {/* Trayectoria: vista superpuesta (SPEC-18), fuera del scroll. Solo se
+            dibuja con #news en la URL y recién cuando terminó el splash. */}
+        <News ready={siteReady} />
       </div>
     </>
   );

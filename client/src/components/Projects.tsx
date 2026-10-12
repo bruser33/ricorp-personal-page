@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useLang } from '../i18n';
 import { Footline } from './Footline';
+import { DetailModal } from './DetailModal';
 import { hitosDestacados } from '../data/trayectoria';
 import type { HitoTrayectoria } from '../data/trayectoria';
 import './Projects.css';
@@ -660,99 +661,37 @@ export function Projects() {
       <Footline />
 
       {expanded && (
-        <div
-          className="project-modal-overlay"
-          role="dialog"
-          aria-modal="true"
-          aria-label={rotulo(expanded)}
-          onClick={closeProject}
+        <DetailModal
+          originRect={originRect}
+          title={tituloPlano(expanded.titulo)}
+          ariaLabel={rotulo(expanded)}
+          image={rutaImagen(expanded.imagen)}
+          tag={expanded.etiqueta}
+          onClose={closeProject}
         >
-          <div
-            className="project-modal"
-            onClick={(e) => e.stopPropagation()}
-            style={
-              originRect
-                ? ({
-                    ['--from-x' as string]: `${originRect.left}px`,
-                    ['--from-y' as string]: `${originRect.top}px`,
-                    ['--from-w' as string]: `${originRect.width}px`,
-                    ['--from-h' as string]: `${originRect.height}px`,
-                    /* Razón ya calculada y SIN unidad. scale() solo acepta un
-                       número puro: el `calc(var(--from-w) / 1280)` que había daba
-                       una longitud (0.51px), o sea un transform inválido, así que
-                       el estado inicial del flip se descartaba entero y la card
-                       nunca crecía desde su posición — solo aparecía. */
-                    ['--from-scale' as string]: String(
-                      originRect.width / Math.max(1, window.innerWidth)
-                    ),
-                  } as React.CSSProperties)
-                : undefined
-            }
-          >
-            {/* El título y la X salen de .project-modal-image: esa caja tiene
-                overflow:hidden para recortar la foto, y ahí adentro el título no
-                puede montarse sobre el borde inferior ni la X puede viajar con el
-                scroll — quedarían recortados. Viven en el hero, que no recorta. */}
-            <div className="project-modal-hero">
-              <div className="project-modal-image">
-                <img src={rutaImagen(expanded.imagen)} alt={tituloPlano(expanded.titulo)} />
+          {expanded.mockups && expanded.mockups.length > 0 ? (
+            <div className="project-modal-layout">
+              <div className="project-modal-text-col">
+                <p className="project-modal-text">{expanded.descripcion}</p>
               </div>
-              <div className="project-modal-image-overlay">
-                <h3 className="project-modal-title">{tituloPlano(expanded.titulo)}</h3>
-                {expanded.etiqueta && (
-                  <span className="project-tag-label">{expanded.etiqueta}</span>
-                )}
-              </div>
-            </div>
-            {/* Riel de la X: va desde el borde de la foto hasta el fondo del
-                modal, y el botón queda sticky adentro. Así arranca junto a la
-                foto y después ACOMPAÑA al contenido hacia abajo en vez de
-                perderse arriba (requerimiento 10). */}
-            <div className="project-modal-close-rail" aria-hidden="false">
-              <button
-                type="button"
-                className="project-modal-close"
-                onClick={closeProject}
-                aria-label="Close project"
-              >
-                <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
-                  <path
-                    d="M4 4l10 10M14 4L4 14"
-                    stroke="currentColor"
-                    strokeWidth="1.6"
-                    strokeLinecap="round"
+              <div className="project-modal-mockups-col">
+                {expanded.mockups.map((src, i) => (
+                  <img
+                    key={i}
+                    src={rutaImagen(src)}
+                    alt=""
+                    className={`project-modal-mockup mockup-${i + 1}`}
                   />
-                </svg>
-              </button>
+                ))}
+              </div>
             </div>
-            <div className="project-modal-card">
-              {expanded.mockups && expanded.mockups.length > 0 ? (
-                <div className="project-modal-layout">
-                  <div className="project-modal-text-col">
-                    <p className="project-modal-text">{expanded.descripcion}</p>
-                    <p className="project-modal-text">{expanded.descripcion}</p>
-                  </div>
-                  <div className="project-modal-mockups-col">
-                    {expanded.mockups.map((src, i) => (
-                      <img
-                        key={i}
-                        src={rutaImagen(src)}
-                        alt=""
-                        className={`project-modal-mockup mockup-${i + 1}`}
-                      />
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <p className="project-modal-text">{expanded.descripcion}</p>
-                  <p className="project-modal-text">{expanded.descripcion}</p>
-                  <p className="project-modal-text">{expanded.descripcion}</p>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
+          ) : (
+            /* La descripción va UNA vez: la repetición (2 o 3 párrafos) era
+               relleno de la maqueta en lorem y con contenido real se lee
+               duplicada. */
+            <p className="project-modal-text">{expanded.descripcion}</p>
+          )}
+        </DetailModal>
       )}
     </section>
   );
