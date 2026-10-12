@@ -115,7 +115,7 @@ html {
   scroll-padding-top: var(--header-h);
 }
 
-#home, #about, #news, #contact, #contact-form {
+#home, #about, #news, #contact {
   scroll-snap-align: start;
   scroll-snap-stop: normal;
 }
