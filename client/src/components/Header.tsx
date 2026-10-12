@@ -1,9 +1,19 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, type MouseEvent } from 'react';
 import { useLang } from '../i18n';
 import { SPLASH_OUTRO_MS } from './Splash';
+import { cancelGlide, glideToSection, prefersReducedMotion } from '../lib/glideTo';
+import { abrirNoticias } from '../noticiasVista';
 import './Header.css';
 
 const BASE = import.meta.env.BASE_URL;
+
+/* "about" desde el hero viaja con el mismo deslizamiento que el auto-avance
+   (SPEC-21). Fuera del hero, o con movimiento reducido, queda el ancla nativa. */
+function onAboutClick(e: MouseEvent<HTMLAnchorElement>) {
+  if (prefersReducedMotion() || window.scrollY > window.innerHeight * 0.5) return;
+  e.preventDefault();
+  if (glideToSection('about')) history.pushState(null, '', '#about');
+}
 
 /* `introDone` = el logo del splash ya aterrizó en el header. En mobile ese es el
    momento en que el wordmark RICORP se retira y queda solo el botón de menú
@@ -13,6 +23,7 @@ export function Header({ introDone = false }: { introDone?: boolean }) {
   const [open, setOpen] = useState(false);
   const { lang, toggle, t } = useLang();
   const [scrolled, setScrolled] = useState(false);
+  const hamburgerRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 10);
@@ -49,11 +60,25 @@ export function Header({ introDone = false }: { introDone?: boolean }) {
             <img src={BASE + 'ricorp-logo.svg'} alt="RICORP" className="brand-logo" />
           </a>
           <nav className="nav-desktop">
-            <a href="#contact">{t('nav.contact')}</a>
-            <a href="#news">{t('nav.news')}</a>
-            <a href="#about">{t('nav.about')}</a>
+            <a href="#contact" onClick={cancelGlide}>{t('nav.contact')}</a>
+            {/* news ya no es un ancla: abre la vista superpuesta de la
+                trayectoria (SPEC-18). El href queda para abrir en otra pestaña. */}
+            <a
+              href="#news"
+              onClick={(e) => {
+                // Cmd/Ctrl/Shift+clic sigue abriendo /#news en otra pestaña.
+                if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+                e.preventDefault();
+                cancelGlide();
+                abrirNoticias(e.currentTarget);
+              }}
+            >
+              {t('nav.news')}
+            </a>
+            <a href="#about" onClick={onAboutClick}>{t('nav.about')}</a>
           </nav>
           <button
+            ref={hamburgerRef}
             className="hamburger"
             aria-label={t('nav.menu')}
             onClick={() => setOpen(true)}
@@ -90,9 +115,20 @@ export function Header({ introDone = false }: { introDone?: boolean }) {
             </button>
             <nav className="overlay-nav" onClick={() => setOpen(false)}>
               <a href="#home">{t('nav.home')}</a>
-              <a href="#contact">{t('nav.contact')}</a>
-              <a href="#news">{t('nav.news')}</a>
-              <a href="#about">{t('nav.about')}</a>
+              <a href="#contact" onClick={cancelGlide}>{t('nav.contact')}</a>
+              {/* El panel se desmonta al abrir la vista (el onClick del nav lo
+                  cierra), así que el foco vuelve al botón de menú. */}
+              <a
+                href="#news"
+                onClick={(e) => {
+                  e.preventDefault();
+                  cancelGlide();
+                  abrirNoticias(hamburgerRef.current);
+                }}
+              >
+                {t('nav.news')}
+              </a>
+              <a href="#about" onClick={onAboutClick}>{t('nav.about')}</a>
             </nav>
             <button className="overlay-lang" onClick={toggle}>
               {t('lang.switch')}

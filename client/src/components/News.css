@@ -8,8 +8,8 @@
   isolation: isolate;
   /* clip y NO hidden: `overflow: hidden` convierte a .news en contenedor de
      scroll, y entonces el sticky del destacado se pegaría a ESE contenedor (que
-     nunca scrollea) en vez de al viewport — el pin de R1 no ocurriría nunca.
-     `clip` recorta igual pero no crea scroll container. */
+     nunca scrollea) en vez de al scroll de .news-view — el pin de R1 no
+     ocurriría nunca. `clip` recorta igual pero no crea scroll container. */
   overflow: clip;
 
   /* Caída de la última línea del título del destacado por debajo del borde de la
@@ -18,6 +18,83 @@
   --news-featured-drop: clamp(22px, 2.6vw, 46px);
   --news-pin-travel: 42vh;
 }
+
+/* ============================================================
+   Vista superpuesta (SPEC-18). La trayectoria ya no es una sección del home:
+   es una capa a pantalla completa que se abre desde `news` del navbar. Tiene
+   su PROPIO scroll (el de la página queda bloqueado con html.noticias-abiertas)
+   y por eso el sticky de la portada trabaja contra ella.
+   ============================================================ */
+html.noticias-abiertas {
+  overflow: hidden;
+}
+
+.news-view {
+  position: fixed;
+  inset: 0;
+  /* Sobre el header (50) y el panel mobile (100); debajo del detalle (200). */
+  z-index: 150;
+  background: var(--bg);
+  overflow-y: auto;
+  overflow-x: clip;
+  overscroll-behavior: contain;
+  /* `backwards` y NO `both`: un transform que quedara puesto al terminar haría
+     de la vista el containing block de cualquier fixed de adentro. */
+  animation: newsViewIn 480ms var(--ease-figma-out, ease) backwards;
+}
+
+@keyframes newsViewIn {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* La sección arranca sin el aire del header (acá no hay header encima), pero
+   con el suficiente para que la X no pise la portada al abrir. */
+.news-view .news {
+  padding-top: clamp(72px, 7vw, 120px);
+}
+
+.news-view__close {
+  position: fixed;
+  top: 20px;
+  right: clamp(16px, 3vw, 40px);
+  z-index: 5;
+  width: 52px;
+  height: 52px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  background: rgba(12, 11, 15, 0.72);
+  backdrop-filter: blur(6px);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 200ms;
+}
+
+.news-view__close:hover { background: rgba(30, 29, 40, 0.85); }
+
+/* Tarjetas clicables (portada y filas): abren el detalle. */
+.news-featured[role='button'],
+.news-row__content[role='button'] {
+  cursor: pointer;
+}
+
+.news-featured[role='button']:focus-visible,
+.news-row__content[role='button']:focus-visible {
+  outline: 2px solid var(--accent-blue-active, #5158fc);
+  outline-offset: 6px;
+  border-radius: 14px;
+}
+
+.news-row__content[role='button']:hover .news-row__title { color: #fff; }
 
 /* ============================================================
    Portada full-bleed (R9) — el hito más nuevo, de borde a borde.
@@ -272,42 +349,6 @@
   background: linear-gradient(135deg, #1a1920, #0f0e14);
 }
 
-/* CTA — punta de flecha sobre el eje + pill debajo. */
-.news-cta-wrap {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 24px;
-  margin-top: clamp(48px, 5vw, 88px);
-}
-
-.news-axis-arrow {
-  font-size: 14px;
-  color: rgba(255, 255, 255, 0.45);
-  line-height: 1;
-}
-
-.news-cta {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 28px;
-  font-size: clamp(13px, 0.95vw, 16px);
-  font-weight: 500;
-  color: var(--fg);
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  border-radius: 999px;
-  transition:
-    background var(--dur-hover) var(--ease-figma-out),
-    border-color var(--dur-hover) var(--ease-figma-out);
-}
-
-.news-cta:hover {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(255, 255, 255, 0.4);
-}
-
 /* Smart Animate entrance — Pair D (Project 6 → News End): rows stagger 100ms.
    El stagger cicla cada 3 filas: la timeline puede tener 20 hitos y no tiene
    sentido que el vigésimo espere medio segundo cuando entra solo en pantalla. */
@@ -320,19 +361,16 @@
 .news-row.reveal-delay-2 { transition-delay: 160ms; }
 .news-row.reveal-delay-3 { transition-delay: 260ms; }
 
-.news-cta-wrap.reveal-fade {
-  transition: opacity var(--dur-vertical-scroll) var(--ease-figma-out) 600ms;
-}
-
 /* ============================================================
    Pin de la portada (R1) — solo desktop.
    ============================================================ */
 @media (min-width: 721px) {
   .news-featured-track { padding-bottom: var(--news-pin-travel); }
-  /* El header es fixed (80px): pegado a 0 el título quedaría debajo de él. */
+  /* Dentro de la vista no hay header encima (la vista lo tapa): la portada se
+     pega al tope del scroll de .news-view. */
   .news-featured {
     position: sticky;
-    top: var(--header-h);
+    top: 0;
   }
 }
 
@@ -400,14 +438,7 @@
   .news-featured { position: static; }
   .news-row.reveal-delay-1,
   .news-row.reveal-delay-2,
-  .news-row.reveal-delay-3,
-  .news-cta-wrap.reveal-fade { transition-delay: 0s; }
+  .news-row.reveal-delay-3 { transition-delay: 0s; }
   .news-row__media img { transition: none; }
-}
-
-/* News es la última sección del documento: su footline cierra la página. Va con
-   aire arriba para que no se pegue al botón "See all". */
-.news .footline {
-  margin-top: clamp(48px, 8vh, 96px);
-  padding-bottom: clamp(24px, 4vh, 48px);
+  .news-view { animation: none; }
 }

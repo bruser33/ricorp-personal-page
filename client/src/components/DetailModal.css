@@ -1,0 +1,46 @@
+/* Variante del detalle SIN foto (hitos de la trayectoria que no traen imagen).
+   El resto del detalle vive en Projects.css. Sin la banda de foto el título ya
+   no tiene un borde sobre el que montarse: pasa al flujo, con aire arriba para
+   la X, y el riel arranca desde el tope en vez de desde el pie de la foto. */
+.project-modal--sin-imagen {
+  --modal-hero-h: 0px;
+}
+
+.project-modal--sin-imagen .project-modal-hero {
+  padding: clamp(96px, 16vh, 180px) var(--modal-gutter) 0;
+  box-sizing: border-box;
+}
+
+.project-modal--sin-imagen .project-modal-image-overlay {
+  position: static;
+  transform: none;
+  /* El título cuelga del hero: sin foto que lo recorte, entra con el mismo
+     timing que tendría la imagen. */
+  animation: modalCardIn 600ms cubic-bezier(0.7, 0.01, 0.23, 1.01) 150ms both;
+}
+
+/* El riel calcula su top como (alto de la foto - 76px): con alto 0 quedaría
+   arriba de la pantalla. */
+.project-modal--sin-imagen .project-modal-close-rail {
+  top: 0;
+}
+
+/* Enlace del hito dentro del panel. */
+.detail-modal-link a {
+  color: var(--fg);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.35);
+  transition: border-color var(--dur-hover) var(--ease-figma-out);
+}
+
+.detail-modal-link a:hover { border-color: var(--fg); }
+
+/* Slot `footer` del detalle (enlaces del hito). Va pegado al final del texto. */
+.project-modal-footer {
+  max-width: 1100px;
+  margin: 1.2em auto 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .project-modal--sin-imagen .project-modal-image-overlay { animation: none; }
+}
