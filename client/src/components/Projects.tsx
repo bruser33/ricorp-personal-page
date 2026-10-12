@@ -410,6 +410,9 @@ export function Projects() {
       }
       // Las flechas manejan el carrusel; en la lista apilada no hay qué mover.
       if (isMobile) return;
+      // Con la trayectoria abierta (vista superpuesta) el carrusel de fondo no
+      // debe moverse.
+      if (document.documentElement.classList.contains('noticias-abiertas')) return;
       if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
       suspendAutoplay();
       if (e.key === 'ArrowRight') next();

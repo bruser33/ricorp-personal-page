@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, type MouseEvent } from 'react';
 import { useLang } from '../i18n';
 import { SPLASH_OUTRO_MS } from './Splash';
-import { glideToSection, prefersReducedMotion } from '../lib/glideTo';
+import { cancelGlide, glideToSection, prefersReducedMotion } from '../lib/glideTo';
 import { abrirNoticias } from '../noticiasVista';
 import './Header.css';
 
@@ -60,7 +60,7 @@ export function Header({ introDone = false }: { introDone?: boolean }) {
             <img src={BASE + 'ricorp-logo.svg'} alt="RICORP" className="brand-logo" />
           </a>
           <nav className="nav-desktop">
-            <a href="#contact">{t('nav.contact')}</a>
+            <a href="#contact" onClick={cancelGlide}>{t('nav.contact')}</a>
             {/* news ya no es un ancla: abre la vista superpuesta de la
                 trayectoria (SPEC-18). El href queda para abrir en otra pestaña. */}
             <a
@@ -69,6 +69,7 @@ export function Header({ introDone = false }: { introDone?: boolean }) {
                 // Cmd/Ctrl/Shift+clic sigue abriendo /#news en otra pestaña.
                 if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
                 e.preventDefault();
+                cancelGlide();
                 abrirNoticias(e.currentTarget);
               }}
             >
@@ -114,13 +115,14 @@ export function Header({ introDone = false }: { introDone?: boolean }) {
             </button>
             <nav className="overlay-nav" onClick={() => setOpen(false)}>
               <a href="#home">{t('nav.home')}</a>
-              <a href="#contact">{t('nav.contact')}</a>
+              <a href="#contact" onClick={cancelGlide}>{t('nav.contact')}</a>
               {/* El panel se desmonta al abrir la vista (el onClick del nav lo
                   cierra), así que el foco vuelve al botón de menú. */}
               <a
                 href="#news"
                 onClick={(e) => {
                   e.preventDefault();
+                  cancelGlide();
                   abrirNoticias(hamburgerRef.current);
                 }}
               >

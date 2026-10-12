@@ -23,9 +23,17 @@ const SCROLL_KEYS = ['ArrowDown', 'ArrowUp', 'PageDown', 'PageUp', ' ', 'Spaceba
 const easeOutQuad = (p: number) => 1 - (1 - p) * (1 - p);
 
 let gliding = false;
+let cancelCurrent: (() => void) | null = null;
 
 export function isGliding() {
   return gliding;
+}
+
+/* Corta el deslizamiento en curso y devuelve snap/smooth al CSS. Lo usan los
+   otros links del header: si no, el deslizamiento pisa su destino y la página
+   termina en Proyectos con el hash equivocado. */
+export function cancelGlide() {
+  cancelCurrent?.();
 }
 
 export function prefersReducedMotion() {
@@ -79,7 +87,25 @@ export function glideToSection(id: string): boolean {
   const start = performance.now();
   const dotsTimer = window.setTimeout(() => html.classList.remove(DOTS_HIDDEN_CLASS), DOTS_FADE_AT_MS);
 
+  let cancelled = false;
+  const finish = () => {
+    window.clearTimeout(dotsTimer);
+    html.classList.remove(DOTS_HIDDEN_CLASS);
+    html.style.scrollSnapType = '';
+    html.style.scrollBehavior = '';
+    window.removeEventListener('wheel', block, opts);
+    window.removeEventListener('touchmove', block, opts);
+    window.removeEventListener('keydown', block, opts);
+    gliding = false;
+    cancelCurrent = null;
+  };
+  cancelCurrent = () => {
+    cancelled = true;
+    finish();
+  };
+
   const frame = (now: number) => {
+    if (cancelled) return;
     const p = Math.min(1, Math.max(0, (now - start) / GLIDE_MS));
     // El destino se relee cada frame: si una imagen termina de cargar y mueve
     // el layout, el deslizamiento igual aterriza en la sección.
@@ -89,14 +115,7 @@ export function glideToSection(id: string): boolean {
       requestAnimationFrame(frame);
       return;
     }
-    window.clearTimeout(dotsTimer);
-    html.classList.remove(DOTS_HIDDEN_CLASS);
-    html.style.scrollSnapType = '';
-    html.style.scrollBehavior = '';
-    window.removeEventListener('wheel', block, opts);
-    window.removeEventListener('touchmove', block, opts);
-    window.removeEventListener('keydown', block, opts);
-    gliding = false;
+    finish();
   };
   requestAnimationFrame(frame);
   return true;
