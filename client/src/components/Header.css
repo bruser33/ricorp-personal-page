@@ -6,9 +6,6 @@
   height: var(--header-h);
   z-index: 50;
   background: transparent;
-  /* isolation: el scrim de ::before va en z-index -1, que es RELATIVO a este
-     contexto. Sin aislarlo, -1 lo manda detrás del fondo de la página y el
-     scrim no se ve. */
   isolation: isolate;
 }
 
@@ -27,37 +24,40 @@
   justify-content: center;
 }
 
-/* Requerimiento 12 — el header NO lleva pastilla ni contorno.
-   Antes acá vivía un panel escarchado (fondo blanco al 7%, borde al 10% y
-   backdrop-filter) que iba del centro al borde derecho: sobre el fondo casi
-   negro de la página ese panel se leía como una CÁPSULA con contorno flotando
-   en el header, que es justo lo que el diseño no tiene — el header tiene que
-   perder su fondo en el background de la página.
-   El reemplazo es un scrim: un degradado de borde a borde que oscurece apenas
-   la franja de arriba y muere en transparente. Cumple la única función que el
-   panel cumplía de verdad (que el wordmark y el nav se lean cuando pasa una
-   imagen a sangre completa por debajo, como el destacado de Análisis) sin
-   dibujar ningún borde: al no tener geometría propia ni radio, no hay nada que
-   se pueda leer como contorno. Va sin blur a propósito: un backdrop-filter
-   recorta su propio rectángulo y el corte inferior vuelve a verse como borde. */
-.site-header::before {
+/* SPEC-19 — panel esmerilado al scrollear (vuelve el efecto de 454ef4f, que es
+   el del video de referencia, 20–24 s). Una sola píldora que arranca justo antes
+   del wordmark RICORP (centro) y se estira hacia la derecha hasta pasar "about";
+   "eng" queda flotando libre. Difumina lo que pasa por detrás (backdrop blur),
+   no es un color opaco. Reemplaza al scrim oscuro de borde a borde.
+   Vive en .header-inner (position: relative + isolation), así que z-index -1
+   lo deja detrás del texto pero dentro del header.
+   GOTCHA de build: escribir SOLO `backdrop-filter`. lightningcss agrega el
+   `-webkit-` por el target safari16; si se escriben los dos a mano, el
+   minificador deja solo el prefijado y Chromium pierde el blur (vite.config.ts). */
+.header-inner::before {
   content: '';
   position: absolute;
-  inset: 0;
   z-index: -1;
   pointer-events: none;
-  background: linear-gradient(
-    180deg,
-    rgba(18, 17, 21, 0.82) 0%,
-    rgba(18, 17, 21, 0.55) 55%,
-    rgba(18, 17, 21, 0) 100%
-  );
-  opacity: 0;
-  transition: opacity var(--dur-hover) var(--ease-figma-out);
+  top: 50%;
+  transform: translateY(-50%);
+  height: 44px;
+  left: calc(50% - 72px);
+  right: -14px;
+  border-radius: 999px;
+  background: transparent;
+  border: 1px solid transparent;
+  backdrop-filter: none;
+  transition:
+    background var(--dur-hover) var(--ease-figma-out),
+    backdrop-filter var(--dur-hover) var(--ease-figma-out),
+    border-color var(--dur-hover) var(--ease-figma-out);
 }
 
-.site-header.scrolled::before {
-  opacity: 1;
+.site-header.scrolled .header-inner::before {
+  background: rgba(255, 255, 255, 0.07);
+  backdrop-filter: blur(14px);
+  border-color: rgba(255, 255, 255, 0.10);
 }
 
 .brand-logo {
@@ -111,6 +111,16 @@
      SEGUNDA fila: el header queda con dos filas de 40px y el wordmark sube 25px,
      justo el punto donde tiene que aterrizar el logo del splash. */
   .brand { grid-column: 2; grid-row: 1; justify-self: center; padding-left: 0; }
+
+  /* En mobile el wordmark se retira y el único elemento es el botón "R Menu"
+     a la izquierda: el panel se reancla como píldora detrás del botón (abf0da9)
+     para que siga legible sobre el contenido al scrollear. */
+  .header-inner::before {
+    left: -14px;
+    right: auto;
+    width: 124px;
+    height: 52px;
+  }
 
   /* Terminado el viaje del logo (centro → arriba) el wordmark se retira y queda
      solo el botón (requerimiento 1). "Terminado" es el aterrizaje del splash, que
