@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useLang } from '../i18n';
 import { Footline } from './Footline';
 import { DetailModal } from './DetailModal';
+import { ProjectLinks } from './ProjectLinks';
 import { hitosDestacados } from '../data/trayectoria';
 import type { HitoTrayectoria } from '../data/trayectoria';
 import './Projects.css';
@@ -668,6 +669,7 @@ export function Projects() {
           image={rutaImagen(expanded.imagen)}
           tag={expanded.etiqueta}
           onClose={closeProject}
+          footer={<ProjectLinks hito={expanded} />}
         >
           {expanded.mockups && expanded.mockups.length > 0 ? (
             <div className="project-modal-layout">

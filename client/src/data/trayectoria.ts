@@ -22,6 +22,7 @@
  *     destacado: true,                          // opcional
  *     etiqueta: 'App development',              // opcional, solo si es destacado
  *     mockups: ['figma-frames/otra.png'],       // opcional, solo si es destacado
+ *     reel: 'https://www.instagram.com/reel/…', // opcional, solo si es destacado
  *   },
  *
  * REGLAS SIMPLES
@@ -40,9 +41,9 @@
  * 5) `descripcion`, `enlace` e `imagen` son opcionales: si no los querés,
  *    borrá la línea completa.
  *
- * DOS CAMPOS QUE SOLO USA LA SECCIÓN PROYECTOS
- * --------------------------------------------
- * Los dos son OPCIONALES y solo hacen falta si el hito además lleva
+ * TRES CAMPOS QUE SOLO USA LA SECCIÓN PROYECTOS
+ * ---------------------------------------------
+ * Los tres son OPCIONALES y solo hacen falta si el hito además lleva
  * `destacado: true`. En la línea de tiempo no se muestran nunca.
  * 6) `etiqueta` es el textito bajo el título de la tarjeta, que dice de qué
  *    tipo de trabajo se trata: 'App development', 'Brand identity', 'Web
@@ -51,7 +52,13 @@
  *    costado del texto). Se escriben igual que `imagen` —ruta dentro de
  *    `client/public`— y entre corchetes, separadas por coma. Sin `mockups`, el
  *    detalle muestra solo el texto.
- * 8) Un destacado SIN `imagen` no se puede dibujar como tarjeta (la tarjeta ES
+ * 8) `reel` es la URL de un reel de Instagram sobre el proyecto. Al abrir el
+ *    proyecto aparece un enlace "Ver reel" que lo abre en otra pestaña. Si no
+ *    hay reel todavía, borrá la línea (o dejala vacía: ''): sin reel el
+ *    detalle no muestra nada de Instagram.
+ *    Aparte: si el hito tiene `enlace`, el detalle muestra "Ver sitio" (nueva
+ *    pestaña). Una ruta del propio sitio se escribe con barra: '/wstyle/'.
+ * 9) Un destacado SIN `imagen` no se puede dibujar como tarjeta (la tarjeta ES
  *    la imagen), así que Proyectos lo saltea. En la trayectoria sigue estando.
  * ========================================================================== */
 
@@ -70,17 +77,36 @@ export type HitoTrayectoria = {
   etiqueta?: string;
   /** Solo Proyectos: imágenes extra del detalle, relativas a `client/public`. */
   mockups?: string[];
+  /** Solo Proyectos: URL de un reel de Instagram. Ausente o '' = no se muestra. */
+  reel?: string;
 };
 
 /* ---------------------------------------------------------------------------
  * TODO(pedro): reemplazar por tu trayectoria real.
- * Los 13 hitos de abajo son CONTENIDO DE RELLENO heredado de la maqueta: los 6
- * primeros son análisis de tecnología que no son tuyos, y los 7 con `destacado`
- * son los proyectos de ejemplo que traía la maqueta (títulos "Project N" y
+ * W Style (el primero) es real. Los 12 hitos que le siguen son CONTENIDO DE
+ * RELLENO heredado de la maqueta: los 6 primeros son análisis de tecnología que
+ * no son tuyos, y los 6 con `destacado` son los proyectos de ejemplo que traía la maqueta (títulos "Project N" y
  * textos en lorem ipsum). Están solo para que las secciones tengan forma
  * mientras armás tu historia: borralos todos y escribí los tuyos.
  * ------------------------------------------------------------------------- */
 export const trayectoria: HitoTrayectoria[] = [
+  /* Proyecto real (SPEC-20). Por fecha es el hito más nuevo: abre la
+     trayectoria y la sección Proyectos. Imagen y mockups son frames de la
+     secuencia de Blender de la propia landing (client/public/wstyle/seq/).
+     Cuando el reel esté en Instagram, agregá la línea `reel: 'https://…'`. */
+  {
+    id: 'wstyle-2026',
+    fecha: '2026-10',
+    titulo: 'W Style',
+    etiqueta: 'Web design + 3D',
+    imagen: 'figma-frames/wstyle-card.webp',
+    descripcion:
+      'Landing inmersiva para la barbería W Style, en Santiago. El recorrido es una secuencia renderizada en Blender que avanza con el scroll, con dirección de arte "Noir de oficio". Incluye carta de servicios con precios en CLP (corte, corte + barba, perfilado, lavado + masaje, limpieza facial), membresía Club W, reserva por WhatsApp, horario y ubicación. Hecha en React + TypeScript + Vite, con HTML prerenderizado para SEO, variantes HD para escritorio y móvil, y respaldo en three.js. Publicada en ricorp.cl/wstyle.',
+    mockups: ['figma-frames/wstyle-mockup-desktop.webp', 'figma-frames/wstyle-mockup-mobile.webp'],
+    enlace: '/wstyle/',
+    destacado: true,
+  },
+
   {
     id: 'relleno-radeon',
     fecha: '2022-12-14',
@@ -118,9 +144,8 @@ export const trayectoria: HitoTrayectoria[] = [
     imagen: 'figma-frames/news-5.png',
   },
 
-  /* Los 7 de acá abajo son los que arma la sección Proyectos (`destacado`).
-     Las fechas son inventadas y solo sirven para fijar el orden: como son más
-     viejas que los análisis de arriba, la portada de la trayectoria no cambia. */
+  /* Los 6 de acá abajo son los proyectos de ejemplo de la sección Proyectos
+     (`destacado`). Las fechas son inventadas y solo sirven para fijar el orden. */
   {
     id: 'relleno-haru',
     fecha: '2022-10-20',
@@ -130,16 +155,6 @@ export const trayectoria: HitoTrayectoria[] = [
     descripcion:
       'Lorem ipsum dolor sit amet consectetur. Quis sed ultrices sed ornare iaculis viverra nec vivamus. Eu ullamcorper sed in dictumst mauris nunc a posuere. Quam faucibus sem sed odio augue lectus cursus ultricies morbi. Eu elit cursus orci justo accumsan sit. Felis leo eleifend elit urna habitasse integer. Ornare donec vivamus eget facilisi interdum.',
     mockups: ['figma-frames/project-haru-1.png', 'figma-frames/project-haru-2.png'],
-    destacado: true,
-  },
-  {
-    id: 'relleno-proyecto-2',
-    fecha: '2022-09-15',
-    titulo: 'Project 2',
-    etiqueta: 'Brand identity',
-    imagen: 'figma-frames/image-1.png',
-    descripcion:
-      'Lorem ipsum dolor sit amet consectetur. Vestibulum feugiat massa nibh justo proin dignissim purus tristique nisl. Faucibus ipsum mauris sed augue dui. Sodales ultrices cursus condimentum hac scelerisque elementum morbi nisl.',
     destacado: true,
   },
   {
