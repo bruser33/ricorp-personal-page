@@ -134,12 +134,22 @@ export function Contact() {
           el glow detrás del título lo pone este elemento (solo en mobile). */}
       <div className="contact-glow-mobile" aria-hidden="true" />
 
+      {/* El orbe es el GIF animado del Figma (capa "yy3 1", 28 cuadros, vuelta de
+          1.12s) pasado a WebP animado. Con movimiento reducido se sirve el PNG
+          quieto: un WebP animado no se detiene con CSS. */}
       <div className="contact-orb-3d" aria-hidden="true">
-        <img
-          src={`${import.meta.env.BASE_URL}figma-frames/contact-orb.png`}
-          alt=""
-          className="iridescent-img"
-        />
+        <picture>
+          <source
+            media="(prefers-reduced-motion: no-preference)"
+            srcSet={`${import.meta.env.BASE_URL}figma-frames/contact-orb.webp`}
+            type="image/webp"
+          />
+          <img
+            src={`${import.meta.env.BASE_URL}figma-frames/contact-orb.png`}
+            alt=""
+            className="iridescent-img"
+          />
+        </picture>
       </div>
 
       <div className="container contact-inner">
