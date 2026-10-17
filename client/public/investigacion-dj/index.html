@@ -1,0 +1,530 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="description" content="Dossier III: 98 sitios de DJs, clubes, festivales y músicos ordenados por calidad y dificultad.">
+<title>El tier del club</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@500;800;900&family=Archivo:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: dossier de sello discográfico. Cada sección es un "catálogo" (CAT.), columna de lectura + tablas anchas con scroll propio. Dark-first deliberado: un club a las 04:00. */
+:root{
+  --bg:#0f0f0e; --surface:#181816; --line:#2c2b27; --fg:#e9e5dc; --muted:#9a958a;
+  --accent:#e2b13c; /* luz de sodio */
+  --ok:#7fb48a; --warn:#d98b5f;
+  --display:"Big Shoulders Display","Arial Narrow",Impact,sans-serif;
+  --body:"Archivo",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{animation:none!important;transition:none!important}}
+body{background:var(--bg);color:var(--fg);font:16px/1.6 var(--body);margin:0}
+.wrap{max-width:1120px;margin:0 auto;padding-inline:clamp(16px,4vw,48px);padding-block:0 96px}
+a{color:var(--fg);text-decoration-color:var(--accent);text-underline-offset:3px}
+a:hover{color:var(--accent)}
+a:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.mono{font-family:var(--mono);font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+h1,h2,h3{font-family:var(--display);font-weight:900;text-transform:uppercase;line-height:.92;margin:0;text-wrap:balance}
+h2{font-size:clamp(40px,7vw,76px)}
+h3{font-size:28px;font-weight:800}
+p{max-width:68ch;margin:0}
+.prose{display:grid;gap:14px}
+strong{color:var(--fg);font-weight:600}
+em.hl{font-style:normal;color:var(--accent)}
+
+/* Hero */
+header.hero{padding-block:56px 40px;border-bottom:1px solid var(--line);display:grid;gap:28px}
+.hero .meta{display:flex;flex-wrap:wrap;gap:8px 24px}
+.hero h1{font-size:clamp(64px,15vw,184px);letter-spacing:-.01em}
+.hero h1 span{color:var(--accent)}
+.hero .lede{font-size:clamp(17px,2vw,20px);max-width:60ch;color:var(--fg)}
+.counter{display:flex;flex-wrap:wrap;gap:12px 32px;font-family:var(--mono);font-size:13px;color:var(--muted)}
+.counter b{font-family:var(--display);font-size:40px;color:var(--fg);display:block;line-height:1;font-weight:800}
+.note{border-left:2px solid var(--line);padding-left:14px;color:var(--muted);font-size:14px;max-width:72ch}
+
+/* Índice */
+nav.toc{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:color-mix(in oklab,var(--bg) 92%,transparent);backdrop-filter:blur(6px);border-bottom:1px solid var(--line);overflow-x:auto}
+nav.toc ol{display:flex;gap:4px;list-style:none;margin:0 auto;padding:10px clamp(16px,4vw,48px);max-width:1120px;white-space:nowrap}
+nav.toc a{font-family:var(--mono);font-size:12px;text-transform:uppercase;letter-spacing:.06em;text-decoration:none;color:var(--muted);padding:6px 10px;border:1px solid transparent;border-radius:2px}
+nav.toc a:hover{color:var(--fg);border-color:var(--line)}
+
+section{padding-block:72px 8px;display:grid;gap:28px;scroll-margin-top:48px}
+.sechead{display:grid;gap:12px}
+.cat{font-family:var(--mono);font-size:12px;color:var(--accent);letter-spacing:.08em}
+
+/* Presupuesto */
+.budget{display:grid;gap:0;border-top:1px solid var(--line)}
+.budget .row{display:grid;grid-template-columns:minmax(0,1.3fr) 150px minmax(0,2fr);gap:16px;padding-block:16px;border-bottom:1px solid var(--line);align-items:baseline}
+.budget .amt{font-family:var(--mono);font-variant-numeric:tabular-nums;color:var(--accent)}
+@media (max-width:640px){.budget .row{grid-template-columns:1fr auto}.budget .row p{grid-column:1/-1}}
+
+/* Dos lados */
+.split{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:2px;background:var(--line);border:1px solid var(--line)}
+.split > div{background:var(--surface);padding:24px;display:grid;gap:12px;align-content:start}
+.split ul{margin:0;padding-left:18px;display:grid;gap:6px}
+.split .gap{background:var(--bg);grid-column:1/-1}
+
+/* Tablas */
+.filters{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.filters button{font:500 12px var(--mono);text-transform:uppercase;letter-spacing:.05em;background:transparent;color:var(--muted);border:1px solid var(--line);padding:7px 11px;border-radius:2px;cursor:pointer}
+.filters button[aria-pressed="true"]{color:var(--bg);background:var(--accent);border-color:var(--accent)}
+.tablebox{overflow-x:auto;border-top:1px solid var(--line)}
+table{border-collapse:collapse;width:100%;min-width:880px;font-size:14px}
+th{font:500 11px var(--mono);text-transform:uppercase;letter-spacing:.07em;color:var(--muted);text-align:left;padding:12px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:12px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+td.n{font-family:var(--mono);color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums;width:36px}
+td.name a{font-weight:600;text-decoration:none}
+td.name a:hover{text-decoration:underline}
+td.name .by{display:block;color:var(--muted);font-size:12px;margin-top:2px}
+td.award{font-family:var(--mono);font-size:12px;white-space:nowrap}
+td.award.win{color:var(--accent)}
+td.tag span{font:500 11px var(--mono);text-transform:uppercase;letter-spacing:.04em;border:1px solid var(--line);padding:2px 6px;border-radius:2px;white-space:nowrap;color:var(--muted)}
+td.chk{width:34px}
+td.chk input{accent-color:var(--accent);width:16px;height:16px}
+tr.seen td:not(.chk){opacity:.45}
+.lead{font-size:15px;color:var(--muted);max-width:72ch}
+.lead b{color:var(--fg);font-weight:600}
+
+/* Stack y capa rentable */
+.specs{display:grid;border-top:1px solid var(--line)}
+.specs .row{display:grid;grid-template-columns:minmax(0,220px) minmax(0,1fr) minmax(0,1fr);gap:20px;padding-block:16px;border-bottom:1px solid var(--line)}
+.specs .row h4{margin:0;font:600 15px var(--body)}
+.specs .row p{font-size:14px}
+.specs .row .risk{color:var(--muted)}
+.specs .hdr{font:500 11px var(--mono);text-transform:uppercase;letter-spacing:.07em;color:var(--muted);padding-block:10px}
+@media (max-width:720px){.specs .row{grid-template-columns:1fr}.specs .hdr{display:none}}
+
+.callout{background:var(--surface);border:1px solid var(--line);padding:24px;display:grid;gap:10px}
+.callout .mono{color:var(--accent)}
+
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:20px;counter-reset:s}
+.steps div{border-top:2px solid var(--accent);padding-top:14px;display:grid;gap:8px}
+.steps div::before{counter-increment:s;content:"PASO " counter(s);font:500 11px var(--mono);letter-spacing:.08em;color:var(--accent)}
+
+
+/* Puntajes */
+.legend{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:2px;background:var(--line);border:1px solid var(--line)}
+.legend > div{background:var(--surface);padding:18px 20px;display:grid;gap:10px;align-content:start}
+.legend ol{list-style:none;margin:0;padding:0;display:grid;gap:6px;font-size:14px}
+.legend li{display:grid;grid-template-columns:96px minmax(0,1fr);gap:12px;align-items:center}
+.meter{display:inline-flex;gap:3px;vertical-align:middle}
+.meter i{width:14px;height:6px;background:var(--line);display:block}
+.meter.mq i.on{background:var(--accent)}
+.meter.md i.on{background:var(--fg)}
+td.sc{white-space:nowrap;width:120px}
+td.sc small{display:block;font:500 11px var(--mono);color:var(--muted);margin-top:6px;letter-spacing:.03em}
+td.name .tg{display:inline-block;margin-top:6px;font:500 10px var(--mono);text-transform:uppercase;letter-spacing:.05em;border:1px solid var(--line);padding:1px 6px;color:var(--muted)}
+tr.tierrow td{padding:22px 10px 8px;border-bottom:1px solid var(--line)}
+tr.tierrow span{font-family:var(--display);font-weight:800;font-size:22px;text-transform:uppercase;letter-spacing:.02em;color:var(--muted)}
+tr.tierrow:first-child td{padding-top:12px}
+tr.q5 td.name a{font-family:var(--display);font-size:24px;font-weight:800;text-transform:uppercase;line-height:1;color:var(--accent)}
+tr.q5 td{background:color-mix(in oklab,var(--accent) 6%,var(--bg))}
+tr.q4 td.name a{font-size:16px}
+tbody tr.q5 + tr.tierrow span, tbody tr.tierrow:first-child span{color:var(--fg)}
+.sorter{margin-top:-12px}
+footer{margin-top:72px;padding-top:24px;border-top:1px solid var(--line);color:var(--muted);font-size:13px;display:grid;gap:10px}
+footer a{color:var(--muted)}
+.pending{color:var(--warn)}
+img{max-width:100%}[hidden]{display:none!important}
+</style>
+</head>
+<body>
+
+<nav class="toc" aria-label="Secciones">
+  <ol>
+    <li><a href="#presupuesto">Presupuesto</a></li>
+    <li><a href="#hallazgo">Hallazgo</a></li>
+    <li><a href="#techno">DJs techno</a></li>
+    <li><a href="#noche">Clubes y festivales</a></li>
+    <li><a href="#generos">Otros géneros</a></li>
+    <li><a href="#estudios">Estudios</a></li>
+    <li><a href="#stack">Stack 2026</a></li>
+    <li><a href="#rentable">Capa rentable</a></li>
+    <li><a href="#chile">Chile</a></li>
+    <li><a href="#demo">El demo</a></li>
+  </ol>
+</nav>
+
+<div class="wrap">
+<header class="hero">
+  <div class="meta"><span class="mono">Dossier III · DJs y música electrónica</span><span class="mono">Octubre 2026</span><span class="mono">Cat. DJ-001</span></div>
+  <h1>El tier<br>del <span>club</span></h1>
+  <p class="lede">Sitios vivos de DJs, festivales, clubes y artistas de otros géneros con nivel de premio, ordenados para responder una pregunta: qué tiene que tener un sitio de diez mil dólares para un DJ de techno, y quién en Chile lo compraría.</p>
+  <div class="counter" id="counter"></div>
+  <p class="note">Verificación: cada dominio se consultó con curl el 16-10-2026; los premios se tomaron de la ficha del sitio en awwwards.com. Donde no pude confirmar un premio dice «—». Marca con el cuadrado los que ya revisaste; queda guardado en este navegador.</p>
+  <div class="legend">
+    <div><span class="mono">Calidad · dirección de arte y nivel de premio</span><ol>
+      <li><span class="meter mq"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span><span><strong>Techo.</strong> SOTD reciente o pieza que definió el género.</span></li>
+      <li><span class="meter mq"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span><span><strong>Referente.</strong> Mención o idea propia que vale copiar.</span></li>
+      <li><span class="meter mq"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span><span><strong>Sólido.</strong> Buena marca, sitio correcto.</span></li>
+      <li><span class="meter mq"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></span><span><strong>Funcional.</strong> Resuelve booking, no emociona.</span></li>
+    </ol></div>
+    <div><span class="mono">Dificultad · lo que cuesta construirlo</span><ol>
+      <li><span class="meter md"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span><span><strong>Mundo WebGL.</strong> Three.js, shaders, audio. Seis cifras.</span></li>
+      <li><span class="meter md"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span><span><strong>Custom + 3D puntual.</strong> Un canvas de fondo, una escena.</span></li>
+      <li><span class="meter md"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span><span><strong>Custom con GSAP.</strong> La franja de los USD 10.000.</span></li>
+      <li><span class="meter md"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></span><span><strong>Plantilla editada.</strong> Squarespace, Wix, WordPress.</span></li>
+    </ol></div>
+  </div>
+  <p class="note">Los puntajes son una lectura mía a partir del premio verificado, la tecnología detectada y lo que muestra cada sitio. Sirven para ordenar, no son una nota oficial. En Chile se mide otra cosa: qué tan buen cliente es y qué tan difícil es venderle.</p>
+</header>
+
+<section id="presupuesto">
+  <div class="sechead"><span class="cat">CAT. DJ-001 · A</span><h2>Qué compran diez mil dólares</h2></div>
+  <div class="prose">
+    <p>Un sitio 3D completo para un músico se cotiza entre <strong>USD 3.500 y 8.000</strong> como freelance, y el tier «award-level» con WebGL parte en <strong>USD 8.000</strong>; una agencia cobra de dos a cuatro veces eso por el mismo alcance. Las plantillas para músicos (Bandzoogle, Squarespace, Wix) cuestan entre USD 8 y 65 al mes. Diez mil dólares es un estudio pequeño entregando un sitio de nivel premio.</p>
+    <p>El referente que lo demuestra es <strong>Paul Kalkbrenner</strong>: DJ de techno, Site of the Day en Awwwards el 2 de septiembre de 2026, hecho en Webflow con GSAP y Lenis. Sin Three.js. Igual que en las barberías, lo caro es el material: los visuales de sus sets y la fotografía.</p>
+  </div>
+  <div class="budget">
+    <div class="row"><strong>Material audiovisual</strong><span class="amt">3.000–4.000</span><p>Loops de visuales de sets, fotografía dirigida, un clip vertical por sección. Sin esto el sitio parece plantilla.</p></div>
+    <div class="row"><strong>Diseño y desarrollo</strong><span class="amt">4.000–5.000</span><p>Una página con scroll narrativo, tipografía cinética, player persistente y una capa audio-reactiva liviana.</p></div>
+    <div class="row"><strong>EPK, booking y datos</strong><span class="amt">1.000–1.500</span><p>Bio en tres largos, fotos descargables, riders, widget de Bandsintown, contacto por territorio, JSON-LD.</p></div>
+    <div class="row"><strong>Mantención mensual</strong><span class="amt">30–60k CLP</span><p>Fechas nuevas, mixes, lanzamientos. Un DJ actualiza el sitio cada mes: aquí está el ingreso recurrente.</p></div>
+  </div>
+  <p class="note">Los rangos de mercado vienen de svilenkovic.com y hontran.dev. El desglose en cuatro partidas es una estimación para Chile, igual que en el primer dossier. Las tarifas de Active Theory o Resn no son públicas.</p>
+</section>
+
+<section id="hallazgo">
+  <div class="sechead"><span class="cat">CAT. DJ-001 · B</span><h2>El sitio bonito no consigue fechas</h2></div>
+  <p class="lead">Al cruzar las cuatro búsquedas aparece la misma fractura que en las barberías. Los sitios premiados de música construyen un mundo. Lo que un promotor revisa antes de contratar a un DJ es otra cosa, y casi ningún sitio premiado lo tiene a mano.</p>
+  <div class="split">
+    <div><span class="mono">Lado premiado</span><ul>
+      <li>Un mundo por disco o set, con botón de Play y preloader</li>
+      <li>Hero en video a sangre, aviso de «activa el sonido»</li>
+      <li>Transiciones que no cortan el audio al navegar</li>
+      <li>La noche contada como un lugar, no como una fecha</li>
+      <li>Datos reales moviendo la estética (Árstraumur, astronomía en vivo)</li>
+    </ul></div>
+    <div><span class="mono">Lo que contrata un promotor</span><ul>
+      <li>Un mix reciente arriba de todo: se contrata una vibra</li>
+      <li>Fechas de tour como prueba de convocatoria</li>
+      <li>Bio, fotos en alta y logo descargables</li>
+      <li>Rider técnico (CDJ, mixer, firmware) y de hospitalidad</li>
+      <li>Contacto de booking por territorio</li>
+    </ul></div>
+    <div class="gap"><p><strong>La oferta:</strong> el mundo inmersivo de Kalkbrenner con el EPK de un agente dentro. El único sitio chileno que se acerca, <a href="https://sepha.cl" target="_blank" rel="noopener">sepha.cl</a>, tiene el EPK pero no tiene mixes ni fechas.</p></div>
+  </div>
+</section>
+
+<section id="techno">
+  <div class="sechead"><span class="cat">CAT. DJ-001 · C</span><h2>DJs de techno</h2></div>
+  <p class="lead"><b>Casi ningún DJ top de techno tiene un sitio premiado.</b> Los únicos confirmados son Paul Kalkbrenner (septiembre 2026) y Solomun, cuya mención de 2023 hoy es una página de parking. Lo que se premia en el nicho son sellos y colectivos: No Art, Kluster. El hueco «DJ de techno con sitio de premio» está libre. Abajo del techo verás el patrón dominante: Squarespace o Wix con un video y un email de booking. Descartados por linktree, caídos o en parking: Amelie Lens, Nina Kraviz, Adam Beyer, I Hate Models, ARTBAT, Reinier Zonneveld, Moderat, Solomun, Kölsch, Dax J, Maceo Plex, VTSS.</p>
+  <div class="filters" data-for="techno"></div>
+  <div class="tablebox"><table data-list="techno"></table></div>
+</section>
+
+<section id="noche">
+  <div class="sechead"><span class="cat">CAT. DJ-001 · D</span><h2>Clubes, festivales, sellos</h2></div>
+  <p class="lead">El equivalente a la hostelería premiada del primer dossier: negocios con presupuesto real que venden una noche. <b>Casi ninguno vende entradas en su web</b>: derivan a Resident Advisor, DICE o Weeztix. El dinero propio está en mesas VIP, paquetes con hotel, cuotas y preventas. Empieza por <b>Paradigm</b> (mención de septiembre 2026, techno) y <b>Nameless</b> (aviso de sonido y Lenis).</p>
+  <div class="filters" data-for="noche"></div>
+  <div class="tablebox"><table data-list="noche"></table></div>
+</section>
+
+<section id="generos">
+  <div class="sechead"><span class="cat">CAT. DJ-001 · E</span><h2>Otros géneros</h2></div>
+  <p class="lead">Aquí están las ideas que todavía no llegan al techno. <b>Yamê</b> abre un universo 3D con un botón «Jouer». <b>Die Antwoord</b> arma una gira pidiendo a los fans que comenten «BOOK DIE ANTWOORD 2027»: prueba de demanda para promotores. <b>Árstraumur</b> mueve su sistema solar con astronomía real; en un DJ serían los BPM, la hora del club o las coordenadas de cada fecha.</p>
+  <div class="filters" data-for="generos"></div>
+  <div class="tablebox"><table data-list="generos"></table></div>
+</section>
+
+<section id="estudios">
+  <div class="sechead"><span class="cat">CAT. DJ-001 · F</span><h2>Los estudios</h2></div>
+  <p class="lead">Solo los estudios con un trabajo musical verificado. Locomotive y darkroom entran por otra razón: de ellos salen las librerías de smooth scroll que usa casi todo el circuito.</p>
+  <div class="tablebox"><table data-list="estudios"></table></div>
+</section>
+
+<section id="stack">
+  <div class="sechead"><span class="cat">CAT. DJ-001 · G</span><h2>El stack de 2026</h2></div>
+  <p class="lead">Un cambio importante desde el primer dossier: <b>GSAP es 100% gratis desde la versión 3.13 (mayo 2025)</b>, plugins incluidos y con uso comercial, tras la compra por Webflow.</p>
+  <div class="specs" id="stack-list">
+    <div class="row hdr"><span>Tecnología</span><span>Qué aporta a un DJ</span><span>Riesgo en móvil</span></div>
+  </div>
+</section>
+
+<section id="rentable">
+  <div class="sechead"><span class="cat">CAT. DJ-001 · H</span><h2>La capa rentable</h2></div>
+  <p class="lead">Lo que un agente o promotor abre antes de cerrar una fecha. Va dentro del mundo inmersivo, no en un PDF aparte.</p>
+  <div class="specs" id="epk-list">
+    <div class="row hdr"><span>Elemento</span><span>Por qué importa</span><span>Cómo resolverlo</span></div>
+  </div>
+</section>
+
+<section id="chile">
+  <div class="sechead"><span class="cat">CAT. DJ-001 · I</span><h2>Chile</h2></div>
+  <div class="prose">
+    <p><strong>La Feria</strong> (Providencia, 400 personas, 26 años) es el #91 del DJ Mag Top 100 Clubs 2025. Completan la escena Club Subterráneo, Club Amanda y Microclub; los festivales Creamfields Chile (14-15 nov 2026), Respira (21 nov, con el auge del hard techno y el schranz), Verknipt, Zonda y DGTL Santiago; y colectivos como Kaos Techno, Club Sauna, Circuito Integrado y Lastra Sessions.</p>
+    <p>La lectura comercial: <strong>casi ningún DJ chileno con proyección internacional tiene sitio propio</strong>. Se mueven con Resident Advisor, Bandsintown, SoundCloud e Instagram. Los de primer nivel (Luciano, Villalobos) no lo van a valorar. El encaje para diez mil dólares son los que están subiendo con giras en Europa.</p>
+  </div>
+  <div class="tablebox"><table data-list="chile"></table></div>
+  <div class="callout"><span class="mono">Competencia directa</span><p><a href="https://sepha.cl" target="_blank" rel="noopener">sepha.cl</a> es un EPK de una página hecho por Adfusion Studio: cifras (10 países, Creamfields 35K), cita de prensa, media kit en Drive, videos en vivo, rider, email con botón copiar, un toggle «Fire/Ice» y control de sonido. Es la vara local. No tiene mixes propios ni widget de fechas.</p></div>
+  <p class="note">Correcciones de la búsqueda: lucianomusic.com es de un guitarrista homónimo, no de Luciano. Valentina Luz es brasileña. De Felipe Venegas hay riesgo de homónimo.</p>
+</section>
+
+<section id="demo">
+  <div class="sechead"><span class="cat">CAT. DJ-001 · J</span><h2>El demo que vende</h2></div>
+  <div class="steps">
+    <div><h3>Elige al DJ</h3><p>Uno de la tabla de Chile con giras en Europa y sin sitio. Sus visuales y fotos ya están en su Instagram y en los aftermovies de los festivales.</p></div>
+    <div><h3>Móntalo sobre Kalkbrenner</h3><p>Webflow o Next con GSAP y Lenis. Su último mix arriba, su nombre real, sus fechas desde Bandsintown. Un shader que reacciona a los BPM.</p></div>
+    <div><h3>Mételo el EPK</h3><p>Bio, fotos, rider y booking dentro del mismo scroll. Es lo que sepha.cl tiene y los sitios premiados no.</p></div>
+    <div><h3>Mándalo en vertical</h3><p>Veinte segundos de pantalla, con el set sonando. No le vendes una web: le muestras la suya funcionando antes de su próxima fecha.</p></div>
+  </div>
+</section>
+
+<footer>
+  <p>Fuentes: fichas de Awwwards (awwwards.com/sites/…, categoría Music &amp; Sound), DJ Mag Top 100 Clubs 2025, El Mostrador, Bandzoogle, Pixpa, Mixgraph, Stagent, booking-agent.io, Bandsintown, MDN, web.dev, Webflow y GSAP, Resident Advisor, Kompakt, MUTEK, Bandcamp y SoundCloud.</p>
+  <p>Complementa los dossiers I (tier inmersivo) y II (barberías) de septiembre 2026. FWA y CSS Design Awards no devolvieron premios verificables para estos sitios.</p>
+</footer>
+</div>
+
+<script>
+const DATA = {
+techno: [
+ {n:"Paul Kalkbrenner",u:"https://www.paulkalkbrenner.net",by:"HOLOGRAPHIK + Ilja van Eck",what:"El hero es tipográfico y funciona como reproductor: Sound On, «Now playing», tracklist 01–09. Debajo, discografía por año, fechas de Bandsintown, galería y video en una sola home.",award:"SOTD 02-09-2026",win:1,tag:"Premiado"},
+ {n:"No Art",u:"https://www.noartmusic.com",by:"BORING · Three.js + Web Audio",what:"Sello y eventos techno: canvas 3D, video y audio en una experiencia. «Next up» con el próximo evento arriba, y Events, Tickets, Shop y Label en la nav.",award:"SOTD 06-08-2026",win:1,tag:"Premiado"},
+ {n:"Kluster Collectif",u:"https://klustercollectif.com",by:"Studio Indice · Framer",what:"Colectivo electrónico de París con un sitio editorial de tipografía fuerte y microinteracciones.",award:"HM 21-04-2026",win:1,tag:"Premiado"},
+ {n:"DJ KOVA",u:"https://kova.masalto.studio",by:"Más Alto · React, GSAP, Lenis",what:"Scroll narrativo con tipografía gigante: «THE SOUND OF KOVA», «NEXT STOPS» y fechas. Es un DJ conceptual: el demo de un estudio.",award:"Nominee 04-2026",win:0,tag:"Premiado"},
+ {n:"Eric Prydz",u:"https://www.ericprydz.com",by:"Fresh Pies",what:"Three.js, varios canvas WebGL y unos 15 videos. Fechas 2026 con tickets, sus shows de producción (HOLOSPHERE, [CELL]) y booking a la agencia.",award:"—",win:0,tag:"3D-WebGL"},
+ {n:"Peggy Gou",u:"https://www.peggygou.com",by:"—",what:"Canvas WebGL a pantalla completa con un orbe neón y botón Play con Web Audio. Nav inferior: Music, Tour, Videos, Press, sello y merch.",award:"—",win:0,tag:"3D-WebGL"},
+ {n:"Boris Brejcha",u:"https://www.borisbrejcha.de",by:"—",what:"Canvas WebGL a pantalla completa, tan pesado que la captura automática se cortó por timeout. Booking, sets, tour y fashion en la nav.",award:"—",win:0,tag:"3D-WebGL"},
+ {n:"Sara Landry",u:"https://www.saralandry.com",by:"Webflow + GSAP",what:"Hero tipográfico con logo cromado, video y CTA del álbum. Nav numerada, tour por Seated, fan club «Join the Afters» y merch con precio.",award:"—",win:0,tag:"Tipografía"},
+ {n:"Afterlife (Tale of Us)",u:"https://www.after.life",by:"Squarespace",what:"Una marca-universo: Worldwide, Festival, Ibiza, Recordings y Voyage, con estética cinematográfica oscura.",award:"—",win:0,tag:"Video"},
+ {n:"Anyma",u:"https://www.anyma.com",by:"Squarespace",what:"Grid de video (Sphere Las Vegas, Genesys) con una página propia para la residencia en la Sphere.",award:"—",win:0,tag:"Video"},
+ {n:"Bicep",u:"https://www.bicepmusic.com",by:"Nuxt + Shopify",what:"Videos de fondo con Monument Grotesk; Live, Projects y la tienda integradas.",award:"—",win:0,tag:"Video"},
+ {n:"Chris Liebing",u:"https://chrisliebing.com",by:"WordPress + GSAP",what:"Tipografía propia (CLF26), siete videos en la home, fechas y booking.",award:"—",win:0,tag:"Tipografía"},
+ {n:"Drumcode",u:"https://www.drumcode.se",by:"Sello de Adam Beyer",what:"Nav numerada 01–06 que se expande, con un display condensado de cartel techno.",award:"—",win:0,tag:"Tipografía"},
+ {n:"Keinemusik",u:"https://keinemusik.com",by:"—",what:"Una tipografía ancha como identidad, con releases, fechas y radio en vivo.",award:"—",win:0,tag:"Tipografía"},
+ {n:"Adriatique",u:"https://www.adriatique.ch",by:"—",what:"Home tipo feed con nueve videos, sus submarcas de eventos y venta de tickets.",award:"—",win:0,tag:"Video"},
+ {n:"Stephan Bodzin",u:"https://www.stephanbodzin.de",by:"Shopify",what:"Hero en video que empuja directo al lanzamiento actual: sitio y tienda en uno.",award:"—",win:0,tag:"Video"},
+ {n:"Ellen Allien",u:"https://ellenallien.de",by:"—",what:"Display extra-comprimido con video, y «Press Pics» como ítem propio de la nav.",award:"—",win:0,tag:"Tipografía"},
+ {n:"Max Cooper",u:"https://maxcooper.net",by:"Engine",what:"Cada obra audiovisual tiene su propia página; Discord como canal de fans.",award:"Nominee 2013",win:0,tag:"Video"},
+ {n:"Four Tet",u:"https://www.fourtet.net",by:"Jason Evans y Matthew Cooper",what:"Una columna brutalista en Helvetica: la dirección de arte está en la ausencia de diseño.",award:"—",win:0,tag:"Tipografía"},
+ {n:"Richie Hawtin · From Our Minds",u:"https://fromourminds.com",by:"Shopify + Bandsintown",what:"Su dominio redirige a su plataforma de eventos, con fechas, RSVP y tickets.",award:"—",win:0,tag:"Booking"},
+ {n:"Ben Böhmer",u:"https://benboehmer.com",by:"—",what:"Serif editorial con Bandsintown, YouTube, captación de fans con Laylo y booking en la home.",award:"—",win:0,tag:"Booking"},
+ {n:"Hernan Cattaneo",u:"https://www.hernancattaneo.com",by:"—",what:"BOOKING en la nav principal y un botón de tickets por cada fecha.",award:"—",win:0,tag:"Booking"},
+ {n:"Charlotte de Witte",u:"https://charlottedewittemusic.com",by:"—",what:"La home es una tarjeta de contactos: management, booking por región (Américas / resto del mundo) y prensa.",award:"—",win:0,tag:"Booking"},
+ {n:"Enrico Sangiuliano",u:"https://enricosangiuliano.com",by:"—",what:"Bloque Management / Bookings / Press, su sello y fechas. Tiene material de EPK.",award:"—",win:0,tag:"Booking"},
+ {n:"Massano",u:"https://www.massanomusic.com",by:"Wix",what:"Shows, videos y shop con Bandsintown y el email de booking visible.",award:"—",win:0,tag:"Booking"},
+ {n:"Trym",u:"https://trym.fr",by:"Superglow",what:"Hard techno: releases, videos, tienda y fechas con tickets directos, sin adornos.",award:"—",win:0,tag:"Booking"},
+ {n:"Rival Consoles",u:"https://www.rivalconsoles.net",by:"Squarespace",what:"Las secciones «Diagram» y «Audio / Visual» tratan cada disco como obra visual.",award:"—",win:0,tag:"Video"}
+],
+noche: [
+ {n:"Paradigm Festival",u:"https://www.paradigmfestival.com",by:"Bureau Breekijzer",what:"Line-up alfabético con foto, bio y etiquetas «live» y «B2B»; accesos directos a timetable, mapa y tickets. Techno y hardcore en Groningen.",award:"HM 09-09-2026",win:1,tag:"Festival"},
+ {n:"Nameless Festival",u:"https://www.namelessfestival.it",by:"dverso studio",what:"Un hero de imagen completa por edición con un solo CTA, y un aviso para activar el sonido. Nuxt + Lenis.",award:"HM 01-03-2026",win:1,tag:"Festival"},
+ {n:"Alter Ego Festival",u:"https://alteregofestival.at",by:"bnm · Benjamin Wagner",what:"La home es una mecánica de captación: registras tu ticket y llevas a alguien gratis.",award:"HM 25-01-2026",win:1,tag:"Festival"},
+ {n:"Klangtherapie",u:"https://www.klangtherapie-festival.de/en/",by:"agentur-brandmarker",what:"«Paralleluniversum since 2003»: cinco escenarios de techno, sauna y talleres, con un ancla directa a tickets.",award:"Nominee 08-2025",win:0,tag:"Festival"},
+ {n:"Cercle Festival",u:"https://festival.cercle.io",by:"Ouiflow",what:"Hero fotográfico a sangre con la fecha como banda tipográfica; la locación, un museo aeroespacial, es el producto.",award:"HM 29-05-2024",win:1,tag:"Festival"},
+ {n:"Cercle",u:"https://www.cercle.io",by:"Webflow",what:"Se vende como «Artistic Movement»: el set en una locación icónica es la marca.",award:"—",win:0,tag:"Medio"},
+ {n:"Wilde Weide",u:"https://wildeweidefestival.nl/en/",by:"Tom Walter",what:"Tres días contados como un viaje hacia lo desconocido: «elige el otro camino».",award:"SOTD 15-04-2024",win:1,tag:"Festival"},
+ {n:"WHOLE Festival",u:"https://wholefestival.com",by:"nicola_napoli",what:"Identidad queer marcada sobre el paisaje industrial de Ferropolis; fecha y lugar como claim.",award:"HM 02-08-2024",win:1,tag:"Festival"},
+ {n:"I Love Techno Europe",u:"https://ilovetechnoeurope.com",by:"NouvelleCuisine",what:"Identidad tipográfica de una marca techno histórica. El contenido sigue en la edición 2024.",award:"HM 02-02-2022",win:1,tag:"Festival"},
+ {n:"Mysteryland",u:"https://www.mysteryland.nl",by:"Nuxt + Lenis + Mux",what:"Heroes en video con degradado y un pre-registro 2027 como único CTA fuera de temporada.",award:"Nominee 2016",win:0,tag:"Festival"},
+ {n:"Awakenings",u:"https://www.awakenings.com",by:"Bravoure",what:"Agenda en tarjetas con estado «Sold out» y secciones visibles de seguridad, accesibilidad y sostenibilidad.",award:"HM 2013",win:1,tag:"Festival"},
+ {n:"Amsterdam Dance Event",u:"https://www.amsterdam-dance-event.nl",by:"Bravoure",what:"Hub de toda una ciudad, navegación con Barba y ticketing Weeztix.",award:"SOTD 30-10-2013",win:1,tag:"Festival"},
+ {n:"Kappa FuturFestival",u:"https://www.kappafuturfestival.it",by:"Webflow",what:"Monetiza la experiencia: VIP, hoteles, afterparties, lockers, cuotas Klarna y lista de espera por tanda.",award:"—",win:0,tag:"Festival"},
+ {n:"Time Warp",u:"https://www.time-warp.de",by:"—",what:"Slider de ediciones por ciudad con estado «Lineup out now!» y el legado «Synthesis of Light & Sound» desde 1994.",award:"—",win:0,tag:"Festival"},
+ {n:"Movement Detroit",u:"https://movementfestival.com",by:"Webflow + GSAP",what:"Animación GSAP sobre Webflow y ticketing vía RA: un patrón ligero que se puede reproducir.",award:"—",win:0,tag:"Festival"},
+ {n:"Sónar",u:"https://sonar.es",by:"RSB Agency",what:"Rediseño completo en cada edición, con CMS propio y una API conectada a la app oficial.",award:"—",win:0,tag:"Festival"},
+ {n:"Dekmantel",u:"https://www.dekmantel.com",by:"Identidad: Thonik, Bureau Borsche",what:"Home editorial, no promocional: Artist Guide, app, mixes y releases. El festival entra por la marca.",award:"—",win:0,tag:"Sello"},
+ {n:"UNVRS Ibiza",u:"https://www.unvrs.com",by:"Nuxt",what:"«Welcome to the Universe» con un contador y reloj en hora de Ibiza; el único CTA de compra es la mesa VIP.",award:"—",win:0,tag:"Club"},
+ {n:"Hï Ibiza",u:"https://www.hiibiza.com",by:"Nuxt",what:"Residencias en tarjetas, grilla de residentes, merch, playlists y formulario de presale.",award:"—",win:0,tag:"Club"},
+ {n:"fabric London",u:"https://www.fabriclondon.com",by:"Webflow + Lottie",what:"«Never Not Making Noise»: la fotografía de cada noche manda y la compra se deriva a RA.",award:"—",win:0,tag:"Club"},
+ {n:"KNTXT",u:"https://kntxt.com",by:"Charlotte de Witte",what:"Sello y eventos de una DJ bajo una sola estética oscura: el sitio de un artista convertido en plataforma.",award:"—",win:0,tag:"Sello"},
+ {n:"Groove Motive Recs",u:"https://www.groovemotiverecs.com",by:"dillonmarinez",what:"Sala de escucha inmersiva con tocadiscos animado y eventos dentro del sitio del sello.",award:"Nominee 08-2025",win:0,tag:"Sello"},
+ {n:"Scantraxx",u:"https://www.scantraxx.com",by:"Jongens van Boven",what:"Catálogo de artistas y releases con estética de marca fuerte. Hardstyle, pero el patrón sirve.",award:"HM 2021",win:1,tag:"Sello"},
+ {n:"The Lot Radio",u:"https://www.thelotradio.com",by:"Decimal",what:"Stream 24/7 con player persistente, horario por hora y un archivo con tags.",award:"HM 01-02-2026",win:1,tag:"Medio"},
+ {n:"HÖR Berlin",u:"https://hoer.live",by:"WordPress",what:"Video en vivo, calendario y una membresía que desbloquea Track IDs, comentarios y favoritos.",award:"—",win:0,tag:"Medio"},
+ {n:"Boiler Room",u:"https://boilerroom.tv",by:"Next.js + Shopify",what:"Carruseles de sets con tags de ciudad, año y género, y un buscador de ciudades sobre mapa.",award:"—",win:0,tag:"Medio"},
+ {n:"NTS",u:"https://www.nts.live",by:"Barba.js",what:"Radio desde más de 50 ciudades con transiciones que no cortan el stream al navegar.",award:"—",win:0,tag:"Medio"}
+],
+generos: [
+ {n:"Yamê · The Molazone",u:"https://mola-zone.com",by:"Studio 9P",what:"Un botón «Jouer» abre un universo 3D con los escenarios de cada canción, un minijuego y una bóveda premium.",award:"SOTD 01-09-2025",win:1,tag:"Campaña 3D"},
+ {n:"Damso",u:"https://damso.com",by:"Numbered",what:"Tienda, sección «World» y gira en una sola navegación con escenas 3D y cursor propio.",award:"SOTD 27-09-2025",win:1,tag:"3D + tienda"},
+ {n:"Radical Face",u:"https://www.radicalface.com",by:"Rogue Studio",what:"Todo ordenado en Audio, Written y Visual, con un interruptor «enable audio».",award:"SOTD 01-08-2025",win:1,tag:"Tipografía"},
+ {n:"Die Antwoord · ZAMA ZAMA",u:"https://dieantwoord.com",by:"Kins",what:"Micro-serie, fichas «CLASSIFIED» y una gira por regiones donde los fans piden la fecha comentando.",award:"HM 07-07-2026",win:1,tag:"Campaña"},
+ {n:"INHERITED",u:"https://inherited.band",by:"Eder Anaya",what:"La banda como mundo digital con historia, identidad y scroll tipográfico.",award:"HM 21-09-2026",win:1,tag:"Tipografía"},
+ {n:"Árstraumur",u:"https://arstraumur.music",by:"davidlilja",what:"Se navega un sistema solar con posiciones y luz reales; la discografía son los anillos de Saturno.",award:"Nominee 09-2026",win:0,tag:"3D-WebGL"},
+ {n:"Arrested Development",u:"https://www.arresteddevelopmentmusic.com",by:"Jarrod Tafoya",what:"Archivo interactivo de más de 30 años de música, giras e historias de fans.",award:"Nominee 09-2026",win:0,tag:"Scroll"},
+ {n:"Van Morrison",u:"https://vanmorrison.com",by:"Eyekiller",what:"Un sitio clásico renovado con video y animaciones editoriales.",award:"HM 10-07-2026",win:1,tag:"Video"},
+ {n:"Rauw Alejandro",u:"https://rauwalejandro.com",by:"DHNN",what:"Entornos 3D en Spline con motion graphics y un «Private Club» para fans.",award:"HM 31-10-2025",win:1,tag:"3D-WebGL"},
+ {n:"SIRUP · OWARI DIARY",u:"https://sirup.online/owaridiary/",by:"tote",what:"El disco se recorre como un diario con escritura a mano y una portada por cada track.",award:"HM 18-10-2025",win:1,tag:"Campaña"},
+ {n:"H JeuneCrack",u:"https://hjeunecrack.fr",by:"Maxence Lehee",what:"3D con scroll en GSAP que desemboca directo en la tienda.",award:"HM 23-09-2025",win:1,tag:"3D + tienda"},
+ {n:".idk. · Even The Devil Smiles",u:"https://www.e-t-d-s.com",by:"Skcrub",what:"Plataforma de exploración del proyecto con merch integrado.",award:"HM 01-12-2025",win:1,tag:"Campaña"},
+ {n:"Lady Gaga · Mayhem",u:"https://www.ladygaga.com",by:"Commerce-UI · Yung Studio",what:"Plataforma de fans con cuentas, contenido editado por la artista, tienda y sección Live.",award:"HM 02-05-2025",win:1,tag:"Tienda + tour"},
+ {n:"MILLENNIUM PARADE",u:"https://millenniumparade.com",by:"WATARIGARASU",what:"Un mundo ficticio con personajes 3DCG, cada uno con su propia página.",award:"HM 20-02-2025",win:1,tag:"3D-WebGL"},
+ {n:"Mosaert (Stromae)",u:"https://mosaert.com",by:"Stoëmp St.",what:"El universo visual del artista presentado como casa creativa, no como sitio de músico.",award:"HM 23-01-2025",win:1,tag:"Tipografía"},
+ {n:"SoundCloud × Billie Eilish",u:"https://soundcloud.com/partner/billie",by:"moritzb",what:"Cuenta en scroll la historia desde «Ocean Eyes» en 2015 hasta hoy.",award:"Nominee 05-2025",win:0,tag:"Scroll"},
+ {n:"Porter Robinson · Nurture",u:"https://nurtu.re",by:"Active Theory",what:"Experiencia multijugador con cinco entornos 3D, uno por single.",award:"HM 23-07-2021",win:1,tag:"Campaña 3D"},
+ {n:"Doja Cat · DojaCode",u:"https://dojacode.com",by:"Active Theory",what:"Videoclip que el fan modifica escribiendo código básico.",award:"HM 15-12-2021",win:1,tag:"Video"},
+ {n:"Perturbator",u:"https://perturbator.com",by:"Antinomy Studio",what:"Lanzamiento de un disco con tipografía protagonista animada en GSAP.",award:"SOTD 05-12-2021",win:1,tag:"Tipografía"},
+ {n:"Alicia Keys",u:"https://www.aliciakeys.com",by:"MOUTHWASH",what:"Portada en video a pantalla completa con transiciones animadas.",award:"SOTD 15-10-2021",win:1,tag:"Video"},
+ {n:"Martin Garrix",u:"https://martingarrix.com",by:"nils-hoenson",what:"Portada con video de festival y animaciones fluidas. El caso EDM más directo.",award:"HM 20-04-2021",win:1,tag:"Video"},
+ {n:"Jeen-Yuhs (Kanye West)",u:"https://jeen-yuhs.com",by:"cthdrl",what:"Una «TV de canales» en WebGL para anunciar el documental.",award:"HM 29-09-2021",win:1,tag:"Video"},
+ {n:"Charli XCX · brat",u:"https://www.charlixcx.com",by:"SPECIAL OFFER",what:"Micrositio que junta el contenido de todos los canales de la era brat. Bloquea la verificación automática (403).",award:"Nominee 05-2024",win:0,tag:"Campaña"}
+],
+estudios: [
+ {n:"HOLOGRAPHIK",u:"https://holographik.com",by:"con Ilja van Eck",what:"paulkalkbrenner.net: SOTD + Developer Award, 02-09-2026. Webflow, GSAP, Lenis, Barba.",award:"SOTD 2026",win:1,tag:"Techno"},
+ {n:"Active Theory",u:"https://activetheory.net",by:"Los Ángeles",what:"Spotify Wrapped Party (SOTD + Developer, 24-07-2026), Porter Robinson Nurture, DojaCode.",award:"SOTD 2026",win:1,tag:"WebGL"},
+ {n:"Rogier de Boevé",u:"https://rogierdeboeve.com",by:"Freelance",what:"Overworld Audio: SOTD + Developer Award, 15-10-2026. Es lo último que premiaron en audio.",award:"SOTD 2026",win:1,tag:"Audio"},
+ {n:"Bureau Breekijzer",u:"https://bureaubreekijzer.nl",by:"Países Bajos",what:"Paradigm Festival, house y techno. Webflow + GSAP.",award:"HM 2026",win:1,tag:"Festival"},
+ {n:"Kins",u:"https://kins.studio",by:"—",what:"Die Antwoord · ZAMA ZAMA.",award:"HM 2026",win:1,tag:"Campaña"},
+ {n:"Eyekiller",u:"https://eyekiller.com",by:"—",what:"Van Morrison.",award:"HM 2026",win:1,tag:"Artista"},
+ {n:"Resn",u:"https://resn.co.nz",by:"Nueva Zelanda",what:"twenty øne piløts «Banditø» (Site of the Month 2018), WhaleSynth, SBTRKT. 62 SOTD en total.",award:"SOTM 2018",win:1,tag:"WebGL"},
+ {n:"Locomotive",u:"https://locomotive.ca",by:"Montreal",what:"Elektra Virtual Museum (SOTD 2022) y la librería Locomotive Scroll.",award:"SOTD 2022",win:1,tag:"Scroll"},
+ {n:"darkroom",u:"https://darkroom.engineering",by:"ex Studio Freight",what:"Mantienen Lenis, el smooth scroll que usan Kalkbrenner, Nameless y Mysteryland.",award:"—",win:0,tag:"Librería"}
+],
+chile: [
+ {n:"Valesuchi",u:"https://ra.co/podcast/728",by:"En Río · RA.728, Sónar, Dekmantel SP",what:"Perfil internacional fuerte. valesuchi.com bloquea la verificación (403); se mueve por Mixcloud.",award:"Sitio sin verificar",win:0,tag:"Prioridad"},
+ {n:"Francisco Allendes",u:"https://ra.co/dj/franciscoallendes",by:"En Ibiza · Desolat, Cadenza, Crosstown",what:"Sin sitio propio: usa Resident Advisor y Bandsintown.",award:"Sin sitio",win:0,tag:"Prioridad"},
+ {n:"Dinky",u:"https://dinkyhorizontal.bandcamp.com",by:"Alejandra Iglesias · Barcelona",what:"Sin sitio verificado; vive en Bandcamp.",award:"Sin sitio",win:0,tag:"Prioridad"},
+ {n:"Matías Aguayo",u:"https://kompakt.fm/artists/matias_aguayo",by:"Cómeme · Kompakt",what:"Tiene sello y estética propia, pero ningún sitio. El mundo inmersivo ya existe en sus discos.",award:"Sin sitio",win:0,tag:"Prioridad"},
+ {n:"Sepha",u:"https://sepha.cl",by:"Ultra, Creamfields, Zamna",what:"Ya invirtió en un EPK. Candidato a un upgrade inmersivo con mixes y fechas.",award:"EPK propio",win:1,tag:"Upgrade"},
+ {n:"Felipe Venegas",u:"https://www.soundwall.it/soundwall-podcast-55-felipe-venegas/",by:"Cadenza",what:"Sin sitio encontrado. Confirmar identidad: hay un homónimo.",award:"Sin sitio",win:0,tag:"Verificar"},
+ {n:"Modoturista",u:"https://soundcloud.com/modoturista",by:"Kaos Techno · Verknipt, Zonda",what:"Emergente, solo SoundCloud. Presupuesto incierto.",award:"Solo SoundCloud",win:0,tag:"Emergente"},
+ {n:"Fernando Caneo",u:"https://soundcloud.com/fercaneo",by:"Viña del Mar",what:"Emergente, solo SoundCloud.",award:"Solo SoundCloud",win:0,tag:"Emergente"},
+ {n:"Imaabs",u:"https://mutek.org/en/artists/imaabs",by:"NAAFI · Sónar, MUTEK",what:"Más club y bass que techno. Solo una página en su agencia.",award:"Sin sitio",win:0,tag:"Afín"},
+ {n:"Tomás Urquieta",u:"https://dotheastralplane.com/tag/tomas-urquieta/",by:"Diamante",what:"Escena experimental, sin sitio encontrado.",award:"Sin sitio",win:0,tag:"Afín"},
+ {n:"Luciano",u:"https://platinumlist.net/artist/468/luciano",by:"Cadenza",what:"El de más perfil, sin sitio propio verificado. Probablemente lo maneja un equipo de management.",award:"Sin sitio",win:0,tag:"Difícil"},
+ {n:"Ricardo Villalobos",u:"https://ricardovillalobos.com",by:"Perlon",what:"Famoso por ser anti-digital. El dominio responde 403 detrás de Cloudflare.",award:"Sin verificar",win:0,tag:"Difícil"}
+]
+};
+
+const STACK = [
+ ["GSAP + ScrollTrigger","La coreografía con el scroll y el texto partido (SplitText). Es el motor de Kalkbrenner y de casi todo el circuito.","Ligero. Gratis para uso comercial desde 3.13."],
+ ["Lenis","El scroll con inercia que hace que el mismo diseño se sienta caro.","Puede pelear con el scroll nativo de iOS. Respetar prefers-reduced-motion."],
+ ["Web Audio API + shaders","Visuales que reaccionan al mix: el análisis de frecuencias alimenta un shader.","El audio arranca solo tras un gesto. Los embeds de SoundCloud no se pueden analizar: hace falta un archivo propio con CORS."],
+ ["View Transitions API","Pasar de mixes a fechas a EPK sin cortar el player, sin una SPA.","Mejora progresiva: sin soporte, el cambio es instantáneo."],
+ ["OGL","Un shader de fondo con una librería de decenas de KB.","Menos ecosistema que Three.js."],
+ ["Three.js / R3F","Escenas 3D y partículas: un mundo por set.","Pesa más de 150 KB más assets. Calienta un móvil de gama media; necesita versión estática."],
+ ["WebGPU / TSL","Muchas más partículas con compute shaders.","Ya está en Chrome, Edge, Safari 26 y Firefox 141 en Windows. Three.js cae a WebGL2 si no hay soporte."],
+ ["Video AV1","Loops de los visuales del set con menos peso.","Safari solo decodifica AV1 en hardware reciente: servir H.264 o HEVC de respaldo."],
+ ["Rive","Logo animado o interactivo con máquinas de estado.","Runtime WASM liviano."],
+ ["Spline","3D sin código, rápido de iterar (Rauw Alejandro).","Runtime pesado y poco control del rendimiento."]
+];
+
+const EPK = [
+ ["Mix reciente arriba","Los promotores contratan una vibra y un público, no un track.","Player persistente con el último set; actualizarlo dos veces al año."],
+ ["Fechas de tour","Es la prueba de convocatoria que busca el agente.","Widget gratis de Bandsintown, o su API para un diseño propio."],
+ ["Bio en tres largos","Prensa, flyers y fichas de festival piden largos distintos.","Corta, media y larga, con botón de copiar cada una."],
+ ["Fotos y logo descargables","Para el arte del evento. Fotos que aguanten recortes.","Zip en alta resolución, horizontales y verticales."],
+ ["Rider técnico","CDJ y mixer exactos con firmware, monitores, layout de cabina.","Una ficha clara, no un PDF escondido."],
+ ["Rider de hospitalidad","Va escalado al caché y se envía tras confirmar la fecha.","Detrás del contacto, no público."],
+ ["Booking por territorio","Agencias distintas para Latinoamérica, Europa y Norteamérica.","Un contacto por región con email visible y botón copiar."],
+ ["Video en vivo y prensa","El promotor suele pedir una cita de prensa.","Clips verticales del set y dos o tres citas con medio y fecha."],
+ ["Lanzamientos","Credibilidad y sellos.","Links a Beatport y Spotify por release."],
+ ["Lista de fans","Datos propios de audiencia, más allá de Instagram.","El formulario de captura de Bandsintown o un newsletter."]
+];
+
+// [calidad, dificultad] de 1 a 5. En Chile: [encaje como cliente, dificultad de venta].
+const SCORE = {
+ "Paul Kalkbrenner":[5,3],"No Art":[5,5],"Kluster Collectif":[4,3],"DJ KOVA":[4,3],"Eric Prydz":[4,5],"Peggy Gou":[4,4],"Boris Brejcha":[3,4],"Sara Landry":[4,3],
+ "Afterlife (Tale of Us)":[4,2],"Anyma":[3,2],"Bicep":[3,3],"Chris Liebing":[3,3],"Drumcode":[3,2],"Keinemusik":[3,2],"Adriatique":[3,2],"Stephan Bodzin":[3,2],
+ "Ellen Allien":[3,2],"Max Cooper":[3,2],"Four Tet":[3,1],"Richie Hawtin · From Our Minds":[2,2],"Ben Böhmer":[2,2],"Hernan Cattaneo":[2,1],"Charlotte de Witte":[2,1],
+ "Enrico Sangiuliano":[2,1],"Massano":[2,1],"Trym":[2,1],"Rival Consoles":[2,1],
+ "Paradigm Festival":[4,3],"Nameless Festival":[4,3],"Alter Ego Festival":[3,3],"Klangtherapie":[3,2],"Cercle Festival":[4,2],"Cercle":[4,2],"Wilde Weide":[4,3],"WHOLE Festival":[3,2],
+ "I Love Techno Europe":[3,2],"Mysteryland":[4,3],"Awakenings":[3,2],"Amsterdam Dance Event":[3,2],"Kappa FuturFestival":[3,2],"Time Warp":[3,2],"Movement Detroit":[3,3],
+ "Sónar":[4,4],"Dekmantel":[4,2],"UNVRS Ibiza":[4,3],"Hï Ibiza":[3,2],"fabric London":[3,2],"KNTXT":[2,1],"Groove Motive Recs":[3,4],"Scantraxx":[3,2],
+ "The Lot Radio":[4,3],"HÖR Berlin":[3,3],"Boiler Room":[4,3],"NTS":[4,3],
+ "Yamê · The Molazone":[5,5],"Damso":[5,4],"Radical Face":[4,3],"Die Antwoord · ZAMA ZAMA":[4,3],"INHERITED":[4,3],"Árstraumur":[4,5],"Arrested Development":[3,3],
+ "Van Morrison":[3,2],"Rauw Alejandro":[4,4],"SIRUP · OWARI DIARY":[4,4],"H JeuneCrack":[4,4],".idk. · Even The Devil Smiles":[3,3],"Lady Gaga · Mayhem":[4,3],
+ "MILLENNIUM PARADE":[4,4],"Mosaert (Stromae)":[3,2],"SoundCloud × Billie Eilish":[3,3],"Porter Robinson · Nurture":[5,5],"Doja Cat · DojaCode":[4,5],"Perturbator":[4,3],
+ "Alicia Keys":[3,2],"Martin Garrix":[3,2],"Jeen-Yuhs (Kanye West)":[4,4],"Charli XCX · brat":[3,2],
+ "HOLOGRAPHIK":[5,3],"Active Theory":[5,5],"Rogier de Boevé":[5,4],"Bureau Breekijzer":[4,3],"Kins":[4,3],"Eyekiller":[3,2],"Resn":[5,5],"Locomotive":[5,4],"darkroom":[4,4],
+ "Valesuchi":[5,3],"Francisco Allendes":[5,3],"Dinky":[4,3],"Matías Aguayo":[5,3],"Sepha":[4,2],"Felipe Venegas":[3,3],"Modoturista":[2,2],"Fernando Caneo":[2,2],
+ "Imaabs":[3,3],"Tomás Urquieta":[2,3],"Luciano":[3,5],"Ricardo Villalobos":[1,5]
+};
+const TIER = ["", "Básico", "Funcional", "Sólido", "Referente", "Techo"];
+const DIFF = ["", "Plantilla", "Plantilla editada", "Custom con GSAP", "Custom + 3D puntual", "Mundo WebGL"];
+const SALE = ["", "Cerrado", "Fácil", "Media", "Difícil", "Muy difícil"];
+Object.values(DATA).forEach(l => l.forEach(d => { const s = SCORE[d.n] || [0, 0]; d.q = s[0]; d.d = s[1]; }));
+const sortKey = {};
+const bar = (v, cls) => `<span class="meter ${cls}" role="img" aria-label="${v} de 5">${[1,2,3,4,5].map(k => `<i class="${k <= v ? "on" : ""}"></i>`).join("")}</span>`;
+
+const LABELS ={techno:"DJs de techno", noche:"Clubes y festivales", generos:"Otros géneros", estudios:"Estudios", chile:"Chile"};
+const KEY = "tier-del-club-seen";
+let seen = {};
+try { seen = JSON.parse(localStorage.getItem(KEY) || "{}"); } catch(e) { seen = {}; }
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(seen)); } catch(e) {} };
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+function render(list, filter) {
+  const table = document.querySelector(`table[data-list="${list}"]`);
+  const key = sortKey[list] || "q";
+  const other = key === "q" ? "d" : "q";
+  const rows = DATA[list].filter(d => !filter || d.tag === filter)
+    .sort((a, b) => b[key] - a[key] || b[other] - a[other] || b.win - a.win);
+  const isChile = list === "chile";
+  const qLabel = isChile ? "Encaje" : "Calidad", dLabel = isChile ? "Venta" : "Dificultad";
+  table.innerHTML = `<thead><tr><th></th><th>#</th><th>${isChile ? "Artista" : "Sitio"}</th><th>${qLabel}</th><th>${dLabel}</th><th>${isChile ? "Por qué" : "Qué hace bien"}</th><th>${isChile ? "Presencia" : "Premio"}</th></tr></thead><tbody>` +
+    rows.map((d, r) => {
+      const id = list + ":" + d.u;
+      const host = d.u.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "");
+      const prev = rows[r - 1];
+      const head = key === "q" && (!prev || prev.q !== d.q)
+        ? `<tr class="tierrow"><td colspan="7"><span>${isChile ? ["","Descartar","Baja","Media","Alta","Prioridad"][d.q] : TIER[d.q]}</span></td></tr>` : "";
+      return head + `<tr class="q${d.q} ${seen[id] ? "seen" : ""}">
+        <td class="chk"><input type="checkbox" id="c-${list}-${DATA[list].indexOf(d)}" aria-label="Revisado: ${esc(d.n)}" data-id="${esc(id)}" ${seen[id] ? "checked" : ""}></td>
+        <td class="n">${String(r + 1).padStart(2, "0")}</td>
+        <td class="name"><a href="${esc(d.u)}" target="_blank" rel="noopener">${esc(d.n)}</a><span class="by">${esc(d.by)} · ${esc(host)}</span><span class="tg">${esc(d.tag)}</span></td>
+        <td class="sc">${bar(d.q, "mq")}<small>${isChile ? "" : TIER[d.q]}</small></td>
+        <td class="sc">${bar(d.d, "md")}<small>${isChile ? SALE[d.d] : DIFF[d.d]}</small></td>
+        <td>${esc(d.what)}</td>
+        <td class="award ${d.win ? "win" : ""}">${esc(d.award)}</td></tr>`;
+    }).join("") + "</tbody>";
+}
+
+function sorter(list) {
+  const isChile = list === "chile";
+  const box = document.createElement("div");
+  box.className = "filters sorter"; box.dataset.for = list;
+  box.innerHTML = `<span class="mono">Ordenar por</span><button type="button" data-k="q" aria-pressed="true">${isChile ? "Encaje" : "Calidad"}</button><button type="button" data-k="d" aria-pressed="false">${isChile ? "Dificultad de venta" : "Dificultad técnica"}</button>`;
+  document.querySelector(`table[data-list="${list}"]`).parentElement.before(box);
+  box.addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  sortKey[list] = b.dataset.k;
+  box.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x === b));
+  const f = document.querySelector(`.filters[data-for="${list}"] button[aria-pressed="true"]`);
+  render(list, f ? f.dataset.v : "");
+  });
+}
+
+function filters(list) {
+  const box = document.querySelector(`.filters[data-for="${list}"]`);
+  if (!box) return;
+  const tags = [...new Set(DATA[list].map(d => d.tag))];
+  if (tags.length < 2) { box.hidden = true; return; }
+  box.innerHTML = [["", "Todos"], ...tags.map(t => [t, t])]
+    .map(([v, l], k) => `<button type="button" data-v="${esc(v)}" aria-pressed="${k === 0}">${esc(l)}</button>`).join("");
+  box.addEventListener("click", e => {
+    const b = e.target.closest("button"); if (!b) return;
+    box.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x === b));
+    render(list, b.dataset.v);
+  });
+}
+
+document.addEventListener("change", e => {
+  const c = e.target.closest("input[data-id]"); if (!c) return;
+  seen[c.dataset.id] = c.checked; save();
+  c.closest("tr").classList.toggle("seen", c.checked);
+});
+
+Object.keys(DATA).forEach(l => { filters(l); sorter(l); render(l); });
+
+const specs = (el, rows) => document.getElementById(el).insertAdjacentHTML("beforeend",
+  rows.map(([a, b, c]) => `<div class="row"><h4>${esc(a)}</h4><p>${esc(b)}</p><p class="risk">${esc(c)}</p></div>`).join(""));
+specs("stack-list", STACK);
+specs("epk-list", EPK);
+
+const total = Object.values(DATA).reduce((s, l) => s + l.length, 0);
+document.getElementById("counter").innerHTML =
+  `<span><b>${total}</b>sitios y artistas</span>` +
+  Object.entries(DATA).map(([k, v]) => `<span><b>${v.length}</b>${LABELS[k]}</span>`).join("");
+
+</script>
+
+</body>
+</html>
