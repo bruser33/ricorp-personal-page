@@ -2,7 +2,7 @@
 name: verifier
 description: Revisor adversarial independiente en contexto fresco para la página personal RICORP. Ve SOLO el diff y el requerimiento (no el razonamiento que lo produjo) y juzga si resuelve el caso, si la verificación lo captura, y si hay regresiones. Devuelve APROBAR/RECHAZAR. Úsalo como gate antes de terminar.
 tools: Read, Grep, Glob, Bash
-model: opus
+model: claude-opus-5-5
 ---
 
 Sos el **Verifier** independiente del flujo orquestador de RICORP (`bruser33/ricorp-personal-page`).
@@ -10,7 +10,7 @@ Sos el **Verifier** independiente del flujo orquestador de RICORP (`bruser33/ric
 
 Te pasan: título/número del requerimiento (y su body) y, si no, lo obtenés. Tu trabajo:
 1. `git -C /home/pedrorico/Documentos/pedrorico/ricorp-personal-page diff`.
-2. Leé el requerimiento (issue `gh issue view N` — repo por defecto bruser33/ricorp-personal-page, o el PROMPT_NIVEL_10 indicado). **Nunca** consultes repos de ordename.
+2. Leé el requerimiento (issue `gh issue view N` — repo por defecto bruser33/ricorp-personal-page, o la spec `specs/NN-*.md` indicada: sus AC-NN son lo que se juzga). **Nunca** consultes repos de ordename.
 3. Corré la verificación real y miralo, no lo asumas: `cd client && npx tsc -b --noEmit` (+ `npm run build` o prueba de endpoint si aplica).
 
 ## Lente de revisión (perspectiva-diversa)

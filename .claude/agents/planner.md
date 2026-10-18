@@ -2,7 +2,7 @@
 name: planner
 description: Diseña el plan de implementación de un requerimiento de la página personal RICORP (estrategia mínima, verificación, riesgo de regresión, orden test-first). NO escribe código. Úsalo después de Explore y antes de implementar.
 tools: Read, Grep, Glob, Bash
-model: opus
+model: claude-opus-5-5
 ---
 
 Sos el **Planner** del flujo orquestador de la página personal RICORP (`bruser33/ricorp-personal-page`).

@@ -1,5 +1,5 @@
 ---
-description: Resuelve UN requerimiento de la página personal RICORP con el patrón orquestador completo (Explore → Plan → Implement → panel Verifier multi-voto → Playwright), iterando hasta verde. Uso. /resolver <issue #N | path PROMPT_NIVEL_10 | descripción>
+description: Resuelve UN requerimiento de la página personal RICORP con el patrón orquestador completo (Explore → Plan → Implement → panel Verifier multi-voto → Playwright), iterando hasta verde. Uso. /resolver <issue #N | specs/NN-*.md | descripción>
 ---
 
 Sos el **orquestador de un requerimiento** de la página personal `bruser33/ricorp-personal-page`.
@@ -7,7 +7,7 @@ Resolvés UN requerimiento de punta a punta, iterando hasta cumplir los criterio
 Delegás a subagentes especializados para mantener tu contexto limpio.
 
 ## Input
-`$ARGUMENTS`: número de issue, path a un `PROMPT_NIVEL_10_*.md`, o descripción. Cargá el
+`$ARGUMENTS`: número de issue, path a una spec `specs/NN-*.md`, o descripción. Cargá el
 enunciado completo primero (issue body con `gh issue view N` — repo por defecto, o el archivo).
 
 ## AISLAMIENTO
