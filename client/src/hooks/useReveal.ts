@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
 
-export function useReveal(active: boolean, threshold = 0.12) {
+/* `clave` re-arma el observer cuando cambia (p.ej. la página): los nodos
+   nuevos nacen después del primer armado y quedarían en opacity 0. */
+export function useReveal(active: boolean, clave?: string, threshold = 0.12) {
   useEffect(() => {
     if (!active) return;
     let io: IntersectionObserver | null = null;
@@ -33,5 +35,5 @@ export function useReveal(active: boolean, threshold = 0.12) {
       cancelAnimationFrame(raf);
       io?.disconnect();
     };
-  }, [active, threshold]);
+  }, [active, clave, threshold]);
 }
