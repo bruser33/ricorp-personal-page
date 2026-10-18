@@ -1,16 +1,16 @@
 /* Estado de la pantalla Bitácora (antes "noticias", una vista superpuesta).
    La fuente de verdad es la URL: la pantalla está activa mientras
-   `location.hash === '#bitacora'`. Así el deep link, el botón atrás y el link del
+   `location.hash === '#trayectoria'`. Así el deep link, el botón atrás y el link del
    navbar hablan el mismo idioma sin estado global de React.
 
    Vive en un módulo aparte (y no en News.tsx) porque el Header también lo usa y
    react-refresh pide que los archivos de componentes solo exporten componentes. */
 
-export const HASH_NOTICIAS = '#bitacora';
+export const HASH_NOTICIAS = '#trayectoria';
 
 /* Hashes viejos (la sección se llamó "news"/"noticias"): un link guardado o
    compartido con ellos sigue abriendo la Bitácora, y la URL se normaliza. */
-const HASHES_ANTIGUOS = ['#news', '#noticias'];
+const HASHES_ANTIGUOS = ['#bitacora', '#news', '#noticias'];
 
 /* Clase en <html> mientras la Bitácora es la pantalla activa: el CSS oculta el
    home y App/Projects dejan de reaccionar a gestos del home. */
@@ -56,7 +56,7 @@ export function entradaPropia(): boolean {
   return !!st?.[MARCA_ESTADO];
 }
 
-/* Deep link (`/#bitacora`, o un `/#news` viejo, cargado directo): la entrada actual es la ÚNICA del sitio,
+/* Deep link (`/#trayectoria`, o un `/#bitacora`/`/#news` viejo, cargado directo): la entrada actual es la ÚNICA del sitio,
    así que "atrás" sacaría al visitante en vez de cerrar la vista. Se reescribe
    el historial a [página sin hash] → [#news marcada] para que atrás la cierre.
    Corre una sola vez, al cargar el módulo (fuera de React: StrictMode monta los

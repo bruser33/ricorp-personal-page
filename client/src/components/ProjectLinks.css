@@ -9,12 +9,6 @@
   animation: modalTextIn 500ms ease-out 650ms both;
 }
 
-/* Con mockups el texto no va centrado a 1100px sino en la columna izquierda de
-   .project-modal-layout: ahí la fila se alinea al borde del texto. */
-.project-modal-layout ~ .project-links {
-  max-width: none;
-}
-
 .project-link {
   display: inline-flex;
   align-items: center;

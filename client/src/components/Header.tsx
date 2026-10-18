@@ -67,7 +67,7 @@ export function Header({ introDone = false }: { introDone?: boolean }) {
             {/* La Bitácora no es un ancla del home: es otra pantalla (ver
                 News.tsx). El href queda para abrir en otra pestaña. */}
             <a
-              href="#bitacora"
+              href="#trayectoria"
               onClick={(e) => {
                 // Cmd/Ctrl/Shift+clic sigue abriendo /#news en otra pestaña.
                 if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
@@ -122,7 +122,7 @@ export function Header({ introDone = false }: { introDone?: boolean }) {
               {/* El panel se desmonta al entrar a la Bitácora (el onClick del nav
                   lo cierra), así que el foco vuelve al botón de menú. */}
               <a
-                href="#bitacora"
+                href="#trayectoria"
                 onClick={(e) => {
                   e.preventDefault();
                   cancelGlide();

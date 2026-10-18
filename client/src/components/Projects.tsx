@@ -50,6 +50,19 @@ const rotulo = (p: Proyecto) =>
    transición (ver useEffect de normalización), que es lo que hace el loop
    invisible. */
 const REPEATS = 3;
+
+/* Cantidad FIJA de dots del arco, como en el diseño (7), aunque haya menos
+   proyectos (hoy 3): el arco es parte de la composición y con 3 puntos no se
+   lee como arco. El dot activo avanza un lugar por cada paso del slider (y
+   vuelve a empezar), así que sigue marcando el movimiento. */
+const DOTS = 7;
+const modulo = (n: number, m: number) => ((n % m) + m) % m;
+/* Camino corto (−3…+3) para ir del dot `de` al dot `a` dando la vuelta. */
+const pasosEntreDots = (de: number, a: number) => {
+  let d = modulo(a - de, DOTS);
+  if (d > DOTS / 2) d -= DOTS;
+  return d;
+};
 const MIDDLE_COPY = 1;
 
 // ¿El índice virtual está dentro de la copia del medio (o sea, no hay que rebasear)?
@@ -141,6 +154,45 @@ function useMediaQuery(query: string) {
     return () => mq.removeEventListener('change', onChange);
   }, [query]);
   return matches;
+}
+
+/* Cuerpo del post, con la distribución del prototipo de Figma (video
+   2026-10-18): párrafo a todo el ancho; imagen a la izquierda con el texto
+   corriendo a su derecha; teléfono inclinado a la derecha con texto a su
+   izquierda; y el resto a todo el ancho. Las imágenes van flotando (no en una
+   columna aparte) para que el texto las rodee como en el diseño. Sin
+   `parrafos`, la descripción hace de único párrafo. */
+function PostCuerpo({ hito }: { hito: Proyecto }) {
+  const parrafos = hito.parrafos?.length ? hito.parrafos : hito.descripcion ? [hito.descripcion] : [];
+  const [primero, segundo, tercero, ...resto] = parrafos;
+  const [figura, telefono] = hito.mockups ?? [];
+  return (
+    <div className="post">
+      {primero && <p className="project-modal-text">{primero}</p>}
+      {figura && (
+        <figure className="post-figura">
+          <img src={rutaImagen(figura)} alt="" loading="lazy" decoding="async" />
+        </figure>
+      )}
+      {segundo && <p className="project-modal-text">{segundo}</p>}
+      {telefono && (
+        <img
+          className="post-telefono"
+          src={rutaImagen(telefono)}
+          alt=""
+          loading="lazy"
+          decoding="async"
+        />
+      )}
+      {tercero && <p className="project-modal-text">{tercero}</p>}
+      <div className="post-corte" aria-hidden="true" />
+      {resto.map((p, i) => (
+        <p key={i} className="project-modal-text">
+          {p}
+        </p>
+      ))}
+    </div>
+  );
 }
 
 export function Projects() {
@@ -242,10 +294,13 @@ export function Projects() {
      el usuario para, normaliza sin que se note y este atajo casi nunca corre.
      Se reserva un slot a cada punta para que el activo siempre tenga vecinos. */
   const slideRef = useRef(hasLoop ? total * MIDDLE_COPY : 0);
+  // Dot activo del arco (0…DOTS-1). Avanza con cada paso, ver DOTS.
+  const [dot, setDot] = useState(0);
 
   const moveBy = useCallback(
     (delta: number) => {
       if (delta === 0 || !hasLoop) return;
+      setDot((d) => modulo(d + delta, DOTS));
       const cur = slideRef.current;
       const next = cur + delta;
       if (next >= 1 && next <= total * REPEATS - 2) {
@@ -253,15 +308,11 @@ export function Projects() {
         setVSlide(next);
         return;
       }
-      /* El rebase parte de la copia del medio, así que con los deltas que llegan
-         acá (±1 de teclas, ±2 del drag, ±total/2 de los dots) el resultado cae
-         siempre dentro de la tira. El clamp final es para que la invariante "el
-         índice nunca sale de la tira" valga por construcción y no por qué tan
-         chico es el delta de cada llamador. */
-      const rebased = Math.min(
-        total * REPEATS - 2,
-        Math.max(1, total * MIDDLE_COPY + (((cur % total) + total) % total) + delta)
-      );
+      /* El rebase cae SIEMPRE en la copia del medio, en el proyecto destino
+         calculado en módulo. Antes sumaba el delta crudo y lo acotaba a la
+         tira: con los 7 dots fijos un dot puede pedir ±3 pasos sobre 3
+         proyectos, y el clamp dejaba el slider en el proyecto equivocado. */
+      const rebased = total * MIDDLE_COPY + modulo(modulo(cur, total) + delta, total);
       setNoTransition(true);
       slideRef.current = rebased;
       setVSlide(rebased);
@@ -761,26 +812,31 @@ export function Projects() {
         {/* Un solo proyecto no se pagina: el dot único no diría nada. */}
         {hasLoop && (
           <div className="carousel-dots" role="tablist" aria-label="Projects pagination">
-            {projects.map((p, i) => {
+            {Array.from({ length: DOTS }, (_, i) => {
               /* Figma: the dots sit on a convex arc (dome ∩) — apex in the centre,
                  dropping down toward both edges. Parabolic offset per position. */
-              const mid = (total - 1) / 2;
+              const mid = (DOTS - 1) / 2;
               const t = mid === 0 ? 0 : (i - mid) / mid; // -1 … 0 … 1
               /* 0 en el centro → --arc-drop en los extremos. La amplitud vive en el
                  CSS (y baja en mobile) para que escale junto con el tamaño del dot
                  y el gap: con el centro de control chico el arco medía 14px y no se
                  leía como arco. */
               const arc = (t * t).toFixed(3);
+              const pasos = pasosEntreDots(dot, i);
+              const destino = modulo(currentSlide + pasos, total);
               return (
                 <button
-                  key={p.id}
+                  key={i}
                   type="button"
                   role="tab"
-                  aria-selected={i === currentSlide}
-                  aria-label={`Go to project ${i + 1}`}
-                  className={`carousel-dot ${i === currentSlide ? 'is-active' : ''}`}
+                  aria-selected={i === dot}
+                  aria-label={`Go to project ${destino + 1}: ${tituloPlano(projects[destino].titulo)}`}
+                  className={`carousel-dot ${i === dot ? 'is-active' : ''}`}
                   style={{ transform: `translateY(calc(var(--arc-drop) * ${arc}))` }}
-                  onClick={() => goTo(i)}
+                  onClick={() => {
+                    suspendAutoplay();
+                    moveBy(pasos);
+                  }}
                 />
               );
             })}
@@ -811,28 +867,7 @@ export function Projects() {
           onClose={closeProject}
           footer={<ProjectLinks hito={expanded} />}
         >
-          {expanded.mockups && expanded.mockups.length > 0 ? (
-            <div className="project-modal-layout">
-              <div className="project-modal-text-col">
-                <p className="project-modal-text">{expanded.descripcion}</p>
-              </div>
-              <div className="project-modal-mockups-col">
-                {expanded.mockups.map((src, i) => (
-                  <img
-                    key={i}
-                    src={rutaImagen(src)}
-                    alt=""
-                    className={`project-modal-mockup mockup-${i + 1}`}
-                  />
-                ))}
-              </div>
-            </div>
-          ) : (
-            /* La descripción va UNA vez: la repetición (2 o 3 párrafos) era
-               relleno de la maqueta en lorem y con contenido real se lee
-               duplicada. */
-            <p className="project-modal-text">{expanded.descripcion}</p>
-          )}
+          <PostCuerpo hito={expanded} />
         </DetailModal>
       )}
     </section>
