@@ -386,6 +386,10 @@ html.bitacora-activa .nav-desktop a[href='#trayectoria'] {
   font-size: clamp(14px, 1.05vw, 18px);
   line-height: 1.5;
   color: rgba(227, 227, 227, 0.68);
+  /* Justificado como los posts (pedido 2026-10-18). `hyphens: auto` va de la
+     mano: sin partición, justificar una columna angosta abre huecos feos. */
+  text-align: justify;
+  hyphens: auto;
 }
 
 .media-fallback {

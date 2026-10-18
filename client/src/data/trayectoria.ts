@@ -79,6 +79,13 @@ export type HitoTrayectoria = {
   destacado?: boolean;
   /** Solo Proyectos: tipo de trabajo bajo el título de la tarjeta. */
   etiqueta?: string;
+  /** Solo Proyectos: encuadre de la foto en la banda del post (object-position
+   *  CSS, p.ej. '50% 21%'). La banda es muy apaisada y por defecto muestra la
+   *  franja del medio; si lo importante está más arriba, se corre acá. */
+  focoBanner?: string;
+  /** Solo Proyectos: alto de la banda del post como fracción de la pantalla
+   *  (por defecto 0.4). Más alta si el motivo es un logo que no entra. */
+  altoBanner?: number;
   /** Solo Proyectos: el texto LARGO del post (un string por párrafo). Sin él,
    *  el post usa `descripcion`. La línea de tiempo usa siempre `descripcion`. */
   parrafos?: string[];
@@ -255,8 +262,18 @@ export const trayectoria: HitoTrayectoria[] = [
     fecha: '2017-04',
     titulo: 'Invasión UFPS: mi videojuego\nde tesis en Unity',
     /* Pantalla de inicio del juego, ilustrada por Junior Molina (rescatada del
-       correo "Imagenes, logo, elementos.", 16-ene-2017). */
-    imagen: 'figma-frames/invasion-ufps-menu.webp',
+       correo "Imagenes, logo, elementos.", 16-ene-2017). Versión HD (2880 px):
+       fondo original reescalado 4x con Real-ESRGAN (modelo digital-art, vía
+       Upscayl), logo reconstruido en Blender a partir del original, el texto
+       "Toca la pantalla" borrado (pedido), y recortada simétrica alrededor del
+       logo para que quede al centro. El original medía 963 px y se veía
+       borroso a sangre. */
+    imagen: 'figma-frames/invasion-ufps-menu-hd.webp',
+    /* El logo es el motivo: banda más alta (60% de la pantalla) para que entre
+       entero con aire, y encuadre corrido arriba porque su centro está al 33%
+       del alto de la imagen. */
+    altoBanner: 0.6,
+    focoBanner: '50% 4%',
     /* También en "Proyectos informáticos" (pedido 2026-10-18). Sin mockups: el
        detalle está maquetado para 2 teléfonos verticales y el juego es
        apaisado; la pantalla de inicio ya va como imagen principal. */

@@ -340,7 +340,9 @@ export function News({ ready = true }: { ready?: boolean }) {
                           <TitleLines text={hito.titulo} />
                         </h4>
                         {hito.descripcion && (
-                          <p className="news-row__desc">{hito.descripcion}</p>
+                          <p className="news-row__desc" lang="es">
+                            {hito.descripcion}
+                          </p>
                         )}
                       </div>
                     </li>

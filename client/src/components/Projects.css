@@ -678,8 +678,9 @@ html.glide-dots-hidden .carousel-dots {
   font-size: clamp(20px, 1.6vw, 28px);
   line-height: 1.6;
   color: rgba(255, 255, 255, 0.9);
-  text-align: left;
-  hyphens: manual;
+  /* Justificada como el resto del post (pedido 2026-10-18). */
+  text-align: justify;
+  hyphens: auto;
   margin-bottom: 1.6em;
 }
 
