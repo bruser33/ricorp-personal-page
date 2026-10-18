@@ -240,7 +240,10 @@ export function Contact() {
           )}
         </div>
 
-        <label className="field-email">
+        {/* Mismo pill que el campo del mensaje (.field): antes era una línea
+            suelta con borde inferior y se leía como otro formulario. El botón
+            de enviar va adentro del pill, a la derecha. */}
+        <label className="field field-email">
           <input
             type="email"
             placeholder={t('contact.emailPlaceholder')}

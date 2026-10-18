@@ -262,15 +262,11 @@
 }
 
 .field-email {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
   opacity: 0;
   transform: translateY(8px);
   pointer-events: none;
   transition:
+    background 280ms var(--ease-figma-out),
     opacity 320ms var(--ease-figma-out),
     transform 320ms var(--ease-figma-out);
 }
@@ -283,22 +279,22 @@
   pointer-events: auto;
 }
 
+/* El input hereda TODO de `.field input` (fondo, tipografía, padding, radio);
+   solo se le reserva a la derecha el lugar del botón de enviar. */
 .field-email input {
-  flex: 1;
-  background: transparent;
-  border: none;
-  border-radius: 0;
-  outline: none;
-  padding: 12px 4px;
-  color: var(--fg-dim);
-  font-family: inherit;
-  font-size: clamp(15px, 1.04vw, 20px);
-  font-weight: 400;
+  padding-right: clamp(180px, 13vw, 220px);
 }
 
 .field input::placeholder { color: var(--fg-muted); }
 
 .submit {
+  /* Adentro del pill del email, pegado a la derecha y centrado en alto. Se
+     centra con top/bottom y no con translateY porque el transform ya lo usa la
+     entrada del botón. */
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: clamp(16px, 1.25vw, 24px);
   white-space: nowrap;
   font-size: clamp(16px, 1.25vw, 22px);
   font-weight: 500;
@@ -335,27 +331,12 @@
 }
 
 /* --- Adjuntos ---------------------------------------------------------------
-   El bloque entra con el MISMO beat que el campo de email: hasta que no hay
-   asunto escrito, el formulario es una sola línea (esa es la coreografía del
-   diseño) y un botón de adjuntar suelto ahí abajo la rompía. */
+   Siempre visible: antes entraba recién con el asunto escrito y quien quería
+   mandar primero un archivo no encontraba dónde. */
 .field-attach {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  opacity: 0;
-  transform: translateY(8px);
-  pointer-events: none;
-  transition:
-    opacity 320ms var(--ease-figma-out),
-    transform 320ms var(--ease-figma-out);
-}
-
-.contact-form[data-stage="subject-filled"] .field-attach,
-.contact-form[data-stage="composing"] .field-attach,
-.contact-form[data-stage="sent"] .field-attach {
-  opacity: 1;
-  transform: translateY(0);
-  pointer-events: auto;
 }
 
 .attach-row {

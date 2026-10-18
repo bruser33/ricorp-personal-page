@@ -207,6 +207,22 @@ export const trayectoria: HitoTrayectoria[] = [
       'Lorem ipsum dolor sit amet consectetur. Sodales ultrices cursus condimentum hac scelerisque elementum morbi nisl.',
     destacado: true,
   },
+  /* Reseñas del Torneo TuApp. Los datos (fechas, lugar, equipos, carta de
+     finalistas y certificado) salen de los correos de TuApp.org de 2013 y 2014. */
+  {
+    id: 'tuapp-2014-smartcorp',
+    fecha: '2014-12-10',
+    titulo: 'Finalistas del Torneo TuApp 2014\ncon SmartCorp',
+    descripcion:
+      'Volvimos al Torneo TuApp, esta vez como equipo SmartCorp, y después de enviar nuestro video beta recibimos la carta oficial que nos confirmaba en la final. El 10 de diciembre presentamos nuestra app en vivo en el Centro Cultural Gabriela Mistral (GAM) de Santiago: tres minutos, funcionando en nuestro propio smartphone, frente a empresarios, inversionistas y estudiantes de toda la región. Lo logramos mientras cerrábamos semestre en la universidad, y de ahí nos quedó el certificado de participación firmado por la dirección de TuApp.org y la certeza de que ¡practicar y practicar hasta lograrlo sí funciona!',
+  },
+  {
+    id: 'tuapp-2013-r2d2',
+    fecha: '2013-12-11',
+    titulo: 'Seleccionados para la final del\nTorneo Universitario de Apps TuApp 2013',
+    descripcion:
+      'Nuestra primera vez compitiendo con una aplicación móvil, como equipo R2D2: fuimos seleccionados para presentar en el evento final del Torneo Universitario de Apps, el 11 de diciembre de 2013 en Santiago de Chile, con tres minutos para mostrar la app y uno para las preguntas del público. Ese día había empresarios, profesores y siete ejecutivos de Google USA buscando talento latinoamericano, y para un grupo de estudiantes eso fue la prueba de que lo que construíamos en la universidad podía llegar ¡mucho más lejos de lo que imaginábamos!',
+  },
 ];
 
 /* ==========================================================================

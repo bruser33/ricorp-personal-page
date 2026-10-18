@@ -63,13 +63,15 @@ const CAPTION_FADE_MS = 260;
    a ojo. El video nuevo NO sirve para medir esto: ahí el prototipo lo mueven a
    mano y los cambios de slide caen a 0.4, 1.0, 2.4, 2.6, 3.6, 3.8 y 7.8s, sin
    patrón. Si hay que volver a tocar la velocidad, es este número y nada más.
-   Lo que sí se sostiene del análisis viejo: el perfil de movimiento cuadro a
-   cuadro NUNCA cae a cero entre proyectos. Por eso el track, mientras manda el
-   auto-play, transiciona en `AUTOPLAY_MS linear` (clase .is-autoplaying, ver
-   Projects.css): si la duración de la transición es igual al intervalo y la
-   curva es lineal, el track nunca queda quieto y se lee como un desplazamiento
-   continuo en vez de saltos con reposo. */
+   Antes el track transicionaba en `AUTOPLAY_MS linear` para que nunca quedara
+   quieto, y ese era el bug: la card nueva se marca activa (más grande, con su
+   título) en el instante en que ARRANCA el paso, pero llega al centro recién al
+   final. Durante los 4.2s la card grande viajaba descentrada y el título del
+   proyecto nuevo quedaba montado sobre la card anterior. Ahora cada paso desliza
+   AUTOPLAY_SLIDE_MS con ease-in-out y descansa centrado el resto del intervalo:
+   se sigue moviendo solo, pero lo que dice el título es lo que está al centro. */
 const AUTOPLAY_MS = 4200;
+const AUTOPLAY_SLIDE_MS = 1100;
 
 /* Respiro tras una interacción explícita (drag, dot, teclas) antes de que el
    auto-play retome: si retomara enseguida, le pelearía al usuario el control. */
@@ -178,8 +180,6 @@ export function Projects() {
   const sectionRef = useRef<HTMLElement | null>(null);
   // La sección está a la vista: fuera de pantalla el auto-play se apaga.
   const [inView, setInView] = useState(false);
-  // El puntero está sobre el carrusel: mientras mira de cerca, no se mueve solo.
-  const [hovering, setHovering] = useState(false);
   // Interacción explícita reciente (drag, dot, teclas): ver AUTOPLAY_RESUME_MS.
   const [autoplaySuspended, setAutoplaySuspended] = useState(false);
   const resumeTimer = useRef(0);
@@ -302,8 +302,10 @@ export function Projects() {
 
   /* El auto-play manda solo si: hay carrusel (desktop; en mobile la lista apilada
      no tiene qué mover), el usuario no pidió menos movimiento, la sección está a
-     la vista, nadie está arrastrando, no hay detalle abierto, el puntero no está
-     sobre el carrusel y no hubo interacción reciente. */
+     la vista, nadie está arrastrando, no hay detalle abierto y no hubo
+     interacción reciente. El puntero ENCIMA ya no lo pausa: el carrusel ocupa el
+     ancho completo y el centro de la pantalla, así que al bajar con la rueda el
+     mouse casi siempre quedaba sobre él y el slider se congelaba. */
   const autoplayActive =
     hasLoop &&
     !isMobile &&
@@ -311,7 +313,6 @@ export function Projects() {
     inView &&
     !dragging &&
     expandedSlide === null &&
-    !hovering &&
     !autoplaySuspended;
 
   /* Visibilidad de la sección. Sin esto el carrusel seguiría avanzando (y
@@ -332,16 +333,15 @@ export function Projects() {
     return () => io.disconnect();
   }, [isMobile]);
 
-  // Motor del auto-play: un paso cada AUTOPLAY_MS, que es lo que dura la propia
-  // transición del track mientras la clase .is-autoplaying está puesta.
+  // Motor del auto-play: un paso cada AUTOPLAY_MS; cada paso desliza
+  // AUTOPLAY_SLIDE_MS (clase .is-autoplaying) y el resto del intervalo descansa.
   useEffect(() => {
     if (!autoplayActive) return;
     const id = window.setInterval(() => {
       const track = trackRef.current;
-      /* Rebase del loop SIN el camino de noTransition. Ese camino apaga la
-         transición durante un par de frames, y en un movimiento que tiene que
-         leerse continuo eso es un tirón. Este tick cae justo cuando la
-         transición anterior terminó, o sea con el track EN REPOSO: ahí correr el
+      /* Rebase del loop SIN el camino de noTransition (ese camino apaga la
+         transición un par de frames y metería un tirón). Este tick cae con la
+         transición anterior ya terminada, o sea con el track EN REPOSO: ahí correr el
          índice una periodicidad completa de la tira renderiza exactamente la
          misma imagen. Se pinta en el mismo tick (transición apagada a mano +
          reflow forzado para que el navegador la dé por comprometida) y el paso
@@ -369,7 +369,7 @@ export function Projects() {
     if (inMiddleCopy(vSlide, total)) return;
     /* Con el auto-play corriendo el rebase lo hace el propio tick (en reposo y
        sin apagar la transición): si además saltara acá, cortaría el
-       deslizamiento de 4200ms a la mitad. */
+       deslizamiento en curso a la mitad. */
     if (autoplayActive) return;
     const id = window.setTimeout(
       () => {
@@ -379,10 +379,10 @@ export function Projects() {
         setVSlide(home);
       },
       /* Hay que esperar a que termine la transición EN CURSO o el rebase la
-         corta: 850ms las del usuario, pero 4200ms lineales si el último paso lo
-         dio el auto-play y recién ahora se apagó (p.ej. el puntero entró al
-         carrusel a mitad del deslizamiento). */
-      lastStepWasAutoplay.current ? AUTOPLAY_MS + 60 : 900
+         corta: 850ms las del usuario, AUTOPLAY_SLIDE_MS si el último paso lo
+         dio el auto-play y recién ahora se apagó (p.ej. la sección salió de la
+         vista a mitad del deslizamiento). */
+      lastStepWasAutoplay.current ? AUTOPLAY_SLIDE_MS + 60 : 900
     );
     return () => window.clearTimeout(id);
   }, [vSlide, total, autoplayActive, hasLoop]);
@@ -410,9 +410,8 @@ export function Projects() {
       }
       // Las flechas manejan el carrusel; en la lista apilada no hay qué mover.
       if (isMobile) return;
-      // Con la trayectoria abierta (vista superpuesta) el carrusel de fondo no
-      // debe moverse.
-      if (document.documentElement.classList.contains('noticias-abiertas')) return;
+      // En la pantalla Bitácora el carrusel está oculto: no debe moverse.
+      if (document.documentElement.classList.contains('bitacora-activa')) return;
       if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
       suspendAutoplay();
       if (e.key === 'ArrowRight') next();
@@ -606,12 +605,7 @@ export function Projects() {
       <div className="projects-carousel reveal-scale">
         <div
           className={`carousel-viewport${dragging ? ' is-dragging' : ''}`}
-          /* El puntero encima pausa el auto-play (y NO lo reanuda al salir por sí
-             solo: al salir vuelve a estar activo, pero si además hubo gesto manda
-             el respiro de AUTOPLAY_RESUME_MS). */
-          onPointerEnter={() => setHovering(true)}
           onPointerLeave={(e) => {
-            setHovering(false);
             /* Sin capture todavía (no pasó de DRAG_CLICK_PX), el pointerup fuera
                del carrusel no llegaría nunca y el gesto quedaría colgado en
                "grabbing" con el auto-play en pausa. */
@@ -649,10 +643,9 @@ export function Projects() {
                    así que el slot activo queda centrado en pantalla. */
                 ['--slide' as string]: vSlide,
                 ['--drag' as string]: `${dragDX}px`,
-                /* El intervalo del auto-play viaja al CSS en vez de repetir el
-                   número allá: la transición del track dura exactamente lo mismo
-                   que el intervalo (ver AUTOPLAY_MS). */
-                ['--autoplay-ms' as string]: `${AUTOPLAY_MS}ms`,
+                /* La duración del paso del auto-play viaja al CSS en vez de
+                   repetir el número allá (ver AUTOPLAY_SLIDE_MS). */
+                ['--autoplay-slide-ms' as string]: `${AUTOPLAY_SLIDE_MS}ms`,
               } as React.CSSProperties
             }
           >
@@ -719,6 +712,43 @@ export function Projects() {
               <span className="project-tag-label">{projects[shownSlide].etiqueta}</span>
             )}
           </div>
+
+          {/* Flechas anterior/siguiente a los costados del slider. Cortan el
+              pointerdown para que un clic en la flecha no arranque un arrastre
+              del viewport (que es quien escucha el gesto), y pasan por
+              suspendAutoplay como cualquier interacción explícita. */}
+          {hasLoop && (
+            <>
+              <button
+                type="button"
+                className="carousel-arrow carousel-arrow--prev"
+                aria-label={t('projects.prev')}
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={() => {
+                  suspendAutoplay();
+                  prev();
+                }}
+              >
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M15 5l-7 7 7 7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                className="carousel-arrow carousel-arrow--next"
+                aria-label={t('projects.next')}
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={() => {
+                  suspendAutoplay();
+                  next();
+                }}
+              >
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M9 5l7 7-7 7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+            </>
+          )}
         </div>
 
         {/* Un solo proyecto no se pagina: el dot único no diría nada. */}
