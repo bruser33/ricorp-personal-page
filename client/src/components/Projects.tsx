@@ -175,7 +175,9 @@ function PostCuerpo({ hito }: { hito: Proyecto }) {
   const [primero, segundo, tercero, ...resto] = parrafos;
   const [figura, telefono] = hito.mockups ?? [];
   return (
-    <div className="post">
+    /* lang="es": el contenido de trayectoria.ts está en español aunque el sitio
+       esté en inglés, y el justificado parte las palabras según este idioma. */
+    <div className="post" lang="es">
       {primero && <p className="project-modal-text">{primero}</p>}
       {figura && (
         <figure className="post-figura">
@@ -909,9 +911,14 @@ export function Projects() {
       {expanded && (
         <DetailModal
           originRect={originRect}
-          title={tituloPlano(expanded.titulo)}
+          /* El título corto de la tarjeta, si lo hay: en la banda un título de
+             dos líneas en letra gigante tapa la imagen. El completo queda como
+             texto accesible del diálogo. */
+          title={tituloTarjeta(expanded)}
           ariaLabel={rotulo(expanded)}
           image={rutaImagen(expanded.imagen)}
+          imagePosition={expanded.focoBanner}
+          heroVh={expanded.altoBanner}
           tag={expanded.etiqueta}
           onClose={closeProject}
           footer={<ProjectLinks hito={expanded} />}

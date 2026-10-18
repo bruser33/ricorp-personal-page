@@ -25,6 +25,12 @@ export type DetailModalProps = {
   ariaLabel?: string;
   /** URL ya resuelta de la foto. Sin imagen el detalle abre sin banda de foto. */
   image?: string;
+  /** object-position de la foto en la banda (p.ej. '50% 21%'). La banda es muy
+      apaisada y solo muestra una franja: esto elige cuál. Por defecto, el centro. */
+  imagePosition?: string;
+  /** Alto de la banda como fracción del alto de pantalla (por defecto 0.4).
+      Para imágenes cuyo motivo es un logo centrado, que con 40vh no entra. */
+  heroVh?: number;
   /** Rótulo bajo el título (etiqueta del proyecto, fecha del hito…). */
   tag?: ReactNode;
   /** Texto accesible de la X. */
@@ -47,7 +53,8 @@ const SUBIDA_MS = 320;
    Projects.css (clamp(240px, 40vh, 520px)): el flip necesita el número antes
    del primer paint, cuando todavía no hay nada que medir. Si se toca uno, se
    toca el otro. */
-const altoBanda = () => Math.min(520, Math.max(240, window.innerHeight * 0.4));
+const altoBanda = (vh = 0.4) =>
+  Math.min(vh === 0.4 ? 520 : 900, Math.max(240, window.innerHeight * vh));
 
 /* Estado inicial del flip, como en el prototipo de Figma: crece SOLO la banda
    de foto, desde la tarjeta hasta ocupar el ancho arriba (antes crecía el
@@ -56,10 +63,10 @@ const altoBanda = () => Math.min(520, Math.max(240, window.innerHeight * 0.4));
    vertical centrado la recorta a la proporción de la tarjeta; al animar,
    escala y clip llegan juntos a 1 y 0. Todo en px SIN unidad donde CSS pide
    número: scale() con unidad invalida el transform entero (bug viejo). */
-function flipDesde(r: DOMRect): CSSProperties {
+function flipDesde(r: DOMRect, vh?: number): CSSProperties {
   const escala = r.width / Math.max(1, window.innerWidth);
   const altoVisible = r.height / escala; // alto de la tarjeta, en px de la banda
-  const clip = Math.max(0, (altoBanda() - altoVisible) / 2);
+  const clip = Math.max(0, (altoBanda(vh) - altoVisible) / 2);
   return {
     ['--from-x' as string]: `${r.left}px`,
     // El borde de arriba de lo visible cae `clip` px adentro de la banda.
@@ -79,6 +86,8 @@ export function DetailModal({
   title,
   ariaLabel,
   image,
+  imagePosition,
+  heroVh,
   tag,
   closeLabel = 'Close project',
   onClose,
@@ -167,7 +176,11 @@ export function DetailModal({
       <div
         className={`project-modal${image ? '' : ' project-modal--sin-imagen'}`}
         onClick={(e) => e.stopPropagation()}
-        style={originRect && image ? flipDesde(originRect) : undefined}
+        style={{
+          ...(originRect && image ? flipDesde(originRect, heroVh) : null),
+          // Misma fórmula que altoBanda: el CSS y el flip tienen que coincidir.
+          ...(heroVh ? { ['--modal-hero-h' as string]: `${altoBanda(heroVh)}px` } : null),
+        }}
       >
         {/* El título y la X salen de .project-modal-image: esa caja tiene
             overflow:hidden para recortar la foto, y ahí adentro el título no
@@ -176,7 +189,11 @@ export function DetailModal({
         <div className="project-modal-hero">
           {image && (
             <div className="project-modal-image">
-              <img src={image} alt={title} />
+              <img
+                src={image}
+                alt={title}
+                style={imagePosition ? { objectPosition: imagePosition } : undefined}
+              />
             </div>
           )}
           <div className="project-modal-image-overlay">

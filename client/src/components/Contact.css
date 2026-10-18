@@ -472,6 +472,35 @@
   color: #ff8fa3;
 }
 
+/* Varios avisos de adjuntos a la vez (p.ej. un .exe y un duplicado): uno por línea. */
+.form-error p { margin: 0; }
+.form-error p + p { margin-top: 4px; }
+
+/* Contador de caracteres del mensaje: aparece recién cerca del tope, adentro
+   del pill a la derecha (el input le reserva el lugar). */
+.field.has-counter input { padding-right: clamp(150px, 11vw, 190px); }
+.field-counter {
+  position: absolute;
+  top: 50%;
+  right: clamp(20px, 1.46vw, 28px);
+  transform: translateY(-50%);
+  font-size: clamp(12px, 0.8vw, 14px);
+  color: var(--fg-muted);
+  pointer-events: none;
+  white-space: nowrap;
+}
+.field-counter.over { color: #ff8fa3; }
+
+/* Honeypot: fuera de pantalla (no display:none, que algunos bots detectan). */
+.contact-hp {
+  position: absolute;
+  left: -10000px;
+  top: auto;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
 /* Estado de error del envío: el botón vuelve a estar habilitado (reintentar) y
    se distingue del violeta normal para que no parezca que no pasó nada. */
 .submit.failed { color: #ff8fa3; }

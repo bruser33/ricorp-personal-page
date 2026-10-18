@@ -1,24 +1,28 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLang } from '../i18n';
+import {
+  ACCEPTED_FILE_TYPES,
+  MAX_FILES,
+  MAX_MESSAGE_LENGTH,
+  MAX_TOTAL_BYTES,
+  MESSAGE_COUNTER_FROM,
+  addFiles,
+  canRetry,
+  createSingleFlight,
+  formatBytes,
+  sendContact,
+  validateEmail,
+  validateMessage,
+  type EmailIssue,
+  type FileIssue,
+  type MessageIssue,
+  type SubmitError,
+} from '../lib/contactValidation';
 import { Footline } from './Footline';
 import './Contact.css';
 
-/* Límites de adjuntos. Viven acá como constantes exportadas para que no haya
-   números sueltos repetidos entre la validación, el hint y los tests; el server
-   revalida los MISMOS valores (server/src/index.js) porque el cliente es una
-   sugerencia, no la autoridad. */
-export const MAX_FILES = 5;
-export const MAX_TOTAL_BYTES = 10 * 1024 * 1024; // 10 MB entre todos los archivos
-export const ACCEPTED_FILE_TYPES = 'image/*,.pdf,.doc,.docx,.txt,.zip';
-
-/* Tamaño legible: KB/MB con un decimal, sin dependencias. No se exporta a
-   propósito: react-refresh solo tolera exports de componentes y de constantes,
-   y sacar una función de acá rompería el fast refresh del módulo. */
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
+/* Los límites y la validación viven en lib/contactValidation.ts (funciones
+   puras con tests en vitest); el server revalida los MISMOS valores. */
 
 type Status = 'idle' | 'sending' | 'sent' | 'error';
 
@@ -26,9 +30,20 @@ export function Contact() {
   const { t } = useLang();
   const [subject, setSubject] = useState('');
   const [email, setEmail] = useState('');
+  /* Honeypot: campo oculto que un humano no ve; si llega lleno, el server
+     finge éxito sin enviar correo. */
+  const [website, setWebsite] = useState('');
   const [files, setFiles] = useState<File[]>([]);
-  const [fileError, setFileError] = useState<string | null>(null);
+  /* Avisos de adjuntos de la última tanda: puede haber varios a la vez (un
+     .exe y un duplicado), y cada uno lleva su propio texto. */
+  const [fileIssues, setFileIssues] = useState<FileIssue[]>([]);
+  const [messageIssue, setMessageIssue] = useState<MessageIssue | null>(null);
+  const [emailIssue, setEmailIssue] = useState<EmailIssue | null>(null);
+  const [submitError, setSubmitError] = useState<SubmitError | null>(null);
   const [status, setStatus] = useState<Status>('idle');
+  /* Candado síncrono contra el doble clic: el `disabled` del botón recién se
+     aplica en el próximo render. */
+  const singleFlight = useMemo(() => createSingleFlight(), []);
   /* Coreografía de entrada/salida de la escena (ver Contact.css). Va con su
      propio observer y NO con el .reveal global porque el reveal es de una sola
      vez: acá la salida (título y orbe se desvanecen, el orbe se va a la derecha)
@@ -76,50 +91,77 @@ export function Contact() {
     e.target.value = '';
     if (!picked.length) return;
 
-    const merged = [...files];
-    for (const f of picked) {
-      if (!merged.some((m) => m.name === f.name && m.size === f.size)) merged.push(f);
-    }
-
-    if (merged.length > MAX_FILES) {
-      setFileError(t('contact.errorMaxFiles').replace('{n}', String(MAX_FILES)));
-      return;
-    }
-    if (merged.reduce((acc, f) => acc + f.size, 0) > MAX_TOTAL_BYTES) {
-      setFileError(t('contact.errorMaxSize').replace('{size}', formatBytes(MAX_TOTAL_BYTES)));
-      return;
-    }
-
-    setFileError(null);
-    setFiles(merged);
+    const result = addFiles(files, picked);
+    setFileIssues(result.issues);
+    setFiles(result.files);
   }
 
   function removeFile(index: number) {
     setFiles((prev) => prev.filter((_, i) => i !== index));
-    setFileError(null);
+    setFileIssues([]);
+  }
+
+  function fileIssueText(issue: FileIssue): string {
+    const size = formatBytes(MAX_TOTAL_BYTES);
+    switch (issue.code) {
+      case 'tooMany':
+        return t('contact.errorMaxFiles').replace('{n}', String(MAX_FILES));
+      case 'tooLarge':
+        return t('contact.errorMaxSize').replace('{size}', size);
+      case 'fileTooLarge':
+        return t('contact.errorFileTooLarge').replace('{file}', issue.file).replace('{size}', size);
+      case 'type':
+        return t('contact.errorFileType').replace('{file}', issue.file);
+      case 'duplicate':
+        return t('contact.errorDuplicate').replace('{file}', issue.file);
+      case 'empty':
+        return t('contact.errorEmptyFile').replace('{file}', issue.file);
+    }
+  }
+
+  function submitErrorText(error: SubmitError): string {
+    if (error === 'generic') return t('contact.error');
+    return t(`contact.submit.${error}`)
+      .replace('{n}', String(error === 'attachments' ? MAX_FILES : MAX_MESSAGE_LENGTH))
+      .replace('{size}', formatBytes(MAX_TOTAL_BYTES));
   }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!subject || !email || locked) return;
-    setStatus('sending');
-    try {
-      const url = (import.meta.env.VITE_API_URL ?? 'http://localhost:4000') + '/api/contact';
-      const body = new FormData();
-      body.append('subject', subject);
-      body.append('email', email);
-      /* Sin Content-Type manual: el navegador tiene que poner el boundary del
-         multipart, y fijarlo a mano rompe el parseo en multer. */
-      for (const f of files) body.append('files', f);
-      const res = await fetch(url, { method: 'POST', body });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      setStatus('sent');
-    } catch {
-      /* Antes esto se tragaba el error y mostraba "Enviado": el mensaje se perdía
-         sin que nadie se enterara. Ahora queda un estado visible y reintentable. */
+    if (locked) return;
+    /* Validación propia (el form va con noValidate): cada error con su texto
+       junto al campo, en vez del tooltip nativo que cambia según el navegador. */
+    const mIssue = validateMessage(subject);
+    /* De a un aviso por vez y en el orden de la pantalla: con el mensaje vacío
+       el campo del email ni se ve todavía (stage initial). */
+    const eIssue = mIssue ? null : validateEmail(email);
+    setMessageIssue(mIssue);
+    setEmailIssue(eIssue);
+    if (mIssue || eIssue) return;
+
+    await singleFlight(async () => {
+      setStatus('sending');
+      setSubmitError(null);
+      const result = await sendContact({
+        url: (import.meta.env.VITE_API_URL ?? 'http://localhost:4000') + '/api/contact',
+        message: subject,
+        email,
+        files,
+        website,
+      });
+      if (result.ok) {
+        setStatus('sent');
+        return;
+      }
+      /* Antes cualquier fallo mostraba el mismo texto genérico; ahora cada
+         status (400/413/429/502/503, red caída o timeout) tiene el suyo. */
+      setSubmitError(result.error);
       setStatus('error');
-    }
+    });
   }
+
+  const retryable = submitError !== null && canRetry(submitError);
+  const showCounter = subject.length >= MESSAGE_COUNTER_FROM;
 
   const stage = sent ? 'sent' : email ? 'composing' : subject ? 'subject-filled' : 'initial';
 
@@ -163,17 +205,56 @@ export function Contact() {
         <div className="contact-spacer" aria-hidden="true" />
       </div>
 
-      <form className="contact-form container" data-stage={stage} onSubmit={submit}>
-        <label className="field">
+      <form className="contact-form container" data-stage={stage} onSubmit={submit} noValidate>
+        {/* Honeypot: fuera de pantalla, sin foco por teclado y oculto para
+            lectores de pantalla. Los bots que llenan todo lo delatan. */}
+        <div className="contact-hp" aria-hidden="true">
+          <label>
+            Website
+            <input
+              type="text"
+              name="website"
+              tabIndex={-1}
+              autoComplete="off"
+              value={website}
+              onChange={(e) => setWebsite(e.target.value)}
+            />
+          </label>
+        </div>
+
+        <label className={'field' + (showCounter ? ' has-counter' : '')}>
           <input
             type="text"
             placeholder={t('contact.subjectPlaceholder')}
             value={subject}
-            onChange={(e) => setSubject(e.target.value)}
+            onChange={(e) => {
+              setSubject(e.target.value);
+              if (messageIssue) setMessageIssue(null);
+            }}
             disabled={locked}
             required
+            aria-invalid={messageIssue ? true : undefined}
+            aria-describedby={messageIssue ? 'contact-message-error' : undefined}
           />
+          {/* Contador solo cerca del tope; se pone rojo si lo pasa. */}
+          {showCounter && (
+            <span
+              className={'field-counter' + (subject.length > MAX_MESSAGE_LENGTH ? ' over' : '')}
+              aria-live="polite"
+            >
+              {t('contact.counter')
+                .replace('{n}', String(subject.length))
+                .replace('{max}', String(MAX_MESSAGE_LENGTH))}
+            </span>
+          )}
         </label>
+        {messageIssue && (
+          <p id="contact-message-error" className="form-error" role="alert">
+            {messageIssue === 'empty'
+              ? t('contact.errorMessageEmpty')
+              : t('contact.errorMessageTooLong').replace('{n}', String(MAX_MESSAGE_LENGTH))}
+          </p>
+        )}
 
         {/* Adjuntos. El input queda oculto pero FOCUSABLE (no display:none) para
             que el label pueda mostrar el foco de teclado con el selector hermano. */}
@@ -234,10 +315,12 @@ export function Contact() {
             </ul>
           )}
 
-          {fileError && (
-            <p className="form-error" role="alert">
-              {fileError}
-            </p>
+          {fileIssues.length > 0 && (
+            <div className="form-error" role="alert">
+              {fileIssues.map((issue, i) => (
+                <p key={`${issue.code}-${i}`}>{fileIssueText(issue)}</p>
+              ))}
+            </div>
           )}
         </div>
 
@@ -249,21 +332,29 @@ export function Contact() {
             type="email"
             placeholder={t('contact.emailPlaceholder')}
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              if (emailIssue) setEmailIssue(null);
+            }}
             disabled={locked}
             required
+            aria-invalid={emailIssue ? true : undefined}
+            aria-describedby={emailIssue ? 'contact-email-error' : undefined}
           />
+          {/* Sin `!email` en el disabled: el botón igual no se ve hasta que hay
+              email (stage composing), y así Enter con el email vacío muestra
+              el aviso propio en vez de no hacer nada. */}
           <button
             type="submit"
             className={'submit' + (sent ? ' sent' : '') + (status === 'error' ? ' failed' : '')}
-            disabled={locked || !email}
+            disabled={locked}
           >
             <span className="submit-label">
               {sent
                 ? t('contact.sent')
                 : status === 'sending'
                   ? t('contact.sending')
-                  : status === 'error'
+                  : status === 'error' && retryable
                     ? t('contact.retry')
                     : t('contact.send')}
             </span>
@@ -285,9 +376,15 @@ export function Contact() {
           </button>
         </label>
 
-        {status === 'error' && (
+        {emailIssue && (
+          <p id="contact-email-error" className="form-error" role="alert">
+            {emailIssue === 'empty' ? t('contact.errorEmailEmpty') : t('contact.errorEmailInvalid')}
+          </p>
+        )}
+
+        {status === 'error' && submitError && (
           <p className="form-error" role="alert">
-            {t('contact.error')}
+            {submitErrorText(submitError)}
           </p>
         )}
       </form>
