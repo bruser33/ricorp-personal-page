@@ -58,7 +58,11 @@
  *    detalle no muestra nada de Instagram.
  *    Aparte: si el hito tiene `enlace`, el detalle muestra "Ver sitio" (nueva
  *    pestaña). Una ruta del propio sitio se escribe con barra: '/wstyle/'.
- * 9) Un destacado SIN `imagen` no se puede dibujar como tarjeta (la tarjeta ES
+ * 9) `tituloTarjeta` (opcional) es un título CORTO para la tarjeta del
+ *    slider de Proyectos, que va en letra muy grande: un título largo ocupa
+ *    cinco líneas y se sale de la tarjeta. La línea de tiempo y el detalle
+ *    siguen usando `titulo`.
+ * 10) Un destacado SIN `imagen` no se puede dibujar como tarjeta (la tarjeta ES
  *    la imagen), así que Proyectos lo saltea. En la trayectoria sigue estando.
  * ========================================================================== */
 
@@ -75,6 +79,9 @@ export type HitoTrayectoria = {
   destacado?: boolean;
   /** Solo Proyectos: tipo de trabajo bajo el título de la tarjeta. */
   etiqueta?: string;
+  /** Solo Proyectos: título corto para la tarjeta del slider (va en letra muy
+   *  grande). Sin él se usa `titulo`. */
+  tituloTarjeta?: string;
   /** Solo Proyectos: imágenes extra del detalle, relativas a `client/public`. */
   mockups?: string[];
   /** Solo Proyectos: URL de un reel de Instagram. Ausente o '' = no se muestra. */
@@ -144,8 +151,10 @@ export const trayectoria: HitoTrayectoria[] = [
     imagen: 'figma-frames/news-5.webp',
   },
 
-  /* Los 6 de acá abajo son los proyectos de ejemplo de la sección Proyectos
-     (`destacado`). Las fechas son inventadas y solo sirven para fijar el orden. */
+  /* Proyectos informáticos (slider) = SOLO los mejores: hoy W Style, Haru e
+     Invasión UFPS (pedido 2026-10-18: "por ahora solo 3"). Los "Project N" de
+     acá abajo son ejemplos de relleno: ya no van al slider, quedan en la
+     Bitácora hasta que se reemplacen o se borren. Fechas inventadas. */
   /* Haru: proyecto real (descripción de Pedro, 2026-10-18). La fecha sigue
      siendo la de relleno: falta la real. */
   {
@@ -171,7 +180,6 @@ export const trayectoria: HitoTrayectoria[] = [
     imagen: 'figma-frames/image-4.webp',
     descripcion:
       'Lorem ipsum dolor sit amet consectetur. Quis sed ultrices sed ornare iaculis viverra nec vivamus. Eu ullamcorper sed in dictumst mauris nunc a posuere.',
-    destacado: true,
   },
   {
     id: 'relleno-proyecto-4',
@@ -181,7 +189,6 @@ export const trayectoria: HitoTrayectoria[] = [
     imagen: 'figma-frames/image-5.webp',
     descripcion:
       'Lorem ipsum dolor sit amet consectetur. Pulvinar congue sed eu blandit fusce. Lorem vivamus elementum vitae faucibus malesuada dictum diam.',
-    destacado: true,
   },
   {
     id: 'relleno-proyecto-5',
@@ -191,7 +198,6 @@ export const trayectoria: HitoTrayectoria[] = [
     imagen: 'figma-frames/image-6.webp',
     descripcion:
       'Lorem ipsum dolor sit amet consectetur. Quam faucibus sem sed odio augue lectus cursus ultricies morbi. Eu elit cursus orci justo accumsan sit.',
-    destacado: true,
   },
   {
     id: 'relleno-proyecto-6',
@@ -201,7 +207,6 @@ export const trayectoria: HitoTrayectoria[] = [
     imagen: 'figma-frames/news-1.webp',
     descripcion:
       'Lorem ipsum dolor sit amet consectetur. Felis leo eleifend elit urna habitasse integer. Ornare donec vivamus eget facilisi interdum.',
-    destacado: true,
   },
   {
     id: 'relleno-proyecto-7',
@@ -211,7 +216,6 @@ export const trayectoria: HitoTrayectoria[] = [
     imagen: 'figma-frames/news-2.webp',
     descripcion:
       'Lorem ipsum dolor sit amet consectetur. Sodales ultrices cursus condimentum hac scelerisque elementum morbi nisl.',
-    destacado: true,
   },
   /* Workana: datos del perfil público (2026-10-18), como texto propio y con
      enlace al perfil — sin capturas ni logo (los TyC de Workana no lo permiten)
@@ -236,6 +240,12 @@ export const trayectoria: HitoTrayectoria[] = [
     /* Pantalla de inicio del juego, ilustrada por Junior Molina (rescatada del
        correo "Imagenes, logo, elementos.", 16-ene-2017). */
     imagen: 'figma-frames/invasion-ufps-menu.webp',
+    /* También en "Proyectos informáticos" (pedido 2026-10-18). Sin mockups: el
+       detalle está maquetado para 2 teléfonos verticales y el juego es
+       apaisado; la pantalla de inicio ya va como imagen principal. */
+    destacado: true,
+    etiqueta: 'Game development',
+    tituloTarjeta: 'Invasión UFPS',
     descripcion:
       'Para graduarme de ingeniero en la UFPS no quisimos hacer una tesis de papel: hicimos un videojuego. Lo construimos por etapas. Primero el anteproyecto, que pulimos con nuestro director hasta dejarlo listo en 2016. Después armamos el equipo: contratamos a Junior Molina como ilustrador y le pasamos fotos reales de la universidad para que el menú principal partiera de la entrada de la UFPS y el primer escenario se pareciera al campus. Luego vino el arte del personaje, el estudiante, despiezado parte por parte para animarlo con sprites y sus ataques, seguido del logo, los elementos del escenario y los enemigos, como la rata de latas. Con eso programamos los niveles en Unity y los probamos una y otra vez, corrigiendo vidas, conteos y movimientos hasta que cada nivel funcionó de punta a punta. ¡Un proyecto que nos enseñó a llevar una idea desde el papel hasta un juego jugable!',
     enlace: 'https://www.youtube.com/watch?v=1Oq8jxT7OgE',
