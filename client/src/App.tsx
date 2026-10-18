@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Splash } from './components/Splash';
 import { Header } from './components/Header';
 import { Hero } from './components/Hero';
@@ -8,6 +8,7 @@ import { Contact } from './components/Contact';
 import { useReveal } from './hooks/useReveal';
 import { introTotalMs } from './intro';
 import { glideToSection, isGliding, prefersReducedMotion } from './lib/glideTo';
+import { usePagina } from './lib/rutas';
 import './App.css';
 
 /* Scroll-driven morph of body::before "Blue Light" blob.
@@ -57,7 +58,10 @@ function docOffset(el: HTMLElement) {
   return { top, left };
 }
 
-function useBlobMorph(enabled: boolean) {
+/* `pagina` re-arma el morph al cambiar de página: las paradas se buscan por id
+   y cada página tiene otras secciones (en /contacto solo queda la de contacto,
+   así que el glow se queda quieto detrás del título). */
+function useBlobMorph(enabled: boolean, pagina: string) {
   useEffect(() => {
     if (!enabled) return;
     /* Ya no se cede a la scroll-timeline nativa en Chromium: sus keyframes se
@@ -80,6 +84,9 @@ function useBlobMorph(enabled: boolean) {
       { id: 'about', scale: 2.27, y: 0, opacity: 1 },
       { id: 'contact', ...contactGlow, bump: 620 },
       { id: 'contact', edge: 'mid', ...contactGlow },
+      /* Página Trayectoria: como en el Figma, lo primero que se ve es el glow
+         al centro, detrás de donde aparece la portada. */
+      { id: 'trayectoria', scale: 1.6, anchor: '.news-featured__media', opacity: 1 },
     ];
     const grain = document.querySelector<HTMLElement>('.blob-grain');
     const header = () =>
@@ -153,7 +160,7 @@ function useBlobMorph(enabled: boolean) {
       window.removeEventListener('resize', onScroll);
       cancelAnimationFrame(raf);
     };
-  }, [enabled]);
+  }, [enabled, pagina]);
 }
 
 /* "Movie" auto-advance: once the hero intro has finished (title + face settled,
@@ -185,7 +192,6 @@ function useAutoAdvanceToProjects(enabled: boolean) {
       if (!armed || fired || isGliding()) return;
       // En la pantalla Bitácora el home está oculto: secuestrar el gesto
       // bloquearía su scroll. No se desarma: al volver el home sigue en el hero.
-      if (document.documentElement.classList.contains('bitacora-activa')) return;
       // Never hijack a click on an interactive control (nav links, language
       // toggle, buttons, carousel tabs) — the user's own action must win. A click
       // on empty hero space still triggers the "movie" advance, alongside
@@ -262,7 +268,6 @@ function useDirectionalSnap(enabled: boolean) {
         return;
       }
       if (!desktop.matches || prefersReducedMotion() || isGliding()) return;
-      if (document.documentElement.classList.contains('bitacora-activa')) return;
       const y = window.scrollY;
       const ps = points();
       if (ps.some((p) => Math.abs(p - y) <= 2)) return;
@@ -298,13 +303,31 @@ function useBodyLit(enabled: boolean) {
   }, [enabled]);
 }
 
+/* Al cambiar de página se arranca arriba (instant: html tiene scroll-behavior
+   smooth y si no se vería un barrido). La primera carga no se toca. */
+function useArribaAlCambiar(pagina: string) {
+  const primera = useRef(true);
+  useEffect(() => {
+    if (primera.current) {
+      primera.current = false;
+      return;
+    }
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }, [pagina]);
+}
+
 export default function App() {
   const [siteReady, setSiteReady] = useState(false);
+  const pagina = usePagina();
+  const enInicio = pagina === 'inicio';
+  useArribaAlCambiar(pagina);
   useBodyLit(siteReady);
-  useReveal(siteReady);
-  useBlobMorph(siteReady);
-  useAutoAdvanceToProjects(siteReady);
-  useDirectionalSnap(siteReady);
+  // Re-armar los reveals por página: los nodos de la página nueva nacen después.
+  useReveal(siteReady, pagina);
+  useBlobMorph(siteReady, pagina);
+  // El auto-avance y el snap direccional son coreografía del home.
+  useAutoAdvanceToProjects(siteReady && enInicio);
+  useDirectionalSnap(siteReady && enInicio);
 
   return (
     <>
@@ -316,19 +339,22 @@ export default function App() {
       <div className={`blob-grain ${siteReady ? 'is-lit' : ''}`} aria-hidden="true" />
       <div className={siteReady ? 'site-ready' : 'site-pre'} aria-hidden={!siteReady}>
         <Header introDone={siteReady} />
-        <main>
-          <Hero startAnim={siteReady} />
-          <Projects />
-          {/* El home termina en Contacto: el recorrido va proyectos → contacto (UNA
-              sola escena: título, orbe y formulario). Si se vuelve
-              a mover, hay que reordenar también los stops de useBlobMorph (van
-              en orden de documento) y el scroll-snap de index.css. */}
-          <Contact />
+        {/* Una página por ruta (lib/rutas.ts): Inicio (hero + proyectos),
+            Contacto y Trayectoria. Contacto y Trayectoria eran una sección del
+            home y una vista con #hash; ahora tienen URL propia. `key` remonta
+            <main> al cambiar, así cada página arranca con sus animaciones de
+            entrada. Si se reordenan secciones del home, revisar las paradas de
+            useBlobMorph (van en orden de documento) y el snap de index.css. */}
+        <main key={pagina}>
+          {enInicio && (
+            <>
+              <Hero startAnim={siteReady} />
+              <Projects />
+            </>
+          )}
+          {pagina === 'contacto' && <Contact />}
+          {pagina === 'trayectoria' && <News />}
         </main>
-        {/* Trayectoria: PANTALLA propia (no un modal). Con #trayectoria en la URL
-            reemplaza al home (que queda oculto, no desmontado, para no perder
-            su estado) y recién cuando terminó el splash. */}
-        <News ready={siteReady} />
       </div>
     </>
   );

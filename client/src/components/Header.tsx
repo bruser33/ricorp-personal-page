@@ -1,22 +1,19 @@
-import { useState, useEffect, useRef, type MouseEvent } from 'react';
+import { useState, useEffect } from 'react';
 import { useLang } from '../i18n';
 import { SPLASH_OUTRO_MS } from './Splash';
-import { cancelGlide, glideToSection, prefersReducedMotion } from '../lib/glideTo';
-import { abrirNoticias, enBitacora } from '../noticiasVista';
+import { cancelGlide } from '../lib/glideTo';
+import { RUTAS, alNavegar, usePagina, type Pagina } from '../lib/rutas';
 import './Header.css';
 
 const BASE = import.meta.env.BASE_URL;
 
-/* "about" desde el hero viaja con el mismo deslizamiento que el auto-avance
-   (SPEC-21). Fuera del hero, o con movimiento reducido, queda el ancla nativa. */
-function onAboutClick(e: MouseEvent<HTMLAnchorElement>) {
-  /* Desde la Bitácora el home está oculto (no hay offsets que deslizar): manda el
-     ancla nativa, cuyo hashchange cierra la pantalla y lleva a la sección. */
-  if (enBitacora()) return;
-  if (prefersReducedMotion() || window.scrollY > window.innerHeight * 0.5) return;
-  e.preventDefault();
-  if (glideToSection('about')) history.pushState(null, '', '#about');
-}
+/* Navbar: Inicio · Contacto · Trayectoria, en ese orden. Cada una es una
+   página propia (ver lib/rutas.ts); "Nosotros" se fue (pedido 2026-10-18). */
+const NAV: { pagina: Pagina; clave: string }[] = [
+  { pagina: 'inicio', clave: 'nav.home' },
+  { pagina: 'contacto', clave: 'nav.contact' },
+  { pagina: 'trayectoria', clave: 'nav.news' },
+];
 
 /* `introDone` = el logo del splash ya aterrizó en el header. En mobile ese es el
    momento en que el wordmark RICORP se retira y queda solo el botón de menú
@@ -26,7 +23,7 @@ export function Header({ introDone = false }: { introDone?: boolean }) {
   const [open, setOpen] = useState(false);
   const { lang, toggle, t } = useLang();
   const [scrolled, setScrolled] = useState(false);
-  const hamburgerRef = useRef<HTMLButtonElement | null>(null);
+  const pagina = usePagina();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 10);
@@ -59,29 +56,27 @@ export function Header({ introDone = false }: { introDone?: boolean }) {
           <button className="lang" onClick={toggle}>
             {lang}
           </button>
-          <a href="#home" className="brand" aria-label="RICORP">
+          <a
+            href={RUTAS.inicio}
+            className="brand"
+            aria-label="RICORP"
+            onClick={alNavegar('inicio', cancelGlide)}
+          >
             <img src={BASE + 'ricorp-logo.svg'} alt="RICORP" className="brand-logo" />
           </a>
           <nav className="nav-desktop">
-            <a href="#contact" onClick={cancelGlide}>{t('nav.contact')}</a>
-            {/* La Bitácora no es un ancla del home: es otra pantalla (ver
-                News.tsx). El href queda para abrir en otra pestaña. */}
-            <a
-              href="#trayectoria"
-              onClick={(e) => {
-                // Cmd/Ctrl/Shift+clic sigue abriendo /#news en otra pestaña.
-                if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-                e.preventDefault();
-                cancelGlide();
-                abrirNoticias(e.currentTarget);
-              }}
-            >
-              {t('nav.news')}
-            </a>
-            <a href="#about" onClick={onAboutClick}>{t('nav.about')}</a>
+            {NAV.map((n) => (
+              <a
+                key={n.pagina}
+                href={RUTAS[n.pagina]}
+                aria-current={pagina === n.pagina ? 'page' : undefined}
+                onClick={alNavegar(n.pagina, cancelGlide)}
+              >
+                {t(n.clave)}
+              </a>
+            ))}
           </nav>
           <button
-            ref={hamburgerRef}
             className="hamburger"
             aria-label={t('nav.menu')}
             onClick={() => setOpen(true)}
@@ -116,22 +111,17 @@ export function Header({ introDone = false }: { introDone?: boolean }) {
             >
               ×
             </button>
-            <nav className="overlay-nav" onClick={() => setOpen(false)}>
-              <a href="#home">{t('nav.home')}</a>
-              <a href="#contact" onClick={cancelGlide}>{t('nav.contact')}</a>
-              {/* El panel se desmonta al entrar a la Bitácora (el onClick del nav
-                  lo cierra), así que el foco vuelve al botón de menú. */}
-              <a
-                href="#trayectoria"
-                onClick={(e) => {
-                  e.preventDefault();
-                  cancelGlide();
-                  abrirNoticias(hamburgerRef.current);
-                }}
-              >
-                {t('nav.news')}
-              </a>
-              <a href="#about" onClick={onAboutClick}>{t('nav.about')}</a>
+            <nav className="overlay-nav">
+              {NAV.map((n) => (
+                <a
+                  key={n.pagina}
+                  href={RUTAS[n.pagina]}
+                  aria-current={pagina === n.pagina ? 'page' : undefined}
+                  onClick={alNavegar(n.pagina, () => setOpen(false))}
+                >
+                  {t(n.clave)}
+                </a>
+              ))}
             </nav>
             <button className="overlay-lang" onClick={toggle}>
               {t('lang.switch')}

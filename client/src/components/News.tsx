@@ -7,14 +7,6 @@ import type {
 import { useLang } from '../i18n';
 import { formatearFecha, hitosOrdenados } from '../data/trayectoria';
 import type { HitoTrayectoria } from '../data/trayectoria';
-import {
-  CLASE_PANTALLA,
-  EVENTO_NOTICIAS,
-  HASH_NOTICIAS,
-  enBitacora,
-  entradaPropia,
-  tomarFocoDeRetorno,
-} from '../noticiasVista';
 import { DetailModal } from './DetailModal';
 import { Footline } from './Footline';
 import './News.css';
@@ -73,22 +65,17 @@ function onMediaError(e: SyntheticEvent<HTMLImageElement>) {
   img.parentElement?.classList.add('media-fallback');
 }
 
-/* Bitácora como PANTALLA (antes una vista superpuesta con X, trampa de foco y
-   scroll propio): con #trayectoria en la URL el home se oculta (html.bitacora-activa,
-   ver News.css), el header sigue arriba y la página usa el scroll normal de la
-   ventana. Se entra desde el navbar (abrirNoticias) o con /#trayectoria; se sale con
-   "Volver al inicio", el logo, cualquier link del navbar o el botón atrás. `ready`
-   = el splash terminó: un deep link no tapa la intro. */
-export function News({ ready = true }: { ready?: boolean }) {
+/* Trayectoria como PÁGINA propia (ricorp.cl/trayectoria, ver lib/rutas.ts).
+   Antes era una pantalla que tapaba el home con un #hash y un "Volver al
+   inicio"; ahora se entra y se sale por el navbar o el botón atrás, como con
+   cualquier página. Los reveals los arma useReveal de App (re-armado por
+   página) y este componente los vuelve a armar si /api/news trae otra lista. */
+export function News() {
   const { lang, t } = useLang();
   const [hitos, setHitos] = useState<HitoTrayectoria[]>(() => hitosOrdenados());
-  const [abierta, setAbierta] = useState(enBitacora);
   const [detalle, setDetalle] = useState<HitoTrayectoria | null>(null);
   const [origen, setOrigen] = useState<DOMRect | null>(null);
   const rootRef = useRef<HTMLElement | null>(null);
-  const tituloRef = useRef<HTMLHeadingElement | null>(null);
-
-  const visible = abierta && ready;
 
   useEffect(() => {
     const apiBase = import.meta.env.VITE_API_URL;
@@ -104,44 +91,6 @@ export function News({ ready = true }: { ready?: boolean }) {
       .catch(() => {});
   }, []);
 
-  /* La URL manda: abrir (evento propio, pushState no avisa), atrás/adelante
-     (popstate) y un #news tipeado a mano (hashchange) se resuelven igual. Al
-     cerrarse la vista se cierra también el detalle que hubiera quedado abierto. */
-  useEffect(() => {
-    const sync = () => {
-      const enHash = enBitacora();
-      /* Un #news/#noticias viejo tipeado a mano se normaliza sin sumar entrada. */
-      if (enHash && window.location.hash !== HASH_NOTICIAS) {
-        window.history.replaceState(window.history.state, '', HASH_NOTICIAS);
-      }
-      setAbierta(enHash);
-      if (!enHash) setDetalle(null);
-    };
-    window.addEventListener(EVENTO_NOTICIAS, sync);
-    window.addEventListener('popstate', sync);
-    window.addEventListener('hashchange', sync);
-    return () => {
-      window.removeEventListener(EVENTO_NOTICIAS, sync);
-      window.removeEventListener('popstate', sync);
-      window.removeEventListener('hashchange', sync);
-    };
-  }, []);
-
-  /* "Volver al inicio" = volver a la entrada anterior del historial cuando la de
-     #trayectoria es nuestra (link del navbar o deep link reescrito): así el botón y
-     "atrás" dejan el historial igual. Si alguien tipeó el hash a mano, se
-     reemplaza la URL en vez de retroceder (la entrada de atrás podría no ser este
-     sitio). */
-  const cerrarVista = useCallback(() => {
-    if (entradaPropia()) {
-      window.history.back();
-      return;
-    }
-    window.history.replaceState(null, '', window.location.pathname + window.location.search);
-    setAbierta(false);
-    setDetalle(null);
-  }, []);
-
   const abrirDetalle = useCallback((hito: HitoTrayectoria, el: HTMLElement) => {
     setOrigen(el.getBoundingClientRect());
     setDetalle(hito);
@@ -152,53 +101,10 @@ export function News({ ready = true }: { ready?: boolean }) {
     setOrigen(null);
   }, []);
 
-  /* Entrar a la pantalla: se recuerda dónde estaba el home, la página arranca
-     arriba y el foco va al título (un lector de pantalla anuncia la pantalla
-     nueva). Al salir se vuelve a ese punto del home, salvo que la salida haya
-     sido un link a una sección (#contact, #about): ahí manda el link. El salto
-     va después del render en que el home vuelve a verse — con el home en
-     display:none no hay offsets que medir. */
+  /* Si /api/news reemplaza la lista, los nodos nuevos nacen después del
+     armado de useReveal y quedarían en opacity 0: se re-arma acotado a la
+     sección. Agregar la clase dos veces es inofensivo. */
   useEffect(() => {
-    if (!visible) return;
-    const html = document.documentElement;
-    const scrollHome = window.scrollY;
-    html.classList.add(CLASE_PANTALLA);
-    /* `instant`: html tiene scroll-behavior smooth y sin esto se vería un
-       barrido por todo el home (con reveals y snap incluidos). */
-    window.scrollTo({ top: 0, behavior: 'instant' });
-    tituloRef.current?.focus({ preventScroll: true });
-    return () => {
-      html.classList.remove(CLASE_PANTALLA);
-      const destino = window.location.hash.slice(1);
-      const seccion = destino ? document.getElementById(destino) : null;
-      if (seccion) seccion.scrollIntoView({ behavior: 'instant' });
-      else window.scrollTo({ top: scrollHome, behavior: 'instant' });
-      /* El blob del home (useBlobMorph) solo se recalcula con scroll: si la
-         posición no cambió no llega ninguno y quedaría con los valores que midió
-         mientras el home estaba oculto (todos los offsets en 0). */
-      window.dispatchEvent(new Event('scroll'));
-      const el = tomarFocoDeRetorno();
-      if (el && el.isConnected) el.focus({ preventScroll: true });
-    };
-  }, [visible]);
-
-  /* Escape cierra SOLO el detalle: la Bitácora es una pantalla, no una capa que
-     se descarte con Escape. */
-  useEffect(() => {
-    if (!detalle) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') cerrarDetalle();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [detalle, cerrarDetalle]);
-
-  /* El observer global (useReveal) se arma UNA sola vez después del montaje, y
-     esta pantalla nace después (al entrar) y renace en cada entrada, igual que
-     cuando /api/news trae otra lista: sin esto los nodos quedarían en opacity
-     0. Se arma acotado a la vista; agregar la clase dos veces es inofensivo. */
-  useEffect(() => {
-    if (!visible) return;
     const section = rootRef.current;
     if (!section) return;
     const pending = Array.from(
@@ -218,7 +124,7 @@ export function News({ ready = true }: { ready?: boolean }) {
     );
     pending.forEach((el) => io.observe(el));
     return () => io.disconnect();
-  }, [hitos, visible]);
+  }, [hitos]);
 
   /* Props de una tarjeta clicable (portada o fila). Es un div con role=button y
      no un <button> porque adentro hay encabezados, que un botón no admite. */
@@ -236,9 +142,7 @@ export function News({ ready = true }: { ready?: boolean }) {
     },
   });
 
-  if (!visible) return null;
-
-  /* El hito más nuevo abre la vista a pantalla completa, pero solo si tiene
+  /* El hito más nuevo abre la página a sangre, pero solo si tiene
      imagen y queda cuerpo suficiente para la línea de tiempo: con dos hitos el
      destacado se comería la mitad del contenido. Todo por slicing, sin índices
      fijos, así el layout aguanta cualquier largo de `trayectoria.ts`. */
@@ -249,111 +153,76 @@ export function News({ ready = true }: { ready?: boolean }) {
 
   return (
     <>
+      {/* Página Trayectoria con la distribución del Figma (video 2026-10-18,
+          30–43 s): sin encabezado de página; arriba la portada a sangre con su
+          título montado sobre el borde, y abajo una grilla de tarjetas que
+          aparecen de a una. El h1 queda para lectores de pantalla. */}
       <div className="news-view" id="trayectoria">
-        <header className="news-view__head container">
-          <a
-            href="#home"
-            className="news-view__back"
-            onClick={(e) => {
-              e.preventDefault();
-              cerrarVista();
-            }}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M15 5l-7 7 7 7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            {t('bitacora.back')}
-          </a>
-          <h1 id="bitacora-titulo" className="news-view__title" ref={tituloRef} tabIndex={-1}>
-            {t('bitacora.title')}
-          </h1>
-          <p className="news-view__sub">{t('bitacora.sub')}</p>
-        </header>
+        <h1 id="bitacora-titulo" className="sr-only">
+          {t('bitacora.title')}
+        </h1>
 
         <section className="news" ref={rootRef} aria-labelledby="bitacora-titulo">
           {portada && (
-            /* El track no es un wrapper decorativo: su padding inferior ES el
-               recorrido del pin (position: sticky en .news-featured). Ver News.css. */
-            <div className="news-featured-track">
-              <article className="news-featured reveal-fade" {...tarjeta(portada)}>
-                <div className="news-featured__media">
-                  <img
-                    src={rutaImagen(portada.imagen!)}
-                    alt={portada.titulo.replace(/\n/g, ' ')}
-                    onError={onMediaError}
-                  />
-                </div>
-                <div className="news-featured__text">
-                  {portada.fecha && (
-                    <p className="news-featured__kicker">
-                      {formatearFecha(portada.fecha, lang)}
-                    </p>
-                  )}
-                  <h3 className="news-featured__title">
-                    <TitleLines text={portada.titulo} />
-                  </h3>
-                </div>
-              </article>
-            </div>
+            <article className="news-featured" {...tarjeta(portada)}>
+              <div className="news-featured__media">
+                <img
+                  src={rutaImagen(portada.imagen!)}
+                  alt={portada.titulo.replace(/\n/g, ' ')}
+                  fetchPriority="high"
+                  onError={onMediaError}
+                />
+              </div>
+              <div className="news-featured__text">
+                {portada.fecha && (
+                  <p className="news-featured__kicker">{formatearFecha(portada.fecha, lang)}</p>
+                )}
+                <h2 className="news-featured__title">
+                  <TitleLines text={portada.titulo} />
+                </h2>
+              </div>
+            </article>
           )}
 
-          <div className="container">
-            {linea.length > 0 && (
-              <ol className="news-timeline">
-                {linea.map((hito, i) => {
-                  // Alternancia: par = contenido a la derecha del eje, impar a la
-                  // izquierda. En mobile el CSS anula los dos lados (todo a la
-                  // derecha de la línea).
-                  const lado = i % 2 === 0 ? 'right' : 'left';
-                  const fecha = formatearFecha(hito.fecha, lang);
-                  const alt = hito.titulo.replace(/\n/g, ' ');
-                  return (
-                    <li
-                      key={hito.id}
-                      className={`news-row news-row--${lado} reveal reveal-delay-${(i % 3) + 1}`}
-                    >
-                      <div className="news-row__when">
-                        {fecha && <time className="news-row__date">{fecha}</time>}
-                      </div>
-                      <div className="news-row__axis" aria-hidden="true">
-                        <span className="news-row__dot" />
-                      </div>
-                      {/* La tarjeta es el contenido (foto + texto), no la fila
-                          entera: el detalle crece desde ESTE rect. El enlace del
-                          hito ya no va en el título (no puede haber un link
-                          dentro de un botón): se muestra en el detalle. */}
-                      <div className="news-row__content" {...tarjeta(hito)}>
-                        {hito.imagen && (
-                          <div className="news-row__media">
-                            {/* lazy: las filas bajan de a una con el scroll y no
-                                tienen por qué competir con la portada al abrir. */}
-                            <img
-                              src={rutaImagen(hito.imagen)}
-                              alt={alt}
-                              loading="lazy"
-                              decoding="async"
-                              onError={onMediaError}
-                            />
-                          </div>
-                        )}
-                        <h4 className="news-row__title">
-                          <TitleLines text={hito.titulo} />
-                        </h4>
-                        {hito.descripcion && (
-                          <p className="news-row__desc" lang="es">
-                            {hito.descripcion}
-                          </p>
+          {linea.length > 0 && (
+            <ol className="news-grid container">
+              {linea.map((hito, i) => {
+                const fecha = formatearFecha(hito.fecha, lang);
+                const alt = hito.titulo.replace(/\n/g, ' ');
+                return (
+                  <li
+                    key={hito.id}
+                    className="news-card-item reveal"
+                    /* Escalonado: la primera fila entra de a una después de la
+                       portada (como en el Figma); las de más abajo, al
+                       scrollear, solo con el corrimiento por columna. */
+                    style={{ ['--orden' as string]: i < 3 ? i : i % 3, ['--base' as string]: i < 3 ? '1' : '0' }}
+                  >
+                    <article className="news-card" {...tarjeta(hito)}>
+                      <div className={`news-card__media${hito.imagen ? '' : ' news-card__media--texto'}`}>
+                        {hito.imagen ? (
+                          <img
+                            src={rutaImagen(hito.imagen)}
+                            alt={alt}
+                            loading="lazy"
+                            decoding="async"
+                            onError={onMediaError}
+                          />
+                        ) : (
+                          <span aria-hidden="true">{alt}</span>
                         )}
                       </div>
-                    </li>
-                  );
-                })}
-              </ol>
-            )}
-            {/* Sin CTA "Ver todos" (apuntaba a sí mismo). */}
-          </div>
+                      {fecha && <time className="news-card__date">{fecha}</time>}
+                      <h3 className="news-card__title">
+                        <TitleLines text={hito.titulo} />
+                      </h3>
+                    </article>
+                  </li>
+                );
+              })}
+            </ol>
+          )}
         </section>
-        {/* Ahora es una pantalla completa: lleva su pie como las demás. */}
         <Footline />
       </div>
 

@@ -1,168 +1,59 @@
-.news {
-  padding: clamp(80px, 8vw, 160px) 0 clamp(60px, 6vw, 120px);
+/* ============================================================
+   Página Trayectoria (ricorp.cl/trayectoria), con la distribución y las
+   animaciones del Figma (video 2026-10-18, 30–43 s):
+     1. pantalla oscura con el glow (blob global, ver useBlobMorph);
+     2. aparece la portada a sangre con su título montado sobre el borde;
+     3. debajo, la grilla de tarjetas entra de a una.
+   Es una página más: header fijo arriba y el scroll normal de la ventana.
+   ============================================================ */
+
+/* Tiempos de la entrada. Van juntos para retocar la coreografía en un lugar. */
+.news-view {
+  --news-portada-delay: 450ms;
+  --news-portada-dur: 700ms;
+  --news-tarjeta-base: 1050ms; /* primera tarjeta, después de la portada */
+  --news-tarjeta-paso: 260ms; /* entre tarjeta y tarjeta */
+  --news-featured-drop: clamp(22px, 2.6vw, 46px);
+
+  position: relative;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  /* La portada va desde el borde de arriba, por detrás del header fijo, como en
+     el Figma: se descuenta el padding que <main> reserva para el header. */
+  margin-top: calc(-1 * var(--header-h));
+}
+
+.news {
   position: relative;
   isolation: isolate;
-  /* clip y NO hidden: `overflow: hidden` convierte a .news en contenedor de
-     scroll, y entonces el sticky del destacado se pegaría a ESE contenedor (que
-     nunca scrollea) en vez de al scroll de .news-view — el pin de R1 no
-     ocurriría nunca. `clip` recorta igual pero no crea scroll container. */
-  overflow: clip;
-
-  /* Caída de la última línea del título del destacado por debajo del borde de la
-     imagen, y recorrido del pin. Van como custom properties porque los dos
-     números se ajustan a ojo contra la referencia. */
-  --news-featured-drop: clamp(22px, 2.6vw, 46px);
-  --news-pin-travel: 42vh;
+  padding: 0 0 clamp(60px, 6vw, 120px);
 }
 
-/* ============================================================
-   Pantalla Bitácora. Ya no es una capa fixed con scroll propio: con
-   html.bitacora-activa el home se oculta (display:none, no se desmonta: el
-   carrusel y el formulario conservan su estado) y esta pantalla ocupa la página
-   con el scroll normal de la ventana y el header de siempre arriba.
-   ============================================================ */
-html.bitacora-activa main {
-  /* content-visibility y no display:none: con display:none, al volver el
-     navegador recalculaba el layout de todo el home de cero (un frame de
-     ~170 ms en un móvil medio). `hidden` deja de pintarlo pero conserva su
-     estado de render, así que reaparecer es barato. La contención de tamaño
-     lo deja en alto 0 mientras está oculto (no empuja a la Bitácora), y el
-     contenido saltado tampoco es enfocable ni llega a lectores de pantalla. */
-  content-visibility: hidden;
-  contain-intrinsic-size: 0;
-  /* El padding superior (aire del header fijo) no lo absorbe la contención:
-     sin esto la Bitácora arrancaba 80 px más abajo. */
-  padding-top: 0;
-}
-
-/* El velo/blob global es la coreografía del home: acá el fondo va limpio. */
-html.bitacora-activa body::before,
-html.bitacora-activa .blob-grain {
-  visibility: hidden;
-}
-
-.news-view {
-  position: relative;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  background: var(--bg);
-  animation: newsViewIn 480ms var(--ease-figma-out, ease) backwards;
-}
-
-/* La sección hereda el min-height de la sección vieja del home; en la pantalla
-   el alto lo da el contenido. El Footline baja al pie con margin-top:auto. */
-.news-view .news {
-  min-height: 0;
-  padding-top: clamp(32px, 4vw, 64px);
-}
 .news-view > .footline {
   margin-top: auto;
 }
 
-@keyframes newsViewIn {
-  from {
-    opacity: 0;
-    transform: translateY(24px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
-/* Encabezado de la pantalla: volver + título + bajada. El padding superior deja
-   pasar el header fijo del sitio. */
-.news-view__head {
-  padding-top: calc(var(--header-h, 80px) + clamp(24px, 4vw, 56px));
-}
-
-.news-view__back {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 15px;
-  text-decoration: none;
-  transition: color 200ms;
-}
-.news-view__back:hover,
-.news-view__back:focus-visible {
-  color: #fff;
-}
-
-.news-view__title {
-  margin: clamp(16px, 2vw, 28px) 0 0;
-  font-size: clamp(48px, 7vw, 112px);
-  line-height: 1;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  color: var(--fg, #fff);
-}
-.news-view__title:focus {
-  outline: none;
-}
-
-.news-view__sub {
-  margin: 14px 0 0;
-  font-size: clamp(18px, 1.6vw, 24px);
-  /* Mismo degradé que la bajada de contacto. */
-  background: var(--gradient-text);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
-
-/* Link activo del navbar mientras se está en la Bitácora. */
-html.bitacora-activa .nav-desktop a[href='#trayectoria'] {
-  color: #fff;
-  text-decoration: underline;
-  text-underline-offset: 6px;
-}
-
-/* Tarjetas clicables (portada y filas): abren el detalle. */
-.news-featured[role='button'],
-.news-row__content[role='button'] {
-  cursor: pointer;
-}
-
-.news-featured[role='button']:focus-visible,
-.news-row__content[role='button']:focus-visible {
-  outline: 2px solid var(--accent-blue-active, #5158fc);
-  outline-offset: 6px;
-  border-radius: 14px;
-}
-
-.news-row__content[role='button']:hover .news-row__title { color: #fff; }
-
-/* ============================================================
-   Portada full-bleed (R9) — el hito más nuevo, de borde a borde.
-   ============================================================ */
-
-/* El track existe SOLO para darle recorrido al pin: el sticky retiene a la
-   portada mientras el scroll consume este padding, así que el tramo de
-   retención se declara acá y no depende del alto real de la imagen. */
-.news-featured-track {
-  position: relative;
-  width: 100%;
+/* ------------------------------------------------------------
+   Portada: el hito más nuevo con imagen, de borde a borde.
+   ------------------------------------------------------------ */
+@keyframes newsPortadaIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .news-featured {
   position: relative;
-  /* Este aire es lo que deja caer la ÚLTIMA línea del título por debajo de la
-     imagen, sobre el fondo de la sección: el texto se ancla al pie del article,
-     no al de la imagen. */
+  /* Aire para que la ÚLTIMA línea del título caiga por debajo de la imagen. */
   padding-bottom: var(--news-featured-drop);
+  animation: newsPortadaIn var(--news-portada-dur) var(--ease-figma-out, ease)
+    var(--news-portada-delay) both;
 }
 
 .news-featured__media {
   position: relative;
   width: 100%;
-  height: clamp(320px, 50vh, 620px);
+  height: clamp(320px, 52vh, 640px);
   overflow: hidden;
 }
 
@@ -171,29 +62,25 @@ html.bitacora-activa .nav-desktop a[href='#trayectoria'] {
   height: 100%;
   object-fit: cover;
   display: block;
+  transition: transform 900ms var(--ease-figma-out, ease);
 }
 
+.news-featured:hover .news-featured__media img { transform: scale(1.02); }
+
 /* Scrim: el título va ENCIMA de la foto y sin esto se pierde en las zonas
-   claras. Solo cubre la imagen — el tramo que sobresale ya está sobre el fondo. */
+   claras. Arriba también, para que el header se lea sobre la foto. */
 .news-featured__media::after {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(
-    to top,
-    rgba(18, 17, 21, 0.92) 0%,
-    rgba(18, 17, 21, 0.5) 30%,
-    transparent 64%
-  );
+  background:
+    linear-gradient(to top, rgba(18, 17, 21, 0.92) 0%, rgba(18, 17, 21, 0.45) 30%, transparent 62%),
+    linear-gradient(to bottom, rgba(18, 17, 21, 0.55) 0%, transparent 22%);
   pointer-events: none;
 }
 
-/* El titular de la portada tiene que compartir el borde izquierdo con la línea
-   de tiempo de abajo, que vive en `.container` (max-width 1280 + 32px de
-   padding). Con un inset propio en `clamp(20px, 5vw, 96px)` NUNCA coincidían:
-   a 1440px daban 72px vs 112px, y a 1920px 96px vs 352px — el título quedaba
-   corrido respecto de la grilla. Así que se replica la caja del container en vez
-   de inventar un inset. */
+/* El titular comparte el borde izquierdo con la grilla de abajo (que vive en
+   `.container`): se replica la caja del container en vez de inventar un inset. */
 .news-featured__text {
   position: absolute;
   left: 0;
@@ -224,268 +111,133 @@ html.bitacora-activa .nav-desktop a[href='#trayectoria'] {
   max-width: 20ch;
 }
 
-/* ============================================================
-   Línea de tiempo — el cuerpo de la sección: un hito de
-   `src/data/trayectoria.ts` por fila, alternando lados.
-   ============================================================ */
-.news-timeline {
-  /* Ancho de la columna del eje y desplazamiento del punto para que quede a la
-     altura de la primera línea de la fecha. Son los dos números que mueven todo
-     el layout, por eso viven acá arriba. */
-  --news-axis-w: clamp(56px, 6vw, 120px);
-  --news-dot-size: 11px;
-  --news-dot-top: clamp(3px, 0.35vw, 7px);
-
+/* ------------------------------------------------------------
+   Grilla de tarjetas (el resto de los hitos).
+   ------------------------------------------------------------ */
+.news-grid {
   list-style: none;
-  margin: clamp(64px, 7vw, 120px) auto 0;
-  padding: 0;
-  position: relative;
-  max-width: 1180px;
+  margin: clamp(32px, 4vw, 64px) auto 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(28px, 3vw, 48px) clamp(16px, 1.6vw, 28px);
+}
+
+/* Entrada escalonada: la primera fila espera a la portada (--base 1) y entra de
+   a una; las de más abajo aparecen al scrollear (clase .visible de useReveal),
+   solo corridas por columna. --orden y --base los pone News.tsx. */
+.news-card-item.reveal {
+  transform: translateY(24px);
+  transition:
+    opacity 600ms var(--ease-figma-out, ease),
+    transform 600ms var(--ease-figma-out, ease);
+  transition-delay: calc(
+    var(--base, 0) * var(--news-tarjeta-base) + var(--orden, 0) * var(--news-tarjeta-paso)
+  );
+}
+
+.news-card-item.reveal.visible {
+  transform: none;
+}
+
+.news-card {
   display: flex;
   flex-direction: column;
-  gap: clamp(56px, 6vw, 112px);
+  gap: 8px;
+  cursor: pointer;
 }
 
-/* Línea vertical continua. Los extremos se desvanecen para que no termine en un
-   corte seco arriba del primer punto ni debajo del último. */
-.news-timeline::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 50%;
-  width: 1px;
-  transform: translateX(-50%);
-  background: linear-gradient(
-    to bottom,
-    transparent 0,
-    rgba(255, 255, 255, 0.18) 56px,
-    rgba(255, 255, 255, 0.18) calc(100% - 56px),
-    transparent 100%
-  );
-  z-index: 0;
-}
-
-.news-row {
+.news-card__media {
   position: relative;
-  z-index: 1;
-  display: grid;
-  /* minmax(0, 1fr) y no 1fr: con 1fr el mínimo es `auto` y un título largo sin
-     espacios estiraría la columna, empujando el eje fuera del centro. */
-  grid-template-columns: minmax(0, 1fr) var(--news-axis-w) minmax(0, 1fr);
-  align-items: start;
-  column-gap: clamp(12px, 1.6vw, 32px);
-}
-
-/* Los tres hijos van en la MISMA fila del grid, y `grid-row: 1` es obligatorio,
-   no decorativo: en las filas espejadas el orden del DOM (fecha en la col 3,
-   eje en la 2, contenido en la 1) va hacia atrás, y el auto-placement resuelve
-   eso abriendo una fila implícita nueva por cada salto — la fecha, el punto y la
-   imagen quedaban escalonados en diagonal. */
-.news-row__when,
-.news-row__axis,
-.news-row__content {
-  grid-row: 1;
-}
-
-/* Base = fila con el contenido a la DERECHA del eje (news-row--right). */
-.news-row__when {
-  grid-column: 1;
-  justify-self: end;
-  text-align: right;
-}
-
-.news-row__axis {
-  grid-column: 2;
-  justify-self: center;
-  display: flex;
-  justify-content: center;
-  padding-top: var(--news-dot-top);
-}
-
-.news-row__content {
-  grid-column: 3;
-  justify-self: start;
-  text-align: left;
-  width: 100%;
-  max-width: 460px;
-}
-
-/* Espejo: contenido a la IZQUIERDA, fecha a la derecha del eje. */
-.news-row--left .news-row__when {
-  grid-column: 3;
-  justify-self: start;
-  text-align: left;
-}
-
-.news-row--left .news-row__content {
-  grid-column: 1;
-  justify-self: end;
-  text-align: right;
-}
-
-.news-row__dot {
-  width: var(--news-dot-size);
-  height: var(--news-dot-size);
-  border-radius: 999px;
-  background: var(--fg);
-  flex-shrink: 0;
-  /* Anillo del color del fondo: el punto tapa la línea en vez de dejarla pasar
-     por debajo. */
-  box-shadow: 0 0 0 4px var(--bg, #121115);
-}
-
-.news-row__date {
-  display: block;
-  font-size: clamp(13px, 1vw, 18px);
-  line-height: 1.4;
-  font-weight: 500;
-  color: rgba(227, 227, 227, 0.72);
-  letter-spacing: 0.02em;
-  white-space: nowrap;
-}
-
-/* Sin imagen la fila sigue en pie: solo fecha + texto, sin hueco reservado. */
-.news-row__media {
-  border-radius: 14px;
+  aspect-ratio: 16 / 10;
   overflow: hidden;
-  aspect-ratio: 16 / 9;
-  margin-bottom: clamp(12px, 1.2vw, 22px);
+  border-radius: 4px;
+  background: linear-gradient(135deg, #1d1b26, #121117);
 }
 
-.news-row__media img {
+.news-card__media img {
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
-  transition: transform .4s var(--ease-figma-out);
+  transition: transform 600ms var(--ease-figma-out, ease);
 }
 
-.news-row:hover .news-row__media img { transform: scale(1.04); }
+.news-card:hover .news-card__media img { transform: scale(1.04); }
 
-.news-row__title {
-  font-size: clamp(18px, 1.5vw, 30px);
-  font-weight: 500;
-  color: var(--fg);
-  line-height: 1.2;
+/* Hito sin foto: la tarjeta lleva su título como placa, sobre el glow. */
+.news-card__media--texto {
+  display: flex;
+  align-items: flex-end;
+  padding: clamp(14px, 1.4vw, 22px);
+  background:
+    radial-gradient(120% 90% at 85% 10%, rgba(81, 88, 252, 0.35), transparent 60%),
+    radial-gradient(90% 80% at 10% 100%, rgba(151, 80, 220, 0.28), transparent 65%),
+    #15141b;
+}
+
+.news-card__media--texto span {
+  font-size: clamp(18px, 1.5vw, 26px);
+  font-weight: 600;
+  line-height: 1.15;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.news-card__date {
+  margin-top: 4px;
+  font-size: clamp(12px, 0.85vw, 14px);
+  letter-spacing: 0.02em;
+  color: rgba(227, 227, 227, 0.55);
+}
+
+.news-card__title {
   margin: 0;
-  letter-spacing: -0.005em;
-}
-
-.news-row__link {
-  color: inherit;
-  text-decoration: none;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.25);
-  transition: border-color var(--dur-hover) var(--ease-figma-out);
-}
-
-.news-row__link:hover { border-color: var(--fg); }
-
-.news-row__desc {
-  margin: clamp(6px, 0.6vw, 12px) 0 0 0;
   font-size: clamp(14px, 1.05vw, 18px);
-  line-height: 1.5;
-  color: rgba(227, 227, 227, 0.68);
-  /* Justificado como los posts (pedido 2026-10-18). `hyphens: auto` va de la
-     mano: sin partición, justificar una columna angosta abre huecos feos. */
-  text-align: justify;
-  hyphens: auto;
+  font-weight: 600;
+  line-height: 1.3;
+  color: rgba(255, 255, 255, 0.86);
+  transition: color 200ms;
+}
+
+.news-card:hover .news-card__title { color: #fff; }
+
+/* Tarjetas clicables (portada y tarjetas): abren el detalle. */
+.news-featured[role='button'],
+.news-card[role='button'] {
+  cursor: pointer;
+}
+
+.news-featured[role='button']:focus-visible,
+.news-card[role='button']:focus-visible {
+  outline: 2px solid var(--accent-blue-active, #5158fc);
+  outline-offset: 6px;
+  border-radius: 6px;
 }
 
 .media-fallback {
   background: linear-gradient(135deg, #1a1920, #0f0e14);
 }
 
-/* Smart Animate entrance — Pair D (Project 6 → News End): rows stagger 100ms.
-   El stagger cicla cada 3 filas: la timeline puede tener 20 hitos y no tiene
-   sentido que el vigésimo espere medio segundo cuando entra solo en pantalla. */
-.news-row.reveal {
-  transition:
-    opacity var(--dur-vertical-scroll) var(--ease-figma-out),
-    transform var(--dur-vertical-scroll) var(--ease-figma-out);
-}
-.news-row.reveal-delay-1 { transition-delay: 60ms; }
-.news-row.reveal-delay-2 { transition-delay: 160ms; }
-.news-row.reveal-delay-3 { transition-delay: 260ms; }
-
-/* ============================================================
-   Pin de la portada (R1) — solo desktop.
-   ============================================================ */
-@media (min-width: 721px) {
-  .news-featured-track { padding-bottom: var(--news-pin-travel); }
-  /* Dentro de la vista no hay header encima (la vista lo tapa): la portada se
-     pega al tope del scroll de .news-view. */
-  .news-featured {
-    position: sticky;
-    top: 0;
-  }
+/* ------------------------------------------------------------
+   Responsive y movimiento reducido.
+   ------------------------------------------------------------ */
+@media (max-width: 1000px) {
+  .news-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
-/* ============================================================
-   Mobile (R14 / R9-punto-9) — a 390px alternar deja columnas de ~170px y el
-   texto queda apretado, así que la línea se corre a la izquierda y TODAS las
-   filas caen del mismo lado: eje | (fecha sobre contenido).
-   ============================================================ */
 @media (max-width: 720px) {
   .news-featured__media { height: clamp(260px, 46vh, 460px); }
-  /* `.container` baja a 20px de padding en mobile (index.css); la portada tiene
-     que seguirlo o el titular se desalinea de la línea de tiempo. */
+  /* `.container` baja a 20px de padding en mobile (index.css): la portada lo
+     sigue para que el titular quede alineado con la grilla. */
   .news-featured__text { padding: 0 20px; }
   .news-featured__title { max-width: 100%; }
-
-  .news-timeline {
-    --news-axis-w: 22px;
-    gap: 34px;
-    margin-top: clamp(28px, 7vw, 44px);
-  }
-  /* El eje ya no está al medio del bloque sino al medio de SU columna. */
-  .news-timeline::before { left: calc(var(--news-axis-w) / 2); }
-
-  .news-row,
-  .news-row--left {
-    grid-template-columns: var(--news-axis-w) minmax(0, 1fr);
-    grid-template-rows: auto auto;
-    column-gap: 14px;
-    row-gap: 8px;
-  }
-  .news-row__axis,
-  .news-row--left .news-row__axis {
-    grid-column: 1;
-    grid-row: 1 / span 2;
-  }
-  .news-row__when,
-  .news-row--left .news-row__when {
-    grid-column: 2;
-    grid-row: 1;
-    justify-self: start;
-    text-align: left;
-  }
-  .news-row__content,
-  .news-row--left .news-row__content {
-    grid-column: 2;
-    grid-row: 2;
-    justify-self: stretch;
-    text-align: left;
-    max-width: 100%;
-  }
-
-  /* Los clamp de escritorio tienen término `vw`, que en 390px vale ~3.5px: el
-     preferido pierde siempre y quedaría el PISO (fecha 13px, título 18px). En
-     mobile van fijos para que no dependan del ancho. */
-  .news-row__date { font-size: 14px; }
-  .news-row__title { font-size: 19px; }
-  .news-row__desc { font-size: 15px; }
-  .news-row__media { border-radius: 10px; margin-bottom: 10px; }
+  .news-grid { grid-template-columns: minmax(0, 1fr); gap: 32px; }
+  .news-card__title { font-size: 17px; }
+  .news-card__date { font-size: 13px; }
 }
 
-/* Va DESPUÉS del @media del pin: los media queries no aportan especificidad, así
-   que este bloque solo gana por orden de cascada. */
 @media (prefers-reduced-motion: reduce) {
-  .news-featured-track { padding-bottom: 0; }
-  .news-featured { position: static; }
-  .news-row.reveal-delay-1,
-  .news-row.reveal-delay-2,
-  .news-row.reveal-delay-3 { transition-delay: 0s; }
-  .news-row__media img { transition: none; }
-  .news-view { animation: none; }
+  .news-featured { animation: none; }
+  .news-card-item.reveal { transition-delay: 0s; }
+  .news-featured__media img,
+  .news-card__media img { transition: none; }
 }
