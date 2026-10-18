@@ -165,8 +165,6 @@ details p{font-size:14px;color:var(--muted);margin-top:10px}
 
 <nav class="toc" aria-label="Secciones">
   <ol>
-    <li><a href="#presupuesto">Presupuesto</a></li>
-    <li><a href="#hallazgo">Hallazgo</a></li>
     <li><a href="#creadores">Creadores</a></li>
     <li><a href="#hispanos">España · Chile · Colombia</a></li>
     <li><a href="#marcas">Marcas</a></li>
@@ -192,49 +190,7 @@ details p{font-size:14px;color:var(--muted);margin-top:10px}
     <h1>El tier<br>del <em>feed</em></h1>
     <p class="lede">Sitios de creadores, marcas de creadores, portafolios premiados y prospectos en Chile y Colombia, ordenados para responder tres preguntas: qué tiene que tener un sitio de diez mil dólares para un creador, qué se pone en 3D si no hay local, música ni logo, y cómo se vende afuera por LinkedIn mientras sirve de portafolio para un mejor empleo.</p>
   </div>
-  <div class="counter" id="counter"></div>
-  <p class="note">Verificación: cada dominio se consultó con curl el 18-10-2026; los premios salen de la ficha del sitio en awwwards.com. Donde no se pudo confirmar un premio dice «—». FWA no devolvió premios legibles y anunció su cierre. Marca con el cuadrado los que ya revisaste; queda guardado en este navegador.</p>
-  <div class="legend">
-    <div><span class="mono">Calidad · dirección de arte y nivel de premio</span><ol>
-      <li><span class="meter mq"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span><span><strong>Techo.</strong> SOTD o Site of the Year, o pieza que definió el formato.</span></li>
-      <li><span class="meter mq"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span><span><strong>Referente.</strong> Mención o idea propia que vale copiar.</span></li>
-      <li><span class="meter mq"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span><span><strong>Sólido.</strong> Buena marca, sitio correcto.</span></li>
-      <li><span class="meter mq"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></span><span><strong>Funcional.</strong> Vende o enlaza, no emociona.</span></li>
-    </ol></div>
-    <div><span class="mono">Dificultad · lo que cuesta construirlo</span><ol>
-      <li><span class="meter md"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span><span><strong>Mundo WebGL.</strong> Escenas a medida, física, seis cifras.</span></li>
-      <li><span class="meter md"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span><span><strong>Custom + 3D puntual.</strong> Un splat, un muro de videos, un objeto.</span></li>
-      <li><span class="meter md"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span><span><strong>Custom con GSAP.</strong> La franja de los USD 10.000.</span></li>
-      <li><span class="meter md"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></span><span><strong>Plantilla editada.</strong> Shopify, Squarespace, Wix.</span></li>
-    </ol></div>
-  </div>
-  <p class="note">Los puntajes son una lectura propia a partir del premio verificado, la tecnología detectada y lo que muestra cada sitio. En Chile y Colombia se mide otra cosa: qué tan buen cliente es y qué tan difícil es venderle.</p>
 </header>
-
-<section id="presupuesto">
-  <div class="sechead"><span class="cat">CAT. CR-001 · A</span><h2>Qué compran diez mil dólares</h2></div>
-  <div class="prose">
-    <p>Un freelance cobra entre <strong>USD 1.500 y 10.000</strong> por un sitio a medida y una agencia parte en <strong>USD 10.000</strong>. Las plantillas para creadores cuestan entre USD 10 y 99 al mes (Framer, Stan Store, Beacons, Linktree). En Chile un sitio web promedio va de CLP 500.000 a 2.000.000, y en Colombia de 3 a 25 millones de COP: diez mil dólares es entre 1,5 y 10 veces el mercado local.</p>
-    <p>El referente que demuestra que alcanza es <strong>Chew Productions</strong>: Site of the Day en octubre de 2025, hecho en Webflow con GSAP, Lenis y Barba, sin 3D propio ni backend. El techo personal es <strong>Lando Norris</strong> (Site of the Year 2025): piloto y streamer, Webflow con escenas three.js puntuales.</p>
-  </div>
-  <div class="budget">
-    <div class="row"><strong>Material y captura</strong><span class="amt">1.500–2.500</span><p>El creador ya tiene el video. Lo que falta: escaneo del set, selección y edición del archivo, fotos de marca.</p></div>
-    <div class="row"><strong>Diseño y desarrollo</strong><span class="amt">5.000–6.000</span><p>Scroll narrativo, una escena 3D (set escaneado o muro de videos), tipografía cinética y tienda o membresía integradas.</p></div>
-    <div class="row"><strong>Media kit vivo y /marcas</strong><span class="amt">1.500–2.000</span><p>Métricas conectadas a las APIs, demografía, casos con resultados, paquetes y formulario de brief.</p></div>
-    <div class="row"><strong>Mantención mensual</strong><span class="amt">USD 100–300</span><p>Casos nuevos, campañas, lanzamientos, tokens de API que vencen. Aquí está el ingreso recurrente.</p></div>
-  </div>
-  <p class="note">Rangos de mercado: merge.rocks, digitaleer, Contra, sda.company, 2x3.cl, GoDaddy LatAm, Cangrejo Digital. El desglose en cuatro partidas es una estimación propia, igual que en los dossiers anteriores.</p>
-</section>
-
-<section id="hallazgo">
-  <div class="sechead"><span class="cat">CAT. CR-001 · B</span><h2>El sitio bonito no cierra campañas</h2></div>
-  <p class="lead">La misma fractura de las barberías y los DJs. Los sitios premiados construyen un mundo para el fan. Lo que una marca revisa antes de contratar a un creador es otra cosa, y casi ningún sitio premiado lo tiene.</p>
-  <div class="split">
-    <div><span class="mono">Lado premiado</span><ul><li>Mundo inmersivo: WebGL, scroll narrativo y transiciones que cuentan quién es el creador.</li><li>Identidad visual fuerte y propia, y tipografía expresiva. El sitio se ve como una obra.</li><li>Contenido embebido como experiencia (videos y clips en loop) en lugar de listas.</li><li>Gana Awwwards y FWA y genera conversación entre diseñadores, que no son quienes contratan.</li><li>Prioriza la emoción del fan y la primera impresión por sobre la conversión.</li></ul></div>
-    <div><span class="mono">Lo que contrata una marca</span><ul><li>Cifras verificables y fechadas: alcance medio, engagement y crecimiento, no seguidores.</li><li>Demografía que calce con su cliente (edad, género, país, ciudad).</li><li>Casos con resultados medibles de otras marcas, ojalá de su categoría.</li><li>Tarifas o paquetes claros y un contacto comercial que responda rápido.</li><li>Señales de negocio propio: lista de correo, tienda y shows que demuestren que la audiencia actúa.</li></ul></div>
-    <div class="gap"><p><strong>La oferta:</strong> Un sitio de USD 10k que se ve como mundo de autor en la portada y funciona como media kit vivo en /marcas: métricas conectadas, casos, paquetes y captura de leads, más tienda o membresía. Para el fan es la portada; la marca firma por /marcas.</p></div>
-  </div>
-</section>
 
 <section id="creadores">
   <div class="sechead"><span class="cat">CAT. CR-001 · C</span><h2>Creadores con sitio propio</h2></div>
@@ -488,10 +444,6 @@ document.addEventListener("click", e => {
 
 Object.keys(DATA).forEach(l => { filters(l); sorter(l); render(l); });
 
-document.getElementById("counter").innerHTML =
-  `<span><b>178</b>sitios y creadores</span>` +
-  Object.entries(DATA).map(([k, v]) => `<span><b>${v.length}</b>${LABELS[k]}</span>`).join("") +
-  `<span><b>7</b>Primer caso</span>`;
 </script>
 
 </body>
