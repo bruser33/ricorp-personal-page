@@ -4,6 +4,7 @@ import cors from 'cors';
 import mongoose from 'mongoose';
 import multer from 'multer';
 import { Resend } from 'resend';
+import nodemailer from 'nodemailer';
 
 const app = express();
 
@@ -38,6 +39,34 @@ const CONTACT_FROM = process.env.CONTACT_FROM || 'RICORP <onboarding@resend.dev>
 const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
 const resend = RESEND_API_KEY ? new Resend(RESEND_API_KEY) : null;
 
+/* Asunto FIJO: así los mensajes del sitio se encuentran (y se filtran) en la
+   bandeja con una sola búsqueda. Lo que escribió el visitante va en el cuerpo. */
+const CONTACT_SUBJECT = 'ricorp.cl contacto';
+
+/* Gmail por SMTP: la vía más simple para que llegue a una casilla personal sin
+   verificar un dominio. SMTP_USER es la cuenta Gmail y SMTP_PASS una contraseña
+   de aplicación (myaccount.google.com/apppasswords, requiere verificación en dos
+   pasos), NO la contraseña normal. Si están las dos vías gana RESEND: el plan
+   free de Render bloquea las conexiones SMTP salientes, y Resend va por HTTPS. */
+const SMTP_USER = process.env.SMTP_USER || '';
+const SMTP_PASS = (process.env.SMTP_PASS || '').replace(/\s+/g, '');
+const smtp =
+  SMTP_USER && SMTP_PASS
+    ? nodemailer.createTransport({
+        service: 'gmail',
+        auth: { user: SMTP_USER, pass: SMTP_PASS },
+        /* Si el puerto está bloqueado, fallar en segundos y no en minutos. */
+        connectionTimeout: 10_000,
+        greetingTimeout: 10_000,
+      })
+    : null;
+const mailer = resend ? 'resend' : smtp ? 'smtp' : 'dry-run';
+
+/* En Render (que define RENDER=true) un dry-run NO puede responder ok: el
+   visitante veía "¡Enviado!" y el mensaje no salía a ningún lado. Local sí se
+   permite, para poder probar el formulario de punta a punta sin credenciales. */
+const DRY_RUN_ALLOWED = !process.env.RENDER;
+
 const upload = multer({
   storage: multer.memoryStorage(),
   /* `fileSize` es POR archivo: corta el stream antes de que un archivo enorme
@@ -62,7 +91,13 @@ const ContactSchema = new mongoose.Schema(
 const Contact = mongoose.model('Contact', ContactSchema);
 
 app.get('/api/health', (_req, res) => {
-  res.json({ ok: true, mongo: mongoose.connection.readyState, mailer: resend ? 'resend' : 'dry-run' });
+  /* 'unconfigured' y no 'dry-run' en Render: ahí sin mailer el envío es un 503,
+     y el health tiene que decir eso para que se note desde afuera. */
+  res.json({
+    ok: true,
+    mongo: mongoose.connection.readyState,
+    mailer: mailer === 'dry-run' && !DRY_RUN_ALLOWED ? 'unconfigured' : mailer,
+  });
 });
 
 app.get('/api/news', async (_req, res) => {
@@ -114,6 +149,13 @@ app.post('/api/contact', receiveAttachments, async (req, res) => {
 
   const meta = files.map((f) => ({ filename: f.originalname, size: f.size, contentType: f.mimetype }));
 
+  /* Se corta ANTES de guardar en la BD: si no, quedaba registrado un mensaje que
+     nunca se envió. */
+  if (mailer === 'dry-run' && !DRY_RUN_ALLOWED) {
+    console.error('[contact] sin mailer configurado en Render (SMTP_USER/SMTP_PASS o RESEND_API_KEY)');
+    return res.status(503).json({ ok: false, error: 'mailer not configured' });
+  }
+
   if (mongoose.connection.readyState === 1) {
     await Contact.create({ subject, email, attachments: meta });
   }
@@ -122,21 +164,39 @@ app.post('/api/contact', receiveAttachments, async (req, res) => {
     from: CONTACT_FROM,
     to: [CONTACT_TO],
     replyTo: email,
-    subject: `[ricorp.cl] ${subject}`,
-    text: `Nuevo mensaje desde ricorp.cl\n\nAsunto: ${subject}\nEmail: ${email}\nAdjuntos: ${meta.length ? meta.map((m) => `${m.filename} (${m.size} bytes)`).join(', ') : 'ninguno'}\n`,
+    subject: CONTACT_SUBJECT,
+    text: `Nuevo mensaje desde ricorp.cl\n\nMensaje: ${subject}\nEmail: ${email}\nAdjuntos: ${meta.length ? meta.map((m) => `${m.filename} (${m.size} bytes)`).join(', ') : 'ninguno'}\n`,
     html:
       `<p><strong>Nuevo mensaje desde ricorp.cl</strong></p>` +
-      `<p><strong>Asunto:</strong> ${escapeHtml(subject)}</p>` +
+      `<p><strong>Mensaje:</strong> ${escapeHtml(subject)}</p>` +
       `<p><strong>Email:</strong> <a href="mailto:${escapeHtml(email)}">${escapeHtml(email)}</a></p>` +
       `<p><strong>Adjuntos:</strong> ${meta.length ? meta.map((m) => escapeHtml(m.filename)).join(', ') : 'ninguno'}</p>`,
     attachments: files.map((f) => ({ filename: f.originalname, content: f.buffer })),
   };
 
-  /* Sin API key el sitio local tiene que seguir funcionando de punta a punta: se
-     loguea el envío y se responde ok con la bandera para que la UI no simule un
-     éxito que en producción sería un error real. */
+  if (!resend && smtp) {
+    try {
+      await smtp.sendMail({
+        from: `RICORP <${SMTP_USER}>`,
+        to: CONTACT_TO,
+        replyTo: email,
+        subject: mail.subject,
+        text: mail.text,
+        html: mail.html,
+        attachments: mail.attachments,
+      });
+    } catch (err) {
+      console.error('[contact] smtp error:', err.message);
+      return res.status(502).json({ ok: false, error: 'mail delivery failed' });
+    }
+    return res.json({ ok: true, dryRun: false, attachments: meta.length });
+  }
+
+  /* Sin mailer configurado en local: se loguea y se responde ok con la bandera,
+     para probar el formulario sin credenciales (en Render ya cortó arriba con
+     503 y la UI muestra el error reintentable en vez de un éxito falso). */
   if (!resend) {
-    console.log('[contact] dry-run — sin RESEND_API_KEY, no se envió correo');
+    console.log(`[contact] dry-run — sin SMTP_USER/SMTP_PASS ni RESEND_API_KEY, no se envió correo`);
     console.log(`[contact] to=${CONTACT_TO} replyTo=${email} subject="${mail.subject}"`);
     console.log(`[contact] adjuntos=${meta.length ? meta.map((m) => `${m.filename} (${m.size}B)`).join(', ') : 'ninguno'}`);
     return res.json({ ok: true, dryRun: true, attachments: meta.length });

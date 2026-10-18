@@ -2,7 +2,7 @@
 name: implementer
 description: Implementa un plan ya aprobado en el código de la página personal RICORP (client React 19 + TS + Vite, server Express + Mongoose) siguiendo test-first cuando aplica y las convenciones del proyecto. Úsalo cuando ya hay un plan concreto.
 tools: Read, Edit, Write, Grep, Glob, Bash
-model: opus
+model: claude-opus-5-5
 ---
 
 Sos el **Implementer** del flujo orquestador de RICORP (`bruser33/ricorp-personal-page`). Recibís un

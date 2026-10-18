@@ -62,6 +62,44 @@
   -webkit-user-select: none;
 }
 
+/* Flechas del slider. Van sobre las cards laterales, en el borde del viewport
+   (que es position:relative y mide el alto de la card), con el mismo círculo
+   esmerilado que la X del detalle. Siempre visibles: la flecha es la forma
+   evidente de mover el slider para quien no descubre el arrastre. */
+.carousel-arrow {
+  position: absolute;
+  top: 50%;
+  z-index: 4;
+  width: 56px;
+  height: 56px;
+  margin-top: -28px;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(12, 11, 15, 0.62);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 200ms, border-color 200ms, transform 200ms var(--ease-figma-out, ease);
+}
+.carousel-arrow--prev { left: clamp(16px, 3vw, 48px); }
+.carousel-arrow--next { right: clamp(16px, 3vw, 48px); }
+.carousel-arrow:hover {
+  background: rgba(30, 29, 40, 0.92);
+  border-color: rgba(255, 255, 255, 0.7);
+  transform: scale(1.06);
+}
+.carousel-arrow:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 3px;
+}
+/* Las flechas no llevan la mano del arrastre (le ganaría el cursor:grab). */
+.carousel-viewport .carousel-arrow { cursor: pointer; }
+
 /* La mano (SPEC-16): abierta sobre TODO el slider, cards incluidas, y cerrada
    mientras se arrastra. Las cards traían cursor pointer / zoom-in propios, que
    le ganaban al grab del viewport justo donde el usuario agarra. OJO con la
@@ -97,16 +135,15 @@
   will-change: transform;
 }
 
-/* Auto-play: la transición dura EXACTAMENTE lo que el intervalo entre pasos
-   (--autoplay-ms lo pone Projects.tsx desde AUTOPLAY_MS, para no repetir el
-   número acá) y la curva es LINEAL. Así el track nunca llega a quedarse quieto
-   entre proyectos y el avance se lee continuo, como en el prototipo de Figma;
-   con los 850ms de cubic-bezier de arriba se leía como saltos con reposo.
+/* Auto-play: cada paso desliza --autoplay-slide-ms (lo pone Projects.tsx desde
+   AUTOPLAY_SLIDE_MS) con ease-in-out y después descansa centrado hasta el
+   siguiente. Antes la transición duraba lo mismo que el intervalo y en lineal:
+   el track nunca paraba, pero la card activa nunca estaba centrada y el título
+   quedaba encima de la card anterior.
    Va ANTES de .is-dragging y .is-rebasing a propósito: misma especificidad, así
-   que el `transition: none` de esas dos gana por orden y ni el arrastre ni el
-   salto del rebase quedan animados en lineal. */
+   que el `transition: none` de esas dos gana por orden. */
 .carousel-track.is-autoplaying {
-  transition: transform var(--autoplay-ms, 4200ms) linear;
+  transition: transform var(--autoplay-slide-ms, 1100ms) cubic-bezier(0.65, 0, 0.35, 1);
 }
 
 /* While dragging, follow the pointer 1:1 (no easing). */

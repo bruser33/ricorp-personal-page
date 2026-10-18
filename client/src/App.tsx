@@ -183,10 +183,9 @@ function useAutoAdvanceToProjects(enabled: boolean) {
       // Si ya hay un deslizamiento en curso (p.ej. el link "about" del header),
       // no se dispara otro encima.
       if (!armed || fired || isGliding()) return;
-      // Con la trayectoria abierta (vista superpuesta, SPEC-18) los gestos son
-      // de ESA capa: secuestrarlos bloquearía su scroll y movería el home por
-      // detrás. No se desarma: al cerrarla el home sigue en el hero.
-      if (document.documentElement.classList.contains('noticias-abiertas')) return;
+      // En la pantalla Bitácora el home está oculto: secuestrar el gesto
+      // bloquearía su scroll. No se desarma: al volver el home sigue en el hero.
+      if (document.documentElement.classList.contains('bitacora-activa')) return;
       // Never hijack a click on an interactive control (nav links, language
       // toggle, buttons, carousel tabs) — the user's own action must win. A click
       // on empty hero space still triggers the "movie" advance, alongside
@@ -268,8 +267,9 @@ export default function App() {
               en orden de documento) y el scroll-snap de index.css. */}
           <Contact />
         </main>
-        {/* Trayectoria: vista superpuesta (SPEC-18), fuera del scroll. Solo se
-            dibuja con #news en la URL y recién cuando terminó el splash. */}
+        {/* Bitácora: PANTALLA propia (no un modal). Con #bitacora en la URL
+            reemplaza al home (que queda oculto, no desmontado, para no perder
+            su estado) y recién cuando terminó el splash. */}
         <News ready={siteReady} />
       </div>
     </>

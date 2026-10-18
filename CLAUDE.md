@@ -13,6 +13,11 @@ usa repos de ordename ni su cuenta de GitHub.
   mencione ordename o apunte a un repo distinto de `bruser33/ricorp-personal-page`.
 - Commits atribuidos a la identidad personal (`bruser33`), nunca a la cuenta de trabajo.
 
+## Specs y board
+- Requerimientos = specs en `specs/NN-<slug>.md` (agente `spec-writer`), publicadas como
+  tarjeta SPEC-NN en el **board #1 de bruser33** (`gh project ... 1 --owner bruser33`).
+  `/owork specs/NN-*.md` las ejecuta; reemplazan al PROMPT_NIVEL_10.
+
 ## Stack y layout
 - **client/** — React 19 + TypeScript + Vite. Dev `npm run dev` (**:5173**).
   Build `npm run build` (= `tsc -b && vite build`). Lint `npm run lint`.

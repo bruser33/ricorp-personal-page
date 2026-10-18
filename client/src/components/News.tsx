@@ -8,12 +8,15 @@ import { useLang } from '../i18n';
 import { formatearFecha, hitosOrdenados } from '../data/trayectoria';
 import type { HitoTrayectoria } from '../data/trayectoria';
 import {
+  CLASE_PANTALLA,
   EVENTO_NOTICIAS,
   HASH_NOTICIAS,
+  enBitacora,
   entradaPropia,
   tomarFocoDeRetorno,
 } from '../noticiasVista';
 import { DetailModal } from './DetailModal';
+import { Footline } from './Footline';
 import './News.css';
 
 /* Forma de los items que devuelve `GET /api/news`. La API es una fuente
@@ -70,28 +73,20 @@ function onMediaError(e: SyntheticEvent<HTMLImageElement>) {
   img.parentElement?.classList.add('media-fallback');
 }
 
-const FOCUSABLE =
-  'a[href], button:not([disabled]), input, textarea, select, [tabindex]:not([tabindex="-1"])';
-
-/* Clase en <html> mientras la vista está abierta: bloquea el scroll del fondo
-   (la vista tiene el suyo) y le avisa a App que no secuestre gestos. */
-const CLASE_ABIERTA = 'noticias-abiertas';
-
-const enNoticias = () => window.location.hash === HASH_NOTICIAS;
-
-/* Trayectoria como VISTA SUPERPUESTA (SPEC-18): ya no es una sección del scroll
-   del home. Se abre desde `news` del navbar (abrirNoticias) o con /#news, y se
-   cierra con la X, Escape o el botón atrás. `ready` = el splash terminó: un
-   deep link no tapa la intro. */
+/* Bitácora como PANTALLA (antes una vista superpuesta con X, trampa de foco y
+   scroll propio): con #bitacora en la URL el home se oculta (html.bitacora-activa,
+   ver News.css), el header sigue arriba y la página usa el scroll normal de la
+   ventana. Se entra desde el navbar (abrirNoticias) o con /#bitacora; se sale con
+   "Volver al inicio", el logo, cualquier link del navbar o el botón atrás. `ready`
+   = el splash terminó: un deep link no tapa la intro. */
 export function News({ ready = true }: { ready?: boolean }) {
-  const { lang } = useLang();
+  const { lang, t } = useLang();
   const [hitos, setHitos] = useState<HitoTrayectoria[]>(() => hitosOrdenados());
-  const [abierta, setAbierta] = useState(enNoticias);
+  const [abierta, setAbierta] = useState(enBitacora);
   const [detalle, setDetalle] = useState<HitoTrayectoria | null>(null);
   const [origen, setOrigen] = useState<DOMRect | null>(null);
   const rootRef = useRef<HTMLElement | null>(null);
-  const vistaRef = useRef<HTMLDivElement | null>(null);
-  const cerrarRef = useRef<HTMLButtonElement | null>(null);
+  const tituloRef = useRef<HTMLHeadingElement | null>(null);
 
   const visible = abierta && ready;
 
@@ -114,7 +109,11 @@ export function News({ ready = true }: { ready?: boolean }) {
      cerrarse la vista se cierra también el detalle que hubiera quedado abierto. */
   useEffect(() => {
     const sync = () => {
-      const enHash = enNoticias();
+      const enHash = enBitacora();
+      /* Un #news/#noticias viejo tipeado a mano se normaliza sin sumar entrada. */
+      if (enHash && window.location.hash !== HASH_NOTICIAS) {
+        window.history.replaceState(window.history.state, '', HASH_NOTICIAS);
+      }
       setAbierta(enHash);
       if (!enHash) setDetalle(null);
     };
@@ -128,10 +127,11 @@ export function News({ ready = true }: { ready?: boolean }) {
     };
   }, []);
 
-  /* Cerrar = volver a la entrada anterior del historial cuando la entrada de
-     #news es nuestra (link del navbar o deep link reescrito): así "atrás" y la X
-     dejan el historial igual. Si alguien tipeó #news a mano, se reemplaza la URL
-     en vez de retroceder (la entrada de atrás podría no ser este sitio). */
+  /* "Volver al inicio" = volver a la entrada anterior del historial cuando la de
+     #bitacora es nuestra (link del navbar o deep link reescrito): así el botón y
+     "atrás" dejan el historial igual. Si alguien tipeó el hash a mano, se
+     reemplaza la URL en vez de retroceder (la entrada de atrás podría no ser este
+     sitio). */
   const cerrarVista = useCallback(() => {
     if (entradaPropia()) {
       window.history.back();
@@ -152,43 +152,49 @@ export function News({ ready = true }: { ready?: boolean }) {
     setOrigen(null);
   }, []);
 
-  /* Mientras la vista está a la vista: scroll del fondo bloqueado, foco a la X
-     y, al cerrar, foco de vuelta al link del navbar que la abrió. */
+  /* Entrar a la pantalla: se recuerda dónde estaba el home, la página arranca
+     arriba y el foco va al título (un lector de pantalla anuncia la pantalla
+     nueva). Al salir se vuelve a ese punto del home, salvo que la salida haya
+     sido un link a una sección (#contact, #about): ahí manda el link. El salto
+     va después del render en que el home vuelve a verse — con el home en
+     display:none no hay offsets que medir. */
   useEffect(() => {
     if (!visible) return;
     const html = document.documentElement;
-    html.classList.add(CLASE_ABIERTA);
-    /* La trampa de Tab solo actúa con el foco ADENTRO: un clic en una zona no
-       enfocable lo deja en <body> y de ahí Tab llegaría al header y al home de
-       atrás. `inert` los saca del orden de foco (y de los lectores). */
-    const fondo = Array.from(
-      document.querySelectorAll<HTMLElement>('.site-header, main')
-    );
-    fondo.forEach((el) => (el.inert = true));
-    cerrarRef.current?.focus({ preventScroll: true });
+    const scrollHome = window.scrollY;
+    html.classList.add(CLASE_PANTALLA);
+    /* `instant`: html tiene scroll-behavior smooth y sin esto se vería un
+       barrido por todo el home (con reveals y snap incluidos). */
+    window.scrollTo({ top: 0, behavior: 'instant' });
+    tituloRef.current?.focus({ preventScroll: true });
     return () => {
-      fondo.forEach((el) => (el.inert = false));
-      html.classList.remove(CLASE_ABIERTA);
+      html.classList.remove(CLASE_PANTALLA);
+      const destino = window.location.hash.slice(1);
+      const seccion = destino ? document.getElementById(destino) : null;
+      if (seccion) seccion.scrollIntoView({ behavior: 'instant' });
+      else window.scrollTo({ top: scrollHome, behavior: 'instant' });
+      /* El blob del home (useBlobMorph) solo se recalcula con scroll: si la
+         posición no cambió no llega ninguno y quedaría con los valores que midió
+         mientras el home estaba oculto (todos los offsets en 0). */
+      window.dispatchEvent(new Event('scroll'));
       const el = tomarFocoDeRetorno();
       if (el && el.isConnected) el.focus({ preventScroll: true });
     };
   }, [visible]);
 
-  /* Escape: con el detalle abierto cierra SOLO el detalle; el siguiente cierra
-     la vista. */
+  /* Escape cierra SOLO el detalle: la Bitácora es una pantalla, no una capa que
+     se descarte con Escape. */
   useEffect(() => {
-    if (!visible) return;
+    if (!detalle) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
-      if (detalle) cerrarDetalle();
-      else cerrarVista();
+      if (e.key === 'Escape') cerrarDetalle();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [visible, detalle, cerrarDetalle, cerrarVista]);
+  }, [detalle, cerrarDetalle]);
 
   /* El observer global (useReveal) se arma UNA sola vez después del montaje, y
-     esta vista nace después (al abrirse) y renace en cada apertura, igual que
+     esta pantalla nace después (al entrar) y renace en cada entrada, igual que
      cuando /api/news trae otra lista: sin esto los nodos quedarían en opacity
      0. Se arma acotado a la vista; agregar la clase dos veces es inofensivo. */
   useEffect(() => {
@@ -213,24 +219,6 @@ export function News({ ready = true }: { ready?: boolean }) {
     pending.forEach((el) => io.observe(el));
     return () => io.disconnect();
   }, [hitos, visible]);
-
-  // Tab no se escapa de la vista (el detalle tiene su propia trampa).
-  const atraparFoco = (e: ReactKeyboardEvent<HTMLDivElement>) => {
-    if (e.key !== 'Tab') return;
-    const root = vistaRef.current;
-    if (!root) return;
-    const items = Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE));
-    if (!items.length) return;
-    const first = items[0];
-    const last = items[items.length - 1];
-    if (e.shiftKey && document.activeElement === first) {
-      e.preventDefault();
-      last.focus();
-    } else if (!e.shiftKey && document.activeElement === last) {
-      e.preventDefault();
-      first.focus();
-    }
-  };
 
   /* Props de una tarjeta clicable (portada o fila). Es un div con role=button y
      no un <button> porque adentro hay encabezados, que un botón no admite. */
@@ -261,32 +249,28 @@ export function News({ ready = true }: { ready?: boolean }) {
 
   return (
     <>
-      <div
-        ref={vistaRef}
-        className="news-view"
-        role="dialog"
-        aria-modal="true"
-        aria-label={esp ? 'Trayectoria' : 'Journey'}
-        onKeyDown={atraparFoco}
-      >
-        <button
-          ref={cerrarRef}
-          type="button"
-          className="news-view__close"
-          onClick={cerrarVista}
-          aria-label={esp ? 'Cerrar trayectoria' : 'Close journey'}
-        >
-          <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
-            <path
-              d="M4 4l10 10M14 4L4 14"
-              stroke="currentColor"
-              strokeWidth="1.6"
-              strokeLinecap="round"
-            />
-          </svg>
-        </button>
+      <div className="news-view" id="bitacora">
+        <header className="news-view__head container">
+          <a
+            href="#home"
+            className="news-view__back"
+            onClick={(e) => {
+              e.preventDefault();
+              cerrarVista();
+            }}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M15 5l-7 7 7 7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            {t('bitacora.back')}
+          </a>
+          <h1 id="bitacora-titulo" className="news-view__title" ref={tituloRef} tabIndex={-1}>
+            {t('bitacora.title')}
+          </h1>
+          <p className="news-view__sub">{t('bitacora.sub')}</p>
+        </header>
 
-        <section className="news" ref={rootRef}>
+        <section className="news" ref={rootRef} aria-labelledby="bitacora-titulo">
           {portada && (
             /* El track no es un wrapper decorativo: su padding inferior ES el
                recorrido del pin (position: sticky en .news-featured). Ver News.css. */
@@ -356,10 +340,11 @@ export function News({ ready = true }: { ready?: boolean }) {
                 })}
               </ol>
             )}
-            {/* Sin CTA "Ver todos" (apuntaba a sí mismo) y sin <Footline>: las
-                políticas viven al pie de Contacto (SPEC-17). */}
+            {/* Sin CTA "Ver todos" (apuntaba a sí mismo). */}
           </div>
         </section>
+        {/* Ahora es una pantalla completa: lleva su pie como las demás. */}
+        <Footline />
       </div>
 
       {detalle && (

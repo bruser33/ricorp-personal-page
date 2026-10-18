@@ -19,12 +19,20 @@ services:
         value: https://ricorp.cl,https://www.ricorp.cl,https://bruser33.github.io
       - key: MONGO_URI
         sync: false
-      # Envío del formulario de contacto por Resend. Sin RESEND_API_KEY el
-      # endpoint NO falla: queda en dry-run (loguea el mail y responde
-      # dryRun: true). Cargar la key en el dashboard de Render para que salga
-      # de verdad. CONTACT_TO tiene default en el código, pero se declara acá
-      # para poder cambiar el destinatario sin tocar el repo.
+      # Envío del formulario de contacto por Resend (vía recomendada: va por
+      # HTTPS). Sin RESEND_API_KEY ni SMTP el endpoint responde 503 en Render
+      # (la UI muestra el error reintentable). CONTACT_TO tiene default en el
+      # código, pero se declara acá para cambiar el destinatario sin tocar el repo.
       - key: RESEND_API_KEY
+        sync: false
+      # Alternativa a Resend (solo se usa si NO hay RESEND_API_KEY): Gmail por
+      # SMTP. OJO: el plan free de Render bloquea SMTP saliente.
+      # SMTP_USER = la cuenta Gmail que envía; SMTP_PASS = una contraseña de
+      # aplicación de esa cuenta (myaccount.google.com/apppasswords), no la
+      # contraseña normal.
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
         sync: false
       - key: CONTACT_TO
         sync: false

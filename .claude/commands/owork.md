@@ -1,5 +1,5 @@
 ---
-description: Ejecuta MI workflow completo de punta a punta sobre un requerimiento de la página personal RICORP — documentar → orquestar (loop + agentes + verificación adversarial + Playwright) → revisar → dejar listo para PR. Uso. /owork <descripción | #issue | path PROMPT_NIVEL_10> [--prod]
+description: Ejecuta MI workflow completo de punta a punta sobre un requerimiento de la página personal RICORP — documentar → orquestar (loop + agentes + verificación adversarial + Playwright) → revisar → dejar listo para PR. Uso. /owork <descripción | #issue | specs/NN-*.md> [--prod]
 ---
 
 # /owork — mi workflow orquestador autónomo, en un comando (RICORP)
@@ -9,7 +9,9 @@ Envuelve mis skills, agentes y hooks en el flujo completo, combinando el **patr�
 orquestador** con **/loop** (iterar hasta verde) y pidiendo el mínimo de confirmaciones.
 Local primero; prod (Pages/Render) solo con mi indicación.
 
-`$ARGUMENTS`: una descripción, un `#issue`, o un path a un `PROMPT_NIVEL_10_*.md`.
+`$ARGUMENTS`: una descripción, un `#issue`, o un path a una spec `specs/NN-*.md` (la fuente de
+verdad; reemplaza al antiguo `PROMPT_NIVEL_10_*.md`). Los AC-NN de la spec son los criterios
+que verifican el panel `verifier` y el `playwright-verifier`.
 Flag opcional `--prod` = autorizo el cierre hacia producción al final (equivale a `.prod-ok`).
 
 ## AISLAMIENTO (regla dura, mecanizada)
@@ -24,7 +26,12 @@ Flag opcional `--prod` = autorizo el cierre hacia producción al final (equivale
   `gh auth switch -u bruser33` (o pedirme `! gh auth login`). Fijar identidad de commits
   del repo: `git -C <repo> config user.name bruser33` y `user.email bruser33@users.noreply.github.com`.
 - Confirmar back :4000 + front :5173 arriba (si faltan, `/start`).
-- Si el requerimiento NO viene como doc, generarlo con **`/nivel10`**.
+- Si el requerimiento NO viene como spec, generarla con el agente **`spec-writer`** (skill
+  `spec-clarifier`) → `specs/NN-<slug>.md` + tarjeta SPEC-NN en el board **#1 de bruser33**
+  (Status In Progress). `/nivel10` queda obsoleto.
+- **Paralelo:** varias specs se ejecutan a la vez, cada una en su git worktree y rama
+  `spec/NN-<slug>`, con su propio puerto de Vite (5173 + NN % 100 − 10) para el Playwright.
+- Al cerrar, mover la tarjeta a **Done** solo cuando el usuario mergee.
 
 ### 1. Activar el modo combinado (orquestador + /loop)
 - `echo "<comando de verificación>" > .claude/queue/.verify-gate` → el Stop hook **no deja
@@ -51,7 +58,11 @@ Correr **`/resolver`** con el doc. Internamente:
 - Si no, lo dejo listo y reporto.
 
 ## Reglas duras (heredadas, mecanizadas por hooks)
-- Todos los agentes en **model: opus**.
+- Todos los agentes van pinneados a **Opus 5.5** (`claude-opus-5-5`) en su frontmatter
+  (`.claude/agents/*.md`). Es el modelo líder desde el 22-sep-2026: rinde como Fable 5.1
+  en casi todo, a $4/$20 por MTok (~40% más barato que Opus 5) y 30% más rápido.
+- **Effort**: el default de Opus 5.5 es `medium` (el de Opus 5 era `high`). Correr la sesión
+  en `--effort high`; `xhigh` solo para rework visual grande contra Figma.
 - Local primero; deploy (Pages/Render) bloqueado por `safety-guard` salvo `.prod-ok` que creo YO.
 - Verificar en el navegador, no solo asumir. TypeScript estricto (hook `tsc-check-on-edit`).
 - Al cerrar, guardar 1 **slot de auto-memoria** con la lección no-obvia del requerimiento.

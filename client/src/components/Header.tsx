@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, type MouseEvent } from 'react';
 import { useLang } from '../i18n';
 import { SPLASH_OUTRO_MS } from './Splash';
 import { cancelGlide, glideToSection, prefersReducedMotion } from '../lib/glideTo';
-import { abrirNoticias } from '../noticiasVista';
+import { abrirNoticias, enBitacora } from '../noticiasVista';
 import './Header.css';
 
 const BASE = import.meta.env.BASE_URL;
@@ -10,6 +10,9 @@ const BASE = import.meta.env.BASE_URL;
 /* "about" desde el hero viaja con el mismo deslizamiento que el auto-avance
    (SPEC-21). Fuera del hero, o con movimiento reducido, queda el ancla nativa. */
 function onAboutClick(e: MouseEvent<HTMLAnchorElement>) {
+  /* Desde la Bitácora el home está oculto (no hay offsets que deslizar): manda el
+     ancla nativa, cuyo hashchange cierra la pantalla y lleva a la sección. */
+  if (enBitacora()) return;
   if (prefersReducedMotion() || window.scrollY > window.innerHeight * 0.5) return;
   e.preventDefault();
   if (glideToSection('about')) history.pushState(null, '', '#about');
@@ -61,10 +64,10 @@ export function Header({ introDone = false }: { introDone?: boolean }) {
           </a>
           <nav className="nav-desktop">
             <a href="#contact" onClick={cancelGlide}>{t('nav.contact')}</a>
-            {/* news ya no es un ancla: abre la vista superpuesta de la
-                trayectoria (SPEC-18). El href queda para abrir en otra pestaña. */}
+            {/* La Bitácora no es un ancla del home: es otra pantalla (ver
+                News.tsx). El href queda para abrir en otra pestaña. */}
             <a
-              href="#news"
+              href="#bitacora"
               onClick={(e) => {
                 // Cmd/Ctrl/Shift+clic sigue abriendo /#news en otra pestaña.
                 if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
@@ -116,10 +119,10 @@ export function Header({ introDone = false }: { introDone?: boolean }) {
             <nav className="overlay-nav" onClick={() => setOpen(false)}>
               <a href="#home">{t('nav.home')}</a>
               <a href="#contact" onClick={cancelGlide}>{t('nav.contact')}</a>
-              {/* El panel se desmonta al abrir la vista (el onClick del nav lo
-                  cierra), así que el foco vuelve al botón de menú. */}
+              {/* El panel se desmonta al entrar a la Bitácora (el onClick del nav
+                  lo cierra), así que el foco vuelve al botón de menú. */}
               <a
-                href="#news"
+                href="#bitacora"
                 onClick={(e) => {
                   e.preventDefault();
                   cancelGlide();

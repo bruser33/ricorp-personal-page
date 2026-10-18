@@ -27,7 +27,7 @@ Como visitante, al pasar del hero a Proyectos quiero ver cómo el slider sube de
 ## Criterios de aceptación
 - **AC-01** Tras el intro, un wheel en el hero dispara un deslizamiento hasta `#about` que dura 2000–2400 ms (medido con `performance.now()` + `scrollY` muestreado cada frame).
 - **AC-02** La curva medida es monótona y ease-out: la velocidad del primer 20 % del tiempo es ≥ 3× la del último 20 %; el recorrido al 50 % del tiempo es ≥ 70 %.
-- **AC-03** Durante el deslizamiento, wheel/teclas adicionales no lo cortan ni lo duplican; al terminar, `scrollY === #about.offsetTop` (± 2 px) y el snap vuelve a estar activo.
+- **AC-03** Durante el deslizamiento, wheel/teclas adicionales no lo cortan ni lo duplican; al terminar, `scrollY === #about.offsetTop − scroll-padding-top` (± 2 px; el punto de snap real, no `offsetTop`) y el snap vuelve a estar activo.
 - **AC-04** Los dots tienen opacidad < 0.2 al empezar y 1 al llegar.
 - **AC-05** `prefers-reduced-motion`: salto directo sin animación (comportamiento actual).
 - **AC-06** `npm run build` y `npm run lint` verdes.

@@ -11,7 +11,10 @@ type Dict = Record<string, string>;
 const translations: Record<Lang, Dict> = {
   eng: {
     'nav.contact': 'contact',
-    'nav.news': 'news',
+    'nav.news': 'logbook',
+    'bitacora.title': 'Logbook',
+    'bitacora.sub': 'My path in software, milestone by milestone.',
+    'bitacora.back': 'Back to home',
     'nav.about': 'about',
     'nav.home': 'Home',
     'nav.menu': 'MENU',
@@ -40,10 +43,15 @@ const translations: Record<Lang, Dict> = {
     'news.cta': 'See all',
     'news.analysis': 'Analysis:',
     'projects.label': 'IT projects',
+    'projects.prev': 'Previous project',
+    'projects.next': 'Next project',
   },
   esp: {
     'nav.contact': 'contacto',
-    'nav.news': 'noticias',
+    'nav.news': 'bitácora',
+    'bitacora.title': 'Bitácora',
+    'bitacora.sub': 'Mi recorrido en el software, hito a hito.',
+    'bitacora.back': 'Volver al inicio',
     'nav.about': 'nosotros',
     'nav.home': 'Inicio',
     'nav.menu': 'MENÚ',
@@ -72,6 +80,8 @@ const translations: Record<Lang, Dict> = {
     'news.cta': 'Ver todos',
     'news.analysis': 'Análisis:',
     'projects.label': 'Proyectos informáticos',
+    'projects.prev': 'Proyecto anterior',
+    'projects.next': 'Proyecto siguiente',
   },
 };
 
