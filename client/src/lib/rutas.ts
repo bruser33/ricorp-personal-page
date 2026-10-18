@@ -19,6 +19,8 @@ const EVENTO_RUTA = 'ricorp:ruta';
 /* Links viejos (cuando contacto era una sección del home y la trayectoria una
    vista con #hash): siguen funcionando y la URL se normaliza a la ruta nueva. */
 const HASHES_VIEJOS: Record<string, Pagina> = {
+  '#home': 'inicio',
+  '#about': 'inicio',
   '#contact': 'contacto',
   '#trayectoria': 'trayectoria',
   '#bitacora': 'trayectoria',
@@ -35,10 +37,15 @@ export function paginaDeUrl(): Pagina {
   return 'inicio';
 }
 
-/* Normaliza una URL vieja con hash a la ruta nueva, sin sumar entrada al
-   historial. Corre una vez al cargar el módulo. */
-if (typeof window !== 'undefined' && HASHES_VIEJOS[window.location.hash]) {
-  window.history.replaceState(null, '', RUTAS[HASHES_VIEJOS[window.location.hash]]);
+/* Normaliza al cargar, sin sumar entrada al historial: una URL vieja con hash
+   pasa a su ruta nueva, y una ruta que no existe (la sirve 404.html) queda en
+   "/" en vez de mostrar el inicio con una dirección basura. Corre una vez. */
+if (typeof window !== 'undefined') {
+  const viejo = HASHES_VIEJOS[window.location.hash];
+  const path = window.location.pathname.replace(/\/+$/, '') || '/';
+  const conocida = (Object.values(RUTAS) as string[]).includes(path);
+  if (viejo) window.history.replaceState(null, '', RUTAS[viejo]);
+  else if (!conocida) window.history.replaceState(null, '', RUTAS.inicio);
 }
 
 export function navegar(pagina: Pagina) {

@@ -25,6 +25,9 @@ type Item = {
 
 const BASE = import.meta.env.BASE_URL;
 
+/* Año desde el que Pedro trabaja profesionalmente (titular de la página). */
+const ANIO_INICIO = 2013;
+
 /* En `trayectoria.ts` las imágenes se escriben relativas a `client/public`
    ('figma-frames/x.png') para que quien edita el archivo no tenga que saber nada
    del base path de GitHub Pages. El prefijo se agrega acá. */
@@ -158,10 +161,6 @@ export function News() {
           título montado sobre el borde, y abajo una grilla de tarjetas que
           aparecen de a una. El h1 queda para lectores de pantalla. */}
       <div className="news-view" id="trayectoria">
-        <h1 id="bitacora-titulo" className="sr-only">
-          {t('bitacora.title')}
-        </h1>
-
         <section className="news" ref={rootRef} aria-labelledby="bitacora-titulo">
           {portada && (
             <article className="news-featured" {...tarjeta(portada)}>
@@ -183,6 +182,19 @@ export function News() {
               </div>
             </article>
           )}
+
+          {/* Titular de la página (pedido 2026-10-18): desde cuándo trabaja
+              profesionalmente. Los años se calculan con la fecha actual, así
+              que el texto se actualiza solo cada año. */}
+          <header className="news-intro container">
+            <h1 id="bitacora-titulo" className="news-intro__titulo">
+              {t('bitacora.desde')}
+              <span>{ANIO_INICIO}</span>
+            </h1>
+            <p className="news-intro__sub">
+              {t('bitacora.anios').replace('{n}', String(new Date().getFullYear() - ANIO_INICIO))}
+            </p>
+          </header>
 
           {linea.length > 0 && (
             <ol className="news-grid container">

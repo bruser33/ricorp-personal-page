@@ -190,8 +190,6 @@ function useAutoAdvanceToProjects(enabled: boolean) {
       // Si ya hay un deslizamiento en curso (p.ej. el link "about" del header),
       // no se dispara otro encima.
       if (!armed || fired || isGliding()) return;
-      // En la pantalla Bitácora el home está oculto: secuestrar el gesto
-      // bloquearía su scroll. No se desarma: al volver el home sigue en el hero.
       // Never hijack a click on an interactive control (nav links, language
       // toggle, buttons, carousel tabs) — the user's own action must win. A click
       // on empty hero space still triggers the "movie" advance, alongside
@@ -244,8 +242,8 @@ function useAutoAdvanceToProjects(enabled: boolean) {
    el recorrido hacia la siguiente en la dirección en que iba. No se usó
    `mandatory`: devuelve a la sección actual cualquier gesto corto y no se pudo
    verificar con una rueda real. Solo desktop (en mobile las secciones pueden ser
-   más altas que la pantalla), sin movimiento reducido, fuera de la Bitácora y
-   nunca encima de un deslizamiento en curso (glideTo). */
+   más altas que la pantalla), sin movimiento reducido, solo en el inicio (App
+   lo apaga en las otras páginas) y nunca encima de un deslizamiento en curso (glideTo). */
 function useDirectionalSnap(enabled: boolean) {
   useEffect(() => {
     if (!enabled) return;
@@ -352,8 +350,11 @@ export default function App() {
               <Projects />
             </>
           )}
-          {pagina === 'contacto' && <Contact />}
-          {pagina === 'trayectoria' && <News />}
+          {/* Contacto y Trayectoria se montan recién cuando terminó el splash:
+              sus entradas (título, orbe, campo, portada) arrancan al montar, y en
+              un link directo o una recarga correrían escondidas detrás de él. */}
+          {pagina === 'contacto' && siteReady && <Contact />}
+          {pagina === 'trayectoria' && siteReady && <News />}
         </main>
       </div>
     </>

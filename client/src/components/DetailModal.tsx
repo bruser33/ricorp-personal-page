@@ -123,7 +123,7 @@ export function DetailModal({
   }, [onClose]);
 
   /* Escape en CAPTURA sobre window: corre antes que los listeners de burbuja
-     de Proyectos y de la Bitácora, y el stopPropagation los deja afuera. */
+     de Proyectos y de la Trayectoria, y el stopPropagation los deja afuera. */
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
