@@ -69,7 +69,15 @@ export function Hero({ startAnim }: { startAnim: boolean }) {
         </div>
       </div>
       <div className="hero-portrait" aria-hidden="true">
-        <img src={import.meta.env.BASE_URL + 'figma-frames/portrait.png'} alt="" />
+        {/* WebP con alfa (257 KB) en vez del PNG de 473 KB: en 4G el PNG llegaba
+            recién a los ~4 s, en pleno intro. fetchPriority porque es la imagen
+            principal del primer pantallazo. */}
+        <img
+          src={import.meta.env.BASE_URL + 'figma-frames/portrait.webp'}
+          alt=""
+          fetchPriority="high"
+          decoding="async"
+        />
       </div>
     </section>
   );

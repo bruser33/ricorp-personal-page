@@ -33,6 +33,10 @@ const projects: Proyecto[] = hitosDestacados().filter((h): h is Proyecto => !!h.
    en los textos accesibles se aplana a una sola línea. */
 const tituloPlano = (titulo: string) => titulo.replace(/\n/g, ' ');
 
+/* Lo que se escribe EN la tarjeta (letra muy grande): el título corto si lo
+   hay. Textos accesibles y el detalle siguen con el título completo. */
+const tituloTarjeta = (p: Proyecto) => p.tituloTarjeta ?? tituloPlano(p.titulo);
+
 /* Texto accesible de una tarjeta. `etiqueta` es opcional: sin ella el rótulo es
    solo el título. */
 const rotulo = (p: Proyecto) =>
@@ -590,7 +594,7 @@ export function Projects() {
           >
             <img src={rutaImagen(p.imagen)} alt="" draggable={false} />
             <div className="carousel-caption stack-caption">
-              <h3 className="project-title">{tituloPlano(p.titulo)}</h3>
+              <h3 className="project-title">{tituloTarjeta(p)}</h3>
               {p.etiqueta && <span className="project-tag-label">{p.etiqueta}</span>}
             </div>
           </article>
@@ -696,6 +700,9 @@ export function Projects() {
                     src={rutaImagen(p.imagen)}
                     alt={isClone ? '' : tituloPlano(p.titulo)}
                     draggable={false}
+                    /* Decodificar fuera del hilo principal: al entrar una card
+                       nueva al centro no se come un frame del deslizamiento. */
+                    decoding="async"
                   />
                 </article>
               );
@@ -707,7 +714,7 @@ export function Projects() {
               (requerimiento 4). Va dentro del viewport porque su altura es la de
               la card — ver la nota en .carousel-caption. */}
           <div className={`carousel-caption${captionFading ? ' is-fading' : ''}`}>
-            <h3 className="project-title">{tituloPlano(projects[shownSlide].titulo)}</h3>
+            <h3 className="project-title">{tituloTarjeta(projects[shownSlide])}</h3>
             {projects[shownSlide].etiqueta && (
               <span className="project-tag-label">{projects[shownSlide].etiqueta}</span>
             )}

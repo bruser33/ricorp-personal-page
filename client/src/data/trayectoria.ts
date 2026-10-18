@@ -58,7 +58,11 @@
  *    detalle no muestra nada de Instagram.
  *    Aparte: si el hito tiene `enlace`, el detalle muestra "Ver sitio" (nueva
  *    pestaña). Una ruta del propio sitio se escribe con barra: '/wstyle/'.
- * 9) Un destacado SIN `imagen` no se puede dibujar como tarjeta (la tarjeta ES
+ * 9) `tituloTarjeta` (opcional) es un título CORTO para la tarjeta del
+ *    slider de Proyectos, que va en letra muy grande: un título largo ocupa
+ *    cinco líneas y se sale de la tarjeta. La línea de tiempo y el detalle
+ *    siguen usando `titulo`.
+ * 10) Un destacado SIN `imagen` no se puede dibujar como tarjeta (la tarjeta ES
  *    la imagen), así que Proyectos lo saltea. En la trayectoria sigue estando.
  * ========================================================================== */
 
@@ -68,13 +72,16 @@ export type HitoTrayectoria = {
   fecha: string;
   titulo: string;
   descripcion?: string;
-  /** Ruta relativa a `client/public`, ej. 'figma-frames/news-1.png'. */
+  /** Ruta relativa a `client/public`, ej. 'figma-frames/news-1.webp'. */
   imagen?: string;
   enlace?: string;
   /** true = además aparece en la sección Proyectos. */
   destacado?: boolean;
   /** Solo Proyectos: tipo de trabajo bajo el título de la tarjeta. */
   etiqueta?: string;
+  /** Solo Proyectos: título corto para la tarjeta del slider (va en letra muy
+   *  grande). Sin él se usa `titulo`. */
+  tituloTarjeta?: string;
   /** Solo Proyectos: imágenes extra del detalle, relativas a `client/public`. */
   mockups?: string[];
   /** Solo Proyectos: URL de un reel de Instagram. Ausente o '' = no se muestra. */
@@ -111,50 +118,58 @@ export const trayectoria: HitoTrayectoria[] = [
     id: 'relleno-radeon',
     fecha: '2022-12-14',
     titulo: 'Análisis: AMD Radeon RX 7900 XTX',
-    imagen: 'figma-frames/news-featured.png',
+    imagen: 'figma-frames/news-featured.webp',
   },
   {
     id: 'relleno-suunto',
     fecha: '2022-12-02',
     titulo: 'Análisis: Suunto 9 Peak Pro',
-    imagen: 'figma-frames/news-1.png',
+    imagen: 'figma-frames/news-1.webp',
   },
   {
     id: 'relleno-iphone',
     fecha: '2022-11-24',
     titulo: 'Análisis: iPhone 14 vs 14 Plus\nvs 14 Pro vs 14 Pro Max',
-    imagen: 'figma-frames/news-2.png',
+    imagen: 'figma-frames/news-2.webp',
   },
   {
     id: 'relleno-vr',
     fecha: '2022-11-15',
     titulo: 'Nuevo aspirante al trono\nde la realidad virtual',
-    imagen: 'figma-frames/news-3.png',
+    imagen: 'figma-frames/news-3.webp',
   },
   {
     id: 'relleno-airpods',
     fecha: '2022-11-08',
     titulo: 'Análisis: AirPods Pro de 2ª Generación',
-    imagen: 'figma-frames/news-4.png',
+    imagen: 'figma-frames/news-4.webp',
   },
   {
     id: 'relleno-proscenic',
     fecha: '2022-11-01',
     titulo: 'Análisis: Proscenic WashVac F20',
-    imagen: 'figma-frames/news-5.png',
+    imagen: 'figma-frames/news-5.webp',
   },
 
-  /* Los 6 de acá abajo son los proyectos de ejemplo de la sección Proyectos
-     (`destacado`). Las fechas son inventadas y solo sirven para fijar el orden. */
+  /* Proyectos informáticos (slider) = SOLO los mejores: hoy W Style, Haru e
+     Invasión UFPS (pedido 2026-10-18: "por ahora solo 3"). Los "Project N" de
+     acá abajo son ejemplos de relleno: ya no van al slider, quedan en la
+     Bitácora hasta que se reemplacen o se borren. Fechas inventadas. */
+  /* Haru: proyecto real (descripción de Pedro, 2026-10-18). La fecha sigue
+     siendo la de relleno: falta la real. */
   {
-    id: 'relleno-haru',
+    id: 'haru',
     fecha: '2022-10-20',
     titulo: 'Haru',
     etiqueta: 'App development',
-    imagen: 'figma-frames/image-7.png',
+    imagen: 'figma-frames/image-7.webp',
     descripcion:
-      'Lorem ipsum dolor sit amet consectetur. Quis sed ultrices sed ornare iaculis viverra nec vivamus. Eu ullamcorper sed in dictumst mauris nunc a posuere. Quam faucibus sem sed odio augue lectus cursus ultricies morbi. Eu elit cursus orci justo accumsan sit. Felis leo eleifend elit urna habitasse integer. Ornare donec vivamus eget facilisi interdum.',
-    mockups: ['figma-frames/project-haru-1.png', 'figma-frames/project-haru-2.png'],
+      'Haru nace de una idea simple: hay muchísimos trabajos que la gente hace todos los días de manera informal y que merecen hacerse con las mismas garantías que cualquier otro, como acompañar a alguien a una cita médica, hacer un trámite o dar una mano por unas horas. Construimos una app para regularizar ese tipo de trabajos, conectando a quien necesita la ayuda con quien la ofrece, de forma clara y segura para las dos partes. ¡Creemos que la tecnología tiene que servir justamente para eso: hacer más fácil y más digno el trabajo de todos los días!',
+    /* Solo las 2 pantallas que cuentan la app (el detalle está maquetado para
+       2 teléfonos): el home con los servicios cercanos y el servicio en curso
+       con su cronómetro. Recortadas de "44 vistas" (HARU.zip); las tablas son
+       de 1920 px, así que cada teléfono se escaló 2× con Lanczos. */
+    mockups: ['figma-frames/haru-home.webp', 'figma-frames/haru-servicio.webp'],
     destacado: true,
   },
   {
@@ -162,50 +177,89 @@ export const trayectoria: HitoTrayectoria[] = [
     fecha: '2022-08-10',
     titulo: 'Project 3',
     etiqueta: 'Web design',
-    imagen: 'figma-frames/image-4.png',
+    imagen: 'figma-frames/image-4.webp',
     descripcion:
       'Lorem ipsum dolor sit amet consectetur. Quis sed ultrices sed ornare iaculis viverra nec vivamus. Eu ullamcorper sed in dictumst mauris nunc a posuere.',
-    destacado: true,
   },
   {
     id: 'relleno-proyecto-4',
     fecha: '2022-07-05',
     titulo: 'Project 4',
     etiqueta: 'Illustration',
-    imagen: 'figma-frames/image-5.png',
+    imagen: 'figma-frames/image-5.webp',
     descripcion:
       'Lorem ipsum dolor sit amet consectetur. Pulvinar congue sed eu blandit fusce. Lorem vivamus elementum vitae faucibus malesuada dictum diam.',
-    destacado: true,
   },
   {
     id: 'relleno-proyecto-5',
     fecha: '2022-06-01',
     titulo: 'Project 5',
     etiqueta: 'Product design',
-    imagen: 'figma-frames/image-6.png',
+    imagen: 'figma-frames/image-6.webp',
     descripcion:
       'Lorem ipsum dolor sit amet consectetur. Quam faucibus sem sed odio augue lectus cursus ultricies morbi. Eu elit cursus orci justo accumsan sit.',
-    destacado: true,
   },
   {
     id: 'relleno-proyecto-6',
     fecha: '2022-04-20',
     titulo: 'Project 6',
     etiqueta: 'Editorial',
-    imagen: 'figma-frames/news-1.png',
+    imagen: 'figma-frames/news-1.webp',
     descripcion:
       'Lorem ipsum dolor sit amet consectetur. Felis leo eleifend elit urna habitasse integer. Ornare donec vivamus eget facilisi interdum.',
-    destacado: true,
   },
   {
     id: 'relleno-proyecto-7',
     fecha: '2022-03-08',
     titulo: 'Project 7',
     etiqueta: 'Motion',
-    imagen: 'figma-frames/news-2.png',
+    imagen: 'figma-frames/news-2.webp',
     descripcion:
       'Lorem ipsum dolor sit amet consectetur. Sodales ultrices cursus condimentum hac scelerisque elementum morbi nisl.',
+  },
+  /* Workana: datos del perfil público (2026-10-18), como texto propio y con
+     enlace al perfil — sin capturas ni logo (los TyC de Workana no lo permiten)
+     y sin nombres de clientes en las reseñas. La fecha es aproximada: el perfil
+     dice "Registrado hace 11 años" y las primeras reseñas son de esa época. */
+  {
+    id: 'workana-freelancer',
+    fecha: '2015-01',
+    titulo: 'Freelancer en Workana\ndesde hace 11 años',
+    descripcion:
+      'En Workana empecé a construir software para clientes de toda Latinoamérica: apps Android e iOS, sitios web y animación con Three.js. Hoy mi ficha suma 10 proyectos completados, 13 calificaciones de clientes y certificaciones en JavaScript Avanzado (80%), React Native y Angular. De esos clientes me quedo con frases como "su profesionalismo me inspiró confianza y no me equivoqué; definitivamente lo buscaré para otros proyectos" y "muy buen profesional, cumple en las fechas establecidas y con gran responsabilidad", ¡que son justamente lo que busco en cada entrega!',
+    enlace: 'https://www.workana.com/freelancer/ad4614d2e994b49a7fd475e709d3020e',
+  },
+  /* Tesis: videojuego "Invasión UFPS" en Unity. Etapas reconstruidas de los
+     correos 2016-2017 (anteproyecto con el director, contrato del ilustrador
+     Junior Molina, menú y primer escenario, personaje y sprites, logo y
+     enemigos, pruebas de niveles) y del video de la playlist. */
+  {
+    id: 'tesis-invasion-ufps',
+    fecha: '2017-04',
+    titulo: 'Invasión UFPS: mi videojuego\nde tesis en Unity',
+    /* Pantalla de inicio del juego, ilustrada por Junior Molina (rescatada del
+       correo "Imagenes, logo, elementos.", 16-ene-2017). */
+    imagen: 'figma-frames/invasion-ufps-menu.webp',
+    /* También en "Proyectos informáticos" (pedido 2026-10-18). Sin mockups: el
+       detalle está maquetado para 2 teléfonos verticales y el juego es
+       apaisado; la pantalla de inicio ya va como imagen principal. */
     destacado: true,
+    etiqueta: 'Game development',
+    tituloTarjeta: 'Invasión UFPS',
+    descripcion:
+      'Para graduarme de ingeniero en la UFPS no quisimos hacer una tesis de papel: hicimos un videojuego. Lo construimos por etapas. Primero el anteproyecto, que pulimos con nuestro director hasta dejarlo listo en 2016. Después armamos el equipo: contratamos a Junior Molina como ilustrador y le pasamos fotos reales de la universidad para que el menú principal partiera de la entrada de la UFPS y el primer escenario se pareciera al campus. Luego vino el arte del personaje, el estudiante, despiezado parte por parte para animarlo con sprites y sus ataques, seguido del logo, los elementos del escenario y los enemigos, como la rata de latas. Con eso programamos los niveles en Unity y los probamos una y otra vez, corrigiendo vidas, conteos y movimientos hasta que cada nivel funcionó de punta a punta. ¡Un proyecto que nos enseñó a llevar una idea desde el papel hasta un juego jugable!',
+    enlace: 'https://www.youtube.com/watch?v=1Oq8jxT7OgE',
+  },
+  /* Playlist "Proyectos Informaticos" del canal de YouTube de Pedro (11 videos,
+     de hace 7 a 11 años). Fecha aproximada: el grueso de los videos es de hace
+     ~9 años. */
+  {
+    id: 'youtube-proyectos-informaticos',
+    fecha: '2017-01',
+    titulo: 'Mis entregas, documentadas\nen YouTube',
+    descripcion:
+      'Cada proyecto que entregaba lo dejaba grabado funcionando, para que el cliente, los colegas y cualquier estudiante pudieran ver de verdad cómo había quedado. Así nació la playlist "Proyectos Informaticos" de mi canal: apps móviles como Vendifood, el POS móvil Hambai y una app de trackeo vehicular, el sitio web de Vendifood, Eventus 24, un análisis contable para MRCI, el portal y la app de última milla de Cargo Ex con React, Android, AWS y Node, y hasta mi proyecto de tesis en Unity 3D. ¡Once videos que muestran el trabajo tal como se entregó!',
+    enlace: 'https://www.youtube.com/watch?v=I8gpO6U7JJg&list=PLz0yhZJ2NlfMSuAyDHCZFtMt2BgIEKXeZ',
   },
   /* Reseñas del Torneo TuApp. Los datos (fechas, lugar, equipos, carta de
      finalistas y certificado) salen de los correos de TuApp.org de 2013 y 2014. */

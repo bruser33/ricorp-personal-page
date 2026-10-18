@@ -120,6 +120,7 @@ html {
   scroll-snap-stop: normal;
 }
 
+
 @media (prefers-reduced-motion: reduce) {
   html { scroll-snap-type: none; scroll-behavior: auto; }
 }

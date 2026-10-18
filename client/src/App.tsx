@@ -231,6 +231,63 @@ function useAutoAdvanceToProjects(enabled: boolean) {
   }, [enabled]);
 }
 
+/* Snap direccional. El snap CSS es `proximity` y la rueda podía dejar la página
+   a mitad de camino entre dos secciones (p.ej. scrollY 1220 con el slider en 820
+   y contacto en 1640): se veía la parte vacía de las dos — "bajo y parece que no
+   hay nada". Cuando el scroll TERMINA fuera de un punto de sección, se completa
+   el recorrido hacia la siguiente en la dirección en que iba. No se usó
+   `mandatory`: devuelve a la sección actual cualquier gesto corto y no se pudo
+   verificar con una rueda real. Solo desktop (en mobile las secciones pueden ser
+   más altas que la pantalla), sin movimiento reducido, fuera de la Bitácora y
+   nunca encima de un deslizamiento en curso (glideTo). */
+function useDirectionalSnap(enabled: boolean) {
+  useEffect(() => {
+    if (!enabled) return;
+    const desktop = window.matchMedia('(min-width: 721px)');
+    let lastY = window.scrollY;
+    let dir = 0;
+    let timer = 0;
+    let snapping = false;
+    const points = () => {
+      const pad = parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop) || 0;
+      const max = document.documentElement.scrollHeight - window.innerHeight;
+      return ['home', 'about', 'contact']
+        .map((id) => document.getElementById(id))
+        .filter((el): el is HTMLElement => !!el)
+        .map((el) => Math.min(max, Math.max(0, el.offsetTop - pad)));
+    };
+    const settle = () => {
+      if (snapping) {
+        snapping = false;
+        return;
+      }
+      if (!desktop.matches || prefersReducedMotion() || isGliding()) return;
+      if (document.documentElement.classList.contains('bitacora-activa')) return;
+      const y = window.scrollY;
+      const ps = points();
+      if (ps.some((p) => Math.abs(p - y) <= 2)) return;
+      const target = dir >= 0 ? ps.find((p) => p > y) : [...ps].reverse().find((p) => p < y);
+      if (target === undefined) return;
+      snapping = true;
+      window.scrollTo({ top: target, behavior: 'smooth' });
+    };
+    const onScroll = () => {
+      const y = window.scrollY;
+      if (y !== lastY) dir = y > lastY ? 1 : -1;
+      lastY = y;
+      /* `scrollend` no está en todos los navegadores: un respiro de 160ms sin
+         eventos de scroll cumple el mismo papel. */
+      window.clearTimeout(timer);
+      timer = window.setTimeout(settle, 160);
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      window.clearTimeout(timer);
+    };
+  }, [enabled]);
+}
+
 /* El blob global vive en body::before, fuera del árbol de React, así que no
    alcanza con la clase del wrapper: marcamos el propio <body> para que arranque
    su fade del beat B (ver index.css). */
@@ -247,6 +304,7 @@ export default function App() {
   useReveal(siteReady);
   useBlobMorph(siteReady);
   useAutoAdvanceToProjects(siteReady);
+  useDirectionalSnap(siteReady);
 
   return (
     <>
