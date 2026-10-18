@@ -227,6 +227,9 @@ export const trayectoria: HitoTrayectoria[] = [
     id: 'tesis-invasion-ufps',
     fecha: '2017-04',
     titulo: 'Invasión UFPS: mi videojuego\nde tesis en Unity',
+    /* Pantalla de inicio del juego, ilustrada por Junior Molina (rescatada del
+       correo "Imagenes, logo, elementos.", 16-ene-2017). */
+    imagen: 'figma-frames/invasion-ufps-menu.webp',
     descripcion:
       'Para graduarme de ingeniero en la UFPS no quisimos hacer una tesis de papel: hicimos un videojuego. Lo construimos por etapas. Primero el anteproyecto, que pulimos con nuestro director hasta dejarlo listo en 2016. Después armamos el equipo: contratamos a Junior Molina como ilustrador y le pasamos fotos reales de la universidad para que el menú principal partiera de la entrada de la UFPS y el primer escenario se pareciera al campus. Luego vino el arte del personaje, el estudiante, despiezado parte por parte para animarlo con sprites y sus ataques, seguido del logo, los elementos del escenario y los enemigos, como la rata de latas. Con eso programamos los niveles en Unity y los probamos una y otra vez, corrigiendo vidas, conteos y movimientos hasta que cada nivel funcionó de punta a punta. ¡Un proyecto que nos enseñó a llevar una idea desde el papel hasta un juego jugable!',
     enlace: 'https://www.youtube.com/watch?v=1Oq8jxT7OgE',
