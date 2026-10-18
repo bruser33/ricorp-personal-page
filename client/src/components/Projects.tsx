@@ -116,6 +116,13 @@ const DRAG_FLICK_MIN_PX = 30;
 const DRAG_VELOCITY_WINDOW_MS = 100;
 const DRAG_MAX_STEP = 2;
 
+/* Gesto horizontal del trackpad (ver el efecto de wheel): cuántos px de
+   deltaX acumulados hacen falta para pasar de card, y cuánto silencio entre
+   eventos da por terminada la ráfaga (la inercia del trackpad sigue mandando
+   eventos un buen rato después de levantar los dedos). */
+const WHEEL_UMBRAL_PX = 40;
+const WHEEL_SILENCIO_MS = 220;
+
 /* Cuántas cards avanza un gesto. Positivo = siguiente (el dedo fue a la
    izquierda, dx negativo). Función pura: no lee el DOM ni el estado. */
 function slidesForGesture(dx: number, velocity: number, step: number): number {
@@ -159,8 +166,9 @@ function useMediaQuery(query: string) {
 /* Cuerpo del post, con la distribución del prototipo de Figma (video
    2026-10-18): párrafo a todo el ancho; imagen a la izquierda con el texto
    corriendo a su derecha; teléfono inclinado a la derecha con texto a su
-   izquierda; y el resto a todo el ancho. Las imágenes van flotando (no en una
-   columna aparte) para que el texto las rodee como en el diseño. Sin
+   izquierda; y el texto sigue corriendo al lado del teléfono hasta que se
+   termina, sin dejar huecos. Las imágenes van flotando (no en una columna
+   aparte) para que el texto las rodee como en el diseño. Sin
    `parrafos`, la descripción hace de único párrafo. */
 function PostCuerpo({ hito }: { hito: Proyecto }) {
   const parrafos = hito.parrafos?.length ? hito.parrafos : hito.descripcion ? [hito.descripcion] : [];
@@ -185,7 +193,6 @@ function PostCuerpo({ hito }: { hito: Proyecto }) {
         />
       )}
       {tercero && <p className="project-modal-text">{tercero}</p>}
-      <div className="post-corte" aria-hidden="true" />
       {resto.map((p, i) => (
         <p key={i} className="project-modal-text">
           {p}
@@ -216,6 +223,7 @@ export function Projects() {
   const [originRect, setOriginRect] = useState<DOMRect | null>(null);
   const cardRefs = useRef<(HTMLElement | null)[]>([]);
   const trackRef = useRef<HTMLDivElement | null>(null);
+  const viewportRef = useRef<HTMLDivElement | null>(null);
   /* Arrastre con la mano (SPEC-16). `dragging` es estado porque pinta (cursor
      grabbing, transición apagada, auto-play en pausa); el resto vive en un ref
      porque los handlers de puntero corren varias veces por frame y no pueden
@@ -387,6 +395,46 @@ export function Projects() {
     io.observe(el);
     return () => io.disconnect();
   }, [isMobile]);
+
+  /* Deslizar con dos dedos en el trackpad (o la rueda horizontal). En un Mac
+     ese es EL gesto natural para "agarrar y correr" un slider, y el carrusel
+     solo entendía el arrastre con el puntero apretado: con el trackpad se
+     sentía clavado. El gesto llega como ráfaga de eventos `wheel` con deltaX:
+     se acumula y, al pasar el umbral, avanza UNA card y se ignora el resto de
+     la ráfaga (inercia del trackpad) hasta un respiro sin eventos. Solo actúa
+     si el gesto es claramente horizontal: el scroll vertical de la página
+     sigue intacto. Listener nativo y no onWheel porque React lo registra
+     pasivo y acá hace falta preventDefault (si no, Safari/Chrome lo toman
+     como "atrás/adelante" del historial). */
+  useEffect(() => {
+    if (isMobile || !hasLoop) return;
+    const el = viewportRef.current;
+    if (!el) return;
+    let acumulado = 0;
+    let bloqueado = false;
+    let silencio = 0;
+    const onWheel = (e: WheelEvent) => {
+      if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
+      e.preventDefault();
+      window.clearTimeout(silencio);
+      silencio = window.setTimeout(() => {
+        bloqueado = false;
+        acumulado = 0;
+      }, WHEEL_SILENCIO_MS);
+      if (bloqueado) return;
+      acumulado += e.deltaX;
+      if (Math.abs(acumulado) < WHEEL_UMBRAL_PX) return;
+      suspendAutoplay();
+      moveBy(acumulado > 0 ? 1 : -1);
+      bloqueado = true;
+      acumulado = 0;
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => {
+      el.removeEventListener('wheel', onWheel);
+      window.clearTimeout(silencio);
+    };
+  }, [isMobile, hasLoop, moveBy, suspendAutoplay]);
 
   // Motor del auto-play: un paso cada AUTOPLAY_MS; cada paso desliza
   // AUTOPLAY_SLIDE_MS (clase .is-autoplaying) y el resto del intervalo descansa.
@@ -659,6 +707,7 @@ export function Projects() {
   const carousel = total === 0 ? null : (
       <div className="projects-carousel reveal-scale">
         <div
+          ref={viewportRef}
           className={`carousel-viewport${dragging ? ' is-dragging' : ''}`}
           onPointerLeave={(e) => {
             /* Sin capture todavía (no pasó de DRAG_CLICK_PX), el pointerup fuera

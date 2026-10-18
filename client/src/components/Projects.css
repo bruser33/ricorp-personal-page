@@ -653,6 +653,15 @@ html.glide-dots-hidden .carousel-dots {
   margin: 0 auto;
 }
 
+/* Los floats se cierran recién al final del post: si se cortaban antes
+   (clear: both tras el tercer párrafo), el texto que seguía esperaba a que
+   terminara el teléfono inclinado y quedaba un hueco enorme al lado. */
+.post::after {
+  content: '';
+  display: block;
+  clear: both;
+}
+
 /* Dentro del post los párrafos no se centran solos (los floats mandan) y
    entran con el panel, no escalonados. */
 .post .project-modal-text {
@@ -693,6 +702,9 @@ html.glide-dots-hidden .carousel-dots {
    poco por fuera del panel (lo recorta el overflow-x del overlay). */
 .post-telefono {
   float: right;
+  /* Arranca DEBAJO de la imagen de la izquierda: si flotaba al lado de ella,
+     el párrafo del medio quedaba apretado en una columna de tres palabras. */
+  clear: left;
   width: 30%;
   margin: 2em -2% 2.4em clamp(32px, 3.4vw, 64px);
   transform: rotate(14deg);
@@ -702,10 +714,6 @@ html.glide-dots-hidden .carousel-dots {
   filter: drop-shadow(0 18px 32px rgba(0, 0, 0, 0.5));
 }
 
-/* A partir de acá, todo el ancho otra vez. */
-.post-corte {
-  clear: both;
-}
 
 /* Riel de la X. Arranca en el borde de la foto y llega hasta el fondo del
    modal; el botón es sticky ADENTRO, así que se queda junto a la foto hasta que
