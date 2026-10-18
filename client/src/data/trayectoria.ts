@@ -207,6 +207,29 @@ export const trayectoria: HitoTrayectoria[] = [
       'Lorem ipsum dolor sit amet consectetur. Sodales ultrices cursus condimentum hac scelerisque elementum morbi nisl.',
     destacado: true,
   },
+  /* Workana: datos del perfil público (2026-10-18), como texto propio y con
+     enlace al perfil — sin capturas ni logo (los TyC de Workana no lo permiten)
+     y sin nombres de clientes en las reseñas. La fecha es aproximada: el perfil
+     dice "Registrado hace 11 años" y las primeras reseñas son de esa época. */
+  {
+    id: 'workana-freelancer',
+    fecha: '2015-01',
+    titulo: 'Freelancer en Workana\ndesde hace 11 años',
+    descripcion:
+      'En Workana empecé a construir software para clientes de toda Latinoamérica: apps Android e iOS, sitios web y animación con Three.js. Hoy mi ficha suma 10 proyectos completados, 13 calificaciones de clientes y certificaciones en JavaScript Avanzado (80%), React Native y Angular. De esos clientes me quedo con frases como "su profesionalismo me inspiró confianza y no me equivoqué; definitivamente lo buscaré para otros proyectos" y "muy buen profesional, cumple en las fechas establecidas y con gran responsabilidad", ¡que son justamente lo que busco en cada entrega!',
+    enlace: 'https://www.workana.com/freelancer/ad4614d2e994b49a7fd475e709d3020e',
+  },
+  /* Playlist "Proyectos Informaticos" del canal de YouTube de Pedro (11 videos,
+     de hace 7 a 11 años). Fecha aproximada: el grueso de los videos es de hace
+     ~9 años. */
+  {
+    id: 'youtube-proyectos-informaticos',
+    fecha: '2017-01',
+    titulo: 'Mis entregas, documentadas\nen YouTube',
+    descripcion:
+      'Cada proyecto que entregaba lo dejaba grabado funcionando, para que el cliente, los colegas y cualquier estudiante pudieran ver de verdad cómo había quedado. Así nació la playlist "Proyectos Informaticos" de mi canal: apps móviles como Vendifood, el POS móvil Hambai y una app de trackeo vehicular, el sitio web de Vendifood, Eventus 24, un análisis contable para MRCI, el portal y la app de última milla de Cargo Ex con React, Android, AWS y Node, y hasta mi proyecto de tesis en Unity 3D. ¡Once videos que muestran el trabajo tal como se entregó!',
+    enlace: 'https://www.youtube.com/watch?v=I8gpO6U7JJg&list=PLz0yhZJ2NlfMSuAyDHCZFtMt2BgIEKXeZ',
+  },
   /* Reseñas del Torneo TuApp. Los datos (fechas, lugar, equipos, carta de
      finalistas y certificado) salen de los correos de TuApp.org de 2013 y 2014. */
   {
