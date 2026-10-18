@@ -170,6 +170,95 @@ function useMediaQuery(query: string) {
    termina, sin dejar huecos. Las imágenes van flotando (no en una columna
    aparte) para que el texto las rodee como en el diseño. Sin
    `parrafos`, la descripción hace de único párrafo. */
+/* Galería con slider en el lugar de la imagen de la izquierda del post. El
+   desplazamiento es scroll horizontal nativo con scroll-snap: así el dedo, el
+   trackpad (dos dedos) y la rueda horizontal funcionan solos y con su inercia,
+   y las flechas solo llaman a scrollTo. El índice se deduce del scroll. */
+function GaleriaPost({ fotos }: { fotos: { src: string; pie: string }[] }) {
+  const pistaRef = useRef<HTMLDivElement | null>(null);
+  const [indice, setIndice] = useState(0);
+  const total = fotos.length;
+
+  const irA = (i: number) => {
+    const pista = pistaRef.current;
+    if (!pista) return;
+    const destino = Math.max(0, Math.min(total - 1, i));
+    pista.scrollTo({ left: destino * pista.clientWidth, behavior: 'smooth' });
+  };
+
+  const alScrollear = () => {
+    const pista = pistaRef.current;
+    if (!pista || !pista.clientWidth) return;
+    setIndice(Math.round(pista.scrollLeft / pista.clientWidth));
+  };
+
+  return (
+    <figure className="post-figura post-galeria" aria-roledescription="carrusel" aria-label="Galería">
+      <div
+        ref={pistaRef}
+        className="galeria-pista"
+        onScroll={alScrollear}
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'ArrowRight') {
+            e.preventDefault();
+            irA(indice + 1);
+          } else if (e.key === 'ArrowLeft') {
+            e.preventDefault();
+            irA(indice - 1);
+          }
+        }}
+      >
+        {fotos.map((f, i) => (
+          <div
+            key={f.src}
+            className="galeria-slide"
+            role="group"
+            aria-roledescription="foto"
+            aria-label={`${i + 1} de ${total}`}
+          >
+            <img
+              src={rutaImagen(f.src)}
+              alt={f.pie}
+              loading={i < 2 ? 'eager' : 'lazy'}
+              decoding="async"
+              draggable={false}
+            />
+          </div>
+        ))}
+      </div>
+      <button
+        type="button"
+        className="galeria-flecha galeria-flecha--prev"
+        aria-label="Foto anterior"
+        disabled={indice === 0}
+        onClick={() => irA(indice - 1)}
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M15 5l-7 7 7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+      <button
+        type="button"
+        className="galeria-flecha galeria-flecha--next"
+        aria-label="Foto siguiente"
+        disabled={indice === total - 1}
+        onClick={() => irA(indice + 1)}
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M9 5l7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+      <figcaption className="galeria-pie">
+        <span className="galeria-contador">
+          {indice + 1} / {total}
+        </span>
+        <span aria-live="polite">{fotos[indice]?.pie}</span>
+      </figcaption>
+    </figure>
+  );
+}
+
 function PostCuerpo({ hito }: { hito: Proyecto }) {
   const parrafos = hito.parrafos?.length ? hito.parrafos : hito.descripcion ? [hito.descripcion] : [];
   const [primero, segundo, tercero, ...resto] = parrafos;
@@ -179,10 +268,14 @@ function PostCuerpo({ hito }: { hito: Proyecto }) {
        esté en inglés, y el justificado parte las palabras según este idioma. */
     <div className="post" lang="es">
       {primero && <p className="project-modal-text">{primero}</p>}
-      {figura && (
-        <figure className="post-figura">
-          <img src={rutaImagen(figura)} alt="" loading="lazy" decoding="async" />
-        </figure>
+      {hito.galeria?.length ? (
+        <GaleriaPost fotos={hito.galeria} />
+      ) : (
+        figura && (
+          <figure className="post-figura">
+            <img src={rutaImagen(figura)} alt="" loading="lazy" decoding="async" />
+          </figure>
+        )
       )}
       {segundo && <p className="project-modal-text">{segundo}</p>}
       {telefono && (
