@@ -74,9 +74,9 @@ function onMediaError(e: SyntheticEvent<HTMLImageElement>) {
 }
 
 /* Bitácora como PANTALLA (antes una vista superpuesta con X, trampa de foco y
-   scroll propio): con #bitacora en la URL el home se oculta (html.bitacora-activa,
+   scroll propio): con #trayectoria en la URL el home se oculta (html.bitacora-activa,
    ver News.css), el header sigue arriba y la página usa el scroll normal de la
-   ventana. Se entra desde el navbar (abrirNoticias) o con /#bitacora; se sale con
+   ventana. Se entra desde el navbar (abrirNoticias) o con /#trayectoria; se sale con
    "Volver al inicio", el logo, cualquier link del navbar o el botón atrás. `ready`
    = el splash terminó: un deep link no tapa la intro. */
 export function News({ ready = true }: { ready?: boolean }) {
@@ -128,7 +128,7 @@ export function News({ ready = true }: { ready?: boolean }) {
   }, []);
 
   /* "Volver al inicio" = volver a la entrada anterior del historial cuando la de
-     #bitacora es nuestra (link del navbar o deep link reescrito): así el botón y
+     #trayectoria es nuestra (link del navbar o deep link reescrito): así el botón y
      "atrás" dejan el historial igual. Si alguien tipeó el hash a mano, se
      reemplaza la URL en vez de retroceder (la entrada de atrás podría no ser este
      sitio). */
@@ -249,7 +249,7 @@ export function News({ ready = true }: { ready?: boolean }) {
 
   return (
     <>
-      <div className="news-view" id="bitacora">
+      <div className="news-view" id="trayectoria">
         <header className="news-view__head container">
           <a
             href="#home"

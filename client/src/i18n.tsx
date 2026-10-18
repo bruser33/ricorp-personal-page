@@ -10,12 +10,12 @@ type Dict = Record<string, string>;
    split at the component (hero title, hero sub). */
 const translations: Record<Lang, Dict> = {
   eng: {
-    'nav.contact': 'contact',
-    'nav.news': 'logbook',
-    'bitacora.title': 'Logbook',
+    'nav.contact': 'Contact',
+    'nav.news': 'Timeline',
+    'bitacora.title': 'Timeline',
     'bitacora.sub': 'My path in software, milestone by milestone.',
     'bitacora.back': 'Back to home',
-    'nav.about': 'about',
+    'nav.about': 'About',
     'nav.home': 'Home',
     'nav.menu': 'MENU',
     'lang.switch': 'español',
@@ -47,12 +47,12 @@ const translations: Record<Lang, Dict> = {
     'projects.next': 'Next project',
   },
   esp: {
-    'nav.contact': 'contacto',
-    'nav.news': 'bitácora',
-    'bitacora.title': 'Bitácora',
+    'nav.contact': 'Contacto',
+    'nav.news': 'Trayectoria',
+    'bitacora.title': 'Trayectoria',
     'bitacora.sub': 'Mi recorrido en el software, hito a hito.',
     'bitacora.back': 'Volver al inicio',
-    'nav.about': 'nosotros',
+    'nav.about': 'Nosotros',
     'nav.home': 'Inicio',
     'nav.menu': 'MENÚ',
     'lang.switch': 'english',

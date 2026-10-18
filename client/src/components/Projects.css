@@ -337,31 +337,36 @@ html.glide-dots-hidden .carousel-dots {
   background: var(--accent-blue-active);
 }
 
+/* Solo el FONDO aparece: si se desvaneciera el overlay entero, la banda que
+   crece desde la tarjeta arrancaría transparente y no se leería el "crecer". */
 @keyframes projectModalIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from { background-color: rgba(18, 17, 21, 0); }
+  to { background-color: rgba(18, 17, 21, 0.95); }
 }
 
 .project-modal-overlay {
   position: fixed;
   inset: 0;
   background: rgba(18, 17, 21, 0.95);
-  backdrop-filter: blur(8px);   /* lightningcss agrega el -webkit- (con el par a mano deja solo el prefijo) */
+  /* Sin backdrop-filter: con el fondo al 95% el blur no se notaba y costaba
+     un recompuesto de pantalla completa en cada frame de la apertura. */
   z-index: 200;
   /* Sin padding: el detalle TAPA la pantalla entera (requerimiento 10). Antes
      quedaba una card centrada con 5vw de aire alrededor. */
   padding: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  animation: projectModalIn 400ms ease both;
+  animation: projectModalIn 450ms ease both;
 }
 
 .project-modal {
-  --from-x: 50vw;
-  --from-y: 50vh;
-  --from-w: 0px;
-  --from-h: 0px;
-  --from-scale: 0.5;
+  /* Estado inicial del flip de la banda (lo calcula DetailModal.tsx desde el
+     rect de la tarjeta). Sin origen, la banda arranca ya en su lugar. */
+  --from-x: 0px;
+  --from-y: 0px;
+  --from-scale: 1;
+  --from-clip: 0px;
+  --from-radius: 0px;
   /* Alto de la banda de foto. Lo consumen .project-modal-image y el top del riel
      de la X: escrito dos veces como literal, cambiar uno desfasaba el otro. */
   --modal-hero-h: clamp(240px, 40vh, 520px);
@@ -386,42 +391,27 @@ html.glide-dots-hidden .carousel-dots {
      lo convertiría en su propio scrollport. */
   min-height: 100%;
   position: relative;
-  transform-origin: top left;
-  animation: modalFlipIn 900ms cubic-bezier(0.7, 0.01, 0.23, 1.01) both;
 }
 
-@keyframes modalFlipIn {
-  0% {
-    /* El modal es a pantalla completa y su origen de transform es la esquina
-       superior izquierda, que ya coincide con (0,0) del viewport: escalado desde
-       ahí, para aterrizar sobre la card basta con trasladarlo a su posición.
-       El calc de antes (`--from-x - 50vw + --from-w/2`) era para el modal viejo,
-       que estaba CENTRADO con max-width 1280 — con el full-screen arrancaba
-       fuera de la pantalla, arriba a la izquierda. No se notaba porque el scale
-       llevaba unidad y volvía inválido el transform entero; al arreglar el scale
-       quedó a la vista. */
-    transform: translate(var(--from-x), var(--from-y)) scale(var(--from-scale));
-    opacity: 0.85;
-    border-radius: 24px;
-  }
-  100% {
-    transform: translate(0, 0) scale(1);
-    opacity: 1;
-    border-radius: 24px;
-  }
+/* Apertura como el prototipo de Figma (video 2026-10-18, 12.6 → 14.4 s): la
+   tarjeta del slider crece hasta ser la banda de foto a sangre arriba (~0.75
+   s), el título aparece cuando la banda asienta, y recién después sube el panel
+   de contenido y aparece la X. Antes crecía el detalle ENTERO desde la tarjeta,
+   panel vacío incluido, y se leía como una ventana que se abre, no como la
+   tarjeta que se agranda. Solo transform + clip-path: compositor, sin layout. */
+@keyframes heroFlipIn {
+  from { transform: translate(var(--from-x), var(--from-y)) scale(var(--from-scale)); }
+  to { transform: none; }
 }
 
-@keyframes modalImageIn {
-  from {
-    opacity: 0;
-    transform: translateY(-16px);
-    clip-path: inset(0 0 100% 0);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-    clip-path: inset(0);
-  }
+@keyframes heroClipIn {
+  from { clip-path: inset(var(--from-clip) 0 var(--from-clip) 0 round var(--from-radius)); }
+  to { clip-path: inset(0 0 0 0 round 0px); }
+}
+
+@keyframes modalTitleIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 @keyframes modalCardIn {
@@ -439,12 +429,23 @@ html.glide-dots-hidden .carousel-dots {
   to { opacity: 1; transform: scale(1); }
 }
 
+.project-modal-hero {
+  transform-origin: top left;
+  animation: heroFlipIn 760ms cubic-bezier(0.7, 0.01, 0.23, 1.01) both;
+}
+
 .project-modal-image {
-  animation: modalImageIn 600ms cubic-bezier(0.7, 0.01, 0.23, 1.01) 150ms both;
+  animation: heroClipIn 760ms cubic-bezier(0.7, 0.01, 0.23, 1.01) both;
+}
+
+/* El título no viaja escalado (cuelga por debajo de la banda y el clip lo
+   cortaría a medias): entra cuando la banda ya casi asentó. */
+.project-modal-image-overlay {
+  animation: modalTitleIn 420ms ease-out 480ms both;
 }
 
 .project-modal-card {
-  animation: modalCardIn 600ms cubic-bezier(0.7, 0.01, 0.23, 1.01) 300ms both;
+  animation: modalCardIn 650ms cubic-bezier(0.22, 1, 0.36, 1) 650ms both;
 }
 
 .project-modal-text {
@@ -452,17 +453,68 @@ html.glide-dots-hidden .carousel-dots {
   opacity: 0;
 }
 
-.project-modal-text:nth-of-type(1) { animation-delay: 500ms; }
-.project-modal-text:nth-of-type(2) { animation-delay: 550ms; }
-.project-modal-text:nth-of-type(3) { animation-delay: 600ms; }
+.project-modal-text:nth-of-type(1) { animation-delay: 800ms; }
+.project-modal-text:nth-of-type(2) { animation-delay: 850ms; }
+.project-modal-text:nth-of-type(3) { animation-delay: 900ms; }
 
 .project-modal-close {
-  animation: modalCloseIn 300ms ease 700ms both;
+  animation: modalCloseIn 300ms ease 950ms both;
+}
+
+/* --- Cierre (camino inverso de la apertura, como en el prototipo) ----------
+   Se van panel, X y título; la banda vuelve a encogerse sobre la tarjeta (los
+   mismos --from-* de la apertura) y el fondo se apaga. DetailModal.tsx llama a
+   onClose a los CIERRE_MS (700ms): si cambian estas duraciones, cambiar ese
+   número. Keyframes propios (y no `reverse`) para que la animación reinicie. */
+@keyframes heroFlipOut {
+  from { transform: none; }
+  to { transform: translate(var(--from-x), var(--from-y)) scale(var(--from-scale)); }
+}
+@keyframes heroClipOut {
+  from { clip-path: inset(0 0 0 0 round 0px); }
+  to { clip-path: inset(var(--from-clip) 0 var(--from-clip) 0 round var(--from-radius)); }
+}
+@keyframes modalCardOut {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(32px); }
+}
+@keyframes modalFadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+@keyframes projectModalOut {
+  from { background-color: rgba(18, 17, 21, 0.95); }
+  to { background-color: rgba(18, 17, 21, 0); }
+}
+
+.project-modal-overlay.is-closing {
+  animation: projectModalOut 420ms ease 260ms both;
+  pointer-events: none;
+}
+.is-closing .project-modal-card {
+  animation: modalCardOut 240ms ease-in both;
+}
+.is-closing .project-modal-close,
+.is-closing .project-modal-image-overlay {
+  animation: modalFadeOut 180ms ease-in both;
+}
+.is-closing .project-modal-hero {
+  animation: heroFlipOut 520ms cubic-bezier(0.7, 0.01, 0.23, 1.01) 160ms both;
+}
+.is-closing .project-modal-image {
+  animation: heroClipOut 520ms cubic-bezier(0.7, 0.01, 0.23, 1.01) 160ms both;
+}
+/* Sin foto no hay banda a la que volver: el detalle se apaga entero. */
+.is-closing .project-modal--sin-imagen {
+  animation: modalFadeOut 400ms ease 160ms both;
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .project-modal-overlay,
   .project-modal,
+  .project-modal-hero,
   .project-modal-image,
+  .project-modal-image-overlay,
   .project-modal-card,
   .project-modal-text,
   .project-modal-close {
@@ -478,6 +530,21 @@ html.glide-dots-hidden .carousel-dots {
 .project-modal-hero {
   position: relative;
   width: 100%;
+  /* Encima del grano de .project-modal::before. */
+  z-index: 1;
+}
+
+/* Grano sobre el fondo oscuro del detalle, como en el prototipo: se ve
+   alrededor del título y del panel, no sobre la foto (la banda va encima) ni
+   sobre las letras (el título también). Mismo tile que los velos del hero. */
+.project-modal::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: url('/noise.png') repeat 0 0 / 200px 200px;
+  opacity: 0.09;
+  pointer-events: none;
+  z-index: 0;
 }
 
 .project-modal-image {
@@ -576,53 +643,68 @@ html.glide-dots-hidden .carousel-dots {
 
 .project-modal-text:last-child { margin-bottom: 0; }
 
-.project-modal-layout {
-  display: grid;
-  grid-template-columns: 1fr 0.7fr;
-  gap: clamp(40px, 4vw, 80px);
-  align-items: start;
+/* --- Cuerpo del post (PostCuerpo en Projects.tsx) --------------------------
+   Distribución del prototipo de Figma: párrafo a todo el ancho; imagen a la
+   izquierda con el texto corriendo a su derecha; teléfono inclinado a la
+   derecha con texto a su izquierda; y el resto a todo el ancho. Floats y no
+   grid/columnas: el texto tiene que RODEAR las imágenes como en el diseño. */
+.post {
+  max-width: 1100px;
+  margin: 0 auto;
 }
 
-.project-modal-mockups-col {
-  position: relative;
-  min-height: 600px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+/* Dentro del post los párrafos no se centran solos (los floats mandan) y
+   entran con el panel, no escalonados. */
+.post .project-modal-text {
+  max-width: none;
+  /* Más grande y más aireado que el párrafo genérico: en el prototipo el post
+     ocupa ~3 pantallas y se lee holgado (a 1440 el clamp genérico daba 16px). */
+  font-size: clamp(17px, 1.25vw, 22px);
+  line-height: 1.85;
+  margin: 0 0 1.7em;
 }
 
-.project-modal-mockup {
-  position: absolute;
-  width: 75%;
-  filter: drop-shadow(0 12px 32px rgba(0, 0, 0, 0.5));
-  border-radius: 28px;
+/* Primer párrafo como bajada (lead) del post: más grande y más claro. */
+.post > .project-modal-text:first-child {
+  font-size: clamp(20px, 1.6vw, 28px);
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.9);
+  text-align: left;
+  hyphens: manual;
+  margin-bottom: 1.6em;
 }
 
-.project-modal-mockup.mockup-1 {
-  transform: rotate(-8deg) translateX(-15%);
-  z-index: 1;
+.post-figura {
+  float: left;
+  width: 50%;
+  margin: 0.5em clamp(32px, 3.4vw, 64px) 2em 0;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
 }
 
-.project-modal-mockup.mockup-2 {
-  transform: rotate(6deg) translateX(20%) translateY(20%);
-  z-index: 2;
-  width: 60%;
+.post-figura img {
+  display: block;
+  width: 100%;
+  height: auto;
 }
 
-@media (max-width: 720px) {
-  .project-modal-layout {
-    grid-template-columns: 1fr;
-    gap: 32px;
-  }
-  .project-modal-mockups-col {
-    min-height: 400px;
-  }
-  .project-modal-mockup.mockup-1 {
-    transform: rotate(-6deg) translateX(-10%);
-  }
-  .project-modal-mockup.mockup-2 {
-    transform: rotate(5deg) translateX(15%) translateY(20%);
-  }
+/* El teléfono inclinado del diseño: flota a la derecha, rotado, y asoma un
+   poco por fuera del panel (lo recorta el overflow-x del overlay). */
+.post-telefono {
+  float: right;
+  width: 30%;
+  margin: 2em -2% 2.4em clamp(32px, 3.4vw, 64px);
+  transform: rotate(14deg);
+  /* Radio para las capturas opacas (W Style); a un PNG ya redondeado no le
+     cambia nada. */
+  border-radius: 22px;
+  filter: drop-shadow(0 18px 32px rgba(0, 0, 0, 0.5));
+}
+
+/* A partir de acá, todo el ancho otra vez. */
+.post-corte {
+  clear: both;
 }
 
 /* Riel de la X. Arranca en el borde de la foto y llega hasta el fondo del
@@ -756,47 +838,24 @@ html.glide-dots-hidden .carousel-dots {
      va corto: en el diseño el subtítulo queda pegado debajo del título. */
   .project-modal-image-overlay { gap: 2px; }
 
-  /* Disposición de los mockups (requerimiento 15): uno grande a la izquierda y
-     el otro DESBORDANDO el borde derecho de la pantalla, solapados en vertical.
-     El desborde es intencional y es lo que hace que se lea como composición y
-     no como dos capturas apiladas; lo permite el overflow-x del overlay, que ya
-     recorta a nivel de pantalla. */
-  /* El alto de la columna tiene que CONTENER al mockup 2 ya desplazado. Antes
-     esto era `min-height: 68vw` + `translateY(38%)`: ese porcentaje se resuelve
-     sobre el alto del PROPIO mockup (240px), no sobre la columna, así que
-     empujaba la imagen ~90px hacia abajo mientras la columna medía 265px —
-     resultado medido: 55px de mockup colgando FUERA de la card, sobre el fondo
-     del overlay, sin nada que lo recorte (.project-modal y .project-modal-card
-     son overflow:visible a propósito, ver la nota de .project-modal).
-     Ahora el desfase va en `top`, que SÍ es relativo a la columna, así que el
-     alto se puede calcular: el mockup 2 mide 52% del ancho con ratio ~1.565 y
-     arranca en el 32% → necesita ~32% + 52%·1.565 ≈ 113% del ancho. 120vw deja
-     margen para la rotación, que ensancha la caja envolvente. */
-  .project-modal-mockups-col {
-    min-height: 120vw;
-    align-items: flex-start;
-    justify-content: flex-start;
+  /* Post en mobile: sin floats (no hay ancho para texto al lado). La imagen
+     va a todo el ancho y el teléfono inclinado, más chico y centrado. */
+  .post-figura,
+  .post-telefono {
+    float: none;
   }
-  .project-modal-mockup.mockup-1 {
-    width: 62%;
-    left: -4%;
-    top: 0;
-    transform: rotate(-6deg);
+  .post-figura {
+    width: 100%;
+    margin: 0.4em 0 1.4em;
   }
-  .project-modal-mockup.mockup-2 {
-    width: 52%;
-    left: auto;
-    /* Solapa al mockup 1 sin salirse por abajo. */
-    top: 32%;
-    /* Pasado el borde del viewport a propósito: con -14% quedaba a 14px del
-       borde, que se lee como "mal centrado" y no como sangrado. El % resuelve
-       contra .project-modal-mockups-col (295px en 390), así que -26% lo saca
-       ~20px afuera de la pantalla. Lo recorta el overflow-x del overlay. */
-    right: -26%;
-    transform: rotate(7deg);
+  .post-telefono {
+    display: block;
+    width: 58%;
+    margin: 1.4em auto 2em;
+    transform: rotate(8deg);
   }
 
-  /* El sangrado del mockup 2 desborda hacia la derecha y el overlay es el
+  /* El teléfono inclinado puede asomar por la derecha y el overlay es el
      scrollport (overflow-y: auto), así que sin esto aparecía barra horizontal.
      Se declara `clip`, pero OJO: el spec dice que si un eje es `clip` y el otro
      es `auto`/`scroll`, el `clip` COMPUTA A `hidden` — verificado, acá computa

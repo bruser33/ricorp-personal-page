@@ -118,7 +118,7 @@ html.bitacora-activa .blob-grain {
 }
 
 /* Link activo del navbar mientras se está en la Bitácora. */
-html.bitacora-activa .nav-desktop a[href='#bitacora'] {
+html.bitacora-activa .nav-desktop a[href='#trayectoria'] {
   color: #fff;
   text-decoration: underline;
   text-underline-offset: 6px;

@@ -325,7 +325,7 @@ export default function App() {
               en orden de documento) y el scroll-snap de index.css. */}
           <Contact />
         </main>
-        {/* Bitácora: PANTALLA propia (no un modal). Con #bitacora en la URL
+        {/* Trayectoria: PANTALLA propia (no un modal). Con #trayectoria en la URL
             reemplaza al home (que queda oculto, no desmontado, para no perder
             su estado) y recién cuando terminó el splash. */}
         <News ready={siteReady} />

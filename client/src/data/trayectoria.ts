@@ -79,6 +79,9 @@ export type HitoTrayectoria = {
   destacado?: boolean;
   /** Solo Proyectos: tipo de trabajo bajo el título de la tarjeta. */
   etiqueta?: string;
+  /** Solo Proyectos: el texto LARGO del post (un string por párrafo). Sin él,
+   *  el post usa `descripcion`. La línea de tiempo usa siempre `descripcion`. */
+  parrafos?: string[];
   /** Solo Proyectos: título corto para la tarjeta del slider (va en letra muy
    *  grande). Sin él se usa `titulo`. */
   tituloTarjeta?: string;
@@ -110,6 +113,13 @@ export const trayectoria: HitoTrayectoria[] = [
     descripcion:
       'Landing inmersiva para la barbería W Style, en Santiago. El recorrido es una secuencia renderizada en Blender que avanza con el scroll, con dirección de arte "Noir de oficio". Incluye carta de servicios con precios en CLP (corte, corte + barba, perfilado, lavado + masaje, limpieza facial), membresía Club W, reserva por WhatsApp, horario y ubicación. Hecha en React + TypeScript + Vite, con HTML prerenderizado para SEO, variantes HD para escritorio y móvil, y respaldo en three.js. Publicada en ricorp.cl/wstyle.',
     mockups: ['figma-frames/wstyle-mockup-desktop.webp', 'figma-frames/wstyle-mockup-mobile.webp'],
+    parrafos: [
+      'W Style es una barbería de Santiago que quería una web a la altura de su oficio, y nos propusimos que entrar a su sitio se sintiera como cruzar la puerta del local. Por eso la landing no es una página más con fotos: es un recorrido inmersivo en el que una secuencia renderizada en Blender avanza a medida que haces scroll, con una dirección de arte que bautizamos "Noir de oficio": luces bajas, materiales nobles y el detalle de cada herramienta.',
+      'El reto técnico fue que esa secuencia se viera fluida en cualquier dispositivo. Preparamos variantes HD para escritorio y para móvil, la cargamos de forma progresiva para no hacer esperar a nadie y dejamos un respaldo en three.js para los navegadores que lo necesitan. Todo está construido en React con TypeScript y Vite, y el HTML se prerenderiza para que Google pueda leer la página completa desde el primer momento.',
+      'Pero una barbería vive de sus clientes, así que el recorrido termina en lo importante: la carta de servicios con precios en pesos chilenos (corte, corte + barba, perfilado, lavado + masaje y limpieza facial), la membresía Club W, el horario, la ubicación y la reserva directa por WhatsApp, a un toque desde el teléfono.',
+      'Cuidamos también lo que no se ve. La secuencia se adapta a la pantalla en la que la miras, los textos se revelan con el ritmo del recorrido y la página respeta a quien prefiere menos movimiento. Cada detalle, desde los precios hasta el botón de reserva, se pensó para que el cliente llegue a la barbería sabiendo exactamente qué quiere.',
+      'Hoy W Style está publicada en ricorp.cl/wstyle y es uno de los proyectos que mejor resume cómo nos gusta trabajar: entender el negocio, contar su historia con tecnología de punta y que todo termine en algo simple para el usuario. ¡Te invitamos a recorrerla y a hacerte un corte!',
+    ],
     enlace: '/wstyle/',
     destacado: true,
   },
@@ -169,7 +179,14 @@ export const trayectoria: HitoTrayectoria[] = [
        2 teléfonos): el home con los servicios cercanos y el servicio en curso
        con su cronómetro. Recortadas de "44 vistas" (HARU.zip); las tablas son
        de 1920 px, así que cada teléfono se escaló 2× con Lanczos. */
-    mockups: ['figma-frames/haru-home.webp', 'figma-frames/haru-servicio.webp'],
+    mockups: ['figma-frames/haru-brand.webp', 'figma-frames/haru-home.webp'],
+    parrafos: [
+      'Haru nace de una idea simple: hay muchísimos trabajos que la gente hace todos los días de manera informal y que merecen hacerse con las mismas garantías que cualquier otro, como acompañar a alguien a una cita médica, hacer un trámite, dar una clase particular o una mano en el hogar por unas horas. Construimos una app para regularizar ese tipo de trabajos, conectando a quien necesita la ayuda con quien la ofrece, de forma clara y segura para las dos partes.',
+      'Todo parte de una identidad propia: "Ayuda, Crea, Anuncia, Crece". Elegimos la tipografía Montserrat, una paleta de verdes y naranjos que transmite confianza y cercanía, y fondos de hojas que acompañan cada pantalla. La app se organiza en tres pestañas: Asistir, para encontrar a alguien que te ayude; Servicios, para explorar por categorías como Hogar, Salud, Educación o Belleza según la distancia y las calificaciones; y Crear, para publicar tu propio servicio con su precio por hora y tu disponibilidad.',
+      'Cada perfil muestra su experiencia, su calificación y sus horarios, y si el precio no calza, se puede negociar las horas y el valor directamente desde la app, con un chat para coordinar los detalles. Al llegar el momento, el servicio se inicia con un cronómetro que lleva el tiempo real y el tiempo extra.',
+      'Para quien ofrece su trabajo, Haru es también una vitrina: puede mostrar fotos de lo que hace, describir su experiencia en meses o años, decidir si va hasta la casa del cliente y definir su radio de atención. Las notificaciones avisan cuando alguien quiere contratarte, cuando un aspirante se postula a tu servicio y cuando falta poco para empezar, para que nadie llegue tarde a su compromiso.',
+      'Al terminar, Haru muestra un resumen con el total a recibir, la persona califica el servicio y puede premiarlo con una insignia, y el pago queda registrado por transferencia o efectivo, con una comisión clara para la plataforma. ¡Creemos que la tecnología tiene que servir justamente para eso: hacer más fácil, más seguro y más digno el trabajo de todos los días!',
+    ],
     destacado: true,
   },
   {
@@ -246,6 +263,14 @@ export const trayectoria: HitoTrayectoria[] = [
     destacado: true,
     etiqueta: 'Game development',
     tituloTarjeta: 'Invasión UFPS',
+    mockups: ['figma-frames/invasion-ufps-personaje.webp', 'figma-frames/invasion-ufps-logo.webp'],
+    parrafos: [
+      'Para graduarme de ingeniero en la UFPS no quisimos hacer una tesis de papel: hicimos un videojuego. Invasión UFPS nació como un prototipo que habíamos armado un par de años antes y que decidimos convertir en un juego completo en Unity, ambientado en nuestra propia universidad. El primer paso fue el anteproyecto, que pulimos una y otra vez con nuestro director hasta dejarlo listo en 2016.',
+      'Un juego vive de su arte, así que armamos el equipo y contratamos a Junior Molina como ilustrador. Le enviamos fotos reales de la universidad para que el menú principal partiera desde la entrada de la UFPS y el primer escenario se pareciera al campus. Junior diseñó al protagonista, el estudiante, despiezado parte por parte con una guía de capas para poder animarlo, con sus poses normal, golpeado y final, y sus ataques con escuadras que brillan.',
+      'Después llegaron el logo, los elementos del escenario, como el pupitre, el bloque de cemento, el topógrafo y el bote de basura, y los enemigos, como la rata de latas. Con todo ese material programamos los niveles en Unity, ensamblando cada sprite y cada animación.',
+      'Coordinar con un ilustrador a distancia fue una escuela en sí misma. Le pasábamos referencias, videos y guías de cómo se iban a mover los personajes, él nos devolvía las piezas por partes, y nosotros las montábamos en el juego y le enviábamos la APK para que lo probara. Ese ida y vuelta, correo a correo, fue lo que le dio al juego su identidad.',
+      'La última etapa fue probar y probar: revisar los niveles uno por uno, corregir las vidas, los conteos y los movimientos hasta que cada nivel funcionó de punta a punta, y grabar el resultado para compartirlo en video. ¡Un proyecto que nos enseñó a llevar una idea desde el papel hasta un juego jugable, trabajando en equipo con un artista de verdad!',
+    ],
     descripcion:
       'Para graduarme de ingeniero en la UFPS no quisimos hacer una tesis de papel: hicimos un videojuego. Lo construimos por etapas. Primero el anteproyecto, que pulimos con nuestro director hasta dejarlo listo en 2016. Después armamos el equipo: contratamos a Junior Molina como ilustrador y le pasamos fotos reales de la universidad para que el menú principal partiera de la entrada de la UFPS y el primer escenario se pareciera al campus. Luego vino el arte del personaje, el estudiante, despiezado parte por parte para animarlo con sprites y sus ataques, seguido del logo, los elementos del escenario y los enemigos, como la rata de latas. Con eso programamos los niveles en Unity y los probamos una y otra vez, corrigiendo vidas, conteos y movimientos hasta que cada nivel funcionó de punta a punta. ¡Un proyecto que nos enseñó a llevar una idea desde el papel hasta un juego jugable!',
     enlace: 'https://www.youtube.com/watch?v=1Oq8jxT7OgE',
