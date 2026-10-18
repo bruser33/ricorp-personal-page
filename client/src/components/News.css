@@ -26,7 +26,17 @@
    con el scroll normal de la ventana y el header de siempre arriba.
    ============================================================ */
 html.bitacora-activa main {
-  display: none;
+  /* content-visibility y no display:none: con display:none, al volver el
+     navegador recalculaba el layout de todo el home de cero (un frame de
+     ~170 ms en un móvil medio). `hidden` deja de pintarlo pero conserva su
+     estado de render, así que reaparecer es barato. La contención de tamaño
+     lo deja en alto 0 mientras está oculto (no empuja a la Bitácora), y el
+     contenido saltado tampoco es enfocable ni llega a lectores de pantalla. */
+  content-visibility: hidden;
+  contain-intrinsic-size: 0;
+  /* El padding superior (aire del header fijo) no lo absorbe la contención:
+     sin esto la Bitácora arrancaba 80 px más abajo. */
+  padding-top: 0;
 }
 
 /* El velo/blob global es la coreografía del home: acá el fondo va limpio. */

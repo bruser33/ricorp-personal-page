@@ -68,7 +68,7 @@ export type HitoTrayectoria = {
   fecha: string;
   titulo: string;
   descripcion?: string;
-  /** Ruta relativa a `client/public`, ej. 'figma-frames/news-1.png'. */
+  /** Ruta relativa a `client/public`, ej. 'figma-frames/news-1.webp'. */
   imagen?: string;
   enlace?: string;
   /** true = además aparece en la sección Proyectos. */
@@ -111,37 +111,37 @@ export const trayectoria: HitoTrayectoria[] = [
     id: 'relleno-radeon',
     fecha: '2022-12-14',
     titulo: 'Análisis: AMD Radeon RX 7900 XTX',
-    imagen: 'figma-frames/news-featured.png',
+    imagen: 'figma-frames/news-featured.webp',
   },
   {
     id: 'relleno-suunto',
     fecha: '2022-12-02',
     titulo: 'Análisis: Suunto 9 Peak Pro',
-    imagen: 'figma-frames/news-1.png',
+    imagen: 'figma-frames/news-1.webp',
   },
   {
     id: 'relleno-iphone',
     fecha: '2022-11-24',
     titulo: 'Análisis: iPhone 14 vs 14 Plus\nvs 14 Pro vs 14 Pro Max',
-    imagen: 'figma-frames/news-2.png',
+    imagen: 'figma-frames/news-2.webp',
   },
   {
     id: 'relleno-vr',
     fecha: '2022-11-15',
     titulo: 'Nuevo aspirante al trono\nde la realidad virtual',
-    imagen: 'figma-frames/news-3.png',
+    imagen: 'figma-frames/news-3.webp',
   },
   {
     id: 'relleno-airpods',
     fecha: '2022-11-08',
     titulo: 'Análisis: AirPods Pro de 2ª Generación',
-    imagen: 'figma-frames/news-4.png',
+    imagen: 'figma-frames/news-4.webp',
   },
   {
     id: 'relleno-proscenic',
     fecha: '2022-11-01',
     titulo: 'Análisis: Proscenic WashVac F20',
-    imagen: 'figma-frames/news-5.png',
+    imagen: 'figma-frames/news-5.webp',
   },
 
   /* Los 6 de acá abajo son los proyectos de ejemplo de la sección Proyectos
@@ -151,10 +151,10 @@ export const trayectoria: HitoTrayectoria[] = [
     fecha: '2022-10-20',
     titulo: 'Haru',
     etiqueta: 'App development',
-    imagen: 'figma-frames/image-7.png',
+    imagen: 'figma-frames/image-7.webp',
     descripcion:
       'Lorem ipsum dolor sit amet consectetur. Quis sed ultrices sed ornare iaculis viverra nec vivamus. Eu ullamcorper sed in dictumst mauris nunc a posuere. Quam faucibus sem sed odio augue lectus cursus ultricies morbi. Eu elit cursus orci justo accumsan sit. Felis leo eleifend elit urna habitasse integer. Ornare donec vivamus eget facilisi interdum.',
-    mockups: ['figma-frames/project-haru-1.png', 'figma-frames/project-haru-2.png'],
+    mockups: ['figma-frames/project-haru-1.webp', 'figma-frames/project-haru-2.webp'],
     destacado: true,
   },
   {
@@ -162,7 +162,7 @@ export const trayectoria: HitoTrayectoria[] = [
     fecha: '2022-08-10',
     titulo: 'Project 3',
     etiqueta: 'Web design',
-    imagen: 'figma-frames/image-4.png',
+    imagen: 'figma-frames/image-4.webp',
     descripcion:
       'Lorem ipsum dolor sit amet consectetur. Quis sed ultrices sed ornare iaculis viverra nec vivamus. Eu ullamcorper sed in dictumst mauris nunc a posuere.',
     destacado: true,
@@ -172,7 +172,7 @@ export const trayectoria: HitoTrayectoria[] = [
     fecha: '2022-07-05',
     titulo: 'Project 4',
     etiqueta: 'Illustration',
-    imagen: 'figma-frames/image-5.png',
+    imagen: 'figma-frames/image-5.webp',
     descripcion:
       'Lorem ipsum dolor sit amet consectetur. Pulvinar congue sed eu blandit fusce. Lorem vivamus elementum vitae faucibus malesuada dictum diam.',
     destacado: true,
@@ -182,7 +182,7 @@ export const trayectoria: HitoTrayectoria[] = [
     fecha: '2022-06-01',
     titulo: 'Project 5',
     etiqueta: 'Product design',
-    imagen: 'figma-frames/image-6.png',
+    imagen: 'figma-frames/image-6.webp',
     descripcion:
       'Lorem ipsum dolor sit amet consectetur. Quam faucibus sem sed odio augue lectus cursus ultricies morbi. Eu elit cursus orci justo accumsan sit.',
     destacado: true,
@@ -192,7 +192,7 @@ export const trayectoria: HitoTrayectoria[] = [
     fecha: '2022-04-20',
     titulo: 'Project 6',
     etiqueta: 'Editorial',
-    imagen: 'figma-frames/news-1.png',
+    imagen: 'figma-frames/news-1.webp',
     descripcion:
       'Lorem ipsum dolor sit amet consectetur. Felis leo eleifend elit urna habitasse integer. Ornare donec vivamus eget facilisi interdum.',
     destacado: true,
@@ -202,7 +202,7 @@ export const trayectoria: HitoTrayectoria[] = [
     fecha: '2022-03-08',
     titulo: 'Project 7',
     etiqueta: 'Motion',
-    imagen: 'figma-frames/news-2.png',
+    imagen: 'figma-frames/news-2.webp',
     descripcion:
       'Lorem ipsum dolor sit amet consectetur. Sodales ultrices cursus condimentum hac scelerisque elementum morbi nisl.',
     destacado: true,
@@ -218,6 +218,18 @@ export const trayectoria: HitoTrayectoria[] = [
     descripcion:
       'En Workana empecé a construir software para clientes de toda Latinoamérica: apps Android e iOS, sitios web y animación con Three.js. Hoy mi ficha suma 10 proyectos completados, 13 calificaciones de clientes y certificaciones en JavaScript Avanzado (80%), React Native y Angular. De esos clientes me quedo con frases como "su profesionalismo me inspiró confianza y no me equivoqué; definitivamente lo buscaré para otros proyectos" y "muy buen profesional, cumple en las fechas establecidas y con gran responsabilidad", ¡que son justamente lo que busco en cada entrega!',
     enlace: 'https://www.workana.com/freelancer/ad4614d2e994b49a7fd475e709d3020e',
+  },
+  /* Tesis: videojuego "Invasión UFPS" en Unity. Etapas reconstruidas de los
+     correos 2016-2017 (anteproyecto con el director, contrato del ilustrador
+     Junior Molina, menú y primer escenario, personaje y sprites, logo y
+     enemigos, pruebas de niveles) y del video de la playlist. */
+  {
+    id: 'tesis-invasion-ufps',
+    fecha: '2017-04',
+    titulo: 'Invasión UFPS: mi videojuego\nde tesis en Unity',
+    descripcion:
+      'Para graduarme de ingeniero en la UFPS no quisimos hacer una tesis de papel: hicimos un videojuego. Lo construimos por etapas. Primero el anteproyecto, que pulimos con nuestro director hasta dejarlo listo en 2016. Después armamos el equipo: contratamos a Junior Molina como ilustrador y le pasamos fotos reales de la universidad para que el menú principal partiera de la entrada de la UFPS y el primer escenario se pareciera al campus. Luego vino el arte del personaje, el estudiante, despiezado parte por parte para animarlo con sprites y sus ataques, seguido del logo, los elementos del escenario y los enemigos, como la rata de latas. Con eso programamos los niveles en Unity y los probamos una y otra vez, corrigiendo vidas, conteos y movimientos hasta que cada nivel funcionó de punta a punta. ¡Un proyecto que nos enseñó a llevar una idea desde el papel hasta un juego jugable!',
+    enlace: 'https://www.youtube.com/watch?v=1Oq8jxT7OgE',
   },
   /* Playlist "Proyectos Informaticos" del canal de YouTube de Pedro (11 videos,
      de hace 7 a 11 años). Fecha aproximada: el grueso de los videos es de hace

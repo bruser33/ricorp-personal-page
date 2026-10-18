@@ -325,7 +325,15 @@ export function News({ ready = true }: { ready?: boolean }) {
                       <div className="news-row__content" {...tarjeta(hito)}>
                         {hito.imagen && (
                           <div className="news-row__media">
-                            <img src={rutaImagen(hito.imagen)} alt={alt} onError={onMediaError} />
+                            {/* lazy: las filas bajan de a una con el scroll y no
+                                tienen por qué competir con la portada al abrir. */}
+                            <img
+                              src={rutaImagen(hito.imagen)}
+                              alt={alt}
+                              loading="lazy"
+                              decoding="async"
+                              onError={onMediaError}
+                            />
                           </div>
                         )}
                         <h4 className="news-row__title">

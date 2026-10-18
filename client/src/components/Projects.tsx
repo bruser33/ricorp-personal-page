@@ -696,6 +696,9 @@ export function Projects() {
                     src={rutaImagen(p.imagen)}
                     alt={isClone ? '' : tituloPlano(p.titulo)}
                     draggable={false}
+                    /* Decodificar fuera del hilo principal: al entrar una card
+                       nueva al centro no se come un frame del deslizamiento. */
+                    decoding="async"
                   />
                 </article>
               );
