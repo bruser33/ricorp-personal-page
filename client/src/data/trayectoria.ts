@@ -146,15 +146,21 @@ export const trayectoria: HitoTrayectoria[] = [
 
   /* Los 6 de acá abajo son los proyectos de ejemplo de la sección Proyectos
      (`destacado`). Las fechas son inventadas y solo sirven para fijar el orden. */
+  /* Haru: proyecto real (descripción de Pedro, 2026-10-18). La fecha sigue
+     siendo la de relleno: falta la real. */
   {
-    id: 'relleno-haru',
+    id: 'haru',
     fecha: '2022-10-20',
     titulo: 'Haru',
     etiqueta: 'App development',
     imagen: 'figma-frames/image-7.webp',
     descripcion:
-      'Lorem ipsum dolor sit amet consectetur. Quis sed ultrices sed ornare iaculis viverra nec vivamus. Eu ullamcorper sed in dictumst mauris nunc a posuere. Quam faucibus sem sed odio augue lectus cursus ultricies morbi. Eu elit cursus orci justo accumsan sit. Felis leo eleifend elit urna habitasse integer. Ornare donec vivamus eget facilisi interdum.',
-    mockups: ['figma-frames/project-haru-1.webp', 'figma-frames/project-haru-2.webp'],
+      'Haru nace de una idea simple: hay muchísimos trabajos que la gente hace todos los días de manera informal y que merecen hacerse con las mismas garantías que cualquier otro, como acompañar a alguien a una cita médica, hacer un trámite o dar una mano por unas horas. Construimos una app para regularizar ese tipo de trabajos, conectando a quien necesita la ayuda con quien la ofrece, de forma clara y segura para las dos partes. ¡Creemos que la tecnología tiene que servir justamente para eso: hacer más fácil y más digno el trabajo de todos los días!',
+    /* Solo las 2 pantallas que cuentan la app (el detalle está maquetado para
+       2 teléfonos): el home con los servicios cercanos y el servicio en curso
+       con su cronómetro. Recortadas de "44 vistas" (HARU.zip); las tablas son
+       de 1920 px, así que cada teléfono se escaló 2× con Lanczos. */
+    mockups: ['figma-frames/haru-home.webp', 'figma-frames/haru-servicio.webp'],
     destacado: true,
   },
   {
