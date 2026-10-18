@@ -200,13 +200,14 @@ export function Contact() {
               </svg>
               <span>{t('contact.attach')}</span>
             </label>
-            <span className="attach-hint">
-              {files.length > 0
-                ? `${files.length}/${MAX_FILES} · ${formatBytes(totalBytes)}`
-                : t('contact.attachHint')
-                    .replace('{n}', String(MAX_FILES))
-                    .replace('{size}', formatBytes(MAX_TOTAL_BYTES))}
-            </span>
+            {/* Sin texto de límites en reposo (pedido 2026-10-18): el límite se
+                avisa recién si se pasa (fileError). Con archivos elegidos queda
+                el contador. */}
+            {files.length > 0 && (
+              <span className="attach-hint">
+                {`${files.length}/${MAX_FILES} · ${formatBytes(totalBytes)}`}
+              </span>
+            )}
           </div>
 
           {files.length > 0 && (
