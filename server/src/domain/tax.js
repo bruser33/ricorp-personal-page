@@ -8,6 +8,7 @@
    - Cada venta aprobada tiene UN solo respaldo: voucher de Mercado Pago (Res. SII 176/2020,
      modelo "No emito boleta cuando recibo un pago electrónico") o boleta SII emitida a mano. */
 import { HttpError } from '../lib/errors.js';
+import { breakdownLines, feesIncluded } from './pricing.js';
 
 export const IVA_RATE = 0.19;
 
@@ -21,6 +22,11 @@ export function taxBreakdown(totalCLP) {
 
 /* Detalle de la venta: el servicio y, si hay, el recargo por domicilio en su propia línea. */
 export function saleLines(pricing = {}, serviceName = 'Servicio') {
+  /* SPEC-38: con la tarifa de servicio incluida, la venta (por el total) se detalla en servicio, domicilio,
+     administración de la plataforma y costo de pagos. Las cuatro suman el total. */
+  if (feesIncluded(pricing)) {
+    return breakdownLines(pricing, serviceName, { split: true }).lines.map((l) => (l.kind === 'home_surcharge' ? { ...l, label: 'Recargo por domicilio' } : l));
+  }
   const surcharge = Math.round(Number(pricing.surchargeCLP) || 0);
   const total = Math.round(Number(pricing.totalCLP ?? (Number(pricing.priceCLP) || 0) + surcharge));
   const lines = [{ kind: 'service', label: serviceName || 'Servicio', amountCLP: total - surcharge }];

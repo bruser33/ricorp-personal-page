@@ -151,6 +151,7 @@ export function createPayments({ agenda, env = {}, clock = Date.now, logger = co
     const b = await agenda.business();
     const _id = oid(p.external_reference);
     const appt = _id ? await Appointment.findOne({ _id, businessId: b._id }).lean() : null;
+    /* SPEC-38: el monto es el total de la cita (incluye la tarifa de servicio). */
     const amountOk = appt && p.currency_id === 'CLP' && Math.round(Number(p.transaction_amount)) === appt.pricing?.totalCLP;
 
     /* Idempotencia: el primero que inserta el evento lo procesa; los demás son repeticiones. */
@@ -278,6 +279,7 @@ export function createPayments({ agenda, env = {}, clock = Date.now, logger = co
        manual queda "sin respaldo" hasta registrar la boleta). */
     const backing = () => ({ taxModel: tax.id, taxDoc: tax.automaticFor({ channel: 'online', mpPaymentId: mpId, amountCLP: Math.round(Number(p.transaction_amount) || 0), at: new Date(now) }) });
     const paid = (a, reason) => {
+      if (a.pricing) a.pricing.paymentMethod = 'online';
       a.payment.method = 'online';
       a.payment.status = 'pagado';
       a.payment.mpPaymentId = mpId;
@@ -302,7 +304,7 @@ export function createPayments({ agenda, env = {}, clock = Date.now, logger = co
           if (pay.mpPaymentId === mpId || pay.duplicates?.some((d) => d.mpPaymentId === mpId)) return null;
           /* CB-08: la cita ya estaba pagada → este segundo pago se devuelve. */
           const { taxModel, taxDoc } = backing();
-          pay.duplicates = [...(pay.duplicates || []), { mpPaymentId: mpId, amountCLP: a.pricing.totalCLP, status: 'reembolso_pendiente', paidAt: new Date(now), mpFeeCLP: fees.feeCLP, mpNetCLP: fees.netCLP, taxModel, ...(taxDoc ? { taxDoc } : {}) }];
+          pay.duplicates = [...(pay.duplicates || []), { mpPaymentId: mpId, amountCLP: Math.round(Number(p.transaction_amount)) || a.pricing.totalCLP, status: 'reembolso_pendiente', paidAt: new Date(now), mpFeeCLP: fees.feeCLP, mpNetCLP: fees.netCLP, taxModel, ...(taxDoc ? { taxDoc } : {}) }];
           return { reason: `Pago duplicado ${mpId}: queda para reembolso`, kind: 'duplicate' };
         }
         if (a.status === 'pendiente_pago') {

@@ -12,7 +12,6 @@ import {
   Membership,
   Notification,
   PanelNotification,
-  PlatformSettings,
   Professional,
   ProfessionalService,
   Service,
@@ -29,6 +28,7 @@ import { addDays, formatLong, isDate, isoWeekday, wallClock, zonedToUtc } from '
 import { entriesToWeek, weekToSiteRows } from './hours.js';
 import { applyLocalCollection, boletaClash, isBoletaClash, parseCollectInput } from './tax.js';
 import { TAX_DOCUMENT_PROVIDERS } from '../lib/taxDocuments.js';
+import { currentRates, pricingView, quote, ratesView } from './pricing.js';
 
 const MIN = 60 * 1000;
 const HOUR = 60 * MIN;
@@ -125,7 +125,7 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
 
   async function catalog() {
     const b = await business();
-    const [services, pros] = await Promise.all([Service.find({ businessId: b._id, active: true }).sort({ order: 1 }).lean(), professionals(b)]);
+    const [services, pros, rates] = await Promise.all([Service.find({ businessId: b._id, active: true }).sort({ order: 1 }).lean(), professionals(b), currentRates()]);
     return {
       business: {
         name: b.name,
@@ -140,6 +140,8 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
         contact: { whatsapp: b.contact?.whatsapp || null, phone: b.contact?.phone || null, address: b.address || {} },
         settings: { minLeadMinutes: b.settings.minLeadMinutes, horizonDays: b.settings.horizonDays, cancelUntilMinutes: b.settings.cancelUntilMinutes },
         payments: paymentOptions(b),
+        /* SPEC-38 RN-20: tasas vigentes; el resumen de la reserva usa la misma fórmula que el server. */
+        pricing: ratesView(rates),
       },
       services: services.map((s) => ({ id: s.slug, name: s.name, description: s.description || '', priceCLP: s.priceCLP, durationMin: s.durationMin, homeServiceAllowed: s.homeServiceAllowed !== false })),
       professionals: pros.map((p) => {
@@ -367,12 +369,12 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
       candidates = candidates.map((p, i) => ({ p, i })).sort((a, c) => n(a.p) - n(c.p) || a.i - c.i).map((x) => x.p);
     }
 
-    const settings = await PlatformSettings.findOne({ key: 'default' }).lean();
-    const feeRate = settings?.defaultPlatformFeeRate ?? 0;
+    /* SPEC-38: desglose con las tasas vigentes, congelado en la cita (RN-12). */
+    const rates = await currentRates();
     for (const pro of candidates) {
       const buffer = mode === 'home' ? pro.homeService?.travelBufferMin ?? 30 : 0;
       const surcharge = mode === 'home' ? pro.homeService.surchargeCLP : 0;
-      const total = service.priceCLP + surcharge;
+      const pricing = quote({ priceCLP: service.priceCLP, surchargeCLP: surcharge, method: payMethod, ...rates });
       const endsAt = startsAt + service.durationMin * MIN;
       /* SPEC-35 RN-03: "Pagar en línea" crea la cita esperando el pago (ocupa la hora 15 min). */
       const online = payMethod === 'online';
@@ -388,7 +390,7 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
         startsAt: new Date(startsAt),
         endsAt: new Date(endsAt),
         location: { ...location, travelBufferMin: buffer },
-        pricing: { priceCLP: service.priceCLP, surchargeCLP: surcharge, totalCLP: total, platformFeeRate: feeRate, platformFeeCLP: Math.round(total * feeRate) },
+        pricing,
         payment: online ? { method: 'online', status: 'pendiente', holdStartedAt: new Date(now) } : { method: 'local', status: 'pendiente' },
         note: note || undefined,
         status: firstStatus,
@@ -551,7 +553,8 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
       when: formatLong(appt.startsAt.getTime(), tz),
       timezone: tz,
       location: { kind: appt.location?.kind || 'shop', address: appt.location?.kind === 'home' ? appt.location.address?.formatted : [b.address?.street, b.address?.city].filter(Boolean).join(', '), distanceKm: appt.location?.distanceKm },
-      pricing: { priceCLP: appt.pricing.priceCLP, surchargeCLP: appt.pricing.surchargeCLP, totalCLP: appt.pricing.totalCLP },
+      /* SPEC-38: desglose (servicio, domicilio, administración, procesamiento, total). */
+      pricing: pricingView(appt.pricing),
       payment: paymentView(appt),
       note: appt.note || '',
       proposal: p ? { startsAt: p.startsAt.toISOString(), when: formatLong(p.startsAt.getTime(), tz), expiresAt: p.expiresAt?.toISOString() } : null,
@@ -882,6 +885,8 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
       a.payment.method = 'local';
       a.payment.status = 'pendiente';
       a.expiresAt = new Date(confirmDeadline(b, a.startsAt.getTime(), now));
+      /* SPEC-38: la tarifa de servicio no depende de la forma de pago: el total no cambia. */
+      a.pricing.paymentMethod = 'local';
       return { by: 'client', byUserId: user._id, reason: 'Cambió a pagar en el local' };
     });
     await Promise.all([notify(b, appt, 'client', 'received'), notify(b, appt, 'barber', 'new')]);

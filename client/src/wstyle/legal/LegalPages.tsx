@@ -84,6 +84,7 @@ export function PrivacyPage({ site }: { site: SiteContent }) {
         <ul className="lg-list">
           <li><strong>Cuenta:</strong> nombre, correo electrónico y celular. Si creas la cuenta con correo, guardamos tu contraseña solo como un hash cifrado (nunca la contraseña en texto).</li>
           <li><strong>Inicio con Facebook:</strong> si eliges entrar con Facebook, solo pedimos los permisos <em>public_profile</em> y <em>email</em>: recibimos tu nombre, tu correo (si Facebook lo entrega) y un identificador de usuario de Facebook para la app. No publicamos nada en tu nombre ni accedemos a tus amigos, fotos o mensajes.</li>
+          <li><strong>Inicio con Google:</strong> si eliges entrar con Google, solo pedimos los permisos <em>openid</em>, <em>email</em> y <em>profile</em>: recibimos tu nombre, tu correo, la indicación de si Google ya verificó ese correo y un identificador de tu cuenta de Google (<em>sub</em>). No guardamos tokens de acceso de Google, no publicamos nada en tu nombre ni accedemos a tus contactos, correos, Drive ni ningún otro dato de tu cuenta.</li>
           <li><strong>Citas:</strong> servicio, barbero, fecha y hora, precio, notas que escribas y el historial de cambios de la cita (confirmaciones, cancelaciones, inasistencias).</li>
           <li><strong>Atención a domicilio:</strong> si la pides, la dirección (calle, comuna y detalles) y su ubicación aproximada para calcular la distancia y el recargo.</li>
           <li><strong>Pagos:</strong> si pagas en línea, el estado del pago y los identificadores, montos y comisiones que informa Mercado Pago. Los datos de tu tarjeta los ingresas en Mercado Pago y <strong>nunca pasan por nuestros servidores</strong>. Si pagas en el local, registramos el medio de pago (efectivo, transferencia o tarjeta) y, cuando corresponde, el número de la boleta.</li>
@@ -113,6 +114,7 @@ export function PrivacyPage({ site }: { site: SiteContent }) {
           <li><strong>Resend</strong> (envío de correos: confirmación de cuenta, recuperación de contraseña y avisos de citas).</li>
           <li><strong>Mercado Pago</strong> (pagos en línea): recibe el monto, el detalle de la cita y tu correo para el comprobante.</li>
           <li><strong>Meta (Facebook)</strong>, solo si eliges iniciar sesión con Facebook.</li>
+          <li><strong>Google</strong>, solo si eliges iniciar sesión con Google.</li>
           <li><strong>OpenStreetMap (Nominatim)</strong>, para ubicar la dirección de una atención a domicilio (se envía solo la calle y la comuna).</li>
           <li><strong>Google Fonts</strong>, que entrega las tipografías del sitio (tu navegador se conecta a Google para descargarlas).</li>
         </ul>
@@ -125,8 +127,8 @@ export function PrivacyPage({ site }: { site: SiteContent }) {
       <Section id="cookies" title="5. Cookies">
         <p>
           Usamos una sola cookie propia, <code>ws_session</code>, que mantiene tu sesión iniciada (es <em>httpOnly</em>,
-          dura hasta 30 días y se borra al cerrar sesión). Al entrar con Facebook se usa además una cookie temporal de
-          seguridad (<code>ws_fb_nonce</code>, 10 minutos). No usamos cookies de publicidad ni de analítica. La agenda
+          dura hasta 30 días y se borra al cerrar sesión). Al entrar con Facebook o con Google se usa además una cookie
+          temporal de seguridad (<code>ws_fb_nonce</code> o <code>ws_gg_nonce</code>, 10 minutos). No usamos cookies de publicidad ni de analítica. La agenda
           guarda en tu navegador (almacenamiento de sesión) la selección de la reserva en curso, que se borra al cerrar
           la pestaña.
         </p>
@@ -179,6 +181,12 @@ export function PrivacyPage({ site }: { site: SiteContent }) {
           </li>
           <li><strong>Por escrito:</strong> pídelo en <a href={OPERATOR_CONTACT_URL} target="_blank" rel="noopener">ricorp.cl/contacto</a> indicando el correo con que entraste.</li>
         </ol>
+        <p>
+          <strong>Si entraste con Google:</strong> elimina tu cuenta desde <a href="/wstyle/cuenta/">Mi cuenta</a> (se borra
+          también el vínculo con Google) y, si quieres, quita el acceso de «WS Style» en{' '}
+          <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener">myaccount.google.com/permissions</a>.
+          No guardamos tokens de Google, así que al quitar el acceso no queda ninguna conexión activa con tu cuenta.
+        </p>
       </Section>
 
       <Section id="seguridad" title="10. Seguridad">
@@ -213,7 +221,7 @@ export function TermsPage({ site }: { site: SiteContent }) {
 
       <Section id="cuenta" title="1. Tu cuenta">
         <p>
-          Para reservar necesitas una cuenta con correo y contraseña o con Facebook, y un celular de contacto. Debes
+          Para reservar necesitas una cuenta con correo y contraseña, con Facebook o con Google, y un celular de contacto. Debes
           entregar datos verdaderos y cuidar el acceso a tu cuenta. Puedes eliminarla cuando quieras desde{' '}
           <a href="/wstyle/cuenta/">Mi cuenta</a>.
         </p>

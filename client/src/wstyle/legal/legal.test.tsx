@@ -40,6 +40,10 @@ describe('Política de privacidad', () => {
   });
   it('nombra proveedores, permisos de Facebook, cookie de sesión y la ley chilena', () => {
     for (const s of ['MongoDB Atlas', 'Render', 'Resend', 'Mercado Pago', 'public_profile', 'ws_session', '19.628', '21.719']) expect(html).toContain(s);
+  });
+
+  it('nombra el inicio con Google (SPEC-38): permisos, cookie y cómo revocar', () => {
+    for (const s of ['Inicio con Google', 'openid', 'ws_gg_nonce', 'myaccount.google.com/permissions']) expect(html).toContain(s);
     expect(html).toMatch(/nunca pasan por nuestros servidores/);
   });
   it('responsable Ricorp; en demo el WhatsApp del local lleva al contacto de Ricorp', () => {

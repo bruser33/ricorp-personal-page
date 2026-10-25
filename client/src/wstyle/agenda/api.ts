@@ -1,3 +1,4 @@
+import type { PricingView, Rates } from './pricing';
 // Cliente HTTP de la agenda (SPEC-32). Misma base que Contacto (VITE_API_URL). La sesión viaja en una cookie
 // httpOnly: front y API tienen que estar en el MISMO host (localhost ↔ localhost; 127.0.0.1 es otro sitio y la
 // cookie no viaja). Todo error vuelve como ApiError con el código estable del server.
@@ -77,6 +78,8 @@ export interface Catalog {
     hoursRows?: { days: string; dayCodes: string; opens: string | null; closes: string | null }[];
     contact?: { whatsapp: string | null; phone: string | null; address?: { street?: string; city?: string; region?: string } };
     payments?: { online: boolean; local: boolean };
+    // SPEC-38: tasas vigentes de la tarifa de servicio (el resumen usa la misma fórmula que el server).
+    pricing?: Rates;
   };
   services: CatalogService[];
   professionals: CatalogPro[];
@@ -97,7 +100,7 @@ export interface Appointment {
   professional: { id: string; name: string };
   startsAt: string; endsAt: string; when: string; timezone: string;
   location: { kind: 'shop' | 'home'; address?: string; distanceKm?: number };
-  pricing: { priceCLP: number; surchargeCLP: number; totalCLP: number };
+  pricing: PricingView;
   payment: Payment;
   note: string;
   proposal: { startsAt: string; when: string; expiresAt?: string } | null;
@@ -107,7 +110,7 @@ export interface Appointment {
 }
 
 export const auth = {
-  config: () => api<{ facebook: boolean }>('/api/auth/config'),
+  config: () => api<{ facebook: boolean; google?: boolean }>('/api/auth/config'),
   me: () => api<{ user: User }>('/api/auth/me').then((r) => r.user),
   emailStatus: (email: string) => api<{ exists: boolean; hasPassword: boolean }>('/api/auth/email-status', { method: 'POST', body: { email } }),
   register: (body: { email: string; name: string; phone: string; password: string }) => api<{ user: User; verificationSent: boolean }>('/api/auth/register', { method: 'POST', body }),
@@ -123,6 +126,9 @@ export const auth = {
   fbLink: (token: string, password: string) => api<{ user: User; returnTo?: string }>('/api/auth/facebook/link', { method: 'POST', body: { token, password } }),
   fbComplete: (token: string, email: string, phone: string) => api<{ user?: User; pending?: string; returnTo?: string }>('/api/auth/facebook/complete', { method: 'POST', body: { token, email, phone } }),
   facebookStartUrl: (returnTo: string) => `${API_BASE}/api/auth/facebook/start?r=${encodeURIComponent(returnTo)}`,
+  // SPEC-38: Google (OAuth en el server). Con contraseña existente se confirma con googleLink.
+  googleStartUrl: (returnTo: string) => `${API_BASE}/api/auth/google/start?r=${encodeURIComponent(returnTo)}`,
+  googleLink: (token: string, password: string) => api<{ user: User; returnTo?: string }>('/api/auth/google/link', { method: 'POST', body: { token, password } }),
 };
 
 export const agenda = {

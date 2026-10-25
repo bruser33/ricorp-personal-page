@@ -51,7 +51,10 @@ function StatsView({ s }: { s: Stats }) {
         <li><div className="adm-card"><span className="adm-card__n">{s.total}</span><span className="adm-card__l">Citas</span></div></li>
         <li><div className="adm-card"><span className="adm-card__n">{clp.format(s.averageTicketCLP)}</span><span className="adm-card__l">Ticket promedio</span></div></li>
         <li><div className="adm-card"><span className="adm-card__n">{pct(s.homePct)}</span><span className="adm-card__l">A domicilio</span></div></li>
-        {s.platformFeeCLP > 0 && <li><div className="adm-card"><span className="adm-card__n">{clp.format(s.platformFeeCLP)}</span><span className="adm-card__l">Comisión de plataforma</span></div></li>}
+        {s.platformFeeCLP > 0 && <li><div className="adm-card"><span className="adm-card__n">{clp.format(s.platformFeeCLP)}</span><span className="adm-card__l">Administración de la plataforma</span></div></li>}
+        {/* SPEC-38 RN-19: la otra parte de la tarifa de servicio y lo que ganan los barberos. */}
+        {(s.paymentFeeCLP ?? 0) > 0 && <li><div className="adm-card"><span className="adm-card__n">{clp.format(s.paymentFeeCLP ?? 0)}</span><span className="adm-card__l">Costo de pagos cobrado</span></div></li>}
+        {(s.barbersCLP ?? 0) > 0 && <li><div className="adm-card"><span className="adm-card__n" data-kpi="barbers">{clp.format(s.barbersCLP ?? 0)}</span><span className="adm-card__l">Parte de los barberos</span></div></li>}
       </ul>
 
       <section className="adm-section" aria-labelledby="st-days">

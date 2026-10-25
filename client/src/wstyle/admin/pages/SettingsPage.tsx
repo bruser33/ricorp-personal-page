@@ -32,6 +32,8 @@ function SettingsForm({ settings, onSaved }: { settings: Settings; onSaved: (s: 
   const [online, setOnline] = useState(settings.payments.online);
   const [local, setLocal] = useState(settings.payments.local);
   const [fee, setFee] = useState(String(settings.platformFeePercent));
+  const [payFee, setPayFee] = useState(String(settings.paymentFeePercent));
+  const [payVat, setPayVat] = useState(settings.paymentFeeVat);
   const [rules, setRules] = useState<Record<RuleKey, string>>(() => Object.fromEntries(RULES.map((r) => [r.key, String(settings.rules[r.key])])) as Record<RuleKey, string>);
   const [errors, setErrors] = useState<Record<string, string | undefined>>({});
   const [msg, setMsg] = useState<{ tone: 'ok' | 'error'; text: string } | null>(null);
@@ -44,6 +46,9 @@ function SettingsForm({ settings, onSaved }: { settings: Settings; onSaved: (s: 
     const feeN = Number(fee.replace(',', '.'));
     const [lo, hi] = settings.limits.platformFeePercent;
     if (!/^\d+([.,]\d{1,2})?$/.test(fee.trim()) || feeN < lo || feeN > hi) errs.fee = `Entre ${lo} y ${hi} %.`;
+    const payFeeN = Number(payFee.replace(',', '.'));
+    const [plo, phi] = settings.limits.paymentFeePercent;
+    if (!/^\d+([.,]\d{1,2})?$/.test(payFee.trim()) || payFeeN < plo || payFeeN > phi) errs.payFee = `Entre ${plo} y ${phi} %, con hasta 2 decimales.`;
     const ruleVals: Partial<Record<RuleKey, number>> = {};
     for (const r of RULES) {
       const [a, b] = settings.limits.rules[r.key];
@@ -57,9 +62,9 @@ function SettingsForm({ settings, onSaved }: { settings: Settings; onSaved: (s: 
     setBusy(true);
     setMsg(null);
     try {
-      const s = await admin.saveSettings({ payments: { online, local }, platformFeePercent: feeN, rules: ruleVals });
+      const s = await admin.saveSettings({ payments: { online, local }, platformFeePercent: feeN, paymentFeePercent: payFeeN, paymentFeeVat: payVat, rules: ruleVals });
       onSaved(s);
-      setMsg({ tone: 'ok', text: 'Configuración guardada. La comisión nueva aplica solo a las citas que se tomen desde ahora.' });
+      setMsg({ tone: 'ok', text: 'Configuración guardada. La tarifa nueva aplica solo a las citas que se tomen desde ahora.' });
     } catch (e2) {
       setMsg({ tone: 'error', text: e2 instanceof ApiError ? e2.message : 'No se pudo guardar' });
     } finally {
@@ -81,13 +86,21 @@ function SettingsForm({ settings, onSaved }: { settings: Settings; onSaved: (s: 
         </p>
       </section>
       <section className="adm-section" aria-labelledby="cfg-fee">
-        <h2 className="ag-h3" id="cfg-fee">Comisión de plataforma</h2>
+        <h2 className="ag-h3" id="cfg-fee">Tarifa de servicio</h2>
+        <p className="ag-muted">La paga el cliente sobre el servicio (y el domicilio), igual si paga en el local o en línea. Él la ve como una sola línea, "Tarifa de servicio"; aquí y en la rendición van sus dos partes. El barbero gana el servicio más el domicilio.</p>
         <div className={`ag-field adm-num${errors.fee ? ' has-error' : ''}`}>
-          <label htmlFor="cfg-fee-in">Porcentaje por cita</label>
+          <label htmlFor="cfg-fee-in">Administración de la plataforma</label>
           <span className="adm-num__in"><input id="cfg-fee-in" inputMode="decimal" value={fee} onChange={(e) => { setFee(e.target.value); setErrors((x) => ({ ...x, fee: undefined })); }} aria-invalid={errors.fee ? true : undefined} aria-describedby="cfg-fee-hint" /><span>%</span></span>
-          <p className="ag-field__hint" id="cfg-fee-hint">0 a 50 %. Se congela en cada cita nueva; cambiarla no toca las citas existentes.</p>
+          <p className="ag-field__hint" id="cfg-fee-hint">0 a {settings.limits.platformFeePercent[1]} % del servicio + domicilio. Se congela en cada cita nueva; cambiarla no toca las citas existentes.</p>
           {errors.fee && <p className="ag-field__error" role="alert">{errors.fee}</p>}
         </div>
+        <div className={`ag-field adm-num${errors.payFee ? ' has-error' : ''}`}>
+          <label htmlFor="cfg-payfee-in">Comisión de Mercado Pago (costo de pagos)</label>
+          <span className="adm-num__in"><input id="cfg-payfee-in" inputMode="decimal" value={payFee} onChange={(e) => { setPayFee(e.target.value); setErrors((x) => ({ ...x, payFee: undefined })); }} aria-invalid={errors.payFee ? true : undefined} aria-describedby="cfg-payfee-hint" /><span>%</span></span>
+          <p className="ag-field__hint" id="cfg-payfee-hint">0 a {settings.limits.paymentFeePercent[1]} %. Tarifa de tu cuenta de Mercado Pago (Checkout, dinero al instante: 3,19 %). Se calcula para que después de la comisión te quede el servicio + la administración. 0 = no se cobra.</p>
+          {errors.payFee && <p className="ag-field__error" role="alert">{errors.payFee}</p>}
+        </div>
+        <label className="pro-check"><input type="checkbox" checked={payVat} onChange={(e) => setPayVat(e.target.checked)} /> <span>Cobrar también el IVA (19 %) de la comisión de Mercado Pago</span></label>
       </section>
       <section className="adm-section" aria-labelledby="cfg-rules">
         <h2 className="ag-h3" id="cfg-rules">Reglas de agenda</h2>

@@ -73,14 +73,19 @@ export const PRO_B = {
 };
 export const SHOP = [-70.6506, -33.4378];
 
-export function seed({ site = SITE, services = SERVICES, pros = [PRO_A] } = {}) {
-  return seedBusiness({ site, services, pros, location: SHOP });
+/* Comisiones (SPEC-38): los tests heredados (SPEC-32…37) siembran 0 % para que sus montos fijos sigan
+   midiendo lo suyo; los de SPEC-38 pasan `fees: DEFAULT_FEES` (los defaults reales: 10 % y 3,19 % + IVA). */
+export const LEGACY_FEES = { platformFeeRate: 0, paymentFeeRate: 0, paymentFeeVat: true };
+export const DEFAULT_FEES = { platformFeeRate: 0.1, paymentFeeRate: 0.0319, paymentFeeVat: true };
+
+export function seed({ site = SITE, services = SERVICES, pros = [PRO_A], fees = LEGACY_FEES } = {}) {
+  return seedBusiness({ site, services, pros, location: SHOP, fees });
 }
 
 /* Punto a `km` al este del local (1° de longitud a -33.44 ≈ 92.8 km). */
 export const eastOf = (km) => ({ lat: SHOP[1], lng: SHOP[0] + km / 92.83, formatted: `${km} km al este` });
 
-export async function start({ now, geocoder, facebookFetch, env = {}, ...opts } = {}) {
+export async function start({ now, geocoder, facebookFetch, googleFetch, env = {}, ...opts } = {}) {
   const clock = { now: now ?? Date.parse('2026-11-01T12:00:00Z') };
   const mailer = opts.mailer || createMailer({ env: { MAIL_DRY_RUN: '1' }, logger: silent });
   const app = createApp({
@@ -90,6 +95,7 @@ export async function start({ now, geocoder, facebookFetch, env = {}, ...opts } 
     agendaMailer: mailer,
     geocoder: geocoder || (async () => null),
     facebookFetch,
+    googleFetch,
     bookingRateLimit: opts.bookingRateLimit || { max: 1000, windowMs: 10 * MIN },
     loginLimit: opts.loginLimit,
     onlinePayments: opts.onlinePayments,

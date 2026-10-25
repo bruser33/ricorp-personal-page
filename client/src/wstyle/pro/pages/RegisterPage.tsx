@@ -377,7 +377,7 @@ function Onboarding({ me, setMe, notice }: { me: ProMe; setMe: (m: ProMe) => voi
           <div className="ag-card">
             <p className="ag-muted">Elige de la carta de WS Style. El precio y la duración los define el local.</p>
             <ServicesEditor services={me.services} value={services} onChange={(v) => { setServices(v); setError(null); }} error={error} />
-            {me.platformFeeRate > 0 && <p className="ag-fine">WS Style retiene un {Math.round(me.platformFeeRate * 100)} % de cada servicio.</p>}
+            {me.platformFeeRate > 0 && <p className="ag-fine">El cliente paga aparte una tarifa de servicio (administración de la plataforma {Math.round(me.platformFeeRate * 10000) / 100} % + costo de pagos). Tu parte es el precio del servicio más el domicilio.</p>}
             <div className="ag-actions">
               <button type="button" className="btn btn--ghost" onClick={() => go(1)}>Atrás</button>
               <button type="button" className="btn btn--primary" disabled={busy} onClick={saveServices}>Siguiente</button>

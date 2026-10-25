@@ -1,3 +1,4 @@
+import PriceBreakdown from '../../agenda/components/PriceBreakdown';
 import { useEffect, useState } from 'react';
 import { ApiError } from '../../agenda/api';
 import { CollectFields } from '../../agenda/components/CollectFields';
@@ -83,7 +84,13 @@ export default function ApptSheet({ id, onClose, onChanged }: { id: string; onCl
             {appt.customer.email && <> · <a href={`mailto:${appt.customer.email}`}>{appt.customer.email}</a></>}
           </dd>
           <dt>Lugar</dt><dd>{appt.location.kind === 'home' ? `A domicilio: ${appt.location.address ?? ''}${appt.location.distanceKm != null ? ` (${appt.location.distanceKm} km)` : ''}` : 'En el local'}</dd>
-          <dt>Total</dt><dd>{clp.format(appt.pricing.totalCLP)}{appt.pricing.surchargeCLP ? ` (incluye ${clp.format(appt.pricing.surchargeCLP)} de domicilio)` : ''}{appt.pricing.platformFeeCLP ? ` · comisión ${clp.format(appt.pricing.platformFeeCLP)}` : ''}</dd>
+          {/* SPEC-38: el admin ve las dos partes de la tarifa de servicio por separado. */}
+          <dt>Total</dt>
+          <dd>
+            <dl className="ag-breakdown adm-breakdown" data-breakdown="admin"><PriceBreakdown pricing={appt.pricing} serviceName={appt.service.name} split /></dl>
+            {appt.pricing.feesIncluded && <span className="ag-muted">Parte del barbero: {clp.format(appt.pricing.barberCLP ?? appt.pricing.priceCLP + appt.pricing.surchargeCLP)}</span>}
+            {!!appt.pricing.internalFeeCLP && <span className="ag-muted">Comisión interna (no cobrada al cliente): {clp.format(appt.pricing.internalFeeCLP)}</span>}
+          </dd>
           <dt>Pago</dt>
           <dd data-payment={pay.status}>
             {pay.method === 'local' ? 'En el local' : 'En línea · Mercado Pago'} · {paymentLabel(pay)}

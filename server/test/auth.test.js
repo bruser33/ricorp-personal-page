@@ -269,7 +269,7 @@ describe('Facebook (AC-22)', () => {
 
   test('sin credenciales de Facebook el botón se apaga (config) y /start vuelve con fb=no_disponible', async () => {
     await boot({}, {});
-    assert.deepEqual((await api(ctx.base, 'GET', '/api/auth/config')).json, { facebook: false });
+    assert.deepEqual((await api(ctx.base, 'GET', '/api/auth/config')).json, { facebook: false, google: false });
     const r = await api(ctx.base, 'GET', '/api/auth/facebook/start?r=/wstyle/cuenta/');
     assert.equal(new URL(r.headers.get('location')).searchParams.get('fb'), 'no_disponible');
     /* returnTo externo → se ignora (sin open redirect). */

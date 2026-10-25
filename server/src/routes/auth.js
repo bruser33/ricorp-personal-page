@@ -16,11 +16,12 @@ import {
 } from '../lib/session.js';
 import { appendCookie, parseCookies, serializeCookie } from '../lib/cookies.js';
 import { signState, verifyState } from '../lib/facebook.js';
-import { linkFacebookMail, resetPasswordMail, verifyEmailMail } from '../lib/emails.js';
+import { linkFacebookMail, linkGoogleMail, resetPasswordMail, verifyEmailMail } from '../lib/emails.js';
 
 const MIN = 60 * 1000;
 const HOUR = 60 * MIN;
 const FB_NONCE_COOKIE = 'ws_fb_nonce';
+const GG_NONCE_COOKIE = 'ws_gg_nonce';
 export const LOGIN_LIMIT = { max: 5, windowMs: 15 * MIN };
 
 /* Solo rutas propias como destino de vuelta (sin open redirect). */
@@ -46,7 +47,7 @@ function createLoginLimiter({ max, windowMs }, clock) {
   };
 }
 
-export function createAuthRouter({ env, clock, mailer, logger, facebook, frontUrl, secret, loginLimit = LOGIN_LIMIT, onAccountDeleted, onBarberFacebook = null }) {
+export function createAuthRouter({ env, clock, mailer, logger, facebook, google = { enabled: false }, frontUrl, secret, loginLimit = LOGIN_LIMIT, onAccountDeleted, onBarberFacebook = null }) {
   const r = express.Router();
   const h = (fn) => handle(fn, logger);
   const loginLimiter = createLoginLimiter(loginLimit, clock);
@@ -65,7 +66,7 @@ export function createAuthRouter({ env, clock, mailer, logger, facebook, frontUr
     return out.ok;
   }
 
-  r.get('/config', (_req, res) => res.json({ facebook: facebook.enabled }));
+  r.get('/config', (_req, res) => res.json({ facebook: facebook.enabled, google: Boolean(google.enabled) }));
 
   r.get('/me', h(async (req, res) => res.json({ user: publicUser(requireUser(req)) })));
 
@@ -171,10 +172,21 @@ export function createAuthRouter({ env, clock, mailer, logger, facebook, frontUr
     if (doc === 'expired') throw new HttpError(410, 'token_expired', 'El link venció. Pide uno nuevo desde tu cuenta.');
     const user = await User.findById(doc.userId);
     if (!user) throw new HttpError(400, 'invalid_token', 'El link no es válido');
+    const wasVerified = user.emailVerified;
     user.emailVerified = true;
     /* Vincular Facebook pedido con email (CB-20): se confirma al abrir este link. */
     if (doc.data?.facebookId && !user.identities.some((i) => i.provider === 'facebook')) {
       user.identities.push({ provider: 'facebook', providerUserId: doc.data.facebookId });
+    }
+    /* SPEC-38: vincular Google a una cuenta cuyo correo nadie había verificado. Quien abre el link es el
+       dueño del correo: se quitan las identidades sociales y el celular que puso otra persona. */
+    if (doc.data?.googleId && !user.identities.some((i) => i.provider === 'google')) {
+      if (doc.data.takeover && !wasVerified) {
+        user.identities = user.identities.filter((i) => i.provider === 'email');
+        user.phoneE164 = undefined;
+        await AuthToken.deleteMany({ type: 'session', userId: user._id });
+      }
+      user.identities.push({ provider: 'google', providerUserId: doc.data.googleId });
     }
     await user.save();
     doc.usedAt = new Date(clock());
@@ -362,6 +374,99 @@ export function createAuthRouter({ env, clock, mailer, logger, facebook, frontUr
     await startSession(res, user._id, { env, now: clock() });
     await sendVerification(user);
     res.status(201).json({ user: publicUser(user), returnTo: doc.data.returnTo });
+  }));
+
+  /* ─── Google (SPEC-38 RN-22…RN-27): mismo patrón que Facebook, con `gg` en la vuelta. */
+  r.get('/google/start', (req, res) => {
+    const returnTo = safeReturnTo(req.query.r);
+    if (!google.enabled) return res.redirect(302, front(returnTo, { gg: 'no_disponible' }));
+    const nonce = crypto.randomBytes(16).toString('base64url');
+    const state = signState({ r: returnTo, n: nonce, exp: clock() + 10 * MIN, p: 'google' }, secret);
+    appendCookie(res, serializeCookie(GG_NONCE_COOKIE, nonce, { maxAge: 600, sameSite: 'Lax', secure: Boolean(env.RENDER) }));
+    res.redirect(302, google.authorizeUrl(state, nonce));
+  });
+
+  r.get('/google/callback', h(async (req, res) => {
+    const data = verifyState(req.query.state, secret, clock());
+    const nonce = parseCookies(req.headers.cookie)[GG_NONCE_COOKIE];
+    appendCookie(res, serializeCookie(GG_NONCE_COOKIE, '', { maxAge: 0 }));
+    const returnTo = safeReturnTo(data?.r);
+    /* CB-07: state alterado/vencido, de otro proveedor o sin la cookie del nonce → sin sesión. */
+    if (!data || data.p !== 'google' || !nonce || data.n !== nonce) return res.redirect(302, front(returnTo, { gg: 'error' }));
+    if (req.query.error) return res.redirect(302, front(returnTo, { gg: req.query.error === 'access_denied' ? 'error' : 'no_disponible' }));
+    if (!req.query.code || !google.enabled) return res.redirect(302, front(returnTo, { gg: google.enabled ? 'error' : 'no_disponible' }));
+    let profile;
+    try {
+      profile = await google.profileFromCode(String(req.query.code), { nonce, now: clock() });
+    } catch (err) {
+      logger.error('[auth] google:', err.message);
+      return res.redirect(302, front(returnTo, { gg: err.code === 'google_error' ? 'no_disponible' : 'error' }));
+    }
+    const now = clock();
+    const known = await User.findOne({ identities: { $elemMatch: { provider: 'google', providerUserId: profile.id } }, status: 'active' });
+    if (known) {
+      await startSession(res, known._id, { env, now });
+      return res.redirect(302, front(returnTo, { gg: 'ok' }));
+    }
+    const existing = await User.findOne({ email: profile.email, status: 'active' });
+    if (existing) {
+      const hasPassword = existing.identities?.some((i) => i.provider === 'email' && i.passwordHash);
+      if (hasPassword) {
+        /* RN-24: con contraseña no se vincula en silencio. */
+        const t = await issueToken({ type: 'gg_link', userId: existing._id, ttlMs: 30 * MIN, now, data: { googleId: profile.id, returnTo } });
+        return res.redirect(302, front(returnTo, { gg: 'vincular', t, email: profile.email }));
+      }
+      /* Sin contraseña y con el correo ya verificado (p.ej. Facebook con email de Facebook): las dos
+         partes probaron controlar ese correo → se vincula. Si el correo NO estaba verificado (cuenta de
+         Facebook donde alguien ESCRIBIÓ este email), no se entrega esa cuenta: se confirma por correo y,
+         al confirmar, se quitan las identidades y el celular que no fueron verificados (toma previa). */
+      if (!existing.emailVerified) {
+        const t = await issueToken({ type: 'verify_email', userId: existing._id, ttlMs: 24 * HOUR, now, data: { googleId: profile.id, takeover: true } });
+        await mailer.send({ to: existing.email, ...linkGoogleMail({ name: existing.name, url: `${frontUrl}/wstyle/cuenta/confirmar/?t=${t}` }) });
+        return res.redirect(302, front(returnTo, { gg: 'revisa_correo' }));
+      }
+      existing.identities.push({ provider: 'google', providerUserId: profile.id });
+      existing.emailVerified = true;
+      await existing.save();
+      await startSession(res, existing._id, { env, now });
+      return res.redirect(302, front(returnTo, { gg: 'ok' }));
+    }
+    let user;
+    try {
+      user = await User.create({
+        email: profile.email,
+        emailVerified: true,
+        name: cleanName(profile.name) || profile.email.split('@')[0],
+        roles: ['client'],
+        identities: [{ provider: 'google', providerUserId: profile.id }],
+      });
+    } catch (err) {
+      if (err?.code === 11000) return res.redirect(302, front(returnTo, { gg: 'error' }));
+      throw err;
+    }
+    await startSession(res, user._id, { env, now });
+    res.redirect(302, front(returnTo, { gg: 'nuevo' }));
+  }));
+
+  /* "Ya tienes una cuenta con <email>. Ingresa tu contraseña para vincular Google." */
+  r.post('/google/link', h(async (req, res) => {
+    const doc = await findToken('gg_link', req.body?.token, clock());
+    if (!doc || doc === 'expired') throw new HttpError(410, 'token_expired', 'El inicio con Google venció. Inténtalo de nuevo.');
+    const user = await User.findById(doc.userId);
+    const identity = user?.identities?.find((i) => i.provider === 'email');
+    if (loginLimiter.blocked(user?.email)) throw new HttpError(429, 'too_many_attempts', 'Demasiados intentos. Prueba de nuevo en 15 minutos.');
+    if (!identity || !(await checkPassword(req.body?.password, identity.passwordHash))) {
+      loginLimiter.fail(user?.email);
+      throw new HttpError(401, 'invalid_credentials', 'Correo o contraseña incorrectos');
+    }
+    if (!user.identities.some((i) => i.provider === 'google')) user.identities.push({ provider: 'google', providerUserId: doc.data.googleId });
+    user.emailVerified = true;
+    await user.save();
+    doc.usedAt = new Date(clock());
+    await doc.save();
+    loginLimiter.clear(user.email);
+    await startSession(res, user._id, { env, now: clock() });
+    res.json({ user: publicUser(user), returnTo: doc.data.returnTo });
   }));
 
   /* URL de eliminación de datos que exige Meta (signed_request firmado con el secreto). */

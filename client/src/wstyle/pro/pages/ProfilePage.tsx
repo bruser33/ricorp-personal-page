@@ -119,7 +119,7 @@ export default function ProfilePage({ ctx }: { ctx: ProCtx }) {
         <Section id="pro-team" title="Haces parte de WS Style">
           <p className="pro-team"><StatusPill status={MEMBERSHIP_TONE[me.membership.status]} label={MEMBERSHIP[me.membership.status]} /> <span>{me.business.name} · Barbería</span></p>
           {me.membership.status === 'pending' && <p className="ag-muted">Tu perfil está en revisión. Te avisaremos por correo cuando WS Style lo apruebe.</p>}
-          {me.platformFeeRate > 0 && <p className="ag-fine">WS Style retiene un {Math.round(me.platformFeeRate * 100)} % de cada servicio.</p>}
+          {me.platformFeeRate > 0 && <p className="ag-fine">El cliente paga aparte una tarifa de servicio (administración de la plataforma {Math.round(me.platformFeeRate * 10000) / 100} % + costo de pagos). Tu parte es el precio del servicio más el domicilio.</p>}
         </Section>
 
         <Section id="pro-photos" title="Fotos">

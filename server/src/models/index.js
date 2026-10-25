@@ -153,7 +153,7 @@ export const TimeOff = model('TimeOff', TimeOffSchema);
 /* ─── Personas: globales (la misma persona en WS Style y en un futuro Styluxe). */
 const IdentitySchema = new Schema(
   {
-    provider: { type: String, enum: ['email', 'facebook'], required: true },
+    provider: { type: String, enum: ['email', 'facebook', 'google'], required: true },
     providerUserId: String,
     passwordHash: String,
     linkedAt: { type: Date, default: Date.now },
@@ -184,7 +184,7 @@ export const User = model('User', UserSchema);
    vincular Facebook). Solo se guarda el hash del token. */
 const AuthTokenSchema = new Schema(
   {
-    type: { type: String, enum: ['session', 'verify_email', 'reset_password', 'fb_link', 'fb_email'], required: true },
+    type: { type: String, enum: ['session', 'verify_email', 'reset_password', 'fb_link', 'fb_email', 'gg_link'], required: true },
     tokenHash: { type: String, required: true, unique: true },
     userId: { type: ObjectId, default: null },
     expiresAt: { type: Date, required: true },
@@ -249,6 +249,17 @@ const AppointmentSchema = new Schema(
       totalCLP: Number,
       platformFeeRate: { type: Number, default: 0 },
       platformFeeCLP: { type: Number, default: 0 },
+      /* SPEC-38: desglose congelado. `feesIncluded` = la administración y el procesamiento se SUMAN
+         al total del cliente (sin él, cita antigua: total = servicio + domicilio y la comisión era
+         interna). `barberCLP` = ganancia del barbero (servicio + domicilio). Tarifa de servicio que ve el
+         cliente = platformFeeCLP + paymentFeeCLP (`serviceFeeCLP`), igual en el local o en línea. */
+      barberCLP: Number,
+      paymentMethod: String,
+      paymentFeeRate: { type: Number, default: 0 },
+      paymentFeeVat: Boolean,
+      paymentFeeCLP: { type: Number, default: 0 },
+      feesIncluded: Boolean,
+      serviceFeeCLP: Number,
     },
     /* method: local | online (SPEC-35, Mercado Pago).
        status: pendiente | cobrado | pago_pendiente (terminó sin cobrar, SPEC-33 RN-10) — pago en el local;
@@ -376,7 +387,19 @@ PanelNotificationSchema.index({ userId: 1, createdAt: -1 });
 export const PanelNotification = model('PanelNotification', PanelNotificationSchema);
 
 const PlatformSettingsSchema = new Schema(
-  { key: { type: String, default: 'default', unique: true }, defaultPlatformFeeRate: { type: Number, default: 0 }, paymentProviders: [String] },
+  {
+    key: { type: String, default: 'default', unique: true },
+    /* SPEC-38: administración de la plataforma, cobrada al cliente (fracción: 0.1 = 10 %). */
+    defaultPlatformFeeRate: { type: Number, default: 0.1 },
+    /* SPEC-38: comisión de Mercado Pago que se traslada al cliente en la tarifa de servicio (0.0319 = 3,19 %)
+       y si se le suma el IVA de esa comisión. */
+    paymentFeeRate: { type: Number, default: 0.0319 },
+    paymentFeeVat: { type: Boolean, default: true },
+    paymentProviders: [String],
+    /* Migraciones de defaults ya aplicadas (RN-09 de SPEC-38): idempotencia. */
+    appliedDefaults: [String],
+    defaultsAppliedAt: Date,
+  },
   { timestamps: true }
 );
 export const PlatformSettings = model('PlatformSettings', PlatformSettingsSchema);

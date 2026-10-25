@@ -1,3 +1,4 @@
+import { breakdownLines, feesIncluded } from '../domain/pricing.js';
 /* Plantillas de correo (RN-17, RN-21, RN-22). Texto + HTML mínimo; cada correo de
    cita lleva el link a la cita y un wa.me al otro lado prellenado. */
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -23,6 +24,11 @@ export function verifyEmailMail({ name, url }) {
 export function linkFacebookMail({ name, url }) {
   const subject = 'Confirma que quieres vincular Facebook · WS Style';
   return { subject, template: 'fb_link_email', ...layout(subject, [`Hola ${name || ''}`.trim() + ',', 'Alguien pidió vincular una cuenta de Facebook a tu cuenta de WS Style. Si fuiste tú, confírmalo con este link (vale 24 horas). Si no, ignora este correo.'], [['Vincular Facebook', url]]) };
+}
+
+export function linkGoogleMail({ name, url }) {
+  const subject = 'Confirma que quieres entrar con Google · WS Style';
+  return { subject, template: 'gg_link_email', ...layout(subject, [`Hola ${name || ''}`.trim() + ',', 'Alguien quiso entrar con Google a la cuenta de WS Style de este correo. Si fuiste tú, confírmalo con este link (vale 24 horas): tu cuenta quedará con Google como forma de entrar. Si no, ignora este correo.'], [['Confirmar y vincular Google', url]]) };
 }
 
 export function resetPasswordMail({ name, url }) {
@@ -92,7 +98,12 @@ export function appointmentMail({ kind, to, appt, when, proposalWhen, url, waUrl
     if (kind === 'invite_expired') lines.push('No la confirmó a tiempo y la hora quedó libre.');
     if (kind === 'admin_cancelled' && reason) lines.push(`Motivo: ${reason}`);
   }
-  lines.push(`${service} · ${when}`, where, total);
+  lines.push(`${service} · ${when}`, where);
+  /* SPEC-38: desglose. El cliente ve una sola "Tarifa de servicio"; el barbero, además, su parte. */
+  const bd = breakdownLines(appt.pricing || {}, service);
+  if (bd.lines.length > 1) for (const l of bd.lines) lines.push(`${l.label}: ${money(l.amountCLP)}${l.hint ? ` (${l.hint})` : ''}`);
+  lines.push(total);
+  if (to === 'barber' && feesIncluded(appt.pricing)) lines.push(`Tu parte (servicio${appt.pricing?.surchargeCLP ? ' + domicilio' : ''}): ${money(appt.pricing.barberCLP ?? bd.lines[0].amountCLP)}`);
   const links = [['Ver la cita', url]];
   if (waUrl) links.push([to === 'client' ? `Escribir a ${barber} por WhatsApp` : `Escribir a ${client} por WhatsApp`, waUrl]);
   return { subject, template: `${to}_${kind}`, ...layout(subject.replace(' · WS Style', ''), lines, links) };

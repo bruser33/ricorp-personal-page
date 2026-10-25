@@ -353,9 +353,9 @@ describe('AC-04 citas del admin', () => {
     const text = (await res.text()).replace(/^﻿/, '');
     const lines = text.trim().split('\r\n');
     assert.equal(lines[0], CSV_COLUMNS.map(([, h]) => h).join(','));
-    assert.equal(lines[0], 'ID,Fecha,Hora,Barbero,Cliente,Celular,Email,Servicio,Modalidad,Dirección,Estado,Precio,Recargo,Total,Método de pago,Estado del pago,Comisión,Origen');
+    assert.equal(lines[0], 'ID,Fecha,Hora,Barbero,Cliente,Celular,Email,Servicio,Modalidad,Dirección,Estado,Precio,Recargo,Total,Método de pago,Estado del pago,Comisión,Procesamiento pago,Parte del barbero,Origen');
     assert.equal(lines.length, 2);
-    assert.ok(lines[1].includes(`${MONDAY},12:00,Barbero A,"Ana ""La Jefa"" Pérez",+56911112222,ana@clientes.test,Corte,Local,,Esperando confirmación,12000,0,12000,En el local,pendiente,0,web`), lines[1]);
+    assert.ok(lines[1].includes(`${MONDAY},12:00,Barbero A,"Ana ""La Jefa"" Pérez",+56911112222,ana@clientes.test,Corte,Local,,Esperando confirmación,12000,0,12000,En el local,pendiente,0,0,12000,web`), lines[1]);
     /* Sin sesión de admin → 401/403. */
     assert.equal((await fetch(`${t.ctx.base}/api/admin/appointments.csv`)).status, 401);
   });
@@ -578,7 +578,7 @@ describe('AC-08 estadísticas', () => {
         startsAt,
         endsAt: new Date(startsAt.getTime() + s.durationMin * MIN),
         location: { kind: home ? 'home' : 'shop' },
-        pricing: { priceCLP: s.priceCLP, surchargeCLP: (total ?? s.priceCLP) - s.priceCLP, totalCLP: total ?? s.priceCLP, platformFeeRate: 0, platformFeeCLP: fee },
+        pricing: { priceCLP: s.priceCLP, surchargeCLP: (total ?? s.priceCLP) - s.priceCLP, totalCLP: total ?? s.priceCLP, platformFeeRate: 0, platformFeeCLP: fee, feesIncluded: true },
         payment: { method, status: pay },
         status,
         history: [],
@@ -619,8 +619,8 @@ describe('AC-08 estadísticas', () => {
     const A = s.barbers.find((x) => x.name === 'Barbero A');
     const B = s.barbers.find((x) => x.name === 'Barbero B');
     /* 21 días hábiles en nov-2026 × 6 h (12–18) = 7.560 min disponibles. */
-    assert.deepEqual(A, { id: String(t.pro(0)._id), name: 'Barbero A', appointments: 4, finished: 3, revenueCLP: 42000, cancellations: 1, noShows: 0, bookedMin: 140, availableMin: 7560, occupancyPct: 1.9 });
-    assert.deepEqual(B, { id: String(t.pro(1)._id), name: 'Barbero B', appointments: 3, finished: 1, revenueCLP: 15000, cancellations: 0, noShows: 1, bookedMin: 140, availableMin: 7560, occupancyPct: 1.9 });
+    assert.deepEqual(A, { id: String(t.pro(0)._id), name: 'Barbero A', appointments: 4, finished: 3, revenueCLP: 42000, earningsCLP: 42000, cancellations: 1, noShows: 0, bookedMin: 140, availableMin: 7560, occupancyPct: 1.9 });
+    assert.deepEqual(B, { id: String(t.pro(1)._id), name: 'Barbero B', appointments: 3, finished: 1, revenueCLP: 15000, earningsCLP: 15000, cancellations: 0, noShows: 1, bookedMin: 140, availableMin: 7560, occupancyPct: 1.9 });
     assert.equal(s.days.length, 30);
     assert.deepEqual(s.days.find((d) => d.date === '2026-11-02'), { date: '2026-11-02', appointments: 3, revenueCLP: 45000 });
   });
@@ -857,6 +857,7 @@ describe('AC-02 matriz de autorización', () => {
       ['POST /api/auth/verify-email', pub], ['POST /api/auth/forgot', pub], ['POST /api/auth/reset', pub],
       ['DELETE /api/auth/me', { anon: 401, client: SKIP, approved: SKIP, pending: SKIP, admin: 409 }],
       ['GET /api/auth/facebook/start', pub], ['GET /api/auth/facebook/callback', pub], ['POST /api/auth/facebook/link', pub], ['POST /api/auth/facebook/complete', pub], ['POST /api/auth/facebook/data-deletion', pub],
+      ['GET /api/auth/google/start', pub], ['GET /api/auth/google/callback', pub], ['POST /api/auth/google/link', pub],
       /* Catálogo público y horas libres */
       ['GET /api/wstyle/catalog', pub], ['GET /api/wstyle/availability', pub, { path: `/api/wstyle/availability?service=corte&from=${MONDAY}&to=${MONDAY}` }], ['POST /api/wstyle/quote', pub],
       /* Citas propias (cliente); el barbero aprobado ve las suyas; el admin todas; ajenas → 404 */
