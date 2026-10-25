@@ -88,7 +88,7 @@ const csvCell = (v) => {
   return /[",\n\r;]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
 };
 
-export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = console, frontUrl = 'http://localhost:5173', env = {}, adminInbox, onlinePayments = { ready: false } }) {
+export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = console, frontUrl = 'http://localhost:5173', env = {}, adminInbox, onlinePayments = { ready: false }, payments = null }) {
   /* ─── Acceso */
   function requireAdmin(user) {
     if (!user) throw new HttpError(401, 'unauthorized', 'Tu sesión venció. Inicia sesión para continuar.');
@@ -143,7 +143,7 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
       Membership.countDocuments({ businessId: b._id, status: 'pending', submittedAt: { $ne: null } }),
       Appointment.countDocuments({ businessId: b._id, startsAt: { $gte: dayStart, $lt: dayEnd }, status: { $nin: ['cancelada', 'expirada'] } }),
       Appointment.countDocuments({ businessId: b._id, status: 'pendiente' }),
-      Appointment.countDocuments({ businessId: b._id, 'payment.status': 'reembolso_pendiente' }),
+      Appointment.countDocuments({ businessId: b._id, $or: [{ 'payment.status': 'reembolso_pendiente' }, { 'payment.duplicates.status': 'reembolso_pendiente' }] }),
       computeStats(b, month),
       PanelNotification.countDocuments({ userId: user._id, readAt: null }),
       suspendedAlerts(b, now),
@@ -329,7 +329,38 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
     out.canReassign = REASSIGNABLE.includes(appt.status) && appt.startsAt.getTime() > now;
     out.canCollect = canCollect(appt);
     out.statusLabel = STATUS_LABEL[appt.status];
+    /* SPEC-35: datos del pago en línea para reembolsar (ids de Mercado Pago, error del último intento). */
+    const p = appt.payment || {};
+    if (p.method === 'online') {
+      out.payment = {
+        ...out.payment,
+        mpPaymentId: p.mpPaymentId || null,
+        refundError: p.refundError || null,
+        refundInFlight: Boolean(p.refundInFlight),
+        duplicates: (p.duplicates || []).map((d) => ({ mpPaymentId: d.mpPaymentId, amountCLP: d.amountCLP, status: d.status, refundError: d.refundError || null })),
+      };
+    }
+    out.canRefund = Boolean(payments?.ready) && p.method === 'online' && p.status === 'reembolso_pendiente' && Boolean(p.mpPaymentId) && !p.refundInFlight;
     return out;
+  }
+
+  /* SPEC-35 RN-09: reembolso total (el server llama a Mercado Pago; el doble clic no duplica). */
+  async function refund(user, id, body = {}) {
+    const b = await ctx(user);
+    const before = await loadAppt(b, id);
+    const paymentId = body.paymentId ? String(body.paymentId) : undefined;
+    const summary = `${before.customerSnapshot?.name || 'Cliente'} · $${before.pricing?.totalCLP} · pago ${paymentId || before.payment?.mpPaymentId || '—'}`;
+    if (!payments) throw new HttpError(503, 'payments_not_configured', 'Mercado Pago no está configurado');
+    try {
+      const r = await payments.refund(user, id, { paymentId });
+      await audit(user, b, 'appointment.refund', { entity: 'appointment', entityId: before._id, summary, before: { payment: before.payment?.status }, after: { payment: r.appt.payment?.status, duplicate: r.duplicate || undefined } });
+      return serializeAdmin(r.appt, b, clock());
+    } catch (err) {
+      if (err instanceof HttpError && err.code === 'refund_failed') {
+        await audit(user, b, 'appointment.refund_failed', { entity: 'appointment', entityId: before._id, summary: `${summary} — ${err.extra?.refundError || err.message}` });
+      }
+      throw err;
+    }
   }
 
   const REASSIGNABLE = ['pendiente', 'pendiente_pago', 'confirmada', 'invitacion_enviada'];
@@ -908,6 +939,7 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
     viewAppointment,
     actOnAppointment,
     collect,
+    refund,
     reassignOptions,
     reassign,
     createAppointment,

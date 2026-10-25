@@ -2,7 +2,7 @@
 import express from 'express';
 import { HttpError, handle } from '../lib/errors.js';
 
-export function createWstyleRouter({ agenda, logger, bookingLimiter }) {
+export function createWstyleRouter({ agenda, payments, logger, bookingLimiter }) {
   const r = express.Router();
   const h = (fn) => handle(fn, logger);
   const requireUser = (req) => {
@@ -49,7 +49,20 @@ export function createWstyleRouter({ agenda, logger, bookingLimiter }) {
   r.get('/appointments/mine', h(async (req, res) => res.json(await agenda.mine(requireUser(req)))));
 
   /* ?inv=<token>: link de una invitación del barbero (SPEC-33 RN-12) → asocia la cita a quien la abre. */
-  r.get('/appointments/:id', h(async (req, res) => res.json(await agenda.view(req.params.id, req.user, { inv: req.query.inv ? String(req.query.inv) : null }))));
+  /* SPEC-35: si la cita espera un pago, antes de responder se consulta a Mercado Pago (el
+     `?pago=` de la vuelta del checkout no se cree; CB-03 / CB-05). */
+  r.get('/appointments/:id', h(async (req, res) => {
+    await payments?.syncForView(req.params.id, req.user);
+    res.json(await agenda.view(req.params.id, req.user, { inv: req.query.inv ? String(req.query.inv) : null }));
+  }));
+
+  /* SPEC-35: crear la preferencia de Checkout Pro (o reintentar) y pasar a pagar en el local. */
+  r.post('/appointments/:id/checkout', h(async (req, res) => {
+    const user = requireUser(req);
+    if (!payments?.ready) return res.status(503).json({ ok: false, error: 'payments_not_configured', message: 'El pago en línea no está disponible. Puedes pagar en el local.' });
+    res.json(await payments.checkout(req.params.id, user));
+  }));
+  r.post('/appointments/:id/pay-local', h(async (req, res) => res.json(await agenda.payLocal(req.params.id, requireUser(req)))));
 
   for (const [path, action] of [
     ['cancel', 'cancel'],

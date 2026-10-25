@@ -8,7 +8,12 @@ export type Decision = 'approve' | 'reject' | 'suspend' | 'reactivate' | 'reopen
 export interface AdminAppointment extends Omit<Appointment, 'customer' | 'pricing'> {
   customer: { name: string; phone: string | null; email: string | null };
   pricing: { priceCLP: number; surchargeCLP: number; totalCLP: number; platformFeeCLP: number; platformFeeRate: number };
-  payment: { method: string; status: string };
+  // SPEC-35: en línea trae el id del pago en Mercado Pago, el error del último reembolso y los pagos duplicados (CB-08).
+  payment: {
+    method: string; status: string; holdUntil?: string; mpPaymentId?: string | null; refundError?: string | null; refundInFlight?: boolean;
+    duplicates?: { mpPaymentId: string; amountCLP: number; status: string; refundError: string | null }[];
+  };
+  canRefund?: boolean;
   history: { at: string; from: string | null; to: string; by: string; reason?: string }[];
   source: string;
   canReassign: boolean;
@@ -96,6 +101,8 @@ export const admin = {
   appointment: (aid: string) => api<AdminAppointment>(`/api/admin/appointments/${id(aid)}`),
   act: (aid: string, action: string, body: Record<string, unknown> = {}) => send<AdminAppointment>(`/api/admin/appointments/${id(aid)}/${action === 'no_show' ? 'no-show' : action}`, 'POST', body),
   collect: (aid: string) => send<AdminAppointment>(`/api/admin/appointments/${id(aid)}/collect`, 'POST'),
+  // SPEC-35 RN-09: reembolso total en Mercado Pago (paymentId = un pago duplicado; sin él, el pago de la cita).
+  refund: (aid: string, paymentId?: string) => send<AdminAppointment>(`/api/admin/appointments/${id(aid)}/refund`, 'POST', paymentId ? { paymentId } : {}),
   reassignOptions: (aid: string) => api<{ options: { id: string; name: string }[] }>(`/api/admin/appointments/${id(aid)}/reassign-options`),
   reassign: (aid: string, professionalId: string) => send<AdminAppointment>(`/api/admin/appointments/${id(aid)}/reassign`, 'POST', { professionalId }),
   createAppointment: (body: Record<string, unknown>) => send<AdminAppointment>('/api/admin/appointments', 'POST', body),

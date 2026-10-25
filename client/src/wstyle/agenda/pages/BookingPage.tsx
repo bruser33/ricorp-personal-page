@@ -51,6 +51,7 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [welcome, setWelcome] = useState<string | null>(null);
   const [done, setDone] = useState<{ appt: Appointment; mailOk?: boolean } | null>(null);
+  const [redirecting, setRedirecting] = useState(false);
   const idem = useRef(newKey());
   const authedInFlow = useRef(false);
   const restored = useRef(false);
@@ -194,6 +195,19 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
         acceptPolicies: accept, paymentMethod: pay, idempotencyKey: idem.current, website,
       });
       if (!r.appointment) { setSubmitError('No pudimos agendar. Inténtalo de nuevo.'); return; }
+      // SPEC-35: "Pagar en línea" → la cita queda esperando el pago (15 min) y se va a Mercado Pago. Si no se puede
+      // abrir el checkout (CB-10), la página de la cita ofrece reintentar o pagar en el local.
+      if (r.appointment.status === 'pendiente_pago') {
+        setRedirecting(true);
+        saveSelection({});
+        try {
+          const co = await agenda.checkout(r.id);
+          location.assign(co.initPoint);
+        } catch {
+          location.assign(`/wstyle/cita/?id=${encodeURIComponent(r.id)}&pago=error`);
+        }
+        return;
+      }
       setDone({ appt: r.appointment, mailOk: r.mailOk });
       setSel({});
       setStep(5);
@@ -396,7 +410,7 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
                     {payments.online && (
                       <label className={`ag-option ag-radio${pay === 'online' ? ' is-selected' : ''}`}>
                         <input type="radio" name="pay" value="online" checked={pay === 'online'} onChange={() => setPayPick('online')} />
-                        <span><span className="ag-option__name">Pagar en línea</span><span className="ag-option__meta">Con Mercado Pago, al confirmar.</span></span>
+                        <span><span className="ag-option__name">Pagar en línea</span><span className="ag-option__meta">Con Mercado Pago (tarjeta de crédito, débito o prepago). Te guardamos la hora 15 minutos mientras pagas.</span></span>
                       </label>
                     )}
                   </fieldset>
@@ -412,7 +426,9 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
                   {submitError && <Notice tone="error">{submitError}</Notice>}
                   <div className="ag-actions">
                     <button type="button" className="btn btn--ghost" onClick={() => setStep(3)}>Volver</button>
-                    <button className="btn btn--primary" disabled={busy} aria-busy={busy}>{busy ? 'Agendando…' : 'Agendar cita'}</button>
+                    <button className="btn btn--primary" disabled={busy || redirecting} aria-busy={busy || redirecting} data-pay={pay}>
+                      {redirecting ? 'Abriendo Mercado Pago…' : busy ? 'Agendando…' : pay === 'online' ? `Ir a pagar ${clp.format(total)}` : 'Agendar cita'}
+                    </button>
                   </div>
                 </form>
               )}

@@ -42,7 +42,11 @@ const CLIENT_SUBJECTS = {
   invited: (b) => `${b} te agendó una cita`,
   finished: 'Gracias por venir',
   no_show: 'Registramos una inasistencia',
+  /* SPEC-35 */
+  payment_incomplete: 'Tu reserva no se completó',
+  refunded: (_b, appt) => `Te devolvimos ${money(appt.pricing?.totalCLP)}`,
 };
+const money = (n) => `$${Number(n || 0).toLocaleString('es-CL')}`;
 const BARBER_SUBJECTS = {
   new: 'Nueva cita por confirmar',
   client_accepted: 'El cliente aceptó el cambio',
@@ -64,12 +68,14 @@ export function appointmentMail({ kind, to, appt, when, proposalWhen, url, waUrl
   const client = appt.customerSnapshot?.name || 'Cliente';
   const service = appt.serviceSnapshot?.name || 'Servicio';
   const where = appt.location?.kind === 'home' ? `A domicilio: ${appt.location?.address?.formatted || appt.location?.address?.street || ''}` : 'En el local';
-  const total = `Total: $${Number(appt.pricing?.totalCLP || 0).toLocaleString('es-CL')}`;
+  /* SPEC-35 RN-04: la cita pagada en línea lo dice en cada correo. */
+  const paidOnline = appt.payment?.method === 'online' && appt.payment?.status === 'pagado';
+  const total = `Total: ${money(appt.pricing?.totalCLP)}${paidOnline ? ' · Pagado en línea' : ''}`;
   let subject;
   const lines = [];
   if (to === 'client') {
     const s = CLIENT_SUBJECTS[kind];
-    subject = (typeof s === 'function' ? s(barber) : s) + ' · WS Style';
+    subject = (typeof s === 'function' ? s(barber, appt) : s) + ' · WS Style';
     if (kind === 'received') lines.push(`NUEVA CITA — esperando confirmación de ${barber}.`);
     if (kind === 'proposal') lines.push(`${barber} propone cambiar tu cita: antes ${when} » ahora ${proposalWhen}.`, 'Puedes aceptar, proponer otra hora o cancelar desde la página de tu cita.');
     if (kind === 'cancelled') lines.push(`Cancelada por ${cancelledBy}${reason ? `. Motivo: ${reason}` : ''}.`);
@@ -77,6 +83,8 @@ export function appointmentMail({ kind, to, appt, when, proposalWhen, url, waUrl
     if (kind === 'invited') lines.push(`${barber} te agendó una cita. Confírmala desde el link (el pago es en el local, en efectivo).`);
     if (kind === 'finished') lines.push(`Gracias por atenderte con ${barber}. ¡Te esperamos de vuelta!`);
     if (kind === 'no_show') lines.push(`${barber} registró que no llegaste a tu cita. Si fue un error, escríbenos por WhatsApp.`);
+    if (kind === 'payment_incomplete') lines.push('No recibimos el pago a tiempo, así que la hora se liberó. Puedes reservar de nuevo cuando quieras.');
+    if (kind === 'refunded') lines.push(`Te devolvimos ${money(appt.pricing?.totalCLP)} en el mismo medio con que pagaste en Mercado Pago. Según tu banco, puede tardar unos días en verse.`);
   } else {
     subject = BARBER_SUBJECTS[kind] + ' · WS Style';
     lines.push(`Cliente: ${client}`);

@@ -142,6 +142,16 @@
 .ag-proposal__before { color: #b3ab9f; }
 .ag-proposal__before s { text-decoration-thickness: 1px; }
 .ag-proposal__swap > span[aria-hidden] { color: var(--brass); font-size: 30px; }
+/* SPEC-35: estado del pago en línea en la página de la cita. */
+.ag-pay-box { margin: 0 0 18px; padding: 16px 18px; border: 1px solid var(--brass-line); border-left: 3px solid var(--brass); background: rgba(184, 135, 90, .06); }
+.ag-pay-box > .ag-h3:first-child { margin-top: 0; }
+.ag-pay-box > p { margin: 0 0 6px; }
+.ag-pay-box .ag-loading { margin: 0 0 6px; }
+.ag-pay-box .ag-actions { margin-top: 14px; }
+.ag-pay-box--ok { border-left-color: #8fbf8a; background: rgba(143, 191, 138, .07); }
+.ag-pay-box--ok > .ag-h3 { color: #b8dcb3; }
+.ag-pay-box--error { border-left-color: #e0806b; background: rgba(224, 128, 107, .07); }
+.ag-pay-box--error > .ag-h3 { color: #f2b3a4; }
 .ag-confirm { margin-top: 18px; padding: 16px; border: 1px solid var(--brass-line); }
 .ag-confirm label { display: block; margin-bottom: 6px; font-size: 13px; font-weight: 600; }
 .ag-counter { margin-top: 18px; }

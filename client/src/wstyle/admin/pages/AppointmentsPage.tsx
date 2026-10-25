@@ -7,7 +7,7 @@ import { admin, downloadCsv, type AdminAppointment, type ApptFilters } from '../
 import ApptSheet from '../components/ApptSheet';
 import { Loaded } from '../components/common';
 import { useLoad, useToday } from '../hooks';
-import { PAYMENT_STATUS_LABEL, STATUS_OPTIONS } from '../util';
+import { paymentLabel, STATUS_OPTIONS } from '../util';
 
 const PAY_OPTIONS: [string, string][] = [
   ['', 'Todos los pagos'],
@@ -138,7 +138,7 @@ export default function AppointmentsPage() {
                       </span>
                       <span className="adm-row__side">
                         <StatusPill status={a.status} label={a.statusLabel} />
-                        <span className="adm-row__meta">{clp.format(a.pricing.totalCLP)} · {PAYMENT_STATUS_LABEL[a.payment.status] ?? a.payment.status}</span>
+                        <span className="adm-row__meta">{clp.format(a.pricing.totalCLP)} · {paymentLabel(a.payment)}</span>
                       </span>
                     </button>
                   </li>

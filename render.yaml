@@ -36,3 +36,17 @@ services:
         sync: false
       - key: CONTACT_TO
         sync: false
+      # Pago en línea con Mercado Pago Checkout Pro (SPEC-35). Secretos: solo acá (sync: false),
+      # nunca en el repo ni en el client. MP_ACCESS_TOKEN TEST-… = sandbox, APP_USR-… = producción.
+      - key: MP_ACCESS_TOKEN
+        sync: false
+      - key: MP_WEBHOOK_SECRET
+        sync: false
+      # Opcional: URL completa del webhook (si no, API_PUBLIC_URL + /api/payments/mp/webhook).
+      - key: MP_NOTIFICATION_URL
+        sync: false
+      # Front público (back_urls del checkout) y URL pública de esta API.
+      - key: PUBLIC_SITE_URL
+        sync: false
+      - key: API_PUBLIC_URL
+        sync: false

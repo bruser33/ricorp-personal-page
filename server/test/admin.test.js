@@ -863,7 +863,11 @@ describe('AC-02 matriz de autorización', () => {
       ['POST /api/wstyle/appointments', { anon: 401, client: OK, approved: 403, pending: 403, admin: 403 }, { body: { serviceId: 'corte', professionalId: String(A._id), startsAt: at('16:00'), acceptPolicies: true } }],
       ['GET /api/wstyle/appointments/mine', logged],
       ['GET /api/wstyle/appointments/:id', ownAppt, { path: `/api/wstyle/appointments/${appt}` }],
-      ...['cancel', 'accept', 'counter', 'confirm', 'propose', 'start', 'finish', 'no-show'].map((a) => [`POST /api/wstyle/appointments/:id/${a}`, ownAppt, { path: `/api/wstyle/appointments/${appt}/${a}` }]),
+      ...['cancel', 'accept', 'counter', 'confirm', 'propose', 'start', 'finish', 'no-show', 'pay-local'].map((a) => [`POST /api/wstyle/appointments/:id/${a}`, ownAppt, { path: `/api/wstyle/appointments/${appt}/${a}` }]),
+      /* SPEC-35: sin credenciales de Mercado Pago (este panel no las tiene) → 503 con sesión. Con credenciales: test/payments.test.js. */
+      ['POST /api/wstyle/appointments/:id/checkout', { anon: 401, client: 503, approved: 503, pending: 503, admin: 503 }, { path: `/api/wstyle/appointments/${appt}/checkout` }],
+      /* Webhook público: lo autentica la firma x-signature (sin firma → 401 para todos). */
+      ['POST /api/payments/mp/webhook', { anon: 401, client: 401, approved: 401, pending: 401, admin: 401 }, { path: '/api/payments/mp/webhook?data.id=1&type=payment' }],
       /* Barbero: registro (anónimo), perfil propio (aprobado y pendiente), operación (solo aprobado) */
       ['POST /api/pro/register', pub], ['POST /api/pro/facebook/register', pub],
       ['GET /api/pro/me', barberEdit], ['PATCH /api/pro/profile', barberEdit], ['PUT /api/pro/services', barberEdit], ['PUT /api/pro/availability', barberEdit],
@@ -886,6 +890,7 @@ describe('AC-02 matriz de autorización', () => {
       ['GET /api/admin/appointments/:id/reassign-options', adminOnly, { path: `/api/admin/appointments/${appt}/reassign-options` }],
       ['POST /api/admin/appointments/:id/reassign', adminOnly, { path: `/api/admin/appointments/${appt}/reassign` }],
       ['POST /api/admin/appointments/:id/collect', adminOnly, { path: `/api/admin/appointments/${appt}/collect` }],
+      ['POST /api/admin/appointments/:id/refund', { ...adminOnly, admin: 503 }, { path: `/api/admin/appointments/${appt}/refund` }],
       ...['confirm', 'reject', 'cancel', 'propose', 'start', 'finish', 'no-show'].map((a) => [`POST /api/admin/appointments/:id/${a}`, adminOnly, { path: `/api/admin/appointments/${appt}/${a}` }]),
       ['GET /api/admin/services', adminOnly], ['POST /api/admin/services', adminOnly],
       ['PATCH /api/admin/services/:id', adminOnly, { path: `/api/admin/services/${fake}` }], ['DELETE /api/admin/services/:id', adminOnly, { path: `/api/admin/services/${fake}` }],

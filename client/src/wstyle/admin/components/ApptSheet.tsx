@@ -4,10 +4,10 @@ import { Notice, StatusPill } from '../../agenda/components/ui';
 import { clp, dayMonthTime, localDate, localTime, prettyPhone } from '../../agenda/util';
 import Sheet from '../../pro/components/Sheet';
 import { admin, type AdminAppointment } from '../api';
-import { PAYMENT_STATUS_LABEL } from '../util';
+import { paymentLabel } from '../util';
 import { ReasonForm } from './common';
 
-type Mode = null | 'cancel' | 'reject' | 'propose' | 'reassign' | 'finish';
+type Mode = null | 'cancel' | 'reject' | 'propose' | 'reassign' | 'finish' | { refund: string | null };
 
 const BY: Record<string, string> = { client: 'Cliente', barber: 'Barbero', admin: 'WS Style', system: 'Sistema' };
 
@@ -80,7 +80,26 @@ export default function ApptSheet({ id, onClose, onChanged }: { id: string; onCl
           </dd>
           <dt>Lugar</dt><dd>{appt.location.kind === 'home' ? `A domicilio: ${appt.location.address ?? ''}${appt.location.distanceKm != null ? ` (${appt.location.distanceKm} km)` : ''}` : 'En el local'}</dd>
           <dt>Total</dt><dd>{clp.format(appt.pricing.totalCLP)}{appt.pricing.surchargeCLP ? ` (incluye ${clp.format(appt.pricing.surchargeCLP)} de domicilio)` : ''}{appt.pricing.platformFeeCLP ? ` · comisión ${clp.format(appt.pricing.platformFeeCLP)}` : ''}</dd>
-          <dt>Pago</dt><dd>{pay.method === 'local' ? 'En el local' : 'En línea'} · {PAYMENT_STATUS_LABEL[pay.status] ?? pay.status}</dd>
+          <dt>Pago</dt>
+          <dd data-payment={pay.status}>
+            {pay.method === 'local' ? 'En el local' : 'En línea · Mercado Pago'} · {paymentLabel(pay)}
+            {pay.mpPaymentId && <span className="ag-muted"> · pago {pay.mpPaymentId}</span>}
+            {pay.refundError && <span className="adm-refund-err" role="alert"> · Último intento de reembolso falló: {pay.refundError}</span>}
+          </dd>
+          {!!pay.duplicates?.length && <>
+            <dt>Pagos duplicados</dt>
+            <dd>
+              <ul className="adm-dups">
+                {pay.duplicates.map((d) => (
+                  <li key={d.mpPaymentId}>
+                    Pago {d.mpPaymentId} · {clp.format(d.amountCLP)} · {paymentLabel({ method: 'online', status: d.status })}
+                    {d.refundError && <span className="adm-refund-err" role="alert"> · {d.refundError}</span>}
+                    {d.status === 'reembolso_pendiente' && mode === null && <> <button type="button" className="ag-link" disabled={busy} onClick={() => setMode({ refund: d.mpPaymentId })}>Reembolsar</button></>}
+                  </li>
+                ))}
+              </ul>
+            </dd>
+          </>}
           {appt.note && <><dt>Nota</dt><dd>{appt.note}</dd></>}
           {appt.proposal && <><dt>Propuesta</dt><dd>{appt.proposal.when}</dd></>}
         </dl>
@@ -96,6 +115,7 @@ export default function ApptSheet({ id, onClose, onChanged }: { id: string; onCl
             {has('finish') && <button type="button" className="btn btn--primary" disabled={busy} onClick={() => setMode('finish')}>Terminar</button>}
             {has('no_show') && <button type="button" className="btn btn--ghost" disabled={busy} onClick={() => run(() => admin.act(id, 'no_show'))}>Marcar inasistencia</button>}
             {appt.canCollect && <button type="button" className="btn btn--ghost" disabled={busy} onClick={() => run(() => admin.collect(id))}>Marcar cobrado en el local</button>}
+            {appt.canRefund && <button type="button" className="btn btn--primary" disabled={busy} onClick={() => setMode({ refund: null })}>{pay.refundError ? 'Reintentar reembolso' : 'Reembolsar'} {clp.format(appt.pricing.totalCLP)}</button>}
             {has('reject') && <button type="button" className="btn btn--ghost" disabled={busy} onClick={() => setMode('reject')}>Rechazar</button>}
             {has('cancel') && <button type="button" className="btn btn--danger" disabled={busy} onClick={() => setMode('cancel')}>Cancelar cita</button>}
           </div>
@@ -105,6 +125,20 @@ export default function ApptSheet({ id, onClose, onChanged }: { id: string; onCl
           <ReasonForm label={mode === 'cancel' ? 'Motivo de la cancelación (se le envía al cliente)' : 'Motivo del rechazo (se le envía al cliente)'} cta={mode === 'cancel' ? 'Cancelar la cita' : 'Rechazar la cita'}
             danger busy={busy} onCancel={() => setMode(null)}
             onSubmit={(reason) => run(() => admin.act(id, mode, { reason }))} />
+        )}
+
+        {typeof mode === 'object' && mode !== null && (
+          <div className="adm-inline" role="group" aria-label="Confirmar reembolso">
+            <p>Se devolverá el total ({clp.format(appt.pricing.totalCLP)}) en Mercado Pago{mode.refund ? ` del pago ${mode.refund}` : ''}. El cliente recibe un correo. No se puede deshacer.</p>
+            <div className="ag-actions ag-actions--wrap">
+              <button type="button" className="btn btn--danger" disabled={busy} aria-busy={busy} onClick={async () => {
+                // CB-11: si Mercado Pago falla, se recarga la ficha para ver el error guardado y poder reintentar.
+                await run(() => admin.refund(id, mode.refund ?? undefined));
+                admin.appointment(id).then(setAppt, () => {});
+              }}>{busy ? 'Reembolsando…' : 'Sí, reembolsar'}</button>
+              <button type="button" className="btn btn--ghost" disabled={busy} onClick={() => setMode(null)}>Volver</button>
+            </div>
+          </div>
         )}
 
         {mode === 'propose' && (

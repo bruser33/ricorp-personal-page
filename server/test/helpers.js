@@ -85,7 +85,7 @@ export async function start({ now, geocoder, facebookFetch, env = {}, ...opts } 
   const mailer = opts.mailer || createMailer({ env: { MAIL_DRY_RUN: '1' }, logger: silent });
   const app = createApp({
     env: { FRONT_URL: 'http://localhost:5173', AUTH_SECRET: 'test-secret', ...env },
-    logger: silent,
+    logger: opts.logger || silent,
     clock: () => clock.now,
     agendaMailer: mailer,
     geocoder: geocoder || (async () => null),
@@ -93,6 +93,8 @@ export async function start({ now, geocoder, facebookFetch, env = {}, ...opts } 
     bookingRateLimit: opts.bookingRateLimit || { max: 1000, windowMs: 10 * MIN },
     loginLimit: opts.loginLimit,
     onlinePayments: opts.onlinePayments,
+    /* SPEC-35: borde HTTP de Mercado Pago (servicio externo) → doble en test/mp-fake.js. */
+    mercadoPagoFetch: opts.mercadoPagoFetch,
   });
   const server = await new Promise((resolve) => {
     const s = app.listen(0, '127.0.0.1', () => resolve(s));

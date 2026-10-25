@@ -18,6 +18,8 @@ import { sendPhoto } from './lib/photos.js';
 import { createAdminInbox } from './lib/adminInbox.js';
 import { createAdmin } from './domain/admin.js';
 import { createAdminRouter } from './routes/admin.js';
+import { createPayments, WEBHOOK_PATH } from './domain/payments.js';
+import { handle } from './lib/errors.js';
 
 /* La app SIN listen ni connect: index.js conecta Mongo y escucha, y los tests
    (server/test/contact.test.js) la levantan en un puerto efímero con su
@@ -107,9 +109,13 @@ export function createApp({
   facebookFetch = fetch,
   bookingRateLimit = BOOKING_RATE_LIMIT,
   loginLimit = LOGIN_LIMIT,
-  /* SPEC-34: el proveedor de pago en línea (SPEC-35) está listo. Hasta entonces, false. */
-  onlinePayments = { ready: false },
+  /* SPEC-35: "Pagar en línea" se ofrece si hay credenciales de Mercado Pago (MP_ACCESS_TOKEN).
+     Los tests pueden forzarlo; por defecto se deduce del env. */
+  onlinePayments = null,
+  /* Borde HTTP de Mercado Pago (servicio externo): los tests lo simulan; la BD siempre es real. */
+  mercadoPagoFetch = fetch,
 } = {}) {
+  onlinePayments = onlinePayments ?? { ready: Boolean(env.MP_ACCESS_TOKEN) };
   const app = express();
   /* Detrás del proxy de Render: req.ip tiene que ser la IP del visitante (del
      X-Forwarded-For) y no la del proxy, o el rate limit sería uno para todos. */
@@ -202,11 +208,13 @@ export function createApp({
     adminInbox,
     onlinePayments,
   });
+  /* Pago en línea (SPEC-35). */
+  const payments = createPayments({ agenda, env, clock, logger, adminInbox, frontUrl, fetchImpl: mercadoPagoFetch });
   const bookingLimiter = createRateLimiter(bookingRateLimit);
   /* Barbero (SPEC-33): registro, perfil y panel. */
   const pro = createPro({ agenda, clock, mailer: agendaMailer, logger, frontUrl, env, adminInbox });
   /* Super admin (SPEC-34). */
-  const admin = createAdmin({ agenda, pro, clock, mailer: agendaMailer, logger, frontUrl, env, adminInbox, onlinePayments });
+  const admin = createAdmin({ agenda, pro, clock, mailer: agendaMailer, logger, frontUrl, env, adminInbox, onlinePayments, payments });
   const authRouter = createAuthRouter({ env, clock, mailer: agendaMailer, logger, facebook, frontUrl, secret, loginLimit, onAccountDeleted: agenda.onAccountDeleted, onBarberFacebook: pro.ensureBarber });
   const withSession = sessionMiddleware({ clock });
   const needsDb = (_req, res, next) =>
@@ -218,10 +226,16 @@ export function createApp({
       if (!res.headersSent) res.status(500).json({ ok: false, error: 'server_error' });
     });
   });
-  app.use('/api/wstyle', needsDb, withSession, createWstyleRouter({ agenda, logger, bookingLimiter }));
+  app.use('/api/wstyle', needsDb, withSession, createWstyleRouter({ agenda, payments, logger, bookingLimiter }));
+  /* Webhook de Mercado Pago: público (lo llama Mercado Pago, sin Origin ni cookie); la
+     autenticidad la da la firma x-signature. */
+  app.post(WEBHOOK_PATH, needsDb, handle(async (req, res) => {
+    const [status, body] = await payments.webhook(req);
+    res.status(status).json(body);
+  }, logger));
   app.use('/api/pro', needsDb, withSession, createProRouter({ pro, env, clock, mailer: agendaMailer, logger, frontUrl, loginLimiter: authRouter.loginLimiter }));
   app.use('/api/admin', needsDb, withSession, createAdminRouter({ admin, logger }));
-  Object.assign(app.locals, { agenda, pro, admin, agendaMailer, bookingLimiter, loginLimiter: authRouter.loginLimiter });
+  Object.assign(app.locals, { agenda, pro, admin, payments, agendaMailer, bookingLimiter, loginLimiter: authRouter.loginLimiter });
 
   app.get('/api/health', (_req, res) => {
     /* 'unconfigured' y no 'dry-run' en Render: ahí sin mailer el envío es un 503,

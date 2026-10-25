@@ -216,3 +216,7 @@ button.adm-row:hover { border-color: var(--brass-soft); }
   .adm-row--svc .adm-row__side { flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: flex-start; text-align: left; }
   .adm-row--barber .adm-row__side .adm-row__meta { display: none; }
 }
+
+/* SPEC-35: reembolsos en la ficha de la cita. */
+.adm-refund-err { color: #f2b3a4; }
+.adm-dups { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; }

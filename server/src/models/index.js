@@ -250,8 +250,31 @@ const AppointmentSchema = new Schema(
       platformFeeRate: { type: Number, default: 0 },
       platformFeeCLP: { type: Number, default: 0 },
     },
-    /* status: pendiente | cobrado | pago_pendiente (terminó sin cobrar, SPEC-33 RN-10) | pagado | reembolso_pendiente. */
-    payment: { method: { type: String, default: 'local' }, status: { type: String, default: 'pendiente' }, collectedAt: Date },
+    /* method: local | online (SPEC-35, Mercado Pago).
+       status: pendiente | cobrado | pago_pendiente (terminó sin cobrar, SPEC-33 RN-10) — pago en el local;
+       pendiente | en_proceso | rechazado | pagado | reembolso_pendiente | reembolsado | contracargo — en línea.
+       Los ids de Mercado Pago no son secretos; el access token nunca se guarda en la BD. */
+    payment: {
+      method: { type: String, default: 'local' },
+      status: { type: String, default: 'pendiente' },
+      collectedAt: Date,
+      /* SPEC-35: inicio de la retención (RN-03) y datos del pago en línea. */
+      holdStartedAt: Date,
+      preferenceId: String,
+      attempts: { type: Number, default: 0 },
+      mpPaymentId: String,
+      mpStatus: String,
+      paidAt: Date,
+      refundedAt: Date,
+      refundError: String,
+      refundInFlight: Boolean,
+      lastError: String,
+      /* CB-08: pagos aprobados de más (dos pestañas) → a reembolsar. */
+      duplicates: {
+        type: [{ _id: false, mpPaymentId: String, amountCLP: Number, status: String, refundError: String, refundInFlight: Boolean, refundedAt: Date }],
+        default: undefined,
+      },
+    },
     /* Invitación del barbero (SPEC-33 RN-12): el token va en el link que se manda por WhatsApp. */
     invite: { token: String, sentAt: Date },
     note: String,
@@ -362,6 +385,27 @@ const AuditLogSchema = new Schema(
 AuditLogSchema.index({ businessId: 1, at: -1 });
 export const AuditLog = model('AuditLog', AuditLogSchema);
 
+/* SPEC-35: cada notificación de Mercado Pago aplicada. El índice único (pago, estado) es la
+   idempotencia: el mismo evento recibido N veces (webhook, conciliación o la página de la
+   cita) produce un solo cambio y un solo correo. */
+const PaymentEventSchema = new Schema(
+  {
+    businessId: ObjectId,
+    appointmentId: ObjectId,
+    provider: { type: String, default: 'mercadopago' },
+    mpPaymentId: { type: String, required: true },
+    status: { type: String, required: true },
+    amount: Number,
+    currency: String,
+    via: { type: String, enum: ['webhook', 'reconcile', 'view'] },
+    outcome: String,
+  },
+  { timestamps: true }
+);
+PaymentEventSchema.index({ mpPaymentId: 1, status: 1 }, { unique: true });
+PaymentEventSchema.index({ appointmentId: 1, createdAt: 1 });
+export const PaymentEvent = model('PaymentEvent', PaymentEventSchema);
+
 export const ALL_MODELS = [
   Business,
   Professional,
@@ -379,4 +423,5 @@ export const ALL_MODELS = [
   PanelNotification,
   PlatformSettings,
   AuditLog,
+  PaymentEvent,
 ];

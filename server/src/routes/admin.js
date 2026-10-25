@@ -46,6 +46,8 @@ export function createAdminRouter({ admin, logger }) {
   r.get('/appointments/:id/reassign-options', h(async (req, res) => res.json(await admin.reassignOptions(u(req), req.params.id))));
   r.post('/appointments/:id/reassign', h(async (req, res) => res.json(await admin.reassign(u(req), req.params.id, req.body || {}))));
   r.post('/appointments/:id/collect', h(async (req, res) => res.json(await admin.collect(u(req), req.params.id))));
+  /* SPEC-35 RN-09: reembolso total en Mercado Pago (body.paymentId = un pago duplicado). */
+  r.post('/appointments/:id/refund', h(async (req, res) => res.json(await admin.refund(u(req), req.params.id, req.body || {}))));
   for (const [path, action] of [['confirm', 'confirm'], ['reject', 'reject'], ['cancel', 'cancel'], ['propose', 'propose'], ['start', 'start'], ['finish', 'finish'], ['no-show', 'no_show']]) {
     r.post(`/appointments/:id/${path}`, h(async (req, res) => res.json(await admin.actOnAppointment(u(req), req.params.id, action, req.body || {}))));
   }

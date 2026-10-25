@@ -75,8 +75,9 @@ function SettingsForm({ settings, onSaved }: { settings: Settings; onSaved: (s: 
         <label className="pro-check"><input type="checkbox" checked={online} onChange={(e) => { setOnline(e.target.checked); setErrors((x) => ({ ...x, payments: undefined })); }} /> <span>Pagar en línea (Mercado Pago Checkout Pro)</span></label>
         {errors.payments && <p className="ag-field__error" role="alert">{errors.payments}</p>}
         <p className="adm-mp" data-mp={mp.configured ? mp.mode ?? 'on' : 'off'}>
-          Mercado Pago: {mp.configured ? <>credenciales cargadas · modo <strong>{mp.mode === 'sandbox' ? 'sandbox (pruebas)' : 'producción'}</strong></> : <>sin credenciales (se cargan en <code>server/.env</code>, nunca desde el panel)</>}.
-          {!mp.ready && ' El pago en línea se ofrecerá en la reserva cuando la integración con Mercado Pago (SPEC-35) esté lista; mientras tanto, aunque lo habilites, la reserva sigue con pago en el local.'}
+          {mp.configured
+            ? <>Mercado Pago · Configurado: sí · Modo: <strong>{mp.mode === 'sandbox' ? 'prueba' : 'producción'}</strong>.</>
+            : <><strong>Mercado Pago no configurado.</strong> Las credenciales se cargan en <code>server/.env</code> (nunca desde el panel); mientras falten, "Pagar en línea" no aparece en la reserva aunque lo habilites.</>}
         </p>
       </section>
       <section className="adm-section" aria-labelledby="cfg-fee">

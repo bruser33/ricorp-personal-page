@@ -84,7 +84,9 @@ export interface Catalog {
 export interface Slot { startsAt: string; label: string; professionalIds: string[] }
 export interface Availability { timezone: string; days: { date: string; slots: Slot[] }[] }
 export interface Quote { distanceKm: number; formatted: string; priceCLP: number; professionals: { id: string; surchargeCLP: number; totalCLP: number }[] }
-export type Action = 'cancel' | 'accept' | 'counter' | 'confirm' | 'propose' | 'start' | 'finish' | 'no_show';
+export type Action = 'cancel' | 'accept' | 'counter' | 'confirm' | 'propose' | 'start' | 'finish' | 'no_show' | 'pay' | 'pay_local';
+// SPEC-35: pago de la cita. method 'local' | 'online'; holdUntil = hasta cuándo se retiene la hora mientras se paga.
+export interface Payment { method: string; status: string; holdUntil?: string; paidAt?: string; refundedAt?: string }
 export interface Appointment {
   id: string; status: string; statusLabel: string;
   service: { id: string; name: string; durationMin: number };
@@ -92,6 +94,7 @@ export interface Appointment {
   startsAt: string; endsAt: string; when: string; timezone: string;
   location: { kind: 'shop' | 'home'; address?: string; distanceKm?: number };
   pricing: { priceCLP: number; surchargeCLP: number; totalCLP: number };
+  payment: Payment;
   note: string;
   proposal: { startsAt: string; when: string; expiresAt?: string } | null;
   actions: Action[];
@@ -128,5 +131,7 @@ export const agenda = {
   // inv: token del link de una invitación del barbero (SPEC-33 RN-12); asocia la cita a quien la abre.
   get: (id: string, inv?: string | null) => api<Appointment>(`/api/wstyle/appointments/${encodeURIComponent(id)}${inv ? `?inv=${encodeURIComponent(inv)}` : ''}`),
   act: (id: string, action: Action, body: Record<string, unknown> = {}) =>
-    api<Appointment>(`/api/wstyle/appointments/${encodeURIComponent(id)}/${action === 'no_show' ? 'no-show' : action}`, { method: 'POST', body }),
+    api<Appointment>(`/api/wstyle/appointments/${encodeURIComponent(id)}/${action === 'no_show' ? 'no-show' : action === 'pay_local' ? 'pay-local' : action}`, { method: 'POST', body }),
+  // SPEC-35: el server crea la preferencia de Checkout Pro y devuelve a dónde redirigir (el token nunca pasa por acá).
+  checkout: (id: string) => api<{ initPoint: string; preferenceId: string; holdUntil: string }>(`/api/wstyle/appointments/${encodeURIComponent(id)}/checkout`, { method: 'POST', body: {} }),
 };

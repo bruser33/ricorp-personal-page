@@ -25,7 +25,12 @@ export const MEMBERSHIP_TONE: Record<MembershipStatus, 'wait' | 'ok' | 'off' | '
 
 export const PAYMENT_STATUS_LABEL: Record<string, string> = {
   pendiente: 'Por cobrar', cobrado: 'Cobrado', pago_pendiente: 'Terminó sin cobrar', pagado: 'Pagado en línea', reembolso_pendiente: 'Reembolso pendiente',
+  // SPEC-35 (en línea)
+  en_proceso: 'Pago en proceso', rechazado: 'Pago rechazado', reembolsado: 'Reembolsado', contracargo: 'Contracargo',
 };
+// "pendiente" significa "por cobrar en el local" o "esperando el pago en línea" según el método.
+export const paymentLabel = (p: { method: string; status: string }) =>
+  p.method === 'online' && p.status === 'pendiente' ? 'Esperando el pago' : PAYMENT_STATUS_LABEL[p.status] ?? p.status;
 export const STATUS_OPTIONS: [string, string][] = [
   ['pendiente', 'Esperando confirmación'], ['confirmada', 'Confirmada'], ['propuesta_cambio', 'Propuesta de cambio'], ['invitacion_enviada', 'Invitación enviada'],
   ['en_curso', 'En curso'], ['terminada', 'Terminada'], ['cancelada', 'Cancelada'], ['expirada', 'Expirada'], ['no_asistio', 'No asistió'], ['pendiente_pago', 'Esperando el pago'],

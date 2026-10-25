@@ -60,8 +60,14 @@ const notFound = () => new HttpError(404, 'not_found', 'No encontramos esta cita
 const invalid = (reason, message = 'Esta acción ya no es posible. Recarga para ver el estado actual.') =>
   new HttpError(409, 'invalid_transition', message, { reason });
 
-/* `onlinePayments.ready`: el proveedor de pago en línea está implementado y con credenciales
-   (SPEC-35). Mientras no, "Pagar en línea" no se ofrece aunque el admin lo habilite. */
+/* SPEC-35 RN-03: la hora se retiene 15 min mientras el cliente paga en línea. */
+export const PAYMENT_HOLD_MIN = 15;
+/* Estados del pago en línea antes de aprobarse (se puede ir y venir entre ellos) y después
+   (monótonos: nunca se vuelve de "pagado" a uno de antes). */
+export const PAY_OPEN = ['pendiente', 'en_proceso', 'rechazado'];
+
+/* `onlinePayments.ready`: hay credenciales de Mercado Pago (SPEC-35). Sin ellas "Pagar en
+   línea" no se ofrece aunque el admin lo habilite (CB-09). */
 export function createAgenda({ clock = Date.now, mailer, logger = console, frontUrl = 'http://localhost:5173', geocoder, businessSlug = 'ws-style', adminInbox = null, onlinePayments = { ready: false } }) {
   async function business() {
     const b = await Business.findOne({ slug: businessSlug }).lean();
@@ -251,6 +257,32 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
     };
   }
 
+  /* Plazo del barbero para confirmar (RN-11). */
+  function confirmDeadline(b, startsAt, now) {
+    return Math.min(now + b.settings.confirmWithinMinutes * MIN, startsAt - b.settings.minLeadMinutes * MIN);
+  }
+
+  /* SPEC-35 RN-09: una cita pagada en línea que se cae queda para reembolso. Se llama dentro
+     de la mutación; devuelve true si la marcó (el aviso al admin va después). */
+  function markRefundDue(a) {
+    if (a.payment?.method === 'online' && a.payment?.status === 'pagado') {
+      a.payment.status = 'reembolso_pendiente';
+      return true;
+    }
+    return false;
+  }
+
+  async function alertRefundDue(b, appt, why) {
+    await adminInbox?.notify({
+      kind: 'refund_due',
+      title: `Reembolso pendiente: ${appt.customerSnapshot?.name || 'Cliente'} · $${Number(appt.pricing?.totalCLP || 0).toLocaleString('es-CL')}`,
+      body: `${appt.serviceSnapshot?.name || ''} · ${formatLong(appt.startsAt.getTime(), b.timezone)} · ${why}. Reembólsalo desde la ficha de la cita.`,
+      appointmentId: appt._id,
+      professionalId: appt.professionalId,
+      path: 'citas/?pago=reembolso_pendiente',
+    });
+  }
+
   /* ─── Crear cita (RN-02…RN-15). Nada de lo que manda el cliente es autoridad. */
   async function create({ user, input }) {
     const now = clock();
@@ -280,7 +312,7 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
     /* SPEC-34 AC-09: una forma de pago deshabilitada por el admin se rechaza aunque el front la mande.
        "En línea" además necesita SPEC-35 (hasta entonces nunca se acepta). */
     else if (payMethod === 'local' && !payOpts.local) fields.paymentMethod = 'payment_unavailable';
-    else if (payMethod === 'online') fields.paymentMethod = 'payment_unavailable';
+    else if (payMethod === 'online' && !payOpts.online) fields.paymentMethod = 'payment_unavailable';
     if (Object.keys(fields).length) throw new HttpError(400, Object.values(fields)[0], 'Revisa los datos', { fields });
 
     let pros = await professionals(b, { service, mode });
@@ -340,6 +372,9 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
       const surcharge = mode === 'home' ? pro.homeService.surchargeCLP : 0;
       const total = service.priceCLP + surcharge;
       const endsAt = startsAt + service.durationMin * MIN;
+      /* SPEC-35 RN-03: "Pagar en línea" crea la cita esperando el pago (ocupa la hora 15 min). */
+      const online = payMethod === 'online';
+      const firstStatus = online ? 'pendiente_pago' : 'pendiente';
       const doc = {
         _id: new ObjectId(),
         businessId: b._id,
@@ -352,11 +387,11 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
         endsAt: new Date(endsAt),
         location: { ...location, travelBufferMin: buffer },
         pricing: { priceCLP: service.priceCLP, surchargeCLP: surcharge, totalCLP: total, platformFeeRate: feeRate, platformFeeCLP: Math.round(total * feeRate) },
-        payment: { method: 'local', status: 'pendiente' },
+        payment: online ? { method: 'online', status: 'pendiente', holdStartedAt: new Date(now) } : { method: 'local', status: 'pendiente' },
         note: note || undefined,
-        status: 'pendiente',
-        expiresAt: new Date(Math.min(now + b.settings.confirmWithinMinutes * MIN, startsAt - b.settings.minLeadMinutes * MIN)),
-        history: [{ at: new Date(now), from: null, to: 'pendiente', by: 'client', byUserId: user._id }],
+        status: firstStatus,
+        expiresAt: new Date(online ? now + PAYMENT_HOLD_MIN * MIN : confirmDeadline(b, startsAt, now)),
+        history: [{ at: new Date(now), from: null, to: firstStatus, by: 'client', byUserId: user._id }],
         source: 'web',
         idempotencyKey,
       };
@@ -376,6 +411,8 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
         }, logger);
         if (!user.phoneE164 || user.phoneE164 !== phone) await User.updateOne({ _id: user._id }, { phoneE164: phone });
         await CustomerProfile.updateOne({ businessId: b._id, userId: user._id }, { $inc: { 'counters.appointments': 1 } }, { upsert: true }).catch(() => {});
+        /* En línea: los correos de "reserva recibida" salen cuando se aprueba el pago (RN-04). */
+        if (online) return { appt, mailOk: true };
         const mail = await Promise.all([notify(b, appt, 'client', 'received'), notify(b, appt, 'barber', 'new')]);
         return { appt, mailOk: mail.every(Boolean) };
       } catch (err) {
@@ -475,6 +512,12 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
     const a = [];
     const cancellable = !FINAL.includes(s) && s !== 'en_curso';
     if (role === 'client') {
+      /* SPEC-35 RN-05: mientras dure la retención, reintentar el pago o pasar a pagar en el local. */
+      if (s === 'pendiente_pago' && appt.expiresAt?.getTime() > now && ['pendiente', 'rechazado'].includes(appt.payment?.status)) {
+        const opts = paymentOptions(b);
+        if (opts.online) a.push('pay');
+        if (opts.local) a.push('pay_local');
+      }
       if (cancellable && appt.startsAt.getTime() - now >= b.settings.cancelUntilMinutes * MIN) a.push('cancel');
       if (s === 'propuesta_cambio' && appt.proposal?.expiresAt?.getTime() > now) a.push('accept', 'counter');
       if (s === 'invitacion_enviada') a.push('confirm');
@@ -507,7 +550,7 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
       timezone: tz,
       location: { kind: appt.location?.kind || 'shop', address: appt.location?.kind === 'home' ? appt.location.address?.formatted : [b.address?.street, b.address?.city].filter(Boolean).join(', '), distanceKm: appt.location?.distanceKm },
       pricing: { priceCLP: appt.pricing.priceCLP, surchargeCLP: appt.pricing.surchargeCLP, totalCLP: appt.pricing.totalCLP },
-      payment: appt.payment,
+      payment: paymentView(appt),
       note: appt.note || '',
       proposal: p ? { startsAt: p.startsAt.toISOString(), when: formatLong(p.startsAt.getTime(), tz), expiresAt: p.expiresAt?.toISOString() } : null,
       actions: actionsFor(appt, role, b, now),
@@ -520,6 +563,19 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
       history: appt.history.map((h) => ({ at: h.at.toISOString(), from: h.from, to: h.to, by: h.by, reason: h.reason })),
     };
     if (role === 'barber' || role === 'admin') Object.assign(out, proExtras(appt, b));
+    return out;
+  }
+
+  /* SPEC-35: el pago hacia afuera (sin campos internos como el bloqueo de reembolso). */
+  function paymentView(appt) {
+    const p = appt.payment || {};
+    const out = { method: p.method || 'local', status: p.status || 'pendiente' };
+    if (p.collectedAt) out.collectedAt = p.collectedAt.toISOString();
+    if (out.method === 'online') {
+      if (appt.status === 'pendiente_pago' && appt.expiresAt) out.holdUntil = appt.expiresAt.toISOString();
+      if (p.paidAt) out.paidAt = p.paidAt.toISOString();
+      if (p.refundedAt) out.refundedAt = p.refundedAt.toISOString();
+    }
     return out;
   }
 
@@ -740,12 +796,13 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
         a.status = 'cancelada';
         a.proposal = undefined;
         a.expiresAt = undefined;
-        /* SPEC-35: pagada en línea → queda marcada para reembolso. */
-        if (a.payment?.method !== 'local' && a.payment?.status === 'pagado') a.payment.status = 'reembolso_pendiente';
+        /* SPEC-35 RN-09: pagada en línea → queda marcada para reembolso. */
+        markRefundDue(a);
         return { by, byUserId, reason };
       });
       const who = { client: 'el cliente', barber: appt.professionalSnapshot?.displayName || 'el barbero', admin: 'WS Style' }[role];
       const jobs = [notify(b, appt, 'client', 'cancelled', { cancelledBy: who, reason })];
+      if (appt.payment?.status === 'reembolso_pendiente' && current.payment?.status === 'pagado') jobs.push(alertRefundDue(b, appt, `Cancelada por ${who}`));
       if (role === 'client') jobs.push(notify(b, appt, 'barber', 'client_cancelled', { reason }));
       if (role === 'admin') jobs.push(notify(b, appt, 'barber', 'admin_cancelled', { reason }));
       /* SPEC-34 RN-10: el super admin se entera de las cancelaciones del barbero. */
@@ -793,6 +850,31 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
     throw invalid('unknown_action');
   }
 
+  /* SPEC-35 RN-05: "Cambiar a pagar en el local" mientras la cita espera el pago (y no hay un
+     pago en proceso). Pasa a `pendiente` como cualquier reserva y salen sus correos. */
+  async function payLocal(id, user) {
+    const b = await business();
+    const { appt: current, role } = await load(id, user);
+    const now = clock();
+    if (role !== 'client') throw notFound();
+    if (!paymentOptions(b).local) throw invalid('payment_unavailable', 'El pago en el local no está disponible.');
+    const ok = (a) => a.status === 'pendiente_pago' && ['pendiente', 'rechazado'].includes(a.payment?.status) && a.expiresAt?.getTime() > now;
+    if (!ok(current)) {
+      if (current.payment?.status === 'en_proceso') throw invalid('payment_in_process', 'Tu pago está en proceso. Espera la respuesta de Mercado Pago.');
+      throw invalid('bad_state');
+    }
+    const appt = await mutate(b, current._id, (a) => {
+      if (!ok(a)) throw invalid('stale');
+      a.status = 'pendiente';
+      a.payment.method = 'local';
+      a.payment.status = 'pendiente';
+      a.expiresAt = new Date(confirmDeadline(b, a.startsAt.getTime(), now));
+      return { by: 'client', byUserId: user._id, reason: 'Cambió a pagar en el local' };
+    });
+    await Promise.all([notify(b, appt, 'client', 'received'), notify(b, appt, 'barber', 'new')]);
+    return serialize(appt, role, b, now);
+  }
+
   /* ─── Expiración (RN-11, RN-12). index.js la corre cada minuto; los tests la
      llaman con el reloj inyectado. */
   async function runExpirations() {
@@ -807,10 +889,12 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
           if (a.status !== 'pendiente') throw invalid('stale');
           await SlotLock.deleteMany({ appointmentId: a._id }, { session });
           a.status = 'expirada';
+          markRefundDue(a);
           return { by: 'system', reason: 'Sin confirmación del barbero a tiempo' };
         });
         expired++;
         await notify(b, appt, 'client', 'expired');
+        if (appt.payment?.status === 'reembolso_pendiente' && p.payment?.status === 'pagado') await alertRefundDue(b, appt, 'Expiró sin confirmación del barbero');
       } catch (err) {
         if (!(err instanceof HttpError)) logger.error('[agenda] expirar:', err.message);
       }
@@ -866,6 +950,7 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
         await SlotLock.deleteMany({ appointmentId: x._id }, { session });
         x.status = 'cancelada';
         x.proposal = undefined;
+        if (markRefundDue(x)) alertRefundDue(b, x, 'El cliente eliminó su cuenta').catch(() => {});
         return { by: 'client', byUserId: user._id, reason: 'Cuenta eliminada' };
       }).catch((err) => logger.error('[agenda] cancelar por cuenta eliminada:', err.message));
     }
@@ -884,6 +969,10 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
     actAs,
     load,
     paymentOptions,
+    payLocal,
+    confirmDeadline,
+    markRefundDue,
+    alertRefundDue,
     runExpirations,
     onAccountDeleted,
     serialize,
