@@ -30,7 +30,7 @@ export function Barbers({ site, booking, label }: { site: SiteContent; booking: 
   if (!site.barbers?.enabled || !list.length) return null;
   return (
     <Extra id="barberos" label={label} title="QUIÉN TE ATIENDE.">
-      <div className="barbers reveal">
+      <div className="barbers reveal" data-own-cta="">
         {list.map((b, i) => {
           const agenda = str(b.bookingUrl) ?? booking;
           return (
@@ -64,7 +64,7 @@ export function Membership({ site, booking, label }: { site: SiteContent; bookin
           <h3>{m.name}</h3>
           {Number.isFinite(price) && <p className="member__price"><span>{clp.format(price)}</span> al {m.period || 'mes'}</p>}
           {str(m.note) && <p className="member__note">{m.note}</p>}
-          {booking && <a className="btn btn--primary" href={booking} {...ext(booking)}>Quiero el club</a>}
+          {booking && <a className="btn btn--primary" data-cta="booking" data-own-cta="" href={booking} {...ext(booking)}>Quiero el club</a>}
         </div>
         <ul>{(m.perks ?? []).filter(str).map((p, i) => <li key={i}>{p}</li>)}</ul>
       </article>

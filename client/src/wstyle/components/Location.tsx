@@ -1,5 +1,6 @@
 import { hoursText, str, validHours, type SiteContent } from '../content';
 import { ext } from '../links';
+import Icon from './Icons';
 import './Location.css';
 
 interface Props { site: SiteContent; links: { whatsapp: string | null; tel: string | null; maps: string | null } }
@@ -14,10 +15,10 @@ export default function Location({ site, links }: Props) {
   const phone = str(c.phone);
   return (
     <>
-      <div className="ctas reveal">
-        {links.maps && <a className="btn btn--primary" data-cta="maps" href={links.maps} target="_blank" rel="noopener">Cómo llegar</a>}
-        {links.whatsapp && <a className="btn btn--ghost" data-cta="whatsapp" href={links.whatsapp} target="_blank" rel="noopener">WhatsApp</a>}
-        {links.tel && <a className="btn btn--ghost" data-cta="tel" href={links.tel} {...ext(links.tel)}>Llamar</a>}
+      <div className="ctas reveal" data-own-cta="">
+        {links.maps && <a className="btn btn--primary" data-cta="maps" href={links.maps} target="_blank" rel="noopener"><Icon name="pin" />Cómo llegar</a>}
+        {links.whatsapp && <a className="btn btn--ghost" data-cta="whatsapp" href={links.whatsapp} target="_blank" rel="noopener"><Icon name="whatsapp" />WhatsApp</a>}
+        {links.tel && <a className="btn btn--ghost" data-cta="tel" href={links.tel} {...ext(links.tel)}><Icon name="phone" />Llamar</a>}
       </div>
       <div className="info reveal">
         {rows.length > 0 && (

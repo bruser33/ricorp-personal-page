@@ -23,7 +23,7 @@
 .nav-toggle { display: none; }
 .nav-cta { min-height: 40px; padding: 0 20px; }
 
-/* Compacto: sin RESERVAR en el header (queda el dock); menú overlay a pantalla completa. */
+/* Compacto: sin RESERVAR en el header (el único fijo es la píldora del dock, SPEC-26); menú overlay a pantalla completa. */
 .compact .nav { gap: 12px; }
 .compact .nav__logo { font-size: 22px; }
 .compact .nav-cta { display: none; }

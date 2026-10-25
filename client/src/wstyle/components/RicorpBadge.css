@@ -2,7 +2,7 @@
 /* ─── Marca de agua Ricorp (SPEC-11) */
 .ricorp-badge {
   position: fixed; z-index: 80;
-  left: calc(14px + env(safe-area-inset-left)); bottom: calc(14px + env(safe-area-inset-bottom));   /* abajo a la izquierda: abajo a la derecha van Reservar + WhatsApp (SPEC-11 lo permite) */
+  left: calc(14px + env(safe-area-inset-left)); bottom: calc(14px + env(safe-area-inset-bottom));   /* abajo a la izquierda: abajo a la derecha va la píldora Reservar en móvil (SPEC-26) */
   display: flex; align-items: center; gap: 7px; height: 28px; padding: 0 10px; border-radius: 8px;
   /* D7: badge sólido (opacidad 1, fondo graphite). Discreto por el color del texto, no por transparencia. */
   background: var(--graphite); border: 1px solid rgba(237, 230, 218, .14);

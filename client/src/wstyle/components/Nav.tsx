@@ -5,9 +5,10 @@ interface Props { name: string | null; booking: string | null; scrolled: boolean
 
 const LINKS: [string, string][] = [['#reyes', 'EL LOCAL'], ['#servicios', 'SERVICIOS'], ['#llega', 'VISÍTANOS']];
 
-// Header fijo: wordmark en mayúsculas, EL LOCAL · SERVICIOS · VISÍTANOS y RESERVAR latón. En layout compacto el
-// RESERVAR del header se quita (queda el dock) y el menú es un overlay a pantalla completa con enlaces Anton
-// numerados (PR #9 D7/D8), que incluye Reservar.
+// Header fijo: wordmark en mayúsculas, EL LOCAL · SERVICIOS · VISÍTANOS y RESERVAR latón, que en desktop es el
+// ÚNICO CTA fijo y siempre visible (SPEC-26). En layout compacto el RESERVAR del header se quita (el fijo pasa a ser
+// la píldora del dock) y el menú es un overlay a pantalla completa con enlaces Anton numerados (PR #9 D7/D8), que
+// incluye Reservar.
 export default function Nav({ name, booking, scrolled }: Props) {
   const [open, setOpen] = useState(false);
   useEffect(() => {
@@ -17,7 +18,7 @@ export default function Nav({ name, booking, scrolled }: Props) {
   }, []);
   useEffect(() => { document.documentElement.classList.toggle('menu-open', open); }, [open]);
   const close = () => setOpen(false);
-  const ext = booking && !booking.startsWith('tel:') ? { target: '_blank', rel: 'noopener' } : {};
+  const ext = booking && !booking.startsWith('tel:') ? { target: '_blank', rel: 'noopener' } : {};   // tel: en la misma pestaña
   return (
     <header className={`nav${open ? ' is-open' : ''}${scrolled ? ' is-scrolled' : ''}`}>
       {name && <a className="nav__logo" href="#hero" data-field="name">{name}</a>}

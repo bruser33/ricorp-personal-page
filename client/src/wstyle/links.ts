@@ -29,6 +29,14 @@ export function bookingLink(site: SiteContent) {
   return str(site.booking?.url) ?? l.whatsapp ?? l.tel;
 }
 
+// Texto del CTA de reserva de "Tu trono" (SPEC-26 regla 4): dice "por WhatsApp" solo si el destino de bookingLink()
+// es el WhatsApp de ctaLinks (sin agenda online); con agenda o solo teléfono es "Reservar". null ⇒ sin CTA.
+export function bookingLabel(site: SiteContent) {
+  const href = bookingLink(site);
+  if (!href) return null;
+  return !str(site.booking?.url) && href === ctaLinks(site).whatsapp ? 'Reservar por WhatsApp' : 'Reservar';
+}
+
 // Precio "desde" para el hero: el del corte si existe ("Corte desde $12.000"); si no, el más bajo de la carta.
 export function fromPrice(services: Service[]): { label: string; price: number } | null {
   const corte = services.find((s) => s?.id === 'corte' && Number.isFinite(toCLP(s.priceCLP)));

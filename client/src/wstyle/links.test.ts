@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bookingLink, ctaLinks, DEMO_CONTACT_URL, isDemo } from './links';
+import { bookingLabel, bookingLink, ctaLinks, DEMO_CONTACT_URL, isDemo } from './links';
 import { clPhone } from './lib';
 import { jsonLd, type SiteContent } from './content';
 import siteJson from '../../public/wstyle/content/site.json';
@@ -61,5 +61,29 @@ describe('ctaLinks / bookingLink según demo', () => {
     expect(l.whatsapp).toBe('https://wa.me/56964823175?text=Hola');
     expect(l.tel).toBe('tel:+56964823175');
     expect(bookingLink(s)).toBe('https://wa.me/56964823175?text=Hola');
+  });
+});
+
+// SPEC-26: un único destino de reserva; "Reservar por WhatsApp" solo si ese destino es WhatsApp.
+describe('bookingLabel (SPEC-26)', () => {
+  const real: SiteContent = { ...site, demo: false, booking: {} };
+  it('sin agenda y con WhatsApp: "Reservar por WhatsApp" y destino wa.me', () => {
+    expect(bookingLink(real)).toMatch(/^https:\/\/wa\.me\//);
+    expect(bookingLabel(real)).toBe('Reservar por WhatsApp');
+  });
+  it('con agenda online: "Reservar" y destino la agenda', () => {
+    const s: SiteContent = { ...real, booking: { url: 'https://agenda.example/test' } };
+    expect(bookingLink(s)).toBe('https://agenda.example/test');
+    expect(bookingLabel(s)).toBe('Reservar');
+  });
+  it('solo teléfono: "Reservar" con tel:', () => {
+    const s: SiteContent = { ...real, contact: { ...real.contact, whatsapp: undefined } };
+    expect(bookingLink(s)).toMatch(/^tel:\+569/);
+    expect(bookingLabel(s)).toBe('Reservar');
+  });
+  it('sin ningún canal: null', () => {
+    const s: SiteContent = { ...real, contact: {} };
+    expect(bookingLink(s)).toBeNull();
+    expect(bookingLabel(s)).toBeNull();
   });
 });
