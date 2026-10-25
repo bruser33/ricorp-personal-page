@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { ApiError, auth, type User } from '../api';
 import { clMobile, fieldMessage, isEmail, weakPassword } from '../util';
 import { Field, Notice, PasswordField } from './ui';
+import { PRIVACY_URL, TERMS_URL } from '../../links';
 
 export interface FacebookReturn { fb: string; t: string | null; email: string | null; name?: string | null }
 
@@ -161,7 +162,7 @@ export default function AuthPanel({ facebook, returnTo, fbReturn, onAuthed, befo
           <Field label="Email" type="email" autoComplete="email" inputMode="email" value={email} onChange={edit('email', setEmail)} error={errors.email} />
           <button className="btn btn--primary ag-wide" disabled={busy}>Continuar con email</button>
           {facebookButton && <><p className="ag-or"><span>o</span></p>{facebookButton}</>}
-          <p className="ag-fine">Al continuar aceptas los <a href="/wstyle/#politicas">Términos</a> y la <a href="/wstyle/#politicas">Política de privacidad</a>.</p>
+          <p className="ag-fine">Al continuar aceptas los <a href={TERMS_URL}>Términos</a> y la <a href={PRIVACY_URL}>Política de privacidad</a>.</p>
         </form>
       )}
 

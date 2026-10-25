@@ -1,0 +1,19 @@
+/* Páginas legales de WS Style (/wstyle/privacidad/, /wstyle/terminos/): el marco de la agenda (.ag, agenda.css) con
+   una columna de lectura. Sin tokens nuevos. Todo bajo .lg: en el build este CSS puede quedar ANTES de agenda.css. */
+.lg .lg-main { max-width: 760px; }
+.lg-doc { font-size: 16px; line-height: 1.65; color: var(--bone); overflow-wrap: anywhere; }
+.lg-doc p { margin: 0 0 14px; }
+.lg-doc a { text-decoration: underline; text-underline-offset: 3px; }
+.lg-doc a:hover { color: var(--brass); }
+.lg-doc code { font-size: .92em; padding: 1px 5px; border-radius: 3px; background: var(--graphite); }
+.lg-section { padding-top: 10px; scroll-margin-top: 80px; }
+.lg-section:target .lg-h2 { color: var(--bone); }
+.lg-h2 { margin-top: 28px; }
+.lg-list { margin: 0 0 14px; padding-left: 22px; }
+.lg-list li { margin: 0 0 8px; }
+.lg-list li::marker { color: var(--brass); }
+.lg-policies { margin: 0 0 14px; }
+.lg-policies > div { padding: 12px 0; border-bottom: 1px dashed rgba(237, 230, 218, .12); }
+.lg-policies dt { font-weight: 600; }
+.lg-policies dd { margin: 4px 0 0; color: #b3ab9f; }
+.lg .lg-footer { display: flex; flex-wrap: wrap; gap: 8px 24px; }

@@ -5,6 +5,12 @@ import { str, type Service, type SiteContent } from './content';
 // real, así que WhatsApp/Llamar/Reservar llevan al contacto de Ricorp en vez de marcarlo o escribirle.
 export const DEMO_CONTACT_URL = 'https://ricorp.cl/contacto';
 
+// Páginas legales de WS Style (requeridas por Meta para publicar el inicio con Facebook). Rutas con barra final: Pages
+// sirve la carpeta wstyle/privacidad/index.html. #eliminar-datos = instrucciones de eliminación de datos de Facebook.
+export const PRIVACY_URL = '/wstyle/privacidad/';
+export const TERMS_URL = '/wstyle/terminos/';
+export const DATA_DELETION_ANCHOR = 'eliminar-datos';
+
 // demo: true o "true" (editado a mano, sin importar mayúsculas ni espacios) ⇒ modo demostración.
 export const isDemo = (site: SiteContent) => site.demo === true || String(site.demo).trim().toLowerCase() === 'true';
 

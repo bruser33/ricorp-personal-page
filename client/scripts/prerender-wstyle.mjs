@@ -29,6 +29,17 @@ try {
   put('<!--wstyle-data-->', `<script id="wstyle-data" type="application/json">${JSON.stringify(content).replace(/</g, '\\u003c')}</script>`);
   writeFileSync(OUT, page);
   console.log(`[prerender] dist/wstyle/index.html (${(page.length / 1024).toFixed(1)} kB)`);
+
+  // Páginas legales: HTML estático con el texto (el revisor de Meta y los buscadores lo leen sin JavaScript).
+  const { renderLegal } = await vite.ssrLoadModule('/src/wstyle/legal/ssr.tsx');
+  for (const kind of ['privacidad', 'terminos']) {
+    const file = resolve(ROOT, `dist/wstyle/${kind}/index.html`);
+    const html = readFileSync(file, 'utf8');
+    const mark = `<div id="root" data-legal="${kind}"><!--legal-app--></div>`;
+    if (!html.includes(mark)) throw new Error(`prerender: falta el marcador de la página legal en dist/wstyle/${kind}/index.html`);
+    writeFileSync(file, html.replace(mark, () => `<div id="root" data-legal="${kind}" data-prerendered="">${renderLegal(kind, content.site)}</div>`));
+    console.log(`[prerender] dist/wstyle/${kind}/index.html`);
+  }
 } finally {
   await vite.close();
 }
