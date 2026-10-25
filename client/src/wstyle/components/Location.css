@@ -19,5 +19,10 @@ address { font-style: normal; font-size: 15px; }
   background: rgba(11, 10, 9, .82); backdrop-filter: blur(6px);
 }
 .footer a { color: var(--bone); }
+/* SPEC-25: crédito con el logo Ricorp (alto en px entero, mismo SVG que el badge). */
+.footer [data-powered] { display: inline-flex; align-items: center; gap: 8px; }
+.footer__ricorp { display: inline-flex; border-radius: 4px; }
+.footer__ricorp img { height: 16px; width: auto; display: block; }
+.compact .footer__ricorp img { height: 14px; }
 .compact .footer { margin: 0 0 env(safe-area-inset-bottom); align-self: stretch; }
 .panel--last .ctas { margin: 22px 0 0; }

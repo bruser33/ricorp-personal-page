@@ -124,7 +124,7 @@ export default function App({ initial }: { initial: Content | null }) {
         </Section>
       </main>
       <Booking booking={booking} watch={chapters} />
-      {poweredBy && <RicorpBadge />}
+      {poweredBy && <RicorpBadge watch={chapters} />}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: ld }} />
     </>
   );
