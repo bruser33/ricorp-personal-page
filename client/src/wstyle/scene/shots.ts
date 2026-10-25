@@ -47,14 +47,17 @@ export const SHOTS: Shot[] = [
     mobile: { pos: V(3.2, 1.5, 2.2), target: V(2.3, 1.9, .05) } },
   // Silla de frente a 3/4, desde el lado del espejo (oeste), altura de ojos sentado.
   { id: 'trono',     pos: V(1.7, 1.55, .35),   target: V(2.5, .8, 1.3) },
-  // Cenital: norte arriba, la planta (con el borde superior de los muros) queda en la mitad derecha sin que la
-  // pisen las tarjetas; más baja y con FOV más abierto para acortar el viaje desde/hacia las tomas vecinas.
-  // En vertical se gira (oeste arriba: el largo del local en vertical) y se corre hacia abajo, bajo el carrusel.
-  { id: 'servicios', pos: V(.25, 9.3, 1.81),   target: V(.25, 0, 1.8), up: V(0, 0, -1), fov: 68,
-    mobile: { pos: V(1.76, 8.6, 1.8), target: V(1.75, 0, 1.8), up: V(-1, 0, 0) } },
-  // La puerta vidriada del acceso este (supuesta) como protagonista.
-  // Alineada con blender/layout.json (misma toma en el render de Blender).
-  { id: 'llega',     pos: V(4.4, 1.55, 2.75),  target: V(L.largo, 1.1, (L.acceso.z0 + L.acceso.z1) / 2) },
+  // "La carta" (SPEC-30): plano cálido y cercano de navajas de barbero sobre el mesón (bandeja de cuero, brocha,
+  // toallas; luz cálida rasante propia en Blender). Reemplaza la cenital fría. Las navajas quedan en la mitad derecha
+  // (las tarjetas van a la izquierda); en vertical, en la mitad de abajo, bajo el carrusel.
+  { id: 'servicios', pos: V(2.1, 1.02, .5),    target: V(1.75, .87, .18), fov: 36,
+    mobile: { pos: V(2.0, 1.12, .55), target: V(1.82, .95, .2), fov: 56 } },
+  // Final "Llega" (SPEC-30): la fachada de noche desde la calle (letrero WS STYLE retroiluminado, apliques cálidos,
+  // poste de barbero). Desde la carta la cámara retrocede mirando el local y sale por el centro de la puerta
+  // vidriada (la recta entre ambas poses cruza x = 7 en z ≈ 1.6, y ≈ 1.2: dentro del vano). La fachada queda a la
+  // derecha (texto a la izquierda) y algo baja, para que el letrero no quede bajo el header; en vertical, abajo.
+  { id: 'llega',     pos: V(11, 1.35, 2.46),   target: V(7.1, 1.9, 3.3),
+    mobile: { pos: V(12.4, 1.3, 2.7), target: V(7.1, 2.15, 1.9) } },
 ];
 // Tomas efectivas según la orientación de la pantalla.
 export type EffectiveShot = ShotPose & { id: string };

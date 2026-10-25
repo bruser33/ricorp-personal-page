@@ -59,7 +59,7 @@ export class Experience {
   private frame = 0; private lastY = -1; private active = -1; private prevT = performance.now();
   private raf = 0; private disposed = false;
   private compactNow: boolean;
-  private lb = -1; private readyAt = 0;
+  private lb = -1; private readyAt = 0; private filmFx: HTMLElement | null = null;
   private content: Content | null = null;
   private readonly ro: ResizeObserver;
   private readonly o: ExperienceOptions;
@@ -89,6 +89,27 @@ export class Experience {
     else { this.setMode('3d'); this.o.onProgress(100); }
     this.resize();
   }
+  // SPEC-30: rotación / resize que cruza el layout compacto. La secuencia es por formato (desktop/mobile): se carga la
+  // del formato nuevo en paralelo mientras la actual sigue dibujando ("cover"), y recién entonces se cambia y se
+  // libera la vieja (bitmaps cerrados, blobs soltados). Antes se recargaba la página. Si la nueva falla, queda la
+  // actual.
+  private swapping = false;
+  private async swapFormat() {
+    if (this.swapping || !this.player) return;
+    const want = this.compactNow ? 'mobile' : 'desktop';
+    if (this.player.format === want) return;
+    this.swapping = true;
+    const p = await SequencePlayer.create({ canvas: this.o.seqCanvas, fmt: want, reduced: this.o.reduced, fallbackFmt: 'desktop' });
+    this.swapping = false;
+    if (this.disposed || !p) { p?.dispose(); return; }
+    if (p.format === this.player?.format) { p.dispose(); return; }
+    this.player?.dispose();
+    this.player = p;
+    p.resize(innerWidth, innerHeight, Math.min(devicePixelRatio, 2));
+    this.dirty = true;
+    // El layout pudo volver a cambiar mientras cargaba.
+    if (p.format !== (this.compactNow ? 'mobile' : 'desktop')) void this.swapFormat();
+  }
   private setMode(m: Mode) { this.mode = m; this.dirty = true; this.o.onMode(m); }
   setRenderer3D(r: Renderer3D | null) { this.r3d = r; if (r) r.resize(innerWidth, innerHeight, this.compactNow); this.dirty = true; }
   setContent(c: Content | null) { this.content = c; this.contentDone = true; this.computeAnchors(); this.dirty = true; }
@@ -103,8 +124,8 @@ export class Experience {
     this.rebuildShots(m);
     if (m !== this.compactNow) {
       this.compactNow = m;
-      // La secuencia es por formato (desktop/mobile): al cambiar de layout se recarga la página una vez.
-      if (this.player && this.player.format !== (m ? 'mobile' : 'desktop')) location.reload();
+      // La secuencia es por formato (desktop/mobile): al cambiar de layout se cambia de secuencia sin recargar.
+      if (this.player && this.player.format !== (m ? 'mobile' : 'desktop')) void this.swapFormat();
     }
     this.r3d?.resize(w, h, m);
     this.computeAnchors(); this.dirty = true;
@@ -174,8 +195,9 @@ export class Experience {
       if (this.mode === '3d') { this.r3d!.render(cam); this.dirty = false; this.frame++; }
       this.lastPos.copy(cam.position); this.lastTgt.copy(this.target); this.lastUp.copy(this.curUp); this.lastFov = this.curFov;
     }
-    // Secuencia: frame según el segmento de scroll, suavizado con la misma constante de tiempo que la cámara.
-    if (this.mode === 'seq' && (this.player!.update(this.seqWanted(y), k) || this.dirty)) { this.dirty = false; this.frame++; }
+    // Secuencia: frame según el segmento de scroll, sin suavizado propio (SPEC-30: el scroll ya viene suavizado por
+    // Lenis y el suavizado extra dejaba el frame mostrado varios frames detrás del pedido).
+    if (this.mode === 'seq' && (this.player!.update(this.seqWanted(y)) || this.dirty)) { this.dirty = false; this.frame++; }
     if (this.mode && this.contentDone && !this.ready && this.frame > 0) { this.ready = true; this.readyAt = now; this.o.onReady(); }
     // Letterbox 2.39:1 ("película"): cerrado al aparecer el hero y se abre; entre tomas se cierra un poco y en
     // cada toma (ancla) queda a pantalla completa. Sin movimiento con reduced-motion.
@@ -183,7 +205,14 @@ export class Experience {
       const { f } = this.segment(y);
       const intro = this.ready ? Math.max(0, 1 - (now - this.readyAt) / 1400) : 1;
       const lb = Math.max(intro * intro, .7 * Math.sin(Math.PI * f));
-      if (Math.abs(lb - this.lb) > .002) { this.lb = lb; document.documentElement.style.setProperty('--letterbox', lb.toFixed(3)); }
+      // SPEC-30: la variable va en la capa .film-fx (la única que la usa), no en <html>: cambiar una custom property
+      // en la raíz invalida el estilo de TODO el documento en cada frame del tramo (UpdateLayoutTree de ~80 ms con
+      // CPU 4× en móvil, la mayor long task del recorrido).
+      if (Math.abs(lb - this.lb) > .002) {
+        this.lb = lb;
+        if (!this.filmFx?.isConnected) this.filmFx = document.querySelector<HTMLElement>('.film-fx');
+        (this.filmFx ?? document.documentElement).style.setProperty('--letterbox', lb.toFixed(3));
+      }
     }
     if (y !== this.lastY) { this.o.onScroll(y, Math.max(1, document.documentElement.scrollHeight - innerHeight)); this.lastY = y; }
     if (idx !== this.active) { this.active = idx; this.o.onActive(idx); }
@@ -200,7 +229,8 @@ export class Experience {
       get gl() { return !!self.r3d; },
       get seqFrame() { return self.player ? self.player.shown : null; },
       // loaded = frames distintos cargados alguna vez; retained = decodificados en memoria ahora (anclas + ventana).
-      get seq() { const p = self.player; return p ? { count: p.count, total: p.total, loaded: p.loaded, retained: p.retained, anchorFrames: p.anchorFrames, size: p.size, wanted: p.wanted, format: p.format, variant: p.variant } : null; },
+      // retainedBytes = bitmaps vivos × ancho × alto × 4; budget = máximo de bitmaps; fetches = requests de frames hechos.
+      get seq() { const p = self.player; return p ? { count: p.count, total: p.total, loaded: p.loaded, retained: p.retained, retainedBytes: p.retainedBytes, budget: p.budget, fetches: p.fetches, decoder: p.decoder, vel: p.vel, wantedState: p.stateOf(Math.round(p.wanted)), drawMaxMs: p.drawMaxMs, pumpMaxMs: p.pumpMaxMs, anchorFrames: p.anchorFrames, size: p.size, wanted: p.wanted, format: p.format, variant: p.variant } : null; },
       get shots() { return self.SH.map((s) => ({ id: s.id, pos: s.pos.toArray(), target: s.target.toArray() })); },
       // up/forward = ejes reales de la cámara (para medir el giro sobre el eje de visión).
       get camera() { return { pos: self.camera.position.toArray(), target: self.target.toArray(), ...self.axes(self.camera) }; },
