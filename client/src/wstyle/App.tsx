@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { headTexts, jsonLd, str, type Content } from './content';
-import { bookingLabel, bookingLink, clp, ctaLinks, ext, fromPrice, isDemo } from './links';
+import { bookingLabel, bookingLink, clp, ctaLinks, ext, fromPrice, isDemo, isWhatsAppUrl } from './links';
 import { useContent } from './hooks/useContent';
 import { useScrollCamera } from './hooks/useScrollCamera';
 import { useReveal } from './hooks/useReveal';
@@ -102,10 +102,11 @@ export default function App({ initial }: { initial: Content | null }) {
         <Section id="linea" label={lab('linea')} headline={h.linea} copy={copy.linea} />
         <Section id="afilado" label={lab('afilado')} headline={h.afilado} copy={copy.afilado} />
         <Section id="trono" label={lab('trono')} headline={h.trono} copy={copy.trono}>
-          {/* SPEC-26: el primario reserva (bookingLink); WhatsApp y Llamar quedan como secundarios. */}
+          {/* SPEC-26: el primario reserva (bookingLink); WhatsApp y Llamar quedan como secundarios. El ghost de WhatsApp
+              solo se omite si el primario ya es ese mismo wa.me (en demo ambos van al contacto y se muestran). */}
           <div className="ctas reveal" data-own-cta="">
             {booking && <a className="btn btn--primary" data-cta="booking" href={booking} {...ext(booking)}>{bookLabel}</a>}
-            {links.whatsapp && bookLabel !== 'Reservar por WhatsApp' && <a className="btn btn--ghost" data-cta="whatsapp" href={links.whatsapp} target="_blank" rel="noopener"><Icon name="whatsapp" />WhatsApp</a>}
+            {links.whatsapp && !(booking === links.whatsapp && isWhatsAppUrl(booking)) && <a className="btn btn--ghost" data-cta="whatsapp" href={links.whatsapp} target="_blank" rel="noopener"><Icon name="whatsapp" />WhatsApp</a>}
             {links.tel && <a className="btn btn--ghost" data-cta="tel" href={links.tel} {...ext(links.tel)}><Icon name="phone" />Llamar</a>}
           </div>
         </Section>

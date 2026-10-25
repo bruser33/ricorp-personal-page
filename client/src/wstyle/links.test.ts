@@ -85,5 +85,21 @@ describe('bookingLabel (SPEC-26)', () => {
     const s: SiteContent = { ...real, contact: {} };
     expect(bookingLink(s)).toBeNull();
     expect(bookingLabel(s)).toBeNull();
+  });  // El site.json que se entrega es demo:true sin booking.url: el destino es DEMO_CONTACT_URL, que no es WhatsApp.
+  it('site.json tal cual (demo): "Reservar" con destino el contacto de Ricorp', () => {
+    expect(isDemo(site)).toBe(true);
+    expect(bookingLink(site)).toBe(DEMO_CONTACT_URL);
+    expect(bookingLabel(site)).toBe('Reservar');
+  });
+  it.each([true, 'true'])('demo=%j sin agenda: nunca dice "por WhatsApp"', (demo) => {
+    const s = { ...real, demo } as SiteContent;
+    expect(bookingLink(s)).toBe(DEMO_CONTACT_URL);
+    expect(bookingLabel(s)).toBe('Reservar');
+  });
+  it('el texto coincide con el esquema del destino', () => {
+    for (const s of [site, real, { ...real, booking: { url: 'https://wa.me/56900000001' } } as SiteContent]) {
+      const href = bookingLink(s)!;
+      expect(bookingLabel(s) === 'Reservar por WhatsApp').toBe(href.startsWith('https://wa.me/'));
+    }
   });
 });
