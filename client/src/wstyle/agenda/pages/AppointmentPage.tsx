@@ -14,6 +14,7 @@ const FINAL = ['terminada', 'cancelada', 'expirada', 'no_asistio'];
 export default function AppointmentPage({ ctx }: { ctx: AgendaCtx }) {
   const { session, whatsapp, fbReturn } = ctx;
   const id = new URLSearchParams(location.search).get('id') ?? '';
+  const inv = new URLSearchParams(location.search).get('inv');
   const [appt, setAppt] = useState<Appointment | null>(null);
   const [state, setState] = useState<'loading' | 'ready' | 'notfound' | 'error'>('loading');
   const [msg, setMsg] = useState<{ tone: 'ok' | 'error'; text: string } | null>(null);
@@ -24,14 +25,14 @@ export default function AppointmentPage({ ctx }: { ctx: AgendaCtx }) {
 
   const fetchAppt = useCallback(async () => {
     try {
-      setAppt(await agenda.get(id));
+      setAppt(await agenda.get(id, inv));
       setState('ready');
     } catch (e) {
       if (e instanceof ApiError && (e.status === 404 || e.status === 400)) setState('notfound');
       else if (e instanceof ApiError && e.status === 401) session.setUser(null);
       else setState('error');
     }
-  }, [id, session]);
+  }, [id, inv, session]);
 
   const user = session.user;
   useEffect(() => {
@@ -59,7 +60,7 @@ export default function AppointmentPage({ ctx }: { ctx: AgendaCtx }) {
     }
   }
 
-  const here = `/wstyle/cita/?id=${encodeURIComponent(id)}`;
+  const here = `/wstyle/cita/?id=${encodeURIComponent(id)}${inv ? `&inv=${encodeURIComponent(inv)}` : ''}`;
   if (session.status === 'loading') return <Shell user={null} current="cita"><Spinner label="Cargando tu cita…" /></Shell>;
   if (session.status === 'offline') return <Shell user={null} current="cita"><Unavailable whatsapp={whatsapp} onRetry={() => session.refresh()} /></Shell>;
   if (!user) {

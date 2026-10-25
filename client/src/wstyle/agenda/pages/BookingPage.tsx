@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
-import { agenda, ApiError, auth, type Appointment, type Catalog, type Quote, type Slot } from '../api';
+import { agenda, API_BASE, ApiError, auth, type Appointment, type Catalog, type Quote, type Slot } from '../api';
 import type { AgendaCtx } from '../ctx';
 import AuthPanel from '../components/AuthPanel';
 import Calendar, { TimeChips } from '../components/Calendar';
@@ -263,7 +263,7 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
                   {pros.length === 0 && <p className="ag-muted">Por ahora nadie atiende este servicio en línea. Escríbenos por WhatsApp.</p>}
                   {pros.map((p) => (
                     <button key={p.id} type="button" className={`ag-option ag-pro${sel.professionalId === p.id ? ' is-selected' : ''}`} aria-pressed={sel.professionalId === p.id} onClick={() => pickPro(p.id)}>
-                      <span className="ag-pro__avatar" aria-hidden="true">{p.photo ? <img src={p.photo} alt="" /> : p.name.charAt(0)}</span>
+                      <span className="ag-pro__avatar" aria-hidden="true">{p.photo ? <img src={p.photo.startsWith('/api/') ? API_BASE + p.photo : p.photo} alt="" /> : p.name.charAt(0)}</span>
                       <span>
                         <span className="ag-option__name">{p.name} {p.homeService && <span className="ag-tag" title="Hace domicilio"><MotoIcon /><span className="ag-sr">Hace domicilio</span></span>}</span>
                         {p.specialty && <span className="ag-option__meta">{p.specialty}</span>}

@@ -12,6 +12,9 @@ import { sessionMiddleware } from './lib/session.js';
 import { createAgenda } from './domain/agenda.js';
 import { createAuthRouter, LOGIN_LIMIT } from './routes/auth.js';
 import { createWstyleRouter } from './routes/wstyle.js';
+import { createPro } from './domain/pro.js';
+import { createProRouter } from './routes/pro.js';
+import { sendPhoto } from './lib/photos.js';
 
 /* La app SIN listen ni connect: index.js conecta Mongo y escucha, y los tests
    (server/test/contact.test.js) la levantan en un puerto efímero con su
@@ -191,13 +194,22 @@ export function createApp({
     businessSlug: env.BUSINESS_SLUG || 'ws-style',
   });
   const bookingLimiter = createRateLimiter(bookingRateLimit);
-  const authRouter = createAuthRouter({ env, clock, mailer: agendaMailer, logger, facebook, frontUrl, secret, loginLimit, onAccountDeleted: agenda.onAccountDeleted });
+  /* Barbero (SPEC-33): registro, perfil y panel. */
+  const pro = createPro({ agenda, clock, mailer: agendaMailer, logger, frontUrl, env });
+  const authRouter = createAuthRouter({ env, clock, mailer: agendaMailer, logger, facebook, frontUrl, secret, loginLimit, onAccountDeleted: agenda.onAccountDeleted, onBarberFacebook: pro.ensureBarber });
   const withSession = sessionMiddleware({ clock });
   const needsDb = (_req, res, next) =>
     mongoose.connection.readyState === 1 ? next() : res.status(503).json({ ok: false, error: 'db_unavailable' });
   app.use('/api/auth', needsDb, withSession, authRouter);
+  app.get('/api/wstyle/photos/:id', needsDb, (req, res) => {
+    sendPhoto(req.params.id, res).catch((err) => {
+      logger.error('[photos]', err.message);
+      if (!res.headersSent) res.status(500).json({ ok: false, error: 'server_error' });
+    });
+  });
   app.use('/api/wstyle', needsDb, withSession, createWstyleRouter({ agenda, logger, bookingLimiter }));
-  Object.assign(app.locals, { agenda, agendaMailer, bookingLimiter, loginLimiter: authRouter.loginLimiter });
+  app.use('/api/pro', needsDb, withSession, createProRouter({ pro, env, clock, mailer: agendaMailer, logger, frontUrl, loginLimiter: authRouter.loginLimiter }));
+  Object.assign(app.locals, { agenda, pro, agendaMailer, bookingLimiter, loginLimiter: authRouter.loginLimiter });
 
   app.get('/api/health', (_req, res) => {
     /* 'unconfigured' y no 'dry-run' en Render: ahí sin mailer el envío es un 503,

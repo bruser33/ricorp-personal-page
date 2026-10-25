@@ -48,7 +48,8 @@ export function createWstyleRouter({ agenda, logger, bookingLimiter }) {
 
   r.get('/appointments/mine', h(async (req, res) => res.json(await agenda.mine(requireUser(req)))));
 
-  r.get('/appointments/:id', h(async (req, res) => res.json(await agenda.view(req.params.id, req.user))));
+  /* ?inv=<token>: link de una invitación del barbero (SPEC-33 RN-12) → asocia la cita a quien la abre. */
+  r.get('/appointments/:id', h(async (req, res) => res.json(await agenda.view(req.params.id, req.user, { inv: req.query.inv ? String(req.query.inv) : null }))));
 
   for (const [path, action] of [
     ['cancel', 'cancel'],

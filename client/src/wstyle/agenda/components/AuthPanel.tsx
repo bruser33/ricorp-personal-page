@@ -3,7 +3,7 @@ import { ApiError, auth, type User } from '../api';
 import { clMobile, fieldMessage, isEmail, weakPassword } from '../util';
 import { Field, Notice, PasswordField } from './ui';
 
-export interface FacebookReturn { fb: string; t: string | null; email: string | null }
+export interface FacebookReturn { fb: string; t: string | null; email: string | null; name?: string | null }
 
 type View =
   | { k: 'email' }
@@ -27,11 +27,12 @@ interface Props {
   onAuthed: (user: User, info: { created: boolean; verificationSent?: boolean }) => void;
   beforeFacebook?: () => void;              // guardar la selección antes de salir del sitio
   title?: string;
+  facebookUrl?: string;                     // otro inicio con Facebook (p.ej. el del registro de barbero)
 }
 
 // Registro / inicio de sesión del cliente (flujos A, B y C de SPEC-32), igual dentro de la reserva y en /cuenta/.
 // Email primero; según exista o no la cuenta, "Entrar" o "Crear cuenta". Sin Instagram ni Google (RN-25).
-export default function AuthPanel({ facebook, returnTo, fbReturn, onAuthed, beforeFacebook, title = '¿Cuál es tu correo?' }: Props) {
+export default function AuthPanel({ facebook, returnTo, fbReturn, onAuthed, beforeFacebook, title = '¿Cuál es tu correo?', facebookUrl }: Props) {
   const [view, setView] = useState<View>(() => {
     if (fbReturn?.fb === 'vincular' && fbReturn.t) return { k: 'fb_link', token: fbReturn.t, email: fbReturn.email ?? '' };
     if (fbReturn?.fb === 'email' && fbReturn.t) return { k: 'fb_email', token: fbReturn.t };
@@ -143,7 +144,7 @@ export default function AuthPanel({ facebook, returnTo, fbReturn, onAuthed, befo
   }
 
   const facebookButton = facebook && (
-    <a className="btn ag-btn-fb" href={auth.facebookStartUrl(returnTo)} onClick={() => beforeFacebook?.()}>
+    <a className="btn ag-btn-fb" href={facebookUrl ?? auth.facebookStartUrl(returnTo)} onClick={() => beforeFacebook?.()}>
       <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M13.5 21v-7.5H16l.4-3h-2.9V8.6c0-.9.3-1.5 1.5-1.5h1.6V4.4a21 21 0 0 0-2.3-.1c-2.3 0-3.9 1.4-3.9 4v2.2H8v3h2.4V21h3.1Z" /></svg>
       Continuar con Facebook
     </a>

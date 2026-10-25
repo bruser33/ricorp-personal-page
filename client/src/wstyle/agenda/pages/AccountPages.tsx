@@ -28,6 +28,7 @@ export function AccountPage({ ctx }: { ctx: AgendaCtx }) {
           {deleted && <Notice tone="ok">Tu cuenta fue eliminada.</Notice>}
           <AuthPanel facebook={session.facebook} returnTo="/wstyle/cuenta/" fbReturn={fbReturn}
             onAuthed={(u, info) => { session.setUser(u); if (info.created) setWelcome(`¡Listo, ${u.name.split(' ')[0]}! Te enviamos un correo para confirmar tu email.`); }} />
+          <p className="ag-fine"><a href="/wstyle/pro/registro/">¿Eres barbero? Trabaja con nosotros</a></p>
         </div>
       </Shell>
     );
@@ -74,6 +75,7 @@ export function AccountPage({ ctx }: { ctx: AgendaCtx }) {
           <a className="btn btn--ghost" href="/wstyle/cuenta/mis-citas/">Mis citas</a>
           <button type="button" className="btn btn--ghost" onClick={() => session.logout()}>Cerrar sesión</button>
         </div>
+        <p className="ag-fine">{user.roles.includes('barber') ? <a href="/wstyle/pro/">Ir a mi panel de barbero</a> : <a href="/wstyle/pro/registro/">¿Eres barbero? Trabaja con nosotros</a>}</p>
         <details className="ag-danger">
           <summary>Eliminar mi cuenta</summary>
           <p>Se borran tus datos personales, se cancelan tus citas futuras y las pasadas quedan como "Cliente eliminado". No se puede deshacer.</p>

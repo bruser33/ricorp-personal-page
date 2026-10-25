@@ -118,7 +118,8 @@ export const agenda = {
   quote: (body: { serviceId: string; professionalId: string; address: { street: string; commune: string; details?: string } }) => api<Quote>('/api/wstyle/quote', { method: 'POST', body }),
   create: (body: Record<string, unknown>) => api<{ ok: boolean; id: string; mailOk?: boolean; appointment: Appointment }>('/api/wstyle/appointments', { method: 'POST', body }),
   mine: () => api<{ upcoming: Appointment[]; past: Appointment[] }>('/api/wstyle/appointments/mine'),
-  get: (id: string) => api<Appointment>(`/api/wstyle/appointments/${encodeURIComponent(id)}`),
+  // inv: token del link de una invitación del barbero (SPEC-33 RN-12); asocia la cita a quien la abre.
+  get: (id: string, inv?: string | null) => api<Appointment>(`/api/wstyle/appointments/${encodeURIComponent(id)}${inv ? `?inv=${encodeURIComponent(inv)}` : ''}`),
   act: (id: string, action: Action, body: Record<string, unknown> = {}) =>
     api<Appointment>(`/api/wstyle/appointments/${encodeURIComponent(id)}/${action === 'no_show' ? 'no-show' : action}`, { method: 'POST', body }),
 };

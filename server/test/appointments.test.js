@@ -104,7 +104,7 @@ describe('citas', () => {
     /* Iniciar y terminar. */
     ctx.clock.now = Date.parse(at('13:00'));
     assert.equal((await post(`/api/wstyle/appointments/${id}/start`, {}, bCookie)).json.status, 'en_curso');
-    assert.equal((await post(`/api/wstyle/appointments/${id}/finish`, {}, bCookie)).json.status, 'terminada');
+    assert.equal((await post(`/api/wstyle/appointments/${id}/finish`, { collected: true }, bCookie)).json.status, 'terminada');
     /* terminada → cancelada: inválida. */
     r = await post(`/api/wstyle/appointments/${id}/cancel`, {}, bCookie);
     assert.equal(r.status, 409);

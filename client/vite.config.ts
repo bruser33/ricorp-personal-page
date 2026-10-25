@@ -38,6 +38,10 @@ export default defineConfig({
             resolve(import.meta.dirname, `wstyle/${r}/index.html`),
           ]),
         ),
+        // Panel del barbero (SPEC-33): /wstyle/pro/, /pro/registro/, /pro/agenda/ y /pro/perfil/.
+        ...Object.fromEntries(
+          ['pro', 'pro/registro', 'pro/agenda', 'pro/perfil'].map((r) => [`wstyle-${r.replace('/', '-')}`, resolve(import.meta.dirname, `wstyle/${r}/index.html`)]),
+        ),
       },
       // Chunk explícito para React (compartido por ambas páginas): sin esto el bundler arma un chunk común que
       // mezcla React con la matemática de three y la home terminaría precargándola.

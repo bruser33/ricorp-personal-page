@@ -37,12 +37,13 @@ export function useSession() {
 }
 
 /* Lee y limpia de la URL los parámetros con que vuelve el inicio con Facebook (?fb=…&t=…&email=…). */
-export function takeFacebookParams(): { fb: string; t: string | null; email: string | null } | null {
+export function takeFacebookParams(): { fb: string; t: string | null; email: string | null; name?: string | null } | null {
   const url = new URL(location.href);
   const fb = url.searchParams.get('fb');
   if (!fb) return null;
-  const out = { fb, t: url.searchParams.get('t'), email: url.searchParams.get('email') };
-  for (const k of ['fb', 't', 'email']) url.searchParams.delete(k);
+  // name: lo manda el registro de barbero cuando Facebook no entregó el correo (SPEC-33 CB-13).
+  const out = { fb, t: url.searchParams.get('t'), email: url.searchParams.get('email'), name: url.searchParams.get('name') };
+  for (const k of ['fb', 't', 'email', 'name']) url.searchParams.delete(k);
   history.replaceState(history.state, '', url.pathname + (url.search ? url.search : '') + url.hash);
   return out;
 }

@@ -11,6 +11,7 @@ import {
   FINAL,
   Membership,
   Notification,
+  PanelNotification,
   PlatformSettings,
   Professional,
   ProfessionalService,
@@ -22,7 +23,7 @@ import {
 import { HttpError } from '../lib/errors.js';
 import { isDuplicateKey, withTransaction } from '../lib/db.js';
 import { clMobile, MAX_NOTE } from '../lib/validate.js';
-import { appointmentMail, waLink } from '../lib/emails.js';
+import { appointmentMail, BARBER_EVENT_TITLE, waLink } from '../lib/emails.js';
 import { daySlots, distanceKm, slotsFor } from './availability.js';
 import { addDays, formatLong, isDate, isoWeekday, wallClock, zonedToUtc } from './time.js';
 
@@ -42,6 +43,16 @@ export const STATUS_LABEL = {
   expirada: 'Expirada',
   no_asistio: 'No asistió',
 };
+
+/* Fotos del barbero (SPEC-33 RN-17): en Professional.photos se guarda el id del archivo en
+   GridFS; hacia afuera va la URL relativa a la API (el front le antepone su API_BASE). */
+export const photoUrl = (idOrUrl) => (/^[a-f0-9]{24}$/.test(String(idOrUrl)) ? `/api/wstyle/photos/${idOrUrl}` : idOrUrl);
+
+/* Motivos de cancelación del barbero (SPEC-33 RN-09). */
+export const CANCEL_REASONS = { imprevisto: 'Imprevisto personal', enfermedad: 'Enfermedad', local: 'Problema con el local', otro: 'Otro' };
+
+/* Margen para "Iniciar" e "Inasistencia" (SPEC-33 RN-10, RN-11). */
+export const START_WINDOW_MIN = 15;
 
 const oid = (s) => (ObjectId.isValid(String(s)) && String(new ObjectId(String(s))) === String(s) ? new ObjectId(String(s)) : null);
 const notFound = () => new HttpError(404, 'not_found', 'No encontramos esta cita');
@@ -79,6 +90,8 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
       const myRules = rules.filter((r) => String(r.professionalId) === String(p._id));
       if (!myRules.length) continue;
       const serviceIds = links.filter((l) => String(l.professionalId) === String(p._id)).map((l) => String(l.serviceId));
+      /* SPEC-33 RN-04: sin al menos un servicio no es reservable. */
+      if (!serviceIds.length) continue;
       if (service && !serviceIds.includes(String(service._id))) continue;
       if (mode === 'home' && (!p.homeService?.enabled || (service && service.homeServiceAllowed === false))) continue;
       out.push({ ...p, rules: myRules, serviceIds });
@@ -90,7 +103,7 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
     id: String(p._id),
     name: p.displayName,
     specialty: p.specialty || '',
-    photo: p.photos?.[0] || null,
+    photo: p.photos?.[0] ? photoUrl(p.photos[0]) : null,
     homeService: p.homeService?.enabled ? { surchargeCLP: p.homeService.surchargeCLP, radiusKm: p.homeService.radiusKm } : null,
     serviceIds: p.serviceIds,
   });
@@ -118,7 +131,7 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
 
   /* Horas libres por día para una lista de profesionales. `exclude` = cita propia
      (contrapropuesta: sus bloques no se cuentan como ocupados). */
-  async function availabilityFor(b, { service, pros, from, to, mode, now, exclude = null }) {
+  async function availabilityFor(b, { service, pros, from, to, mode, now, exclude = null, minLeadMin = b.settings.minLeadMinutes }) {
     const tz = b.timezone;
     const today = wallClock(now, tz).date;
     const lastDay = addDays(today, b.settings.horizonDays);
@@ -154,7 +167,7 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
           durationMin: service.durationMin,
           bufferMin: mode === 'home' ? p.homeService?.travelBufferMin ?? 30 : 0,
           now,
-          minLeadMin: b.settings.minLeadMinutes,
+          minLeadMin,
           horizonDays: b.settings.horizonDays,
         });
         for (const s of slots) {
@@ -359,6 +372,17 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
     try {
       const tz = b.timezone;
       const pro = await Professional.findById(appt.professionalId).lean();
+      /* SPEC-33 RN-16: todo aviso al barbero también queda en la bandeja de su panel. */
+      if (to === 'barber' && pro?.userId) {
+        await PanelNotification.create({
+          userId: pro.userId,
+          professionalId: pro._id,
+          appointmentId: appt._id,
+          kind,
+          title: BARBER_EVENT_TITLE[kind] || 'Novedad en tu agenda',
+          body: `${appt.customerSnapshot?.name || 'Cliente'} · ${appt.serviceSnapshot?.name || ''} · ${formatLong(appt.startsAt.getTime(), tz)}`,
+        }).catch((err) => logger.error('[agenda] bandeja:', err.message));
+      }
       let email = null;
       if (to === 'client') {
         email = appt.customerSnapshot?.email || (appt.customerUserId ? (await User.findById(appt.customerUserId).lean())?.email : null);
@@ -399,11 +423,24 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
     return null;
   }
 
-  async function load(id, user) {
+  async function load(id, user, { inv = null } = {}) {
     if (!user) throw new HttpError(401, 'unauthorized', 'Inicia sesión para ver tu cita');
     const _id = oid(id);
-    const appt = _id ? await Appointment.findById(_id) : null;
+    let appt = _id ? await Appointment.findById(_id) : null;
     if (!appt) throw notFound();
+    /* SPEC-33 RN-12: quien abre el link de una invitación (con su token) y aún no tiene
+       dueño queda asociado a la cita. Nunca el propio barbero. */
+    if (inv && appt.status === 'invitacion_enviada' && !appt.customerUserId && appt.invite?.token && appt.invite.token === String(inv)) {
+      const self = await Professional.exists({ _id: appt.professionalId, userId: user._id });
+      if (!self) {
+        await Appointment.updateOne(
+          { _id: appt._id, customerUserId: null },
+          { $set: { customerUserId: user._id, 'customerSnapshot.email': user.email, 'customerSnapshot.name': appt.customerSnapshot?.name || user.name } }
+        );
+        if (!user.roles.includes('client')) await User.updateOne({ _id: user._id }, { $addToSet: { roles: 'client' } });
+        appt = await Appointment.findById(appt._id);
+      }
+    }
     const role = await roleFor(user, appt);
     /* Otro cliente → 404: no se revela que la cita existe. */
     if (!role) throw notFound();
@@ -419,11 +456,12 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
       if (s === 'propuesta_cambio' && appt.proposal?.expiresAt?.getTime() > now) a.push('accept', 'counter');
       if (s === 'invitacion_enviada') a.push('confirm');
     } else if (role === 'barber' || role === 'admin') {
-      if (s === 'pendiente') a.push('confirm');
+      if (s === 'pendiente') a.push('confirm', 'reject');
       if (s === 'pendiente' || s === 'confirmada') a.push('propose');
-      if (s === 'confirmada') a.push('start');
+      if (s === 'invitacion_enviada') a.push('reschedule');
+      if (s === 'confirmada' && now >= appt.startsAt.getTime() - START_WINDOW_MIN * MIN) a.push('start');
       if (s === 'en_curso') a.push('finish');
-      if (s === 'confirmada' && now >= appt.startsAt.getTime() + 15 * MIN) a.push('no_show');
+      if (s === 'confirmada' && now >= appt.startsAt.getTime() + START_WINDOW_MIN * MIN) a.push('no_show');
       if (cancellable) a.push('cancel');
     }
     return a;
@@ -433,7 +471,7 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
     const pro = await Professional.findById(appt.professionalId).lean();
     const tz = b.timezone;
     const p = appt.proposal?.startsAt ? appt.proposal : null;
-    return {
+    const out = {
       id: String(appt._id),
       status: appt.status,
       statusLabel: STATUS_LABEL[appt.status],
@@ -458,11 +496,40 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
       shopWhatsapp: waLink(b.contact?.whatsapp, 'Hola, te escribo por mi cita'),
       history: appt.history.map((h) => ({ at: h.at.toISOString(), from: h.from, to: h.to, by: h.by, reason: h.reason })),
     };
+    if (role === 'barber' || role === 'admin') Object.assign(out, proExtras(appt, b));
+    return out;
   }
 
-  async function view(id, user) {
+  /* SPEC-33 RN-14/RN-15: lo que el barbero necesita para atender (nunca el email del cliente). */
+  function proExtras(appt, b) {
+    const home = appt.location?.kind === 'home';
+    const coords = appt.location?.point?.coordinates;
+    const hasCoords = Array.isArray(coords) && coords.length === 2 && coords.every(Number.isFinite);
+    const destination = hasCoords ? `${coords[1]},${coords[0]}` : encodeURIComponent(appt.location?.address?.formatted || '');
+    const phone = appt.customerSnapshot?.phoneE164;
+    return {
+      mapsUrl: home && (hasCoords || appt.location?.address?.formatted) ? `https://www.google.com/maps/dir/?api=1&destination=${destination}` : null,
+      telUrl: phone ? `tel:${phone}` : null,
+      startOpensAt: new Date(appt.startsAt.getTime() - START_WINDOW_MIN * MIN).toISOString(),
+      noShowOpensAt: new Date(appt.startsAt.getTime() + START_WINDOW_MIN * MIN).toISOString(),
+      source: appt.source,
+      invite: appt.status === 'invitacion_enviada' && appt.invite?.token ? inviteLinks(appt, b) : null,
+      expiresAt: appt.expiresAt ? appt.expiresAt.toISOString() : null,
+    };
+  }
+
+  /* RN-12: "Hola <nombre>, te agendé <servicio> el <día> a las <hh:mm> en WS Style. Confírmala aquí: <link>" */
+  function inviteLinks(appt, b) {
+    const url = `${frontUrl}/wstyle/cita/?id=${appt._id}&inv=${appt.invite.token}`;
+    const w = wallClock(appt.startsAt.getTime(), b.timezone);
+    const day = new Intl.DateTimeFormat('es-CL', { timeZone: b.timezone, weekday: 'long', day: 'numeric', month: 'long' }).format(appt.startsAt).replace(',', '');
+    const text = `Hola ${appt.customerSnapshot?.name || ''}, te agendé ${appt.serviceSnapshot.name} el ${day} a las ${w.time} en ${b.name || 'WS Style'}. Confírmala aquí: ${url}`;
+    return { url, text, whatsappUrl: waLink(appt.customerSnapshot?.phoneE164, text) };
+  }
+
+  async function view(id, user, opts = {}) {
     const b = await business();
-    const { appt, role } = await load(id, user);
+    const { appt, role } = await load(id, user, opts);
     return serialize(appt, role, b, clock());
   }
 
@@ -519,14 +586,24 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
 
   const ACTOR_CAN = {
     client: ['cancel', 'accept', 'counter', 'confirm'],
-    barber: ['confirm', 'propose', 'start', 'finish', 'no_show', 'cancel'],
-    admin: ['confirm', 'propose', 'start', 'finish', 'no_show', 'cancel'],
+    barber: ['confirm', 'reject', 'propose', 'start', 'finish', 'no_show', 'cancel'],
+    admin: ['confirm', 'reject', 'propose', 'start', 'finish', 'no_show', 'cancel'],
   };
 
   async function act(id, user, action, payload = {}) {
     const b = await business();
     const { appt: current, role } = await load(id, user);
     return actAs(b, current, role, action, payload, user);
+  }
+
+  /* SPEC-33 RN-09: motivo de la lista; "Otro" exige texto. El cliente sigue con texto libre (SPEC-32). */
+  function barberReason(payload) {
+    const code = String(payload.reasonCode ?? '');
+    const text = String(payload.reasonText ?? '').trim().slice(0, 300);
+    if (!CANCEL_REASONS[code] || (code === 'otro' && !text)) {
+      throw new HttpError(400, 'reason_required', 'Elige un motivo', { fields: { reason: code === 'otro' ? 'reason_text_required' : 'reason_required' } });
+    }
+    return text ? `${CANCEL_REASONS[code]}: ${text}` : CANCEL_REASONS[code];
   }
 
   /* Exportado para tests y para SPEC-33 (helper de barbero): `role` ya resuelto. */
@@ -536,7 +613,12 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
     if (FINAL.includes(current.status)) throw invalid('final_state');
     const by = role;
     const byUserId = user?._id;
-    const reason = String(payload.reason ?? '').trim().slice(0, 300) || undefined;
+    if (action === 'reject') {
+      if (current.status !== 'pendiente') throw invalid('bad_state');
+      action = 'cancel';
+    }
+    let reason = String(payload.reason ?? '').trim().slice(0, 300) || undefined;
+    if (action === 'cancel' && role === 'barber') reason = barberReason(payload);
     const minLead = b.settings.minLeadMinutes * MIN;
     let after = [];
 
@@ -550,6 +632,7 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
         return { by, byUserId };
       });
       after = [[appt, 'client', 'confirmed']];
+      if (current.status === 'invitacion_enviada') after.push([appt, 'barber', 'invite_confirmed']);
       await Promise.all(after.map(([a, to, kind]) => notify(b, a, to, kind)));
       return serialize(appt, role, b, now);
     }
@@ -634,6 +717,8 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
         a.status = 'cancelada';
         a.proposal = undefined;
         a.expiresAt = undefined;
+        /* SPEC-35: pagada en línea → queda marcada para reembolso. */
+        if (a.payment?.method !== 'local' && a.payment?.status === 'pagado') a.payment.status = 'reembolso_pendiente';
         return { by, byUserId, reason };
       });
       const who = { client: 'el cliente', barber: appt.professionalSnapshot?.displayName || 'el barbero', admin: 'WS Style' }[role];
@@ -646,13 +731,25 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
     if (action === 'start' || action === 'finish' || action === 'no_show') {
       const need = action === 'finish' ? 'en_curso' : 'confirmada';
       if (current.status !== need) throw invalid('bad_state');
-      if (action === 'no_show' && now < current.startsAt.getTime() + 15 * MIN) throw invalid('too_early', 'Aún no pasa la hora de inicio + 15 min');
+      if (action === 'no_show' && now < current.startsAt.getTime() + START_WINDOW_MIN * MIN) throw invalid('too_early', 'Aún no pasa la hora de inicio + 15 min');
+      if (action === 'start' && now < current.startsAt.getTime() - START_WINDOW_MIN * MIN) throw invalid('too_early', 'Puedes iniciar desde 15 minutos antes de la hora');
+      /* SPEC-33 RN-10: al terminar una cita con pago en el local se registra si se cobró. */
+      const localPay = (current.payment?.method || 'local') === 'local';
+      if (action === 'finish' && role === 'barber' && localPay && typeof payload.collected !== 'boolean') {
+        throw new HttpError(400, 'collected_required', '¿Cobraste la cita?', { fields: { collected: 'required' } });
+      }
       const to = { start: 'en_curso', finish: 'terminada', no_show: 'no_asistio' }[action];
       const appt = await mutate(b, current._id, (a) => {
         if (a.status !== need) throw invalid('stale');
         a.status = to;
-        return { by, byUserId, reason };
+        if (action === 'finish' && localPay && typeof payload.collected === 'boolean') {
+          a.payment.status = payload.collected ? 'cobrado' : 'pago_pendiente';
+          if (payload.collected) a.payment.collectedAt = new Date(now);
+        }
+        return { by, byUserId, reason: reason ?? (action === 'finish' && typeof payload.collected === 'boolean' ? (payload.collected ? 'Cobrado' : 'Sin cobrar') : undefined) };
       });
+      if (to === 'terminada') await notify(b, appt, 'client', 'finished');
+      if (to === 'no_asistio') await notify(b, appt, 'client', 'no_show');
       if (to === 'no_asistio' && appt.customerUserId) {
         await CustomerProfile.updateOne({ businessId: b._id, userId: appt.customerUserId }, { $inc: { 'counters.noShows': 1 } }, { upsert: true }).catch(() => {});
       }
@@ -681,6 +778,22 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
         await notify(b, appt, 'client', 'expired');
       } catch (err) {
         if (!(err instanceof HttpError)) logger.error('[agenda] expirar:', err.message);
+      }
+    }
+    /* SPEC-33 RN-12: invitaciones sin confirmar (24 h o 2 h antes del inicio). */
+    const invs = await Appointment.find({ businessId: b._id, status: 'invitacion_enviada', expiresAt: { $lte: new Date(now) } });
+    for (const p of invs) {
+      try {
+        const appt = await mutate(b, p._id, async (a, session) => {
+          if (a.status !== 'invitacion_enviada') throw invalid('stale');
+          await SlotLock.deleteMany({ appointmentId: a._id }, { session });
+          a.status = 'expirada';
+          return { by: 'system', reason: 'El cliente no confirmó la invitación a tiempo' };
+        });
+        expired++;
+        await notify(b, appt, 'barber', 'invite_expired');
+      } catch (err) {
+        if (!(err instanceof HttpError)) logger.error('[agenda] expirar invitación:', err.message);
       }
     }
     const props = await Appointment.find({ businessId: b._id, status: 'propuesta_cambio', 'proposal.expiresAt': { $lte: new Date(now) } });
@@ -724,5 +837,27 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
     await Appointment.updateMany({ customerUserId: user._id }, { $set: { 'customerSnapshot.name': 'Cliente eliminado', 'customerSnapshot.phoneE164': null, 'customerSnapshot.email': null } });
   }
 
-  return { business, catalog, availability, quoteHome, create, view, mine, act, actAs, load, runExpirations, onAccountDeleted, serialize };
+  return {
+    business,
+    catalog,
+    availability,
+    quoteHome,
+    create,
+    view,
+    mine,
+    act,
+    actAs,
+    load,
+    runExpirations,
+    onAccountDeleted,
+    serialize,
+    /* SPEC-33 (panel del barbero) */
+    professionals,
+    availabilityFor,
+    findService,
+    locate,
+    notify,
+    mutate,
+    inviteLinks,
+  };
 }

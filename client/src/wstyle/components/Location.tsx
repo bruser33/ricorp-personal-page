@@ -44,6 +44,8 @@ export function Footer({ name, poweredBy }: { name: string | null; poweredBy: bo
   return (
     <footer className="footer">
       {name && <span>© <span data-field="name">{name}</span></span>}
+      {/* SPEC-33: registro de barberos (asunción 13). */}
+      <a href="/wstyle/pro/registro/" data-cta="pro-registro">¿Eres barbero? Trabaja con nosotros</a>
       {poweredBy && <span data-powered="">Sitio desarrollado por <a href="https://ricorp.cl" target="_blank" rel="noopener">ricorp.cl</a></span>}
     </footer>
   );

@@ -46,7 +46,7 @@ function createLoginLimiter({ max, windowMs }, clock) {
   };
 }
 
-export function createAuthRouter({ env, clock, mailer, logger, facebook, frontUrl, secret, loginLimit = LOGIN_LIMIT, onAccountDeleted }) {
+export function createAuthRouter({ env, clock, mailer, logger, facebook, frontUrl, secret, loginLimit = LOGIN_LIMIT, onAccountDeleted, onBarberFacebook = null }) {
   const r = express.Router();
   const h = (fn) => handle(fn, logger);
   const loginLimiter = createLoginLimiter(loginLimit, clock);
@@ -244,7 +244,9 @@ export function createAuthRouter({ env, clock, mailer, logger, facebook, frontUr
     const returnTo = safeReturnTo(req.query.r);
     if (!facebook.enabled) return res.redirect(302, front(returnTo, { fb: 'no_disponible' }));
     const nonce = crypto.randomBytes(16).toString('base64url');
-    const state = signState({ r: returnTo, n: nonce, exp: clock() + 10 * MIN }, secret);
+    /* as=barber: registro del barbero con Facebook (SPEC-33 flujo B). */
+    const as = req.query.as === 'barber' ? 'barber' : undefined;
+    const state = signState({ r: returnTo, n: nonce, exp: clock() + 10 * MIN, as }, secret);
     appendCookie(res, serializeCookie(FB_NONCE_COOKIE, nonce, { maxAge: 600, sameSite: 'Lax', secure: Boolean(env.RENDER) }));
     res.redirect(302, facebook.authorizeUrl(state));
   });
@@ -269,15 +271,20 @@ export function createAuthRouter({ env, clock, mailer, logger, facebook, frontUr
       return res.redirect(302, front(returnTo, { fb: 'no_disponible' }));
     }
     const now = clock();
+    const asBarber = data.as === 'barber' && typeof onBarberFacebook === 'function';
     const known = await User.findOne({ identities: { $elemMatch: { provider: 'facebook', providerUserId: profile.id } }, status: 'active' });
     if (known) {
+      /* SPEC-33: un cliente que entra por el registro de barbero suma el perfil (falta celular/términos). */
+      if (asBarber && !known.roles.includes('barber')) await onBarberFacebook(known, {});
       await startSession(res, known._id, { env, now });
       return res.redirect(302, front(returnTo, { fb: 'ok' }));
     }
     if (!profile.email) {
       /* CB-20: Facebook sin email → se pide uno. */
-      const t = await issueToken({ type: 'fb_email', ttlMs: 30 * MIN, now, data: { facebookId: profile.id, name: profile.name, returnTo } });
-      return res.redirect(302, front(returnTo, { fb: 'email', t }));
+      const t = await issueToken({ type: 'fb_email', ttlMs: 30 * MIN, now, data: { facebookId: profile.id, name: profile.name, returnTo, as: data.as } });
+      const q = { fb: 'email', t };
+      if (asBarber) q.name = profile.name || undefined;
+      return res.redirect(302, front(returnTo, q));
     }
     const existing = await User.findOne({ email: profile.email, status: 'active' });
     if (existing) {
@@ -289,9 +296,12 @@ export function createAuthRouter({ env, clock, mailer, logger, facebook, frontUr
       email: profile.email,
       emailVerified: true,
       name: cleanName(profile.name) || profile.email.split('@')[0],
-      roles: ['client'],
+      roles: asBarber ? ['barber'] : ['client'],
       identities: [{ provider: 'facebook', providerUserId: profile.id }],
     });
+    /* SPEC-33 AC-02: User facebook + rol barber + Membership pendiente; el celular y los
+       términos se piden al volver ("Crear cuenta de barbero"). */
+    if (asBarber) await onBarberFacebook(user, {});
     await startSession(res, user._id, { env, now });
     res.redirect(302, front(returnTo, { fb: 'nuevo' }));
   }));

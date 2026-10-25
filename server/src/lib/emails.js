@@ -38,13 +38,21 @@ const CLIENT_SUBJECTS = {
   change_accepted: 'Tu cita quedó en la nueva hora',
   cancelled: 'Tu cita fue cancelada',
   expired: 'Tu reserva expiró',
+  /* SPEC-33 */
+  invited: (b) => `${b} te agendó una cita`,
+  finished: 'Gracias por venir',
+  no_show: 'Registramos una inasistencia',
 };
 const BARBER_SUBJECTS = {
   new: 'Nueva cita por confirmar',
   client_accepted: 'El cliente aceptó el cambio',
   client_countered: 'El cliente propuso otra hora',
   client_cancelled: 'El cliente canceló la cita',
+  /* SPEC-33 */
+  invite_confirmed: 'El cliente confirmó la invitación',
+  invite_expired: 'La invitación expiró',
 };
+export const BARBER_EVENT_TITLE = BARBER_SUBJECTS;
 
 export function appointmentMail({ kind, to, appt, when, proposalWhen, url, waUrl, cancelledBy, reason }) {
   const barber = appt.professionalSnapshot?.displayName || 'tu barbero';
@@ -61,13 +69,48 @@ export function appointmentMail({ kind, to, appt, when, proposalWhen, url, waUrl
     if (kind === 'proposal') lines.push(`${barber} propone cambiar tu cita: antes ${when} » ahora ${proposalWhen}.`, 'Puedes aceptar, proponer otra hora o cancelar desde la página de tu cita.');
     if (kind === 'cancelled') lines.push(`Cancelada por ${cancelledBy}${reason ? `. Motivo: ${reason}` : ''}.`);
     if (kind === 'expired') lines.push(`${barber} no alcanzó a confirmar a tiempo, así que la hora se liberó. Puedes reservar otra.`);
+    if (kind === 'invited') lines.push(`${barber} te agendó una cita. Confírmala desde el link (el pago es en el local, en efectivo).`);
+    if (kind === 'finished') lines.push(`Gracias por atenderte con ${barber}. ¡Te esperamos de vuelta!`);
+    if (kind === 'no_show') lines.push(`${barber} registró que no llegaste a tu cita. Si fue un error, escríbenos por WhatsApp.`);
   } else {
     subject = BARBER_SUBJECTS[kind] + ' · WS Style';
     lines.push(`Cliente: ${client}`);
     if (kind === 'client_cancelled' && reason) lines.push(`Motivo: ${reason}`);
+    if (kind === 'invite_expired') lines.push('No la confirmó a tiempo y la hora quedó libre.');
   }
   lines.push(`${service} · ${when}`, where, total);
   const links = [['Ver la cita', url]];
   if (waUrl) links.push([to === 'client' ? `Escribir a ${barber} por WhatsApp` : `Escribir a ${client} por WhatsApp`, waUrl]);
   return { subject, template: `${to}_${kind}`, ...layout(subject.replace(' · WS Style', ''), lines, links) };
+}
+
+/* ─── Cuenta del barbero (SPEC-33 / SPEC-34) */
+export function proReceivedMail({ name, url }) {
+  const subject = 'Recibimos tu solicitud · WS Style';
+  return { subject, template: 'pro_received', ...layout('Recibimos tu solicitud', [`Hola ${name || ''}`.trim() + ',', 'Gracias por querer trabajar con WS Style. Completa tu perfil (fotos, servicios y horario): lo revisamos y te avisamos por correo cuando esté aprobado.'], [['Ir a mi panel', url]]) };
+}
+
+export function proNewForAdminMail({ name, email, phone, url }) {
+  const subject = `Nuevo barbero por aprobar: ${name} · WS Style`;
+  return { subject, template: 'admin_pro_new', ...layout(`Nuevo barbero por aprobar: ${name}`, [`Correo: ${email || '—'}`, `Celular: ${phone || '—'}`, 'Su perfil queda pendiente hasta que lo apruebes.'], [['Revisar', url]]) };
+}
+
+export function proSubmittedForAdminMail({ name, url }) {
+  const subject = `Perfil listo para revisar: ${name} · WS Style`;
+  return { subject, template: 'admin_pro_submitted', ...layout(`Perfil listo para revisar: ${name}`, ['Completó fotos, servicios y horario y lo envió a revisión.'], [['Revisar', url]]) };
+}
+
+export function proApprovedMail({ name, url }) {
+  const subject = '¡Bienvenido a WS Style!';
+  return { subject, template: 'pro_approved', ...layout(subject, [`Hola ${name || ''}`.trim() + ',', 'Tu perfil fue aprobado: desde ahora apareces en la reserva en línea y puedes manejar tu agenda.'], [['Abrir mi panel', url]]) };
+}
+
+export function proRejectedMail({ name, reason, url }) {
+  const subject = 'Tu perfil no fue aprobado · WS Style';
+  return { subject, template: 'pro_rejected', ...layout('Tu perfil no fue aprobado', [`Hola ${name || ''}`.trim() + ',', reason ? `Motivo: ${reason}` : 'Por ahora no podemos sumarte al equipo.'], [['Ver mi panel', url]]) };
+}
+
+export function proSuspendedMail({ name, reason, url }) {
+  const subject = 'Tu perfil fue suspendido · WS Style';
+  return { subject, template: 'pro_suspended', ...layout('Tu perfil fue suspendido', [`Hola ${name || ''}`.trim() + ',', 'Mientras esté suspendido no recibes reservas nuevas.', ...(reason ? [`Motivo: ${reason}`] : [])], [['Ver mi panel', url]]) };
 }

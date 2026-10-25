@@ -62,6 +62,11 @@ const ProfessionalSchema = new Schema(
     },
     baseLocation: PointSchema,
     status: { type: String, enum: ['active', 'suspended'], default: 'active' },
+    /* SPEC-33: registro del barbero. Sin términos aceptados el registro está incompleto
+       (p.ej. recién llegado de Facebook, falta el celular). */
+    termsAcceptedAt: Date,
+    /* Llegó de Facebook sin email (CB-13): no puede enviar a revisión hasta verificar el correo. */
+    emailCheckRequired: { type: Boolean, default: false },
   },
   { timestamps: true }
 );
@@ -75,6 +80,10 @@ const MembershipSchema = new Schema(
     role: { type: String, enum: ['owner', 'admin', 'member'], default: 'member' },
     status: { type: String, enum: ['pending', 'approved', 'rejected', 'suspended'], default: 'pending' },
     order: { type: Number, default: 0 },
+    /* Motivo del rechazo/suspensión (lo ve el barbero) y cuándo envió su perfil a revisión. */
+    reason: String,
+    submittedAt: Date,
+    decidedAt: Date,
   },
   { timestamps: true }
 );
@@ -230,7 +239,10 @@ const AppointmentSchema = new Schema(
       platformFeeRate: { type: Number, default: 0 },
       platformFeeCLP: { type: Number, default: 0 },
     },
-    payment: { method: { type: String, default: 'local' }, status: { type: String, default: 'pendiente' } },
+    /* status: pendiente | cobrado | pago_pendiente (terminó sin cobrar, SPEC-33 RN-10) | pagado | reembolso_pendiente. */
+    payment: { method: { type: String, default: 'local' }, status: { type: String, default: 'pendiente' }, collectedAt: Date },
+    /* Invitación del barbero (SPEC-33 RN-12): el token va en el link que se manda por WhatsApp. */
+    invite: { token: String, sentAt: Date },
     note: String,
     status: { type: String, enum: STATUSES, required: true },
     /* Pendiente: hasta cuándo puede confirmar el barbero (RN-11). */
@@ -297,6 +309,22 @@ const NotificationSchema = new Schema(
 );
 export const Notification = model('Notification', NotificationSchema);
 
+/* Bandeja del panel del barbero (SPEC-33 RN-16). Los correos quedan en Notification. */
+const PanelNotificationSchema = new Schema(
+  {
+    userId: { type: ObjectId, required: true },
+    professionalId: ObjectId,
+    appointmentId: ObjectId,
+    kind: { type: String, required: true },
+    title: String,
+    body: String,
+    readAt: Date,
+  },
+  { timestamps: true }
+);
+PanelNotificationSchema.index({ userId: 1, createdAt: -1 });
+export const PanelNotification = model('PanelNotification', PanelNotificationSchema);
+
 const PlatformSettingsSchema = new Schema(
   { key: { type: String, default: 'default', unique: true }, defaultPlatformFeeRate: { type: Number, default: 0 }, paymentProviders: [String] },
   { timestamps: true }
@@ -317,5 +345,6 @@ export const ALL_MODELS = [
   Appointment,
   SlotLock,
   Notification,
+  PanelNotification,
   PlatformSettings,
 ];
