@@ -1,6 +1,23 @@
 /* Indicador de sección (puerto de barberia-3d/site/style.css). Layout compacto: <html class="compact"> (criterio único en wstyle/index.html). */
 /* ─── Indicador de sección */
-.dots { position: fixed; right: 22px; top: 50%; transform: translateY(-50%); z-index: 30; display: flex; flex-direction: column; gap: 12px; }
-.dots a { width: 10px; height: 10px; border-radius: 50%; border: 1px solid rgba(242, 237, 228, .6); transition: background-color .2s, transform .2s; }
-.dots a.is-active { background: var(--accent); border-color: var(--accent); transform: scale(1.25); }
+.dots { position: fixed; right: 17px; top: 50%; transform: translateY(-50%); z-index: 30; display: flex; flex-direction: column; gap: 2px; }
+/* Área de clic de 20 px; el punto de 10 px se dibuja en ::before (así la escala del activo no agranda la etiqueta). */
+.dots a { position: relative; display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; text-decoration: none; }
+.dots a::before { content: ""; width: 10px; height: 10px; box-sizing: border-box; border-radius: 50%; border: 1px solid rgba(242, 237, 228, .6); transition: background-color .2s, border-color .2s, transform .2s; }
+.dots a.is-active::before { background: var(--accent); border-color: var(--accent); transform: scale(1.25); }
+.dots a:hover::before { border-color: var(--bone); }
+/* SPEC-27: nombre del capítulo a la izquierda del punto, con fondo propio para no mezclarse con el panel. Solo en
+   hover o foco de teclado (no queda fijo ni en el activo). */
+.dots__label {
+  position: absolute; right: calc(100% + 8px); top: 50%; transform: translate(6px, -50%);
+  padding: 6px 12px; border: 1px solid var(--brass-line); border-radius: 999px; background: rgba(14, 13, 12, .94);
+  font: 600 12px/1 var(--font-body); letter-spacing: .08em; color: var(--bone); white-space: nowrap;
+  opacity: 0; visibility: hidden; pointer-events: none;
+  transition: opacity .18s ease, transform .18s ease, visibility 0s linear .18s;
+}
+.dots a:hover .dots__label, .dots a:focus-visible .dots__label { opacity: 1; visibility: visible; transform: translate(0, -50%); transition: opacity .18s ease, transform .18s ease; }
 .compact .dots { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .dots a::before, .dots__label, .dots a:hover .dots__label, .dots a:focus-visible .dots__label { transition: none; }
+  .dots__label { transform: translate(0, -50%); }
+}

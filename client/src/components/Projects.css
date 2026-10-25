@@ -793,7 +793,7 @@ html.glide-dots-hidden .carousel-dots {
   width: 30%;
   margin: 2em -2% 2.4em clamp(32px, 3.4vw, 64px);
   transform: rotate(14deg);
-  /* Radio para las capturas opacas (W Style); a un PNG ya redondeado no le
+  /* Radio para las capturas opacas (WS Style); a un PNG ya redondeado no le
      cambia nada. */
   border-radius: 22px;
   filter: drop-shadow(0 18px 32px rgba(0, 0, 0, 0.5));
