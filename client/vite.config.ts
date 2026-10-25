@@ -42,6 +42,9 @@ export default defineConfig({
         ...Object.fromEntries(
           ['pro', 'pro/registro', 'pro/agenda', 'pro/pagos', 'pro/perfil'].map((r) => [`wstyle-${r.replace('/', '-')}`, resolve(import.meta.dirname, `wstyle/${r}/index.html`)]),
         ),
+        // Páginas legales (Política de privacidad y Términos, requeridas por Meta para el inicio con Facebook): HTML
+        // prerenderizado en el build (scripts/prerender-wstyle.mjs).
+        ...Object.fromEntries(['privacidad', 'terminos'].map((r) => [`wstyle-${r}`, resolve(import.meta.dirname, `wstyle/${r}/index.html`)])),
         // Panel del super admin (SPEC-34): /wstyle/admin/ y una carpeta por sección (recargar funciona). Sin enlace público, noindex.
         ...Object.fromEntries(
           ['admin', ...['barberos', 'citas', 'pagos', 'rendicion', 'carta', 'horario', 'estadisticas', 'configuracion', 'auditoria'].map((s) => `admin/${s}`)].map((r) => [

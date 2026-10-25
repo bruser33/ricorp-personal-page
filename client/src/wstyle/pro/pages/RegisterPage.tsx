@@ -6,6 +6,7 @@ import { clMobile, fieldMessage, isEmail, weakPassword } from '../../agenda/util
 import { pro, type HomeService, type ProMe, type Rule } from '../api';
 import { AvailabilityEditor, HomeServiceEditor, PhotosEditor, ServicesEditor } from '../components/Editors';
 import { HOME_ERRORS } from '../util';
+import { PRIVACY_URL, TERMS_URL } from '../../links';
 import ProShell from '../components/ProShell';
 import type { ProCtx } from '../ctx';
 import ReviewState from '../components/ReviewState';
@@ -22,7 +23,7 @@ const FbIcon = () => <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden
 function Terms({ checked, onChange, error }: { checked: boolean; onChange: (v: boolean) => void; error?: string }) {
   return (
     <div className={`ag-field ag-check${error ? ' has-error' : ''}`}>
-      <label><input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} aria-invalid={error ? true : undefined} /> <span>Acepto los <a href="/wstyle/#politicas" target="_blank" rel="noopener">términos</a> y la política de privacidad de WS Style.</span></label>
+      <label><input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} aria-invalid={error ? true : undefined} /> <span>Acepto los <a href={TERMS_URL} target="_blank" rel="noopener">términos</a> y la <a href={PRIVACY_URL} target="_blank" rel="noopener">política de privacidad</a> de WS Style.</span></label>
       {error && <p className="ag-field__error" role="alert">{error}</p>}
     </div>
   );
