@@ -40,6 +40,9 @@ export function parseRange(q, now, tz) {
   return { from, to };
 }
 
+/* Parte del barbero de una cita (citas antiguas: servicio + domicilio). */
+const barberPart = (a) => a.pricing?.barberCLP ?? (a.pricing?.priceCLP || 0) + (a.pricing?.surchargeCLP || 0);
+
 export async function computeStats(b, { from, to, professionalId = null }) {
   const tz = b.timezone;
   const start = new Date(zonedToUtc(from, '00:00', tz));
@@ -54,10 +57,15 @@ export async function computeStats(b, { from, to, professionalId = null }) {
   const finished = appts.filter((a) => a.status === 'terminada');
   const revenue = { totalCLP: 0, onlineCLP: 0, localCLP: 0, pendingCLP: 0 };
   let platformFeeCLP = 0;
+  /* SPEC-38 RN-19: parte de los barberos (servicio + domicilio), administración y costo de pagos cobrados. */
+  let barbersCLP = 0;
+  let paymentFeeCLP = 0;
   for (const a of finished) {
     const total = a.pricing?.totalCLP || 0;
     revenue.totalCLP += total;
     platformFeeCLP += a.pricing?.platformFeeCLP || 0;
+    barbersCLP += barberPart(a);
+    paymentFeeCLP += a.pricing?.paymentFeeCLP || 0;
     const method = a.payment?.method || 'local';
     const status = a.payment?.status;
     if (method !== 'local' && status === 'pagado') revenue.onlineCLP += total;
@@ -107,6 +115,7 @@ export async function computeStats(b, { from, to, professionalId = null }) {
       appointments: mine.length,
       finished: done.length,
       revenueCLP: done.reduce((acc, a) => acc + (a.pricing?.totalCLP || 0), 0),
+      earningsCLP: done.reduce((acc, a) => acc + barberPart(a), 0),
       cancellations: mine.filter((a) => a.status === 'cancelada').length,
       noShows: mine.filter((a) => a.status === 'no_asistio').length,
       bookedMin,
@@ -139,6 +148,8 @@ export async function computeStats(b, { from, to, professionalId = null }) {
     barbers,
     homePct: pct(live.filter((a) => a.location?.kind === 'home').length, live.length),
     platformFeeCLP,
+    paymentFeeCLP,
+    barbersCLP,
     days,
   };
 }

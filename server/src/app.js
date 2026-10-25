@@ -8,6 +8,7 @@ import crypto from 'node:crypto';
 import { createMailer } from './lib/mailer.js';
 import { createNominatimGeocoder } from './lib/geocoder.js';
 import { createFacebookClient } from './lib/facebook.js';
+import { createGoogleClient } from './lib/google.js';
 import { sessionMiddleware } from './lib/session.js';
 import { createAgenda } from './domain/agenda.js';
 import { createAuthRouter, LOGIN_LIMIT } from './routes/auth.js';
@@ -109,6 +110,8 @@ export function createApp({
   agendaMailer: injectedMailer = null,
   geocoder = null,
   facebookFetch = fetch,
+  /* SPEC-38: borde HTTP de Google (token endpoint); los tests lo simulan. */
+  googleFetch = fetch,
   bookingRateLimit = BOOKING_RATE_LIMIT,
   loginLimit = LOGIN_LIMIT,
   /* SPEC-35: "Pagar en línea" se ofrece si hay credenciales de Mercado Pago (MP_ACCESS_TOKEN).
@@ -195,6 +198,7 @@ export function createApp({
   const frontUrl = (env.FRONT_URL || 'http://localhost:5173').replace(/\/$/, '');
   const agendaMailer = injectedMailer || createMailer({ env, logger });
   const facebook = createFacebookClient({ appId: env.FB_APP_ID, appSecret: env.FB_APP_SECRET, redirectUri: env.FB_REDIRECT_URI, fetchImpl: facebookFetch });
+  const google = createGoogleClient({ clientId: env.GOOGLE_CLIENT_ID, clientSecret: env.GOOGLE_CLIENT_SECRET, redirectUri: env.GOOGLE_REDIRECT_URI, fetchImpl: googleFetch });
   /* Firma del `state` de OAuth. Sin AUTH_SECRET se genera uno por proceso (un
      reinicio invalida los inicios con Facebook en curso, nada más). */
   const secret = env.AUTH_SECRET || crypto.randomBytes(32).toString('hex');
@@ -222,7 +226,7 @@ export function createApp({
   const pro = createPro({ agenda, clock, mailer: agendaMailer, logger, frontUrl, env, adminInbox });
   /* Super admin (SPEC-34). */
   const admin = createAdmin({ agenda, pro, clock, mailer: agendaMailer, logger, frontUrl, env, adminInbox, onlinePayments, payments, billing });
-  const authRouter = createAuthRouter({ env, clock, mailer: agendaMailer, logger, facebook, frontUrl, secret, loginLimit, onAccountDeleted: agenda.onAccountDeleted, onBarberFacebook: pro.ensureBarber });
+  const authRouter = createAuthRouter({ env, clock, mailer: agendaMailer, logger, facebook, google, frontUrl, secret, loginLimit, onAccountDeleted: agenda.onAccountDeleted, onBarberFacebook: pro.ensureBarber });
   const withSession = sessionMiddleware({ clock });
   const needsDb = (_req, res, next) =>
     mongoose.connection.readyState === 1 ? next() : res.status(503).json({ ok: false, error: 'db_unavailable' });

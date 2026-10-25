@@ -31,6 +31,7 @@ import { computeStats, monthRange, parseRange } from './stats.js';
 import { addDays, formatLong, isDate, isoWeekday, wallClock, zonedToUtc } from './time.js';
 import { photoUrl, STATUS_LABEL } from './agenda.js';
 import { applyLocalCollection, boletaClash, parseCollectInput } from './tax.js';
+import { currentRates, MAX_PAYMENT_FEE_PERCENT, quote, ratesFrom, ratesView } from './pricing.js';
 
 const MIN = 60 * 1000;
 const { ObjectId } = mongoose.Types;
@@ -78,7 +79,11 @@ export const CSV_COLUMNS = [
   ['totalCLP', 'Total'],
   ['paymentMethod', 'Método de pago'],
   ['paymentStatus', 'Estado del pago'],
+  /* SPEC-38: administración de la plataforma (cobrada al cliente desde SPEC-38; antes, interna),
+     procesamiento del pago en línea y la parte del barbero (servicio + domicilio). */
   ['platformFeeCLP', 'Comisión'],
+  ['paymentFeeCLP', 'Procesamiento pago'],
+  ['barberCLP', 'Parte del barbero'],
   ['source', 'Origen'],
 ];
 
@@ -320,7 +325,9 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
   async function serializeAdmin(appt, b, now) {
     const out = await agenda.serialize(appt, 'admin', b, now);
     out.customer = { name: appt.customerSnapshot?.name || '', phone: appt.customerSnapshot?.phoneE164 || null, email: appt.customerSnapshot?.email || null };
-    out.pricing = { ...out.pricing, platformFeeCLP: appt.pricing?.platformFeeCLP ?? 0, platformFeeRate: appt.pricing?.platformFeeRate ?? 0 };
+    /* SPEC-38 RN-13: en citas antiguas la comisión era interna (no se cobró): el admin la ve aparte. */
+    out.pricing = { ...out.pricing, platformFeeRate: appt.pricing?.platformFeeRate ?? 0 };
+    if (!appt.pricing?.feesIncluded) out.pricing.internalFeeCLP = appt.pricing?.platformFeeCLP ?? 0;
     out.canReassign = REASSIGNABLE.includes(appt.status) && appt.startsAt.getTime() > now;
     out.canCollect = canCollect(appt);
     out.statusLabel = STATUS_LABEL[appt.status];
@@ -423,6 +430,8 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
         paymentMethod: (a.payment?.method || 'local') === 'local' ? 'En el local' : 'En línea',
         paymentStatus: a.payment?.status || 'pendiente',
         platformFeeCLP: a.pricing?.platformFeeCLP ?? 0,
+        paymentFeeCLP: a.pricing?.paymentFeeCLP ?? 0,
+        barberCLP: a.pricing?.barberCLP ?? (a.pricing?.priceCLP ?? 0) + (a.pricing?.surchargeCLP ?? 0),
         source: a.source || 'web',
       };
       return CSV_COLUMNS.map(([k]) => csvCell(r[k])).join(',');
@@ -592,8 +601,8 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
     const target = slot && pros.find((p) => slot.professionalIds.includes(String(p._id)));
     if (!target) throw new HttpError(409, 'slot_unavailable', 'Esa hora no está libre para ese barbero. Elige otra.');
     const customer = await User.findOne({ status: 'active', $or: [...(email ? [{ email }] : []), { phoneE164: phone }] }).lean();
-    const settings = await PlatformSettings.findOne({ key: 'default' }).lean();
-    const feeRate = settings?.defaultPlatformFeeRate ?? 0;
+    /* SPEC-38 RN-21: agendada por WS Style = pago en el local → administración sí, procesamiento no. */
+    const pricing = quote({ priceCLP: service.priceCLP, surchargeCLP: 0, method: 'local', ...(await currentRates()) });
     const doc = {
       _id: new ObjectId(),
       businessId: b._id,
@@ -605,7 +614,7 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
       startsAt: new Date(startMs),
       endsAt: new Date(startMs + service.durationMin * MIN),
       location: { kind: 'shop', travelBufferMin: 0 },
-      pricing: { priceCLP: service.priceCLP, surchargeCLP: 0, totalCLP: service.priceCLP, platformFeeRate: feeRate, platformFeeCLP: Math.round(service.priceCLP * feeRate) },
+      pricing,
       payment: { method: 'local', status: 'pendiente' },
       note: note || undefined,
       status: 'confirmada',
@@ -878,17 +887,22 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
 
   async function getSettings(user) {
     const b = await ctx(user);
-    const ps = await PlatformSettings.findOne({ key: 'default' }).lean();
+    const rates = ratesView(ratesFrom(await PlatformSettings.findOne({ key: 'default' }).lean()));
     return {
       payments: { online: Boolean(b.payments?.onlineEnabled), local: b.payments?.localEnabled !== false },
       mercadoPago: mpInfo(),
-      platformFeePercent: Math.round((ps?.defaultPlatformFeeRate ?? 0) * 10000) / 100,
+      platformFeePercent: rates.platformFeePercent,
+      /* SPEC-38 RN-08: comisión de Mercado Pago que paga el cliente al pagar en línea (+ IVA si corresponde). */
+      paymentFeePercent: rates.paymentFeePercent,
+      paymentFeeVat: rates.paymentFeeVat,
       rules: Object.fromEntries(Object.keys(RULE_LIMITS).map((k) => [k, b.settings?.[k]])),
-      limits: { rules: RULE_LIMITS, platformFeePercent: [0, MAX_FEE_PERCENT] },
+      limits: { rules: RULE_LIMITS, platformFeePercent: [0, MAX_FEE_PERCENT], paymentFeePercent: [0, MAX_PAYMENT_FEE_PERCENT] },
     };
   }
 
-  const ALLOWED_SETTINGS = new Set(['payments', 'platformFeePercent', 'rules']);
+  const ALLOWED_SETTINGS = new Set(['payments', 'platformFeePercent', 'paymentFeePercent', 'paymentFeeVat', 'rules']);
+  /* % con hasta 2 decimales dentro de [0, max]. */
+  const validPercent = (v, max) => typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= max && Math.abs(Math.round(v * 100) - v * 100) <= 1e-6;
 
   async function setSettings(user, body = {}) {
     const b = await ctx(user);
@@ -908,11 +922,20 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
       set['payments.onlineEnabled'] = online;
       set['payments.localEnabled'] = local;
     }
-    let feeRate = null;
+    const fee = {};
     if (body.platformFeePercent !== undefined) {
       const v = body.platformFeePercent;
-      if (typeof v !== 'number' || !Number.isFinite(v) || v < 0 || v > MAX_FEE_PERCENT || Math.abs(Math.round(v * 100) - v * 100) > 1e-6) fields.platformFeePercent = 'out_of_range';
-      else feeRate = Math.round(v * 100) / 10000;
+      if (!validPercent(v, MAX_FEE_PERCENT)) fields.platformFeePercent = 'out_of_range';
+      else fee.defaultPlatformFeeRate = Math.round(v * 100) / 10000;
+    }
+    if (body.paymentFeePercent !== undefined) {
+      const v = body.paymentFeePercent;
+      if (!validPercent(v, MAX_PAYMENT_FEE_PERCENT)) fields.paymentFeePercent = 'out_of_range';
+      else fee.paymentFeeRate = Math.round(v * 100) / 10000;
+    }
+    if (body.paymentFeeVat !== undefined) {
+      if (typeof body.paymentFeeVat !== 'boolean') fields.paymentFeeVat = 'invalid';
+      else fee.paymentFeeVat = body.paymentFeeVat;
     }
     if (body.rules !== undefined) {
       for (const [k, v] of Object.entries(body.rules || {})) {
@@ -926,9 +949,9 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
     const before = await getSettings(user);
     if (Object.keys(set).length) await Business.updateOne({ _id: b._id }, { $set: set });
     /* RN-08: la comisión se congela en cada cita nueva; cambiarla no toca las existentes. */
-    if (feeRate !== null) await PlatformSettings.updateOne({ key: 'default' }, { defaultPlatformFeeRate: feeRate }, { upsert: true });
+    if (Object.keys(fee).length) await PlatformSettings.updateOne({ key: 'default' }, { $set: fee }, { upsert: true });
     const after = await getSettings(user);
-    const strip = (x) => ({ payments: x.payments, platformFeePercent: x.platformFeePercent, rules: x.rules });
+    const strip = (x) => ({ payments: x.payments, platformFeePercent: x.platformFeePercent, paymentFeePercent: x.paymentFeePercent, paymentFeeVat: x.paymentFeeVat, rules: x.rules });
     await audit(user, b, 'settings.update', { entity: 'settings', summary: 'Configuración', before: strip(before), after: strip(after) });
     return after;
   }

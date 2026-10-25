@@ -1,6 +1,7 @@
+import PriceBreakdown from '../../agenda/components/PriceBreakdown';
 import { useState, type FormEvent } from 'react';
 import { MotoIcon, Notice, StatusPill } from '../../agenda/components/ui';
-import { clp, localDate, localTime, longDay, prettyPhone } from '../../agenda/util';
+import { localDate, localTime, longDay, prettyPhone } from '../../agenda/util';
 import type { ProAppointment } from '../api';
 import { useProActions } from '../useActions';
 import { CANCEL_REASONS } from '../util';
@@ -71,7 +72,8 @@ export default function ApptSheet({ appt: initial, mode: initialMode = 'detail',
             <div><dt>Lugar</dt><dd>{home ? <><MotoIcon /> {appt.location.address}{appt.location.distanceKm !== undefined && ` · ${appt.location.distanceKm.toLocaleString('es-CL')} km`}</> : 'En el local'}</dd></div>
             {appt.note && <div><dt>Nota</dt><dd>{appt.note}</dd></div>}
             <div><dt>Pago</dt><dd>{appt.payment.method === 'local' ? 'En el local (efectivo)' : 'En línea'}{appt.payment.status === 'pago_pendiente' ? ' · pendiente' : appt.payment.status === 'cobrado' ? ' · cobrado' : ''}</dd></div>
-            <div className="ag-breakdown__total"><dt>Total</dt><dd>{clp.format(appt.pricing.totalCLP)}</dd></div>
+            {/* SPEC-38: lo que paga el cliente (con la tarifa de servicio) y la parte del barbero. */}
+            <PriceBreakdown pricing={appt.pricing} totalLabel="Total que paga el cliente" barberShare />
           </dl>
           <div className="pro-card__contact">
             {home && appt.mapsUrl && <a className="pro-chip" href={appt.mapsUrl} target="_blank" rel="noopener">Cómo llegar</a>}

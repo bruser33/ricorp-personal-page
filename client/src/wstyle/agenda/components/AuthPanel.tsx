@@ -4,7 +4,8 @@ import { clMobile, fieldMessage, isEmail, weakPassword } from '../util';
 import { Field, Notice, PasswordField } from './ui';
 import { PRIVACY_URL, TERMS_URL } from '../../links';
 
-export interface FacebookReturn { fb: string; t: string | null; email: string | null; name?: string | null }
+// `fb` = resultado de la vuelta (ok | nuevo | vincular | email | error | no_disponible); `provider` = de dónde volvió.
+export interface FacebookReturn { fb: string; provider?: 'facebook' | 'google'; t: string | null; email: string | null; name?: string | null }
 
 type View =
   | { k: 'email' }
@@ -13,6 +14,7 @@ type View =
   | { k: 'forgot' }
   | { k: 'forgot_sent' }
   | { k: 'fb_link'; token: string; email: string }
+  | { k: 'gg_link'; token: string; email: string }
   | { k: 'fb_email'; token: string }
   | { k: 'check_email' };
 
@@ -20,27 +22,35 @@ const FB_MESSAGES: Record<string, string> = {
   error: 'No se completó el inicio con Facebook. Puedes intentarlo de nuevo o usar tu correo.',
   no_disponible: 'El inicio con Facebook aún no está disponible. Usa tu correo.',
 };
+// SPEC-38 RN-27.
+const GG_MESSAGES: Record<string, string> = {
+  error: 'No se completó el inicio con Google. Puedes intentarlo de nuevo o usar tu correo.',
+  no_disponible: 'El inicio con Google aún no está disponible. Usa tu correo.',
+};
 
 interface Props {
   facebook: boolean;
+  google?: boolean;                         // SPEC-38: "Continuar con Google" (si el server lo tiene configurado)
   returnTo: string;                         // a dónde vuelve Facebook (con la selección en la URL)
   fbReturn?: FacebookReturn | null;         // lo que trajo la URL al volver de Facebook
   onAuthed: (user: User, info: { created: boolean; verificationSent?: boolean }) => void;
-  beforeFacebook?: () => void;              // guardar la selección antes de salir del sitio
+  beforeFacebook?: () => void;              // guardar la selección antes de salir del sitio (Facebook o Google)
   title?: string;
   facebookUrl?: string;                     // otro inicio con Facebook (p.ej. el del registro de barbero)
 }
 
 // Registro / inicio de sesión del cliente (flujos A, B y C de SPEC-32), igual dentro de la reserva y en /cuenta/.
-// Email primero; según exista o no la cuenta, "Entrar" o "Crear cuenta". Sin Instagram ni Google (RN-25).
-export default function AuthPanel({ facebook, returnTo, fbReturn, onAuthed, beforeFacebook, title = '¿Cuál es tu correo?', facebookUrl }: Props) {
+// Email primero; según exista o no la cuenta, "Entrar" o "Crear cuenta". Facebook y Google (SPEC-38) si están
+// configurados en el server. Sin Instagram (RN-25 de SPEC-32).
+export default function AuthPanel({ facebook, google = false, returnTo, fbReturn, onAuthed, beforeFacebook, title = '¿Cuál es tu correo?', facebookUrl }: Props) {
+  const fromGoogle = fbReturn?.provider === 'google';
   const [view, setView] = useState<View>(() => {
-    if (fbReturn?.fb === 'vincular' && fbReturn.t) return { k: 'fb_link', token: fbReturn.t, email: fbReturn.email ?? '' };
-    if (fbReturn?.fb === 'email' && fbReturn.t) return { k: 'fb_email', token: fbReturn.t };
+    if (fbReturn?.fb === 'vincular' && fbReturn.t) return { k: fromGoogle ? 'gg_link' : 'fb_link', token: fbReturn.t, email: fbReturn.email ?? '' };
+    if (!fromGoogle && fbReturn?.fb === 'email' && fbReturn.t) return { k: 'fb_email', token: fbReturn.t };
     return { k: 'email' };
   });
-  const [fbNotice] = useState(() => (fbReturn ? FB_MESSAGES[fbReturn.fb] ?? null : null));
-  const [email, setEmail] = useState('');
+  const [fbNotice] = useState(() => (fbReturn ? (fromGoogle ? GG_MESSAGES : FB_MESSAGES)[fbReturn.fb] ?? null : null));
+  const [email, setEmail] = useState(fbReturn?.fb === 'vincular' ? fbReturn.email ?? '' : '');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
@@ -118,10 +128,11 @@ export default function AuthPanel({ facebook, returnTo, fbReturn, onAuthed, befo
 
   function submitFbLink(e: FormEvent) {
     e.preventDefault();
-    if (view.k !== 'fb_link') return;
+    if (view.k !== 'fb_link' && view.k !== 'gg_link') return;
+    const link = view.k === 'gg_link' ? auth.googleLink : auth.fbLink;
     run(async () => {
       try {
-        onAuthed((await auth.fbLink(view.token, password)).user, { created: false });
+        onAuthed((await link(view.token, password)).user, { created: false });
       } catch (err) {
         if (err instanceof ApiError && (err.status === 401 || err.status === 429)) return setErrors({ password: err.message });
         throw err;
@@ -151,6 +162,19 @@ export default function AuthPanel({ facebook, returnTo, fbReturn, onAuthed, befo
     </a>
   );
 
+  const googleButton = google && (
+    <a className="btn ag-btn-google" href={auth.googleStartUrl(returnTo)} onClick={() => beforeFacebook?.()}>
+      <svg viewBox="0 0 48 48" width="18" height="18" aria-hidden="true">
+        <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.6 5.4 2.7 13.2l7.9 6.2C12.5 13.6 17.8 9.5 24 9.5Z" />
+        <path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 2.9-2.2 5.4-4.7 7.1l7.6 5.9c4.4-4.1 6.9-10.1 6.9-17.5Z" />
+        <path fill="#FBBC05" d="M10.6 28.6A14.6 14.6 0 0 1 9.5 24c0-1.6.3-3.2.8-4.6l-7.9-6.2A24 24 0 0 0 0 24c0 3.9.9 7.5 2.7 10.8l7.9-6.2Z" />
+        <path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.6-5.9c-2.1 1.4-4.9 2.3-8.3 2.3-6.2 0-11.5-4.1-13.4-9.9l-7.9 6.2C6.6 42.6 14.6 48 24 48Z" />
+      </svg>
+      Continuar con Google
+    </a>
+  );
+  const socialButtons = (googleButton || facebookButton) && <><p className="ag-or"><span>o</span></p>{googleButton}{facebookButton}</>;
+
   return (
     <div className="ag-auth">
       {fbNotice && view.k === 'email' && <Notice tone="error">{fbNotice}</Notice>}
@@ -161,7 +185,7 @@ export default function AuthPanel({ facebook, returnTo, fbReturn, onAuthed, befo
           <h3 className="ag-h3">{title}</h3>
           <Field label="Email" type="email" autoComplete="email" inputMode="email" value={email} onChange={edit('email', setEmail)} error={errors.email} />
           <button className="btn btn--primary ag-wide" disabled={busy}>Continuar con email</button>
-          {facebookButton && <><p className="ag-or"><span>o</span></p>{facebookButton}</>}
+          {socialButtons}
           <p className="ag-fine">Al continuar aceptas los <a href={TERMS_URL}>Términos</a> y la <a href={PRIVACY_URL}>Política de privacidad</a>.</p>
         </form>
       )}
@@ -211,6 +235,17 @@ export default function AuthPanel({ facebook, returnTo, fbReturn, onAuthed, befo
           <p>Ya tienes una cuenta con <strong>{view.email}</strong>. Ingresa tu contraseña para vincular Facebook.</p>
           <PasswordField label="Contraseña" autoComplete="current-password" value={password} onChange={edit('password', setPassword)} error={errors.password} />
           <button className="btn btn--primary ag-wide" disabled={busy}>Vincular y entrar</button>
+          <p><button type="button" className="ag-link" onClick={() => go({ k: 'email' })}>Usar otro correo</button></p>
+        </form>
+      )}
+
+      {view.k === 'gg_link' && (
+        <form onSubmit={submitFbLink} noValidate>
+          <h3 className="ag-h3">Vincular Google</h3>
+          <p>Ya tienes una cuenta con <strong>{view.email}</strong>. Ingresa tu contraseña para vincular Google.</p>
+          <PasswordField label="Contraseña" autoComplete="current-password" value={password} onChange={edit('password', setPassword)} error={errors.password} />
+          <button className="btn btn--primary ag-wide" disabled={busy}>Vincular y entrar</button>
+          <p><button type="button" className="ag-link" onClick={() => go({ k: 'forgot' })}>¿Olvidaste tu contraseña?</button></p>
           <p><button type="button" className="ag-link" onClick={() => go({ k: 'email' })}>Usar otro correo</button></p>
         </form>
       )}

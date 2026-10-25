@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } fro
 import { agenda, API_BASE, ApiError, auth, type Appointment, type Catalog, type Quote, type Slot } from '../api';
 import type { AgendaCtx } from '../ctx';
 import AuthPanel from '../components/AuthPanel';
+import PriceBreakdown from '../components/PriceBreakdown';
+import { NO_FEES, pct, quote as priceQuote } from '../pricing';
 import Calendar, { TimeChips } from '../components/Calendar';
 import Shell from '../components/Shell';
 import { Field, MotoIcon, Notice, Spinner, Unavailable } from '../components/ui';
@@ -11,7 +13,7 @@ import {
 } from '../util';
 
 type Step = 1 | 2 | 3 | 4 | 5;
-const STEPS = ['Servicio', 'Día y hora', 'Dónde', 'Confirmar'];
+const STEPS = ['Servicio', 'Día y hora', 'Dónde', 'Confirmar y pagar'];
 const newKey = () => (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`);
 
 function initialSelection(): Selection {
@@ -22,8 +24,9 @@ function initialSelection(): Selection {
   return fresh ? { ...(fromUrl.serviceId === stored.serviceId ? stored : {}), ...fromUrl } : { ...stored, ...fromUrl };
 }
 
-// /wstyle/reservar/: el flujo de reserva (SPEC-32, 4 pasos + confirmación). Agendar exige sesión, pero el registro
-// o login ocurre DENTRO del paso 4 sin perder la selección.
+// /wstyle/reservar/: el flujo de reserva (SPEC-32, 4 pasos + confirmación). SPEC-38: la sesión se pide ANTES del
+// paso 1 (puerta de sesión); la selección de la URL (?servicio=…&barbero=…) y la guardada sobreviven al login,
+// también al ida y vuelta de Facebook/Google (viaja en el `state` firmado y en sessionStorage).
 export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
   const { session, whatsapp, fbReturn } = ctx;
   const [catalog, setCatalog] = useState<Catalog | null>(null);
@@ -50,6 +53,7 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
   const [errors, setErrors] = useState<Record<string, string | undefined>>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [welcome, setWelcome] = useState<string | null>(null);
+  const [gateNotice, setGateNotice] = useState<string | null>(null);
   const [done, setDone] = useState<{ appt: Appointment; mailOk?: boolean } | null>(null);
   const [redirecting, setRedirecting] = useState(false);
   const idem = useRef(newKey());
@@ -174,7 +178,11 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
 
   const homeQuote = quote ? quote.professionals.find((p) => slotPros.length === 0 || slotPros.includes(p.id)) ?? quote.professionals[0] : null;
   const surcharge = mode === 'home' && homeQuote ? homeQuote.surchargeCLP : 0;
-  const total = (service?.priceCLP ?? 0) + surcharge;
+  // SPEC-38: Servicio + Domicilio + Tarifa de servicio (administración + costo de pagos) = Total, igual pagando en el
+  // local o en línea. Misma fórmula que el server (que recalcula y manda).
+  const rates = catalog?.business.pricing ?? NO_FEES;
+  const price = priceQuote(service?.priceCLP ?? 0, surcharge, rates);
+  const total = price.totalCLP;
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -215,7 +223,8 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
       idem.current = newKey();
       if (!(err instanceof ApiError) || err.status === 0) { setSubmitError('No pudimos conectar con la agenda. Tus datos siguen aquí: inténtalo de nuevo.'); return; }
       if (err.status === 429) { setSubmitError('Demasiados intentos de reserva desde esta conexión. Espera unos minutos e inténtalo de nuevo.'); return; }
-      if (err.status === 401) { session.setUser(null); setSubmitError('Tu sesión venció. Entra de nuevo para agendar; tu selección sigue aquí.'); return; }
+      // RN-04 (SPEC-38): vuelve a la puerta de sesión conservando paso y selección.
+      if (err.status === 401) { saveSelection(sel); session.setUser(null); setWelcome(null); setGateNotice('Tu sesión venció. Entra de nuevo para agendar; tu selección sigue aquí.'); return; }
       if (err.code === 'slot_taken' || err.code === 'slot_unavailable') {
         setNotice(authedInFlow.current ? 'Esa hora se ocupó mientras creabas tu cuenta. Elige otra.' : err.code === 'slot_taken' ? 'Esa hora se acaba de ocupar. Elige otra.' : err.message);
         update({ startsAt: undefined });
@@ -232,6 +241,39 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
   }
 
   // ─── Render
+  // SPEC-38 RN-01: puerta de sesión. Sin cuenta (o sin perfil de cliente) no se muestran los pasos.
+  if (session.status === 'loading') return <Shell user={null} current="reservar"><h1 className="ag-h1">Reserva tu hora</h1><Spinner label="Cargando…" /></Shell>;
+  if (session.status === 'offline') return <Shell user={null} current="reservar"><h1 className="ag-h1">Reserva tu hora</h1><Unavailable whatsapp={whatsapp} onRetry={() => session.refresh()} /></Shell>;
+  if (!user || !user.roles.includes('client')) {
+    const gateReturn = `/wstyle/reservar/?${selectionToQuery(sel)}`.replace(/\?$/, '');
+    return (
+      <Shell user={user} current="reservar">
+        <h1 className="ag-h1">Reserva tu hora</h1>
+        <div className="ag-card ag-narrow" data-gate="">
+          {!user ? (
+            <>
+              <Notice tone={gateNotice ? 'error' : undefined}>{gateNotice ?? 'Para agendar, primero entra a tu cuenta. Es un minuto y tu selección se mantiene.'}</Notice>
+              <AuthPanel facebook={session.facebook} google={session.google} returnTo={gateReturn} fbReturn={fbReturn} beforeFacebook={() => saveSelection(sel)}
+                title="Entra o crea tu cuenta"
+                onAuthed={(u, info) => {
+                  authedInFlow.current = true;
+                  session.setUser(u);
+                  setSubmitError(null);
+                  setGateNotice(null);
+                  setWelcome(info.created ? `¡Listo, ${u.name.split(' ')[0]}! Te enviamos un correo para confirmar tu email.` : `Hola de nuevo, ${u.name.split(' ')[0]}.`);
+                }} />
+            </>
+          ) : (
+            <div>
+              <p>Tu cuenta es de barbero o administración. Para reservar para ti, agrega el perfil de cliente.</p>
+              <button type="button" className="btn btn--primary" onClick={async () => session.setUser(await auth.addClientRole())}>Agendar como cliente</button>
+            </div>
+          )}
+        </div>
+      </Shell>
+    );
+  }
+
   if (load !== 'ready' || !catalog) {
     return (
       <Shell user={user} current="reservar">
@@ -246,7 +288,6 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
 
   const proName = sel.professionalId === 'any' ? 'Sin preferencia' : pro?.name ?? '';
   const policies = catalog.business.policies ?? [];
-  const returnTo = `/wstyle/reservar/?${selectionToQuery(sel)}`;
   const where = mode === 'home' ? quote?.formatted ?? sel.address?.street ?? '' : [catalog.business.address?.street, catalog.business.address?.city].filter(Boolean).join(', ');
 
   return (
@@ -264,6 +305,7 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
           {step === 1 && (
             <>
               <h2 className="ag-h2" id="ag-step-title" tabIndex={-1} ref={heading}>Servicio y barbero</h2>
+              {welcome && <Notice tone="ok">{welcome}</Notice>}
               <fieldset className="ag-options">
                 <legend>¿Qué te hacemos?</legend>
                 {catalog.services.map((s) => (
@@ -351,9 +393,8 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
               {quoteErr && <Notice tone="error">{quoteErr}</Notice>}
               {mode === 'home' && quote && homeQuote && (
                 <dl className="ag-breakdown" data-breakdown="">
-                  <div><dt>Servicio</dt><dd>{clp.format(service!.priceCLP)}</dd></div>
-                  <div><dt>Domicilio ({quote.distanceKm.toLocaleString('es-CL')} km)</dt><dd>{clp.format(homeQuote.surchargeCLP)}</dd></div>
-                  <div className="ag-breakdown__total"><dt>Total</dt><dd>{clp.format(homeQuote.totalCLP)}</dd></div>
+                  <PriceBreakdown pricing={price} />
+                  <div><dt className="ag-muted">A {quote.distanceKm.toLocaleString('es-CL')} km del local</dt><dd /></div>
                 </dl>
               )}
               <div className="ag-actions">
@@ -365,26 +406,8 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
 
           {step === 4 && (
             <>
-              <h2 className="ag-h2" id="ag-step-title" tabIndex={-1} ref={heading}>Tu cuenta y pago</h2>
+              <h2 className="ag-h2" id="ag-step-title" tabIndex={-1} ref={heading}>Confirmar y pagar</h2>
               {welcome && <Notice tone="ok">{welcome}</Notice>}
-              {!user ? (
-                <>
-                  <Notice>Para agendar necesitas una cuenta. Tu selección se mantiene.</Notice>
-                  {submitError && <Notice tone="error">{submitError}</Notice>}
-                  <AuthPanel facebook={session.facebook} returnTo={returnTo} fbReturn={fbReturn} beforeFacebook={() => saveSelection(sel)}
-                    onAuthed={(u, info) => {
-                      authedInFlow.current = true;
-                      session.setUser(u);
-                      setSubmitError(null);
-                      setWelcome(info.created ? `¡Listo, ${u.name.split(' ')[0]}! Te enviamos un correo para confirmar tu email.` : `Hola de nuevo, ${u.name.split(' ')[0]}.`);
-                    }} />
-                </>
-              ) : !user.roles.includes('client') ? (
-                <div>
-                  <p>Tu cuenta es de barbero o administración. Para reservar para ti, agrega el perfil de cliente.</p>
-                  <button type="button" className="btn btn--primary" onClick={async () => session.setUser(await auth.addClientRole())}>Agendar como cliente</button>
-                </div>
-              ) : (
                 <form onSubmit={submit} noValidate>
                   <p className="ag-muted">Agendando como <strong>{user.name}</strong> · {user.email} (<button type="button" className="ag-link" onClick={() => session.logout()}>¿no eres tú? Cerrar sesión</button>)</p>
                   {!user.emailVerified && !welcome && (
@@ -431,7 +454,6 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
                     </button>
                   </div>
                 </form>
-              )}
             </>
           )}
         </section>
@@ -439,12 +461,23 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
         <aside className="ag-card ag-summary" aria-label="Resumen de tu reserva">
           <h2 className="ag-h3">Tu reserva</h2>
           <dl>
-            <div><dt>Servicio</dt><dd>{service ? `${service.name} · ${clp.format(service.priceCLP)}` : '—'}</dd></div>
+            {!service && <div><dt>Servicio</dt><dd>—</dd></div>}
             <div><dt>Barbero</dt><dd>{proName || '—'}</dd></div>
             <div><dt>Fecha y hora</dt><dd>{sel.startsAt ? `${longDay(localDate(sel.startsAt))}, ${dayMonthTime(sel.startsAt).split(', ')[1]}` : '—'}</dd></div>
             <div><dt>Dónde</dt><dd>{step >= 3 ? (mode === 'home' ? `A domicilio${where ? ` · ${where}` : ''}` : `En el local · ${where}`) : '—'}</dd></div>
-            <div className="ag-summary__total"><dt>Total</dt><dd>{service ? clp.format(total) : '—'}</dd></div>
           </dl>
+          {service && (
+            <>
+              <dl className="ag-breakdown ag-summary__breakdown" data-breakdown="summary" aria-live="polite">
+                <PriceBreakdown pricing={price} serviceName={service.name} />
+              </dl>
+              {price.serviceFeeCLP > 0 && (
+                <p className="ag-fine" data-fee-note="">
+                  El total incluye la tarifa de servicio: la administración de la plataforma ({pct(price.platformFeePercent)} %) y el costo de procesar los pagos. Es la misma si pagas en el local o en línea.
+                </p>
+              )}
+            </>
+          )}
         </aside>
       </div>
     </Shell>

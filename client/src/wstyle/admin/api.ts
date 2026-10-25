@@ -1,3 +1,4 @@
+import type { PricingView } from '../agenda/pricing';
 // Cliente HTTP del panel del super admin (SPEC-34): /api/admin/… con la misma sesión (cookie httpOnly) de la agenda.
 // El server valida la sesión y el rol en cada ruta; el front solo oculta botones.
 import { api, API_BASE, ApiError, type Appointment, type User } from '../agenda/api';
@@ -7,7 +8,8 @@ export type Decision = 'approve' | 'reject' | 'suspend' | 'reactivate' | 'reopen
 
 export interface AdminAppointment extends Omit<Appointment, 'customer' | 'pricing'> {
   customer: { name: string; phone: string | null; email: string | null };
-  pricing: { priceCLP: number; surchargeCLP: number; totalCLP: number; platformFeeCLP: number; platformFeeRate: number };
+  // SPEC-38: desglose + tasa congelada; internalFeeCLP = comisión interna (no cobrada) de citas anteriores a SPEC-38.
+  pricing: PricingView & { platformFeeRate: number; internalFeeCLP?: number };
   // SPEC-35: en línea trae el id del pago en Mercado Pago, el error del último reembolso y los pagos duplicados (CB-08).
   payment: {
     method: string; status: string; holdUntil?: string; mpPaymentId?: string | null; refundError?: string | null; refundInFlight?: boolean;
@@ -68,6 +70,8 @@ export interface Stats {
   topServices: { id: string; name: string; count: number; revenueCLP: number }[];
   barbers: BarberStats[];
   homePct: number; platformFeeCLP: number;
+  // SPEC-38 RN-19: costo de pagos cobrado y parte de los barberos (servicio + domicilio).
+  paymentFeeCLP?: number; barbersCLP?: number;
   days: { date: string; appointments: number; revenueCLP: number }[];
 }
 
@@ -76,8 +80,11 @@ export interface Settings {
   payments: { online: boolean; local: boolean };
   mercadoPago: { configured: boolean; mode: 'sandbox' | 'production' | null; ready: boolean };
   platformFeePercent: number;
+  // SPEC-38: comisión de Mercado Pago que se traslada al cliente en la tarifa de servicio (+ IVA si corresponde).
+  paymentFeePercent: number;
+  paymentFeeVat: boolean;
   rules: Record<RuleKey, number>;
-  limits: { rules: Record<RuleKey, [number, number]>; platformFeePercent: [number, number] };
+  limits: { rules: Record<RuleKey, [number, number]>; platformFeePercent: [number, number]; paymentFeePercent: [number, number] };
 }
 export interface AuditItem { id: string; at: string; actor: string; action: string; entity: string | null; entityId: string | null; summary: string; before: unknown; after: unknown }
 
@@ -122,7 +129,7 @@ export const admin = {
 
   stats: (from: string, to: string) => api<Stats>(`/api/admin/stats?${qs({ from, to })}`),
   settings: () => api<Settings>('/api/admin/settings'),
-  saveSettings: (body: Partial<Pick<Settings, 'payments' | 'platformFeePercent'>> & { rules?: Partial<Record<RuleKey, number>> }) => send<Settings>('/api/admin/settings', 'PUT', body),
+  saveSettings: (body: Partial<Pick<Settings, 'payments' | 'platformFeePercent' | 'paymentFeePercent' | 'paymentFeeVat'>> & { rules?: Partial<Record<RuleKey, number>> }) => send<Settings>('/api/admin/settings', 'PUT', body),
   audit: (page = 1, action = '') => api<{ page: number; pages: number; total: number; items: AuditItem[] }>(`/api/admin/audit?${qs({ page: String(page), action })}`),
 };
 

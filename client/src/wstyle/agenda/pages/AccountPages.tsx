@@ -26,7 +26,7 @@ export function AccountPage({ ctx }: { ctx: AgendaCtx }) {
         <h1 className="ag-h1">Tu cuenta</h1>
         <div className="ag-card ag-narrow">
           {deleted && <Notice tone="ok">Tu cuenta fue eliminada.</Notice>}
-          <AuthPanel facebook={session.facebook} returnTo="/wstyle/cuenta/" fbReturn={fbReturn}
+          <AuthPanel facebook={session.facebook} google={session.google} returnTo="/wstyle/cuenta/" fbReturn={fbReturn}
             onAuthed={(u, info) => { session.setUser(u); if (info.created) setWelcome(`¡Listo, ${u.name.split(' ')[0]}! Te enviamos un correo para confirmar tu email.`); }} />
           <p className="ag-fine"><a href="/wstyle/pro/registro/">¿Eres barbero? Trabaja con nosotros</a></p>
         </div>
@@ -62,7 +62,7 @@ export function AccountPage({ ctx }: { ctx: AgendaCtx }) {
           <div><dt>Nombre</dt><dd>{user.name}</dd></div>
           <div><dt>Email</dt><dd>{user.email}</dd></div>
           {user.phone && <div><dt>Celular</dt><dd>{prettyPhone(user.phone)}</dd></div>}
-          <div><dt>Entras con</dt><dd>{user.providers.map((p) => (p === 'email' ? 'correo y contraseña' : 'Facebook')).join(' · ')}</dd></div>
+          <div><dt>Entras con</dt><dd>{user.providers.map((p) => (p === 'email' ? 'correo y contraseña' : p === 'google' ? 'Google' : 'Facebook')).join(' · ')}</dd></div>
         </dl>
         {!user.emailVerified && (
           <Notice>

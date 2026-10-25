@@ -8,14 +8,16 @@ export function useSession() {
   const [user, setUser] = useState<User | null>(null);
   const [status, setStatus] = useState<SessionStatus>('loading');
   const [facebook, setFacebook] = useState(false);
+  const [google, setGoogle] = useState(false);
   const refresh = useCallback(async () => {
     try {
       const [me, cfg] = await Promise.all([
         auth.me().catch((e) => { if (e instanceof ApiError && e.status === 401) return null; throw e; }),
-        auth.config().catch(() => ({ facebook: false })),
+        auth.config().catch(() => ({ facebook: false, google: false })),
       ]);
       setUser(me);
       setFacebook(cfg.facebook);
+      setGoogle(Boolean(cfg.google));
       setStatus('ready');
       return me;
     } catch {
@@ -33,17 +35,19 @@ export function useSession() {
     await auth.logout().catch(() => {});
     setUser(null);
   }, []);
-  return { user, setUser, status, facebook, refresh, logout };
+  return { user, setUser, status, facebook, google, refresh, logout };
 }
 
-/* Lee y limpia de la URL los parámetros con que vuelve el inicio con Facebook (?fb=…&t=…&email=…). */
-export function takeFacebookParams(): { fb: string; t: string | null; email: string | null; name?: string | null } | null {
+/* Lee y limpia de la URL los parámetros con que vuelve el inicio con Facebook (?fb=…) o con Google (?gg=…, SPEC-38),
+   junto con &t=…&email=…. `provider` dice de cuál volvió. */
+export function takeFacebookParams(): { fb: string; provider: 'facebook' | 'google'; t: string | null; email: string | null; name?: string | null } | null {
   const url = new URL(location.href);
+  const gg = url.searchParams.get('gg');
   const fb = url.searchParams.get('fb');
-  if (!fb) return null;
+  if (!fb && !gg) return null;
   // name: lo manda el registro de barbero cuando Facebook no entregó el correo (SPEC-33 CB-13).
-  const out = { fb, t: url.searchParams.get('t'), email: url.searchParams.get('email'), name: url.searchParams.get('name') };
-  for (const k of ['fb', 't', 'email', 'name']) url.searchParams.delete(k);
+  const out = { fb: (gg ?? fb)!, provider: (gg ? 'google' : 'facebook') as 'facebook' | 'google', t: url.searchParams.get('t'), email: url.searchParams.get('email'), name: url.searchParams.get('name') };
+  for (const k of ['fb', 'gg', 't', 'email', 'name']) url.searchParams.delete(k);
   history.replaceState(history.state, '', url.pathname + (url.search ? url.search : '') + url.hash);
   return out;
 }

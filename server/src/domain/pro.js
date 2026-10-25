@@ -10,7 +10,6 @@ import {
   BLOCKING,
   Membership,
   PanelNotification,
-  PlatformSettings,
   Professional,
   ProfessionalService,
   Service,
@@ -32,6 +31,7 @@ import {
 } from '../lib/emails.js';
 import { deletePhoto, MAX_PHOTOS, storePhoto } from '../lib/photos.js';
 import { photoUrl } from './agenda.js';
+import { currentRates, quote } from './pricing.js';
 import { slotsFor, workWindows } from './availability.js';
 import { addDays, isDate, isoWeekday, isTime, wallClock, zonedToUtc } from './time.js';
 
@@ -209,13 +209,13 @@ export function createPro({ agenda, clock = Date.now, mailer, logger = console, 
   /* ─── Lectura del perfil */
   async function me(user) {
     const { b, pro, m } = await context(user);
-    const [services, links, rules, offs, unread, settings] = await Promise.all([
+    const [services, links, rules, offs, unread, rates] = await Promise.all([
       Service.find({ businessId: b._id, active: true }).sort({ order: 1 }).lean(),
       ProfessionalService.find({ businessId: b._id, professionalId: pro._id }).lean(),
       AvailabilityRule.find({ businessId: b._id, professionalId: pro._id }).sort({ weekday: 1, start: 1 }).lean(),
       TimeOff.find({ businessId: b._id, professionalId: pro._id, endsAt: { $gt: new Date(clock()) } }).sort({ startsAt: 1 }).lean(),
       PanelNotification.countDocuments({ userId: user._id, readAt: null }),
-      PlatformSettings.findOne({ key: 'default' }).lean(),
+      currentRates(),
     ]);
     const mine = new Set(links.map((l) => String(l.serviceId)));
     return {
@@ -228,7 +228,8 @@ export function createPro({ agenda, clock = Date.now, mailer, logger = console, 
       services: services.map((s) => ({ id: s.slug, name: s.name, priceCLP: s.priceCLP, durationMin: s.durationMin, homeServiceAllowed: s.homeServiceAllowed !== false, selected: mine.has(String(s._id)) })),
       rules: rules.map((r) => ({ weekday: r.weekday, start: r.start, end: r.end })),
       timeOffs: offs.map(serializeOff),
-      platformFeeRate: settings?.defaultPlatformFeeRate ?? 0,
+      /* SPEC-38 RN-10: la administración la paga el cliente aparte; el barbero gana servicio + domicilio. */
+      platformFeeRate: rates.platformFeeRate,
       unread,
     };
   }
@@ -586,10 +587,9 @@ export function createPro({ agenda, clock = Date.now, mailer, logger = console, 
     if (!day?.slots.some((s) => Date.parse(s.startsAt) === startMs)) throw new HttpError(409, 'slot_unavailable', 'Esa hora ya no está libre. Elige otra.');
 
     const customer = await User.findOne({ phoneE164: phone, status: 'active', roles: 'client', _id: { $ne: user._id } }).lean();
-    const settings = await PlatformSettings.findOne({ key: 'default' }).lean();
-    const feeRate = settings?.defaultPlatformFeeRate ?? 0;
     const surcharge = mode === 'home' ? pro.homeService.surchargeCLP : 0;
-    const total = service.priceCLP + surcharge;
+    /* SPEC-38 RN-21: invitación = pago en el local → administración sí, procesamiento no. */
+    const pricing = quote({ priceCLP: service.priceCLP, surchargeCLP: surcharge, method: 'local', ...(await currentRates()) });
     const doc = {
       _id: new ObjectId(),
       businessId: b._id,
@@ -601,7 +601,7 @@ export function createPro({ agenda, clock = Date.now, mailer, logger = console, 
       startsAt: new Date(startMs),
       endsAt: new Date(startMs + service.durationMin * MIN),
       location,
-      pricing: { priceCLP: service.priceCLP, surchargeCLP: surcharge, totalCLP: total, platformFeeRate: feeRate, platformFeeCLP: Math.round(total * feeRate) },
+      pricing,
       /* RN-12: forma de pago por defecto, en el local (efectivo). */
       payment: { method: 'local', status: 'pendiente' },
       note: note || undefined,

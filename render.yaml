@@ -59,3 +59,11 @@ services:
         sync: false
       - key: SII_EMITTER_RUT
         sync: false
+      # Login con Google (SPEC-38). Secreto solo acá (sync: false). GOOGLE_REDIRECT_URI =
+      # https://api.ricorp.cl/api/auth/google/callback (registrado en el cliente OAuth de Google).
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_REDIRECT_URI
+        sync: false

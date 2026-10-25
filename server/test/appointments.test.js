@@ -228,7 +228,9 @@ describe('citas', () => {
     assert.equal(quote.json.professionals[0].totalCLP, 15000);
     const r = await post('/api/wstyle/appointments', booking(pro._id, at('14:00'), { mode: 'home', address: { street: 'Av. Siempre Viva 742', commune: 'Providencia' } }), c.cookie);
     assert.equal(r.status, 201);
-    assert.deepEqual(r.json.appointment.pricing, { priceCLP: 12000, surchargeCLP: 3000, totalCLP: 15000 });
+    const pr = r.json.appointment.pricing;
+    /* Seed heredado con comisiones 0 % (SPEC-38: los defaults reales se prueban en pricing.test.js). */
+    assert.deepEqual([pr.priceCLP, pr.surchargeCLP, pr.serviceFeeCLP, pr.totalCLP, pr.barberCLP], [12000, 3000, 0, 15000, 15000]);
     const locks = (await SlotLock.find({}).sort({ slotStart: 1 })).map((l) => l.slotStart.toISOString());
     /* 13:30 (traslado) … 15:10 (40 min + 30 de vuelta) → bloques 13:30–15:15. */
     assert.equal(locks[0], at('13:30'));

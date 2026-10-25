@@ -1,3 +1,4 @@
+import PriceBreakdown from '../components/PriceBreakdown';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { agenda, ApiError, type Action, type Appointment, type Slot } from '../api';
 import type { AgendaCtx } from '../ctx';
@@ -147,9 +148,7 @@ export default function AppointmentPage({ ctx }: { ctx: AgendaCtx }) {
 
         <dl className="ag-breakdown">
           <div><dt>Dónde</dt><dd>{appt.location.kind === 'home' ? `A domicilio · ${appt.location.address}` : `En el local · ${appt.location.address}`}</dd></div>
-          <div><dt>Servicio</dt><dd>{clp.format(appt.pricing.priceCLP)}</dd></div>
-          {appt.pricing.surchargeCLP > 0 && <div><dt>Domicilio</dt><dd>{clp.format(appt.pricing.surchargeCLP)}</dd></div>}
-          <div className="ag-breakdown__total"><dt>{payTotalLabel(appt)}</dt><dd>{clp.format(appt.pricing.totalCLP)}</dd></div>
+          <PriceBreakdown pricing={appt.pricing} serviceName={appt.service.name} totalLabel={payTotalLabel(appt)} />
           {/* SPEC-37: el comprobante del pago (desde 2025 es obligatorio entregarlo al cliente). */}
           {appt.payment.backing && <div data-backing={appt.payment.backing.kind}><dt>Comprobante</dt><dd>{appt.payment.backing.label}</dd></div>}
         </dl>

@@ -21,6 +21,7 @@ import {
   Service,
   User,
 } from './models/index.js';
+import { DEFAULTS_MIGRATION, ensurePlatformDefaults } from './domain/pricing.js';
 
 const CODES = { Mo: 1, Tu: 2, We: 3, Th: 4, Fr: 5, Sa: 6, Su: 7 };
 
@@ -68,7 +69,7 @@ export const DEMO_PROS = [
 ];
 
 /* SPEC-34 RN-06: negocio + carta + horario desde los JSON. Idempotente por `id`. */
-export async function importCatalog({ site, services, slug = 'ws-style', location = [-70.6506, -33.4378] }) {
+export async function importCatalog({ site, services, slug = 'ws-style', location = [-70.6506, -33.4378], fees = null }) {
   const business = await Business.findOneAndUpdate(
     { slug },
     {
@@ -108,12 +109,20 @@ export async function importCatalog({ site, services, slug = 'ws-style', locatio
     if (!before) created++;
     svcDocs.push(doc);
   }
-  await PlatformSettings.updateOne({ key: 'default' }, { $setOnInsert: { defaultPlatformFeeRate: 0 } }, { upsert: true });
+  /* SPEC-38 RN-09: administración 10 % y Mercado Pago 3,19 % + IVA por defecto (idempotente). `fees`
+     fija valores exactos (lo usan los tests heredados, que siembran 0 % para aislar sus montos). */
+  if (fees) {
+    await PlatformSettings.updateOne(
+      { key: 'default' },
+      { $set: { defaultPlatformFeeRate: fees.platformFeeRate ?? 0, paymentFeeRate: fees.paymentFeeRate ?? 0, paymentFeeVat: fees.paymentFeeVat ?? true, appliedDefaults: [DEFAULTS_MIGRATION] } },
+      { upsert: true }
+    );
+  } else await ensurePlatformDefaults();
   return { business, services: svcDocs, created };
 }
 
-export async function seedBusiness({ site, services, pros = DEMO_PROS, slug = 'ws-style', location = [-70.6506, -33.4378] }) {
-  const { business, services: svcDocs } = await importCatalog({ site, services, slug, location });
+export async function seedBusiness({ site, services, pros = DEMO_PROS, slug = 'ws-style', location = [-70.6506, -33.4378], fees = null }) {
+  const { business, services: svcDocs } = await importCatalog({ site, services, slug, location, fees });
   const proDocs = [];
   for (const [i, p] of pros.entries()) {
     let user = await User.findOne({ email: p.email });
