@@ -100,7 +100,7 @@ export type HitoTrayectoria = {
 
 /* ---------------------------------------------------------------------------
  * TODO(pedro): reemplazar por tu trayectoria real.
- * W Style (el primero) es real. Los 12 hitos que le siguen son CONTENIDO DE
+ * WS Style (el primero) es real. Los 12 hitos que le siguen son CONTENIDO DE
  * RELLENO heredado de la maqueta: los 6 primeros son análisis de tecnología que
  * no son tuyos, y los 6 con `destacado` son los proyectos de ejemplo que traía la maqueta (títulos "Project N" y
  * textos en lorem ipsum). Están solo para que las secciones tengan forma
@@ -114,18 +114,18 @@ export const trayectoria: HitoTrayectoria[] = [
   {
     id: 'wstyle-2026',
     fecha: '2026-10',
-    titulo: 'W Style',
+    titulo: 'WS Style',
     etiqueta: 'Web design + 3D',
     imagen: 'figma-frames/wstyle-card.webp',
     descripcion:
-      'Landing inmersiva para la barbería W Style, en Santiago. El recorrido es una secuencia renderizada en Blender que avanza con el scroll, con dirección de arte "Noir de oficio". Incluye carta de servicios con precios en CLP (corte, corte + barba, perfilado, lavado + masaje, limpieza facial), membresía Club W, reserva por WhatsApp, horario y ubicación. Hecha en React + TypeScript + Vite, con HTML prerenderizado para SEO, variantes HD para escritorio y móvil, y respaldo en three.js. Publicada en ricorp.cl/wstyle.',
+      'Landing inmersiva para la barbería WS Style, en Santiago. El recorrido es una secuencia renderizada en Blender que avanza con el scroll, con dirección de arte "Noir de oficio". Incluye carta de servicios con precios en CLP (corte, corte + barba, perfilado, lavado + masaje, limpieza facial), membresía Club WS, reserva por WhatsApp, horario y ubicación. Hecha en React + TypeScript + Vite, con HTML prerenderizado para SEO, variantes HD para escritorio y móvil, y respaldo en three.js. Publicada en ricorp.cl/wstyle.',
     mockups: ['figma-frames/wstyle-mockup-desktop.webp', 'figma-frames/wstyle-mockup-mobile.webp'],
     parrafos: [
-      'W Style es una barbería de Santiago que quería una web a la altura de su oficio, y nos propusimos que entrar a su sitio se sintiera como cruzar la puerta del local. Por eso la landing no es una página más con fotos: es un recorrido inmersivo en el que una secuencia renderizada en Blender avanza a medida que haces scroll, con una dirección de arte que bautizamos "Noir de oficio": luces bajas, materiales nobles y el detalle de cada herramienta.',
+      'WS Style es una barbería de Santiago que quería una web a la altura de su oficio, y nos propusimos que entrar a su sitio se sintiera como cruzar la puerta del local. Por eso la landing no es una página más con fotos: es un recorrido inmersivo en el que una secuencia renderizada en Blender avanza a medida que haces scroll, con una dirección de arte que bautizamos "Noir de oficio": luces bajas, materiales nobles y el detalle de cada herramienta.',
       'El reto técnico fue que esa secuencia se viera fluida en cualquier dispositivo. Preparamos variantes HD para escritorio y para móvil, la cargamos de forma progresiva para no hacer esperar a nadie y dejamos un respaldo en three.js para los navegadores que lo necesitan. Todo está construido en React con TypeScript y Vite, y el HTML se prerenderiza para que Google pueda leer la página completa desde el primer momento.',
-      'Pero una barbería vive de sus clientes, así que el recorrido termina en lo importante: la carta de servicios con precios en pesos chilenos (corte, corte + barba, perfilado, lavado + masaje y limpieza facial), la membresía Club W, el horario, la ubicación y la reserva directa por WhatsApp, a un toque desde el teléfono.',
+      'Pero una barbería vive de sus clientes, así que el recorrido termina en lo importante: la carta de servicios con precios en pesos chilenos (corte, corte + barba, perfilado, lavado + masaje y limpieza facial), la membresía Club WS, el horario, la ubicación y la reserva directa por WhatsApp, a un toque desde el teléfono.',
       'Cuidamos también lo que no se ve. La secuencia se adapta a la pantalla en la que la miras, los textos se revelan con el ritmo del recorrido y la página respeta a quien prefiere menos movimiento. Cada detalle, desde los precios hasta el botón de reserva, se pensó para que el cliente llegue a la barbería sabiendo exactamente qué quiere.',
-      'Hoy W Style está publicada en ricorp.cl/wstyle y es uno de los proyectos que mejor resume cómo nos gusta trabajar: entender el negocio, contar su historia con tecnología de punta y que todo termine en algo simple para el usuario. ¡Te invitamos a recorrerla y a hacerte un corte!',
+      'Hoy WS Style está publicada en ricorp.cl/wstyle y es uno de los proyectos que mejor resume cómo nos gusta trabajar: entender el negocio, contar su historia con tecnología de punta y que todo termine en algo simple para el usuario. ¡Te invitamos a recorrerla y a hacerte un corte!',
     ],
     enlace: '/wstyle/',
     destacado: true,
@@ -168,7 +168,7 @@ export const trayectoria: HitoTrayectoria[] = [
     imagen: 'figma-frames/news-5.webp',
   },
 
-  /* Proyectos informáticos (slider) = SOLO los mejores: hoy W Style, Haru e
+  /* Proyectos informáticos (slider) = SOLO los mejores: hoy WS Style, Haru e
      Invasión UFPS (pedido 2026-10-18: "por ahora solo 3"). Los "Project N" de
      acá abajo son ejemplos de relleno: ya no van al slider, quedan en la
      Bitácora hasta que se reemplacen o se borren. Fechas inventadas. */

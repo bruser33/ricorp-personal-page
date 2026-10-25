@@ -18,7 +18,7 @@
   "_nota": "Todos los campos listados en _placeholders son SUPUESTOS hasta recibir los datos reales del negocio (SPEC-01).",
   "_demo": "Mientras demo sea true se muestra la franja «Versión de demostración · precios y datos de ejemplo». Pasar a false al cargar los datos reales.",
   "demo": true,
-  "name": "W Style",
+  "name": "WS Style",
   "slogan": "Cortes clásicos y barba con oficio, en un local hecho para quedarse.",
   "concept": "El estilo se hace a mano",
   "stat": {
@@ -35,7 +35,7 @@
     "Lavado"
   ],
   "headlines": {
-    "hero": "W STYLE.",
+    "hero": "WS STYLE.",
     "reyes": "DONDE SE SIENTAN LOS REYES.",
     "linea": "CADA LÍNEA CON INTENCIÓN.",
     "afilado": "SAL MÁS AFILADO.",
@@ -89,7 +89,7 @@
     "url": ""
   },
   "membership": {
-    "name": "Club W",
+    "name": "Club WS",
     "priceCLP": 25000,
     "period": "mes",
     "perks": [

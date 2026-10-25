@@ -1,6 +1,6 @@
 import './Loader.css';
 
-// Pantalla de carga (PR #9 D2): fondo ink opaco por encima de TODO (header, dock, badge), wordmark W STYLE,
+// Pantalla de carga (PR #9 D2): fondo ink opaco por encima de TODO (header, dock, badge), wordmark WS STYLE,
 // progreso real de los frames ancla y "Powered by ricorp.cl". Sale con una máscara que sube.
 export default function Loader({ name, progress, done, poweredBy }: { name: string | null; progress: number; done: boolean; poweredBy: boolean }) {
   return (

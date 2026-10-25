@@ -21,7 +21,7 @@ import './wstyle.css';
 
 export const SITE_URL = 'https://ricorp.cl/wstyle/';
 
-// Landing de la barbería W Style (SPEC-12/13/15), dirección "Noir de oficio": el render de Blender es la película
+// Landing de la barbería WS Style (SPEC-12/13/15), dirección "Noir de oficio": el render de Blender es la película
 // (secuencia ligada al scroll, three.js de respaldo) y la web es la edición (titulares de cartel, etiquetas
 // numeradas, paneles sólidos para vender). Todo el texto viene de public/wstyle/content/*.json.
 // Las 7 secciones data-shot son las tomas del render; los paneles intermedios avanzan la película hacia la toma
