@@ -173,7 +173,6 @@
 .ag-item__side { display: flex; align-items: center; gap: 12px; }
 /* SPEC-37: comprobante del pago (voucher MP / N° de boleta) en "Mis citas". */
 .ag-item__side { flex-wrap: wrap; justify-content: flex-end; }
-.ag-item__fee { color: var(--muted, #9a9288); font-size: .8em; }
 .ag-item__receipt { flex-basis: 100%; text-align: right; font-size: 12px; letter-spacing: .04em; color: #b3ab9f; }
 .ag-danger { margin-top: 26px; color: #b3ab9f; font-size: 14px; }
 .ag-danger summary { cursor: pointer; }
