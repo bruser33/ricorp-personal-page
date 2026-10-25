@@ -6,15 +6,22 @@
   "scripts": {
     "dev": "node --watch src/index.js",
     "start": "node src/index.js",
-    "test": "node --test"
+    "test": "node --test --test-concurrency=1",
+    "seed": "node src/seed.js",
+    "seed:pro-demo": "node src/seed-pro-demo.js",
+    "seed:admin": "node src/seed-admin.js",
+    "seed:catalog": "node src/seed.js --catalog",
+    "seed:admin-demo": "node src/seed-admin-demo.js"
   },
   "dependencies": {
+    "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.22.3",
     "mongoose": "^8.8.0",
     "multer": "^2.2.0",
     "nodemailer": "^10.2.1",
-    "resend": "^6.22.1"
+    "resend": "^6.22.1",
+    "sharp": "^0.35.5"
   }
 }
