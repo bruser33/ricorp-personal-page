@@ -14,6 +14,7 @@ import Location, { Footer } from './components/Location';
 import RicorpBadge from './components/RicorpBadge';
 import Loader from './components/Loader';
 import Booking from './components/Booking';
+import Stat from './components/Stat';
 import Icon from './components/Icons';
 import FilmFx, { Marquee } from './components/FilmFx';
 import { Barbers, DemoStrip, Membership, Policies, Reviews } from './components/Extras';
@@ -53,7 +54,6 @@ export default function App({ initial }: { initial: Content | null }) {
   const links = ctaLinks(site);
   const booking = bookingLink(site), bookLabel = bookingLabel(site), from = fromPrice(services);
   const city = str(site.contact?.address?.city);
-  const stat = site.stat;
   const demo = isDemo(site);
 
   // Capítulos numerados sin huecos (D4): 01… en el orden en que se publican (barberos/reseñas solo con enabled).
@@ -103,12 +103,12 @@ export default function App({ initial }: { initial: Content | null }) {
           {/* SPEC-28: en compacto el hint va centrado al pie con una flecha que late; se desvanece al empezar a scrollear. */}
           <p className={`hint reveal${scrolled ? ' is-gone' : ''}`} aria-hidden="true">Desliza para recorrer el local<span className="hint__arrow"></span></p>
         </Section>
-        <Section id="reyes" label={lab('reyes')} headline={h.reyes} copy={copy.reyes}>
-          {stat && str(stat.value) && <p className="stat reveal"><span className="stat__value">{stat.value}</span> <span className="stat__label">{stat.label}</span> {str(stat.note) && <em>{stat.note}</em>}</p>}
+        <Section id="reyes" className="panel--copy" label={lab('reyes')} headline={h.reyes} copy={copy.reyes}>
+          <Stat stat={site.stat} />
         </Section>
-        <Section id="linea" label={lab('linea')} headline={h.linea} copy={copy.linea} />
-        <Section id="afilado" label={lab('afilado')} headline={h.afilado} copy={copy.afilado} />
-        <Section id="trono" label={lab('trono')} headline={h.trono} copy={copy.trono}>
+        <Section id="linea" className="panel--copy" label={lab('linea')} headline={h.linea} copy={copy.linea} />
+        <Section id="afilado" className="panel--copy" label={lab('afilado')} headline={h.afilado} copy={copy.afilado} />
+        <Section id="trono" className="panel--copy" label={lab('trono')} headline={h.trono} copy={copy.trono}>
           {/* SPEC-26: el primario reserva (bookingLink); WhatsApp y Llamar quedan como secundarios. El ghost de WhatsApp
               solo se omite si el primario ya es ese mismo wa.me (en demo ambos van al contacto y se muestran). */}
           <div className="ctas reveal" data-own-cta="">

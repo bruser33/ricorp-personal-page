@@ -10,11 +10,14 @@
 .hours li span:first-child { color: var(--muted); }
 address { font-style: normal; font-size: 15px; }
 .phone { margin: 8px 0 0; font-size: 15px; color: var(--muted); }
-/* D9: el bloque de Llega queda centrado en vertical y el footer anclado abajo (sobre la zona del dock). */
-.panel--last { justify-content: flex-start; padding-bottom: 72px; }
-.panel--last > .panel__inner { margin: auto 0; }
+/* SPEC-29 (d): el bloque de Llega y el footer bajan juntos al final de la sección: el footer va justo bajo el bloque
+   de información, con el ancho de la columna de contenido, y nunca queda flotando a media pantalla (pantallas altas
+   incluidas). */
+/* .panel.panel--last: wstyle.css se carga después y su .panel (centrado) ganaría con la misma especificidad. */
+.panel.panel--last { justify-content: flex-end; padding-bottom: 72px; }
+.panel--last > .panel__inner { width: 100%; }
 .footer {
-  margin: 0; margin-right: 200px; align-self: flex-start; padding: 10px 16px; border-radius: 10px;
+  margin: 24px 0 0; align-self: flex-start; width: 100%; max-width: 620px; padding: 10px 16px; border-radius: 10px;
   display: flex; flex-wrap: wrap; gap: 6px 24px; font-size: 13px; color: var(--muted);
   background: rgba(11, 10, 9, .82); backdrop-filter: blur(6px);
 }
@@ -24,5 +27,8 @@ address { font-style: normal; font-size: 15px; }
 .footer__ricorp { display: inline-flex; border-radius: 4px; }
 .footer__ricorp img { height: 16px; width: auto; display: block; }
 .compact .footer__ricorp img { height: 14px; }
-.compact .footer { margin: 0 0 env(safe-area-inset-bottom); align-self: stretch; }
+/* Compacto (SPEC-29 asunción 4): el contenido sigue arriba y el footer se apoya al final de la sección. */
+.compact .panel.panel--last { justify-content: flex-start; padding-bottom: 72px; }
+.compact .footer { margin: auto 0 env(safe-area-inset-bottom); padding-top: 10px; align-self: stretch; max-width: none; }
+.compact .panel--last > .panel__inner { margin-bottom: 24px; }
 .panel--last .ctas { margin: 22px 0 0; }

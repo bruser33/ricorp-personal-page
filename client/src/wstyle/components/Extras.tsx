@@ -52,21 +52,29 @@ export function Barbers({ site, booking, label }: { site: SiteContent; booking: 
   );
 }
 
-// Membresía protagonista (D5): ancho completo, precio grande en Cormorant a la izquierda, beneficios a la derecha,
-// filete latón superior.
+// Membresía como carnet (SPEC-29 c): tarjeta sólida graphite con borde cobre; encabezado "Club" + nombre, precio
+// grande, beneficios en lista y nota + CTA al pie, todo dentro de la tarjeta. Lo que falte en el JSON no deja cajas
+// vacías.
 export function Membership({ site, booking, label }: { site: SiteContent; booking: string | null; label: string }) {
   const m = site.membership; const price = toCLP(m?.priceCLP);
   if (!m || !str(m.name)) return null;
+  const perks = (m.perks ?? []).filter((p): p is string => !!str(p));
+  const note = str(m.note), hasPrice = Number.isFinite(price);
   return (
     <Extra id="membresia" label={label} title="CLUB MENSUAL.">
-      <article className="member reveal">
-        <div className="member__main">
-          <h3>{m.name}</h3>
-          {Number.isFinite(price) && <p className="member__price"><span>{clp.format(price)}</span> al {m.period || 'mes'}</p>}
-          {str(m.note) && <p className="member__note">{m.note}</p>}
-          {booking && <a className="btn btn--primary" data-cta="booking" data-own-cta="" href={booking} {...ext(booking)}>Quiero el club</a>}
-        </div>
-        <ul>{(m.perks ?? []).filter(str).map((p, i) => <li key={i}>{p}</li>)}</ul>
+      <article className={`member reveal${perks.length ? '' : ' member--solo'}`}>
+        <header className="member__head">
+          <p className="member__kicker">Club</p>
+          <h3 className="member__club">{m.name}</h3>
+        </header>
+        {hasPrice && <p className="member__price"><span>{clp.format(price)}</span> al {m.period || 'mes'}</p>}
+        {perks.length > 0 && <ul className="member__perks">{perks.map((p, i) => <li key={i}>{p}</li>)}</ul>}
+        {(note || booking) && (
+          <footer className="member__foot">
+            {note && <p className="member__note">{note}</p>}
+            {booking && <a className="btn btn--primary" data-cta="booking" data-own-cta="" href={booking} {...ext(booking)}>Quiero el club</a>}
+          </footer>
+        )}
       </article>
     </Extra>
   );

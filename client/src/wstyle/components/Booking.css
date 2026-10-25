@@ -8,7 +8,7 @@
 .book-fab {
   display: inline-flex; align-items: center; min-height: 46px; padding: 0 22px; border-radius: 999px;
   background: var(--brass); color: var(--ink); text-decoration: none;
-  font: 600 11px/1 var(--font-body); letter-spacing: .26em; text-transform: uppercase;
+  font: 600 11px/1 var(--font-body); letter-spacing: var(--tracking-caps); text-transform: uppercase;
   box-shadow: 0 16px 40px rgba(0, 0, 0, .55); transition: background-color .25s ease, color .25s ease, opacity .12s ease, transform .12s ease;
 }
 .book-fab.is-hidden { opacity: 0; visibility: hidden; transform: translateY(8px); pointer-events: none; transition: opacity .18s ease, transform .18s ease, visibility 0s .18s; }
