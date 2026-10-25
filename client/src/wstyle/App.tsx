@@ -88,7 +88,7 @@ export default function App({ initial }: { initial: Content | null }) {
       <Scene3D active={mode === '3d'} onRenderer={setRenderer3D} />
       <FilmFx />
       <Loader name={name} progress={progress} done={loaderDone} poweredBy={poweredBy} />
-      <div className="shade" aria-hidden="true"></div>
+      <div className={`shade${scrolled ? '' : ' is-top'}`} aria-hidden="true"></div>
       <div className="progress" aria-hidden="true"><span className="progress__bar" ref={progressBar}></span></div>
       <Nav name={name} booking={booking} scrolled={scrolled} />
       {demo && <DemoStrip />}
@@ -100,7 +100,8 @@ export default function App({ initial }: { initial: Content | null }) {
             {from && <p className="hero__from" data-from-price="">{from.label} desde <strong>{clp.format(from.price)}</strong></p>}
             {booking && <a className="btn btn--primary" data-cta="hero-booking" href={booking} {...ext(booking)}>Reservar</a>}
           </div>
-          <p className="hint reveal" aria-hidden="true">Desliza para recorrer el local</p>
+          {/* SPEC-28: en compacto el hint va centrado al pie con una flecha que late; se desvanece al empezar a scrollear. */}
+          <p className={`hint reveal${scrolled ? ' is-gone' : ''}`} aria-hidden="true">Desliza para recorrer el local<span className="hint__arrow"></span></p>
         </Section>
         <Section id="reyes" label={lab('reyes')} headline={h.reyes} copy={copy.reyes}>
           {stat && str(stat.value) && <p className="stat reveal"><span className="stat__value">{stat.value}</span> <span className="stat__label">{stat.label}</span> {str(stat.note) && <em>{stat.note}</em>}</p>}
