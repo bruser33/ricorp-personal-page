@@ -23,10 +23,12 @@ const BusinessSchema = new Schema(
     currency: { type: String, default: 'CLP' },
     address: { street: String, city: String, region: String },
     location: PointSchema,
-    /* weekday ISO 1..7; opens/closes null = cerrado. */
+    /* weekday ISO 1..7; opens/closes null = cerrado. SPEC-34 RN-05: un día puede tener
+       varios rangos (una entrada por rango, p.ej. 10–14 y 15–20). */
     hours: [{ _id: false, weekday: Number, opens: String, closes: String }],
-    /* Feriados / cierres del local: fechas locales 'YYYY-MM-DD'. */
-    closures: [{ _id: false, date: String, reason: String }],
+    /* Feriados / cierres del local: fechas locales 'YYYY-MM-DD' (una entrada por día; un
+       cierre de varios días comparte `groupId`). */
+    closures: [{ date: String, reason: String, groupId: String }],
     contact: { whatsapp: String, phone: String },
     policies: [{ _id: false, title: String, text: String }],
     settings: {
@@ -36,6 +38,13 @@ const BusinessSchema = new Schema(
       cancelUntilMinutes: { type: Number, default: 180 },
       confirmWithinMinutes: { type: Number, default: 12 * 60 },
       maxActivePerCustomer: { type: Number, default: 2 },
+      /* SPEC-33 RN-12 / SPEC-34 RN-08: vigencia de una invitación del barbero. */
+      inviteTtlHours: { type: Number, default: 24 },
+    },
+    /* SPEC-34 RN-08: formas de pago habilitadas. Las credenciales NUNCA viven acá (server/.env). */
+    payments: {
+      onlineEnabled: { type: Boolean, default: false },
+      localEnabled: { type: Boolean, default: true },
     },
   },
   { timestamps: true }
@@ -103,6 +112,8 @@ const ServiceSchema = new Schema(
     homeServiceAllowed: { type: Boolean, default: true },
     active: { type: Boolean, default: true },
     order: { type: Number, default: 0 },
+    /* SPEC-34 RN-04: un servicio con citas no se borra, se archiva (deja de ofrecerse). */
+    archivedAt: { type: Date, default: null },
   },
   { timestamps: true }
 );
@@ -331,6 +342,26 @@ const PlatformSettingsSchema = new Schema(
 );
 export const PlatformSettings = model('PlatformSettings', PlatformSettingsSchema);
 
+/* Registro de auditoría del super admin (SPEC-34 RN-09). Solo se inserta: no hay
+   endpoint para editarlo ni borrarlo. */
+const AuditLogSchema = new Schema(
+  {
+    businessId: ObjectId,
+    actorUserId: { type: ObjectId, required: true },
+    actorEmail: String,
+    action: { type: String, required: true },
+    entity: String,
+    entityId: String,
+    summary: String,
+    before: Schema.Types.Mixed,
+    after: Schema.Types.Mixed,
+    at: { type: Date, required: true },
+  },
+  { versionKey: false }
+);
+AuditLogSchema.index({ businessId: 1, at: -1 });
+export const AuditLog = model('AuditLog', AuditLogSchema);
+
 export const ALL_MODELS = [
   Business,
   Professional,
@@ -347,4 +378,5 @@ export const ALL_MODELS = [
   Notification,
   PanelNotification,
   PlatformSettings,
+  AuditLog,
 ];

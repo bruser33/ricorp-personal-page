@@ -15,6 +15,9 @@ import { createWstyleRouter } from './routes/wstyle.js';
 import { createPro } from './domain/pro.js';
 import { createProRouter } from './routes/pro.js';
 import { sendPhoto } from './lib/photos.js';
+import { createAdminInbox } from './lib/adminInbox.js';
+import { createAdmin } from './domain/admin.js';
+import { createAdminRouter } from './routes/admin.js';
 
 /* La app SIN listen ni connect: index.js conecta Mongo y escucha, y los tests
    (server/test/contact.test.js) la levantan en un puerto efímero con su
@@ -104,6 +107,8 @@ export function createApp({
   facebookFetch = fetch,
   bookingRateLimit = BOOKING_RATE_LIMIT,
   loginLimit = LOGIN_LIMIT,
+  /* SPEC-34: el proveedor de pago en línea (SPEC-35) está listo. Hasta entonces, false. */
+  onlinePayments = { ready: false },
 } = {}) {
   const app = express();
   /* Detrás del proxy de Render: req.ip tiene que ser la IP del visitante (del
@@ -185,6 +190,8 @@ export function createApp({
   /* Firma del `state` de OAuth. Sin AUTH_SECRET se genera uno por proceso (un
      reinicio invalida los inicios con Facebook en curso, nada más). */
   const secret = env.AUTH_SECRET || crypto.randomBytes(32).toString('hex');
+  /* Avisos al super admin (SPEC-34 RN-10): bandeja del panel + correo. */
+  const adminInbox = createAdminInbox({ mailer: agendaMailer, logger, env, frontUrl });
   const agenda = createAgenda({
     clock,
     mailer: agendaMailer,
@@ -192,10 +199,14 @@ export function createApp({
     frontUrl,
     geocoder: geocoder || createNominatimGeocoder({ logger }),
     businessSlug: env.BUSINESS_SLUG || 'ws-style',
+    adminInbox,
+    onlinePayments,
   });
   const bookingLimiter = createRateLimiter(bookingRateLimit);
   /* Barbero (SPEC-33): registro, perfil y panel. */
-  const pro = createPro({ agenda, clock, mailer: agendaMailer, logger, frontUrl, env });
+  const pro = createPro({ agenda, clock, mailer: agendaMailer, logger, frontUrl, env, adminInbox });
+  /* Super admin (SPEC-34). */
+  const admin = createAdmin({ agenda, pro, clock, mailer: agendaMailer, logger, frontUrl, env, adminInbox, onlinePayments });
   const authRouter = createAuthRouter({ env, clock, mailer: agendaMailer, logger, facebook, frontUrl, secret, loginLimit, onAccountDeleted: agenda.onAccountDeleted, onBarberFacebook: pro.ensureBarber });
   const withSession = sessionMiddleware({ clock });
   const needsDb = (_req, res, next) =>
@@ -209,7 +220,8 @@ export function createApp({
   });
   app.use('/api/wstyle', needsDb, withSession, createWstyleRouter({ agenda, logger, bookingLimiter }));
   app.use('/api/pro', needsDb, withSession, createProRouter({ pro, env, clock, mailer: agendaMailer, logger, frontUrl, loginLimiter: authRouter.loginLimiter }));
-  Object.assign(app.locals, { agenda, pro, agendaMailer, bookingLimiter, loginLimiter: authRouter.loginLimiter });
+  app.use('/api/admin', needsDb, withSession, createAdminRouter({ admin, logger }));
+  Object.assign(app.locals, { agenda, pro, admin, agendaMailer, bookingLimiter, loginLimiter: authRouter.loginLimiter });
 
   app.get('/api/health', (_req, res) => {
     /* 'unconfigured' y no 'dry-run' en Render: ahí sin mailer el envío es un 503,

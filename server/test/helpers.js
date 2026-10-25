@@ -56,6 +56,14 @@ export const PRO_A = {
   homeService: { enabled: true, surchargeCLP: 3000, radiusKm: 8, travelBufferMin: 30 },
   rules: [1, 2, 3, 4, 5].map((weekday) => ({ weekday, start: '12:00', end: '18:00' })),
 };
+export const PRO_C = {
+  displayName: 'Barbero C',
+  email: 'c@barberos.test',
+  phone: '+56933330000',
+  homeService: { enabled: false, surchargeCLP: 0, radiusKm: 0, travelBufferMin: 30 },
+  rules: [1, 2, 3, 4, 5].map((weekday) => ({ weekday, start: '12:00', end: '18:00' })),
+  services: ['corte'],
+};
 export const PRO_B = {
   displayName: 'Barbero B',
   email: 'b@barberos.test',
@@ -84,6 +92,7 @@ export async function start({ now, geocoder, facebookFetch, env = {}, ...opts } 
     facebookFetch,
     bookingRateLimit: opts.bookingRateLimit || { max: 1000, windowMs: 10 * MIN },
     loginLimit: opts.loginLimit,
+    onlinePayments: opts.onlinePayments,
   });
   const server = await new Promise((resolve) => {
     const s = app.listen(0, '127.0.0.1', () => resolve(s));

@@ -32,7 +32,7 @@ import {
 } from '../lib/emails.js';
 import { deletePhoto, MAX_PHOTOS, storePhoto } from '../lib/photos.js';
 import { photoUrl } from './agenda.js';
-import { slotsFor } from './availability.js';
+import { slotsFor, workWindows } from './availability.js';
 import { addDays, isDate, isoWeekday, isTime, wallClock, zonedToUtc } from './time.js';
 
 const MIN = 60 * 1000;
@@ -71,22 +71,28 @@ export function clipRules(rules, hours) {
     byDay.get(r.weekday).push([toMin(r.start), r.end === '24:00' ? 1440 : toMin(r.end)]);
   }
   for (const [wd, ranges] of [...byDay.entries()].sort((a, b) => a[0] - b[0])) {
-    const shop = (hours || []).find((h) => h.weekday === wd);
-    if (!shop?.opens || !shop?.closes) {
+    /* SPEC-34 RN-05: el local puede abrir en varios rangos el mismo día. */
+    const shop = (hours || []).filter((h) => h.weekday === wd && h.opens && h.closes);
+    if (!shop.length) {
       adjustments.push(`WS Style no abre los ${WEEKDAY_PLURAL[wd]}; quitamos ese día.`);
       continue;
     }
-    const o = toMin(shop.opens);
-    const c = shop.closes === '24:00' ? 1440 : toMin(shop.closes);
+    const shopMin = shop.map((h) => [toMin(h.opens), h.closes === '24:00' ? 1440 : toMin(h.closes)]);
     let clipped = false;
     const kept = [];
     for (const [s, e] of ranges) {
-      const cs = Math.max(s, o);
-      const ce = Math.min(e, c);
-      if (cs !== s || ce !== e) clipped = true;
-      if (cs < ce) kept.push([cs, ce]);
+      let covered = 0;
+      for (const [o, c] of shopMin) {
+        const cs = Math.max(s, o);
+        const ce = Math.min(e, c);
+        if (cs < ce) {
+          kept.push([cs, ce]);
+          covered += ce - cs;
+        }
+      }
+      if (covered !== e - s) clipped = true;
     }
-    if (clipped) adjustments.push(`WS Style abre de ${shop.opens} a ${shop.closes} los ${WEEKDAY_PLURAL[wd]}; ajustamos tu horario.`);
+    if (clipped) adjustments.push(`WS Style abre de ${shop.map((h) => `${h.opens} a ${h.closes}`).join(' y de ')} los ${WEEKDAY_PLURAL[wd]}; ajustamos tu horario.`);
     kept.sort((a, b) => a[0] - b[0]);
     const merged = [];
     for (const r of kept) {
@@ -99,7 +105,7 @@ export function clipRules(rules, hours) {
   return { rules: out, adjustments };
 }
 
-export function createPro({ agenda, clock = Date.now, mailer, logger = console, frontUrl = 'http://localhost:5173', env = {} }) {
+export function createPro({ agenda, clock = Date.now, mailer, logger = console, frontUrl = 'http://localhost:5173', env = {}, adminInbox = null }) {
   const panelUrl = `${frontUrl}/wstyle/pro/`;
 
   async function adminEmails() {
@@ -158,7 +164,9 @@ export function createPro({ agenda, clock = Date.now, mailer, logger = console, 
     );
     if (first) {
       await send(user.email, proReceivedMail({ name: pro.displayName, url: panelUrl }));
-      for (const to of await adminEmails()) await send(to, proNewForAdminMail({ name: pro.displayName, email: user.email, phone: user.phoneE164, url: `${frontUrl}/wstyle/admin/` }));
+      for (const to of await adminEmails()) await send(to, proNewForAdminMail({ name: pro.displayName, email: user.email, phone: user.phoneE164, url: `${frontUrl}/wstyle/admin/barberos/` }));
+      /* SPEC-34 RN-10: también en la bandeja del panel (el correo ya salió arriba). */
+      await adminInbox?.notify({ kind: 'barber_new', title: `Nuevo barbero por aprobar: ${pro.displayName}`, body: user.email || '', professionalId: pro._id, email: false });
     }
     return pro;
   }
@@ -182,6 +190,19 @@ export function createPro({ agenda, clock = Date.now, mailer, logger = console, 
     if (edit && (suspended || !['pending', 'approved'].includes(m.status))) {
       throw new HttpError(403, suspended ? 'suspended' : 'not_approved', 'Tu perfil no está habilitado para hacer cambios.', { membership: m.status });
     }
+    return { b, pro, m };
+  }
+
+  /* SPEC-34: el super admin edita el perfil, servicios y disponibilidad de cualquier barbero
+     (matriz de roles). `forAdmin(id)` es el "actor" que reciben esas funciones en lugar del user. */
+  const forAdmin = (professionalId) => ({ __admin: true, professionalId });
+  async function resolve(actor, opts) {
+    if (!actor?.__admin) return context(actor, opts);
+    const b = await agenda.business();
+    const _id = oid(actor.professionalId);
+    const pro = _id ? await Professional.findById(_id) : null;
+    const m = pro ? await Membership.findOne({ businessId: b._id, professionalId: pro._id }) : null;
+    if (!pro || !m) throw new HttpError(404, 'not_found', 'No encontramos ese barbero');
     return { b, pro, m };
   }
 
@@ -233,7 +254,7 @@ export function createPro({ agenda, clock = Date.now, mailer, logger = console, 
 
   /* ─── Perfil */
   async function updateProfile(user, body) {
-    const { pro } = await context(user, { edit: true });
+    const { pro } = await resolve(user, { edit: true });
     const fields = {};
     if (body.displayName !== undefined) {
       const n = validName(body.displayName);
@@ -256,7 +277,7 @@ export function createPro({ agenda, clock = Date.now, mailer, logger = console, 
   }
 
   async function setServices(user, body) {
-    const { b, pro } = await context(user, { edit: true });
+    const { b, pro } = await resolve(user, { edit: true });
     const ids = Array.isArray(body.serviceIds) ? [...new Set(body.serviceIds.map(String))] : [];
     if (!ids.length) throw fieldError({ serviceIds: 'required' }, 'Elige al menos un servicio');
     const services = await Service.find({ businessId: b._id, active: true, slug: { $in: ids } }).lean();
@@ -268,7 +289,7 @@ export function createPro({ agenda, clock = Date.now, mailer, logger = console, 
   }
 
   async function setAvailability(user, body) {
-    const { b, pro } = await context(user, { edit: true });
+    const { b, pro } = await resolve(user, { edit: true });
     const raw = Array.isArray(body.rules) ? body.rules : null;
     if (!raw || raw.length > 50) throw fieldError({ rules: 'invalid_rules' });
     const rules = [];
@@ -287,7 +308,7 @@ export function createPro({ agenda, clock = Date.now, mailer, logger = console, 
   }
 
   async function setHomeService(user, body) {
-    const { pro } = await context(user, { edit: true });
+    const { pro } = await resolve(user, { edit: true });
     const cur = pro.homeService || {};
     const next = {
       enabled: body.enabled === undefined ? Boolean(cur.enabled) : body.enabled,
@@ -454,27 +475,16 @@ export function createPro({ agenda, clock = Date.now, mailer, logger = console, 
     const days = [];
     for (let date = from; date <= to; date = addDays(date, 1)) {
       const wd = isoWeekday(date);
-      const shop = (b.hours || []).find((h) => h.weekday === wd);
-      const open = shop?.opens && shop?.closes && !closures.includes(date);
+      const shopDay = (b.hours || []).filter((h) => h.weekday === wd && h.opens && h.closes);
+      const open = shopDay.length > 0 && !closures.includes(date);
+      const shop = open ? { opens: shopDay.map((h) => h.opens).sort()[0], closes: shopDay.map((h) => h.closes).sort().at(-1) } : null;
       /* Ventanas de trabajo = sus reglas ∩ horario del local − ausencias (en ISO). */
-      let windows = [];
-      if (open) {
-        const so = zonedToUtc(date, shop.opens, b.timezone);
-        const sc = zonedToUtc(date, shop.closes, b.timezone);
-        windows = rules
-          .filter((r) => r.weekday === wd)
-          .map((r) => [Math.max(so, zonedToUtc(date, r.start, b.timezone)), Math.min(sc, zonedToUtc(date, r.end, b.timezone))])
-          .filter(([s, e]) => s < e);
-        for (const o of offs) {
-          const cut = [o.startsAt.getTime(), o.endsAt.getTime()];
-          windows = windows.flatMap(([s, e]) => (cut[1] <= s || cut[0] >= e ? [[s, e]] : [...(cut[0] > s ? [[s, cut[0]]] : []), ...(cut[1] < e ? [[cut[1], e]] : [])]));
-        }
-      }
+      const windows = open ? workWindows({ date, tz: b.timezone, shopHours: shopDay, closures, rules: rules.filter((r) => r.weekday === wd), timeOffs: offs }) : [];
       const dayStart = zonedToUtc(date, '00:00', b.timezone);
       const dayEnd = zonedToUtc(addDays(date, 1), '00:00', b.timezone);
       days.push({
         date,
-        shop: open ? { opens: shop.opens, closes: shop.closes } : null,
+        shop,
         windows: windows.sort((x, y) => x[0] - y[0]).map(([s, e]) => ({ startsAt: new Date(s).toISOString(), endsAt: new Date(e).toISOString() })),
         appointments: serialized.filter((a) => Date.parse(a.startsAt) >= dayStart && Date.parse(a.startsAt) < dayEnd),
       });
@@ -532,9 +542,10 @@ export function createPro({ agenda, clock = Date.now, mailer, logger = console, 
   }
 
   /* ─── Invitar cita (RN-12, RN-13, CB-07, CB-08) */
-  function inviteExpiry(now, startMs) {
+  /* SPEC-34 RN-08: la vigencia la configura el admin (por defecto 24 h). */
+  function inviteExpiry(now, startMs, b) {
     const cutoff = startMs - INVITE_CUTOFF_H * HOUR;
-    const exp = Math.min(now + INVITE_TTL_H * HOUR, cutoff);
+    const exp = Math.min(now + (b?.settings?.inviteTtlHours ?? INVITE_TTL_H) * HOUR, cutoff);
     return new Date(exp > now ? exp : startMs);
   }
 
@@ -595,7 +606,7 @@ export function createPro({ agenda, clock = Date.now, mailer, logger = console, 
       payment: { method: 'local', status: 'pendiente' },
       note: note || undefined,
       status: 'invitacion_enviada',
-      expiresAt: inviteExpiry(now, startMs),
+      expiresAt: inviteExpiry(now, startMs, b),
       invite: { token: crypto.randomBytes(18).toString('base64url'), sentAt: new Date(now) },
       history: [{ at: new Date(now), from: null, to: 'invitacion_enviada', by: 'barber', byUserId: user._id }],
       source: 'pro_invite',
@@ -649,7 +660,7 @@ export function createPro({ agenda, clock = Date.now, mailer, logger = console, 
       );
       a.startsAt = new Date(startMs);
       a.endsAt = new Date(startMs + a.serviceSnapshot.durationMin * MIN);
-      a.expiresAt = inviteExpiry(now, startMs);
+      a.expiresAt = inviteExpiry(now, startMs, b);
       a.invite.sentAt = new Date(now);
       return { by: 'barber', byUserId: user._id, reason: 'Invitación reprogramada' };
     });
@@ -679,6 +690,9 @@ export function createPro({ agenda, clock = Date.now, mailer, logger = console, 
   }
 
   return {
+    forAdmin,
+    resolve,
+    serializePro,
     ensureBarber,
     needsCompletion,
     context,

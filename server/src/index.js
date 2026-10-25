@@ -3,6 +3,7 @@
 import 'dotenv/config';
 import mongoose from 'mongoose';
 import { app } from './app.js';
+import { ensureSuperAdmin } from './seed-admin.js';
 
 const PORT = process.env.PORT || 4000;
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/pagina_personal';
@@ -11,6 +12,8 @@ mongoose
   .connect(MONGO_URI)
   .then(() => {
     app.listen(PORT, () => console.log(`api on :${PORT}`));
+    /* SPEC-34 RN-01: primer super admin desde SUPERADMIN_EMAIL/SUPERADMIN_PASSWORD. */
+    ensureSuperAdmin().catch((err) => console.error('[admin] seed del super admin falló:', err.message));
     /* RN-11/RN-12: expira citas sin confirmar y propuestas sin respuesta. Una sola
        instancia en Render free: un intervalo en proceso basta. */
     setInterval(() => {

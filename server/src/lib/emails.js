@@ -51,6 +51,11 @@ const BARBER_SUBJECTS = {
   /* SPEC-33 */
   invite_confirmed: 'El cliente confirmó la invitación',
   invite_expired: 'La invitación expiró',
+  /* SPEC-34 */
+  admin_cancelled: 'WS Style canceló una cita',
+  admin_booked: 'WS Style te agendó una cita',
+  reassigned_to_you: 'Te reasignaron una cita',
+  reassigned_away: 'Tu cita fue reasignada a otro barbero',
 };
 export const BARBER_EVENT_TITLE = BARBER_SUBJECTS;
 
@@ -77,6 +82,7 @@ export function appointmentMail({ kind, to, appt, when, proposalWhen, url, waUrl
     lines.push(`Cliente: ${client}`);
     if (kind === 'client_cancelled' && reason) lines.push(`Motivo: ${reason}`);
     if (kind === 'invite_expired') lines.push('No la confirmó a tiempo y la hora quedó libre.');
+    if (kind === 'admin_cancelled' && reason) lines.push(`Motivo: ${reason}`);
   }
   lines.push(`${service} · ${when}`, where, total);
   const links = [['Ver la cita', url]];
@@ -113,4 +119,19 @@ export function proRejectedMail({ name, reason, url }) {
 export function proSuspendedMail({ name, reason, url }) {
   const subject = 'Tu perfil fue suspendido · WS Style';
   return { subject, template: 'pro_suspended', ...layout('Tu perfil fue suspendido', [`Hola ${name || ''}`.trim() + ',', 'Mientras esté suspendido no recibes reservas nuevas.', ...(reason ? [`Motivo: ${reason}`] : [])], [['Ver mi panel', url]]) };
+}
+
+/* ─── Super admin (SPEC-34 RN-10) */
+export function adminAlertMail({ title, body, url, kind }) {
+  const subject = `${title} · WS Style`;
+  return { subject, template: `admin_${kind}`, ...layout(title, body ? [body] : [], [['Abrir el panel', url]]) };
+}
+
+export function reassignedMail({ appt, when, url, from, to }) {
+  const subject = 'Cambió el barbero de tu cita · WS Style';
+  return {
+    subject,
+    template: 'client_reassigned',
+    ...layout('Cambió el barbero de tu cita', [`${from} no podrá atenderte; tu cita queda con ${to}.`, `${appt.serviceSnapshot?.name || 'Servicio'} · ${when}`, 'La hora y el precio no cambian.'], [['Ver la cita', url]]),
+  };
 }

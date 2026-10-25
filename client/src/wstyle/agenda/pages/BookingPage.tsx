@@ -45,6 +45,8 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
   const [phone, setPhone] = useState('');
   const [accept, setAccept] = useState(false);
   const [website, setWebsite] = useState('');
+  // SPEC-34 RN-08: formas de pago que habilitó el admin (sin datos del catálogo: solo en el local).
+  const [payPick, setPayPick] = useState<'local' | 'online' | null>(null);
   const [errors, setErrors] = useState<Record<string, string | undefined>>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [welcome, setWelcome] = useState<string | null>(null);
@@ -55,6 +57,8 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
   const heading = useRef<HTMLHeadingElement>(null);
 
   const service = catalog?.services.find((s) => s.id === sel.serviceId) ?? null;
+  const payments = catalog?.business.payments ?? { online: false, local: true };
+  const pay: 'local' | 'online' = payPick && payments[payPick] ? payPick : payments.local ? 'local' : 'online';
   const pros = useMemo(() => (catalog && service ? catalog.professionals.filter((p) => p.serviceIds.includes(sel.serviceId!)) : []), [catalog, service, sel.serviceId]);
   const pro = sel.professionalId && sel.professionalId !== 'any' ? pros.find((p) => p.id === sel.professionalId) ?? null : null;
   const homePros = (sel.professionalId === 'any' ? pros : pro ? [pro] : []).filter((p) => p.homeService && service?.homeServiceAllowed !== false);
@@ -187,7 +191,7 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
       const r = await agenda.create({
         serviceId: sel.serviceId, professionalId: sel.professionalId, startsAt: sel.startsAt, mode,
         address: mode === 'home' ? sel.address : undefined, phone: needPhone ? phone : undefined, note: sel.note ?? '',
-        acceptPolicies: accept, paymentMethod: 'local', idempotencyKey: idem.current, website,
+        acceptPolicies: accept, paymentMethod: pay, idempotencyKey: idem.current, website,
       });
       if (!r.appointment) { setSubmitError('No pudimos agendar. Inténtalo de nuevo.'); return; }
       setDone({ appt: r.appointment, mailOk: r.mailOk });
@@ -383,10 +387,18 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
                   </div>
                   <fieldset className="ag-options ag-pay">
                     <legend>Forma de pago</legend>
-                    <label className="ag-option ag-radio is-selected">
-                      <input type="radio" name="pay" checked readOnly />
-                      <span><span className="ag-option__name">Pagar en el local</span><span className="ag-option__meta">{policies.find((p) => /pago/i.test(p.title))?.text ?? 'Efectivo, débito o crédito.'}</span></span>
-                    </label>
+                    {payments.local && (
+                      <label className={`ag-option ag-radio${pay === 'local' ? ' is-selected' : ''}`}>
+                        <input type="radio" name="pay" value="local" checked={pay === 'local'} onChange={() => setPayPick('local')} />
+                        <span><span className="ag-option__name">Pagar en el local</span><span className="ag-option__meta">{policies.find((p) => /pago/i.test(p.title))?.text ?? 'Efectivo, débito o crédito.'}</span></span>
+                      </label>
+                    )}
+                    {payments.online && (
+                      <label className={`ag-option ag-radio${pay === 'online' ? ' is-selected' : ''}`}>
+                        <input type="radio" name="pay" value="online" checked={pay === 'online'} onChange={() => setPayPick('online')} />
+                        <span><span className="ag-option__name">Pagar en línea</span><span className="ag-option__meta">Con Mercado Pago, al confirmar.</span></span>
+                      </label>
+                    )}
                   </fieldset>
                   <div className={`ag-field ag-check${errors.acceptPolicies ? ' has-error' : ''}`}>
                     <label>

@@ -219,6 +219,10 @@ export function createAuthRouter({ env, clock, mailer, logger, facebook, frontUr
   /* RN-26: anonimiza y cancela las citas futuras (lo hace el módulo de citas). */
   r.delete('/me', h(async (req, res) => {
     const user = requireUser(req);
+    /* SPEC-34 CB-11: siempre tiene que quedar al menos un super admin. */
+    if (user.roles.includes('superadmin') && (await User.countDocuments({ roles: 'superadmin', status: 'active' })) <= 1) {
+      throw new HttpError(409, 'last_superadmin', 'Eres el único administrador: no puedes eliminar tu cuenta');
+    }
     await anonymizeUser(user._id);
     clearSessionCookie(res, env);
     res.json({ ok: true });

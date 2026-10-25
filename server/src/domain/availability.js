@@ -37,12 +37,40 @@ function subtract(windows, cut) {
   return out;
 }
 
+/* Rangos del local para un día: acepta una entrada ({opens, closes}) o la lista de
+   entradas de ese día de la semana (SPEC-34 RN-05: un día puede tener varios rangos). */
+export function shopRanges(shopHours) {
+  const list = Array.isArray(shopHours) ? shopHours : [shopHours];
+  return list.filter((h) => h && h.opens && h.closes);
+}
+
+/**
+ * Ventanas de trabajo de un profesional en un día local (instantes UTC):
+ * horario del local ∩ disponibilidad semanal − cierres − ausencias.
+ * La usan las horas libres (daySlots), la agenda del barbero y la ocupación (SPEC-34 RN-07).
+ */
+export function workWindows({ date, tz, shopHours, closures = [], rules = [], timeOffs = [] }) {
+  const ranges = shopRanges(shopHours);
+  if (!ranges.length || closures.includes(date)) return [];
+  const shop = ranges.map((h) => [zonedToUtc(date, h.opens, tz), zonedToUtc(date, h.closes, tz)]);
+  let windows = [];
+  for (const r of rules) {
+    const own = [zonedToUtc(date, r.start, tz), zonedToUtc(date, r.end, tz)];
+    for (const s of shop) {
+      const x = intersect(own, s);
+      if (x) windows.push(x);
+    }
+  }
+  for (const off of timeOffs) windows = subtract(windows, [new Date(off.startsAt).getTime(), new Date(off.endsAt).getTime()]);
+  return windows.sort((a, b) => a[0] - b[0]);
+}
+
 /**
  * Horas de inicio libres de UN profesional en UN día local.
  * @param {object} p
  * @param {string} p.date        'YYYY-MM-DD' en la zona del negocio
  * @param {string} p.tz
- * @param {{opens:string|null, closes:string|null}|null} p.shopHours  horario del local ese día
+ * @param {{opens:string|null, closes:string|null}|{opens:string|null, closes:string|null}[]|null} p.shopHours  horario del local ese día (uno o varios rangos)
  * @param {string[]} p.closures  fechas cerradas del local
  * @param {{start:string,end:string}[]} p.rules  disponibilidad del barbero ese día de la semana
  * @param {{startsAt:Date|number, endsAt:Date|number}[]} p.timeOffs
@@ -56,12 +84,9 @@ function subtract(windows, cut) {
  */
 export function daySlots(p) {
   const { date, tz, shopHours, closures = [], rules = [], timeOffs = [], locked = new Set(), durationMin, bufferMin = 0, now, minLeadMin, horizonDays } = p;
-  if (!shopHours || !shopHours.opens || !shopHours.closes) return [];
-  if (closures.includes(date)) return [];
   if (!(durationMin > 0)) return [];
-  const shop = [zonedToUtc(date, shopHours.opens, tz), zonedToUtc(date, shopHours.closes, tz)];
-  let windows = rules.map((r) => intersect([zonedToUtc(date, r.start, tz), zonedToUtc(date, r.end, tz)], shop)).filter(Boolean);
-  for (const off of timeOffs) windows = subtract(windows, [new Date(off.startsAt).getTime(), new Date(off.endsAt).getTime()]);
+  const windows = workWindows({ date, tz, shopHours, closures, rules, timeOffs });
+  if (!windows.length) return [];
 
   const earliest = now + minLeadMin * MIN;
   /* Horizonte por día de calendario: hoy + 30 días incluye ese día completo. */
@@ -69,7 +94,7 @@ export function daySlots(p) {
   const dur = durationMin * MIN;
   const seen = new Set();
   const out = [];
-  for (const [ws, we] of windows.sort((a, b) => a[0] - b[0])) {
+  for (const [ws, we] of windows) {
     for (let s = ceilSlot(ws); s + dur <= we; s += SLOT_MS) {
       if (s < earliest) continue;
       if (slotsFor(s, durationMin, bufferMin).some((t) => locked.has(t))) continue;

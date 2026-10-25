@@ -8,7 +8,10 @@
     "start": "node src/index.js",
     "test": "node --test --test-concurrency=1",
     "seed": "node src/seed.js",
-    "seed:pro-demo": "node src/seed-pro-demo.js"
+    "seed:pro-demo": "node src/seed-pro-demo.js",
+    "seed:admin": "node src/seed-admin.js",
+    "seed:catalog": "node src/seed.js --catalog",
+    "seed:admin-demo": "node src/seed-admin-demo.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

@@ -10,6 +10,7 @@ import { clMobile, isEmail, normEmail, passwordProblem } from '../lib/validate.j
 import { linkFacebookMail, verifyEmailMail } from '../lib/emails.js';
 import { MAX_PHOTO_BYTES, MAX_PHOTOS } from '../lib/photos.js';
 import { validName } from '../domain/pro.js';
+import { computeStats, parseRange } from '../domain/stats.js';
 
 const HOUR = 60 * 60 * 1000;
 
@@ -170,6 +171,11 @@ export function createProRouter({ pro, env, clock, mailer, logger, frontUrl, log
     r.post(`/appointments/:id/${path}`, h(async (req, res) => res.json(await pro.act(u(req), req.params.id, action, req.body || {}))));
   }
   r.post('/invitations', h(async (req, res) => res.status(201).json(await pro.invite(u(req), req.body || {}))));
+  /* SPEC-34 RN-07 / asunción 7: el barbero aprobado ve solo SUS estadísticas. */
+  r.get('/stats', h(async (req, res) => {
+    const { b, pro: me } = await pro.context(u(req), { operate: true });
+    res.json(await computeStats(b, { ...parseRange(req.query, clock(), b.timezone), professionalId: me._id }));
+  }));
   r.get('/notifications', h(async (req, res) => res.json(await pro.notifications(u(req)))));
   r.post('/notifications/read', h(async (req, res) => res.json(await pro.markRead(u(req), req.body?.ids))));
 

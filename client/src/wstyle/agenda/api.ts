@@ -70,7 +70,14 @@ export interface User { id: string; name: string; email: string | null; emailVer
 export interface CatalogService { id: string; name: string; description: string; priceCLP: number; durationMin: number; homeServiceAllowed: boolean }
 export interface CatalogPro { id: string; name: string; specialty: string; photo: string | null; homeService: { surchargeCLP: number; radiusKm: number } | null; serviceIds: string[] }
 export interface Catalog {
-  business: { name: string; timezone: string; address?: { street?: string; city?: string }; whatsapp: string | null; policies: { title: string; text: string }[]; settings: { minLeadMinutes: number; horizonDays: number; cancelUntilMinutes: number } };
+  business: {
+    name: string; timezone: string; address?: { street?: string; city?: string }; whatsapp: string | null; policies: { title: string; text: string }[];
+    settings: { minLeadMinutes: number; horizonDays: number; cancelUntilMinutes: number };
+    // SPEC-34: horario en el formato de site.json, contacto y formas de pago habilitadas por el admin.
+    hoursRows?: { days: string; dayCodes: string; opens: string | null; closes: string | null }[];
+    contact?: { whatsapp: string | null; phone: string | null; address?: { street?: string; city?: string; region?: string } };
+    payments?: { online: boolean; local: boolean };
+  };
   services: CatalogService[];
   professionals: CatalogPro[];
 }

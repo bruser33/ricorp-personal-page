@@ -26,6 +26,7 @@ import { clMobile, MAX_NOTE } from '../lib/validate.js';
 import { appointmentMail, BARBER_EVENT_TITLE, waLink } from '../lib/emails.js';
 import { daySlots, distanceKm, slotsFor } from './availability.js';
 import { addDays, formatLong, isDate, isoWeekday, wallClock, zonedToUtc } from './time.js';
+import { entriesToWeek, weekToSiteRows } from './hours.js';
 
 const MIN = 60 * 1000;
 const HOUR = 60 * MIN;
@@ -59,7 +60,9 @@ const notFound = () => new HttpError(404, 'not_found', 'No encontramos esta cita
 const invalid = (reason, message = 'Esta acción ya no es posible. Recarga para ver el estado actual.') =>
   new HttpError(409, 'invalid_transition', message, { reason });
 
-export function createAgenda({ clock = Date.now, mailer, logger = console, frontUrl = 'http://localhost:5173', geocoder, businessSlug = 'ws-style' }) {
+/* `onlinePayments.ready`: el proveedor de pago en línea está implementado y con credenciales
+   (SPEC-35). Mientras no, "Pagar en línea" no se ofrece aunque el admin lo habilite. */
+export function createAgenda({ clock = Date.now, mailer, logger = console, frontUrl = 'http://localhost:5173', geocoder, businessSlug = 'ws-style', adminInbox = null, onlinePayments = { ready: false } }) {
   async function business() {
     const b = await Business.findOne({ slug: businessSlug }).lean();
     if (!b) throw new HttpError(503, 'agenda_unavailable', 'La agenda aún no está configurada');
@@ -77,11 +80,15 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
   async function professionals(b, { service = null, mode = 'shop' } = {}) {
     const memberships = await Membership.find({ businessId: b._id, status: 'approved' }).sort({ order: 1, createdAt: 1 }).lean();
     const ids = memberships.map((m) => m.professionalId);
-    const [pros, rules, links] = await Promise.all([
+    const [pros, rules, allLinks, activeIds] = await Promise.all([
       Professional.find({ _id: { $in: ids }, status: 'active' }).lean(),
       AvailabilityRule.find({ businessId: b._id, professionalId: { $in: ids } }).lean(),
       ProfessionalService.find({ businessId: b._id, professionalId: { $in: ids } }).lean(),
+      Service.distinct('_id', { businessId: b._id, active: true }),
     ]);
+    /* SPEC-34 CB-05: un servicio archivado/inactivo no cuenta (si era el único, el barbero deja de ser reservable). */
+    const active = new Set(activeIds.map(String));
+    const links = allLinks.filter((l) => active.has(String(l.serviceId)));
     const byId = new Map(pros.map((p) => [String(p._id), p]));
     const out = [];
     for (const m of memberships) {
@@ -117,9 +124,14 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
         timezone: b.timezone,
         address: b.address,
         hours: b.hours,
+        /* SPEC-34 RN-06: el horario en el formato de site.json, para que la landing lo reemplace tal cual. */
+        hoursRows: weekToSiteRows(entriesToWeek(b.hours)),
+        closures: (b.closures || []).filter((c) => c.date >= wallClock(clock(), b.timezone).date).map((c) => ({ date: c.date, reason: c.reason || '' })),
         policies: b.policies,
         whatsapp: b.contact?.whatsapp || null,
+        contact: { whatsapp: b.contact?.whatsapp || null, phone: b.contact?.phone || null, address: b.address || {} },
         settings: { minLeadMinutes: b.settings.minLeadMinutes, horizonDays: b.settings.horizonDays, cancelUntilMinutes: b.settings.cancelUntilMinutes },
+        payments: paymentOptions(b),
       },
       services: services.map((s) => ({ id: s.slug, name: s.name, description: s.description || '', priceCLP: s.priceCLP, durationMin: s.durationMin, homeServiceAllowed: s.homeServiceAllowed !== false })),
       professionals: pros.map((p) => {
@@ -127,6 +139,11 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
         return { ...publicPro(p), serviceIds: p.serviceIds.map((id) => slugs.get(id)).filter(Boolean) };
       }),
     };
+  }
+
+  /* SPEC-34 RN-08: formas de pago que se ofrecen en el paso 4 de la reserva. */
+  function paymentOptions(b) {
+    return { online: Boolean(b.payments?.onlineEnabled && onlinePayments.ready), local: b.payments?.localEnabled !== false };
   }
 
   /* Horas libres por día para una lista de profesionales. `exclude` = cita propia
@@ -153,7 +170,7 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
     const closures = (b.closures || []).map((c) => c.date);
     for (let date = from; date <= to; date = addDays(date, 1)) {
       const wd = isoWeekday(date);
-      const shopHours = (b.hours || []).find((h) => h.weekday === wd) || null;
+      const shopHours = (b.hours || []).filter((h) => h.weekday === wd);
       const merged = new Map();
       for (const p of pros) {
         const slots = daySlots({
@@ -257,7 +274,13 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
     const note = String(input.note ?? '').trim();
     if (note.length > MAX_NOTE) fields.note = 'too_long';
     if (input.acceptPolicies !== true) fields.acceptPolicies = 'required';
-    if (input.paymentMethod !== undefined && input.paymentMethod !== 'local') fields.paymentMethod = 'invalid_payment';
+    const payMethod = input.paymentMethod === undefined ? 'local' : input.paymentMethod;
+    const payOpts = paymentOptions(b);
+    if (!['local', 'online'].includes(payMethod)) fields.paymentMethod = 'invalid_payment';
+    /* SPEC-34 AC-09: una forma de pago deshabilitada por el admin se rechaza aunque el front la mande.
+       "En línea" además necesita SPEC-35 (hasta entonces nunca se acepta). */
+    else if (payMethod === 'local' && !payOpts.local) fields.paymentMethod = 'payment_unavailable';
+    else if (payMethod === 'online') fields.paymentMethod = 'payment_unavailable';
     if (Object.keys(fields).length) throw new HttpError(400, Object.values(fields)[0], 'Revisa los datos', { fields });
 
     let pros = await professionals(b, { service, mode });
@@ -724,6 +747,18 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
       const who = { client: 'el cliente', barber: appt.professionalSnapshot?.displayName || 'el barbero', admin: 'WS Style' }[role];
       const jobs = [notify(b, appt, 'client', 'cancelled', { cancelledBy: who, reason })];
       if (role === 'client') jobs.push(notify(b, appt, 'barber', 'client_cancelled', { reason }));
+      if (role === 'admin') jobs.push(notify(b, appt, 'barber', 'admin_cancelled', { reason }));
+      /* SPEC-34 RN-10: el super admin se entera de las cancelaciones del barbero. */
+      if (role === 'barber' && adminInbox) {
+        jobs.push(adminInbox.notify({
+          kind: 'barber_cancelled',
+          title: `${who} canceló una cita`,
+          body: `${appt.customerSnapshot?.name || 'Cliente'} · ${appt.serviceSnapshot?.name || ''} · ${formatLong(appt.startsAt.getTime(), b.timezone)}${reason ? ` · Motivo: ${reason}` : ''}`,
+          appointmentId: appt._id,
+          professionalId: appt.professionalId,
+          path: 'citas/',
+        }));
+      }
       await Promise.all(jobs);
       return serialize(appt, role, b, now);
     }
@@ -848,6 +883,7 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
     act,
     actAs,
     load,
+    paymentOptions,
     runExpirations,
     onAccountDeleted,
     serialize,
