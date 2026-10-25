@@ -117,7 +117,7 @@ export function MyAppointmentsPage({ ctx }: { ctx: AgendaCtx }) {
           <li key={a.id}>
             <a className="ag-item" href={`/wstyle/cita/?id=${a.id}`}>
               <span className="ag-item__main"><strong>{a.service.name}</strong> con {a.professional.name}<span className="ag-item__when">{a.when}</span></span>
-              <span className="ag-item__side"><StatusPill status={a.status} label={a.statusLabel} /><span>{clp.format(a.pricing.totalCLP)}</span></span>
+              <span className="ag-item__side"><StatusPill status={a.status} label={a.statusLabel} /><span>{clp.format(a.pricing.totalCLP)}</span>{a.payment.backing && <span className="ag-item__receipt" data-backing={a.payment.backing.kind}>{a.payment.backing.kind === 'voucher_mp' ? 'Voucher MP' : `Boleta N° ${a.payment.backing.number}`}</span>}</span>
             </a>
           </li>
         ))}

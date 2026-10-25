@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ApiError } from '../../agenda/api';
+import { CollectFields } from '../../agenda/components/CollectFields';
+import { useCollect } from '../../agenda/useCollect';
 import { Notice, StatusPill } from '../../agenda/components/ui';
 import { clp, dayMonthTime, localDate, localTime, prettyPhone } from '../../agenda/util';
 import Sheet from '../../pro/components/Sheet';
@@ -7,9 +9,10 @@ import { admin, type AdminAppointment } from '../api';
 import { paymentLabel } from '../util';
 import { ReasonForm } from './common';
 
-type Mode = null | 'cancel' | 'reject' | 'propose' | 'reassign' | 'finish' | { refund: string | null };
+type Mode = null | 'cancel' | 'reject' | 'propose' | 'reassign' | 'finish' | 'collect' | { refund: string | null };
 
 const BY: Record<string, string> = { client: 'Cliente', barber: 'Barbero', admin: 'WS Style', system: 'Sistema' };
+const LOCAL_LABEL: Record<string, string> = { efectivo: 'Efectivo', transferencia: 'Transferencia', tarjeta: 'Tarjeta' };
 
 // Ficha de una cita para el super admin (RN-03): todo lo que hay que saber + las acciones que permite la máquina de
 // estados de SPEC-32 (el server las revalida). Reasignar ofrece solo barberos aprobados, que hacen el servicio y están
@@ -23,6 +26,7 @@ export default function ApptSheet({ id, onClose, onChanged }: { id: string; onCl
   const [target, setTarget] = useState('');
   const [when, setWhen] = useState('');
   const [collected, setCollected] = useState(true);
+  const col = useCollect();
   const [minWhen] = useState(() => `${localDate(Date.now())}T${localTime(Date.now())}`);
 
   useEffect(() => {
@@ -83,7 +87,9 @@ export default function ApptSheet({ id, onClose, onChanged }: { id: string; onCl
           <dt>Pago</dt>
           <dd data-payment={pay.status}>
             {pay.method === 'local' ? 'En el local' : 'En línea · Mercado Pago'} · {paymentLabel(pay)}
+            {pay.localMethod && <span className="ag-muted"> · {LOCAL_LABEL[pay.localMethod] ?? pay.localMethod}</span>}
             {pay.mpPaymentId && <span className="ag-muted"> · pago {pay.mpPaymentId}</span>}
+            {pay.backing && <span className="ag-muted" data-backing={pay.backing.kind}> · {pay.backing.label}</span>}
             {pay.refundError && <span className="adm-refund-err" role="alert"> · Último intento de reembolso falló: {pay.refundError}</span>}
           </dd>
           {!!pay.duplicates?.length && <>
@@ -114,7 +120,7 @@ export default function ApptSheet({ id, onClose, onChanged }: { id: string; onCl
             {has('start') && <button type="button" className="btn btn--ghost" disabled={busy} onClick={() => run(() => admin.act(id, 'start'))}>Iniciar</button>}
             {has('finish') && <button type="button" className="btn btn--primary" disabled={busy} onClick={() => setMode('finish')}>Terminar</button>}
             {has('no_show') && <button type="button" className="btn btn--ghost" disabled={busy} onClick={() => run(() => admin.act(id, 'no_show'))}>Marcar inasistencia</button>}
-            {appt.canCollect && <button type="button" className="btn btn--ghost" disabled={busy} onClick={() => run(() => admin.collect(id))}>Marcar cobrado en el local</button>}
+            {appt.canCollect && <button type="button" className="btn btn--ghost" disabled={busy} onClick={() => setMode('collect')}>Marcar cobrado en el local</button>}
             {appt.canRefund && <button type="button" className="btn btn--primary" disabled={busy} onClick={() => setMode({ refund: null })}>{pay.refundError ? 'Reintentar reembolso' : 'Reembolsar'} {clp.format(appt.pricing.totalCLP)}</button>}
             {has('reject') && <button type="button" className="btn btn--ghost" disabled={busy} onClick={() => setMode('reject')}>Rechazar</button>}
             {has('cancel') && <button type="button" className="btn btn--danger" disabled={busy} onClick={() => setMode('cancel')}>Cancelar cita</button>}
@@ -155,11 +161,32 @@ export default function ApptSheet({ id, onClose, onChanged }: { id: string; onCl
           </form>
         )}
 
+        {mode === 'collect' && (
+          <form className="adm-inline" onSubmit={(e) => {
+            e.preventDefault();
+            const c = col.check();
+            if (c) run(() => admin.collect(id, { method: c.localMethod, boletaNumber: c.boletaNumber ?? undefined }));
+          }}>
+            <CollectFields method={col.method} onMethod={col.setMethod} boleta={col.boleta} onBoleta={col.setBoleta} error={col.error} />
+            <div className="ag-actions ag-actions--wrap">
+              <button type="submit" className="btn btn--primary" disabled={busy}>Marcar cobrado {clp.format(appt.pricing.totalCLP)}</button>
+              <button type="button" className="btn btn--ghost" onClick={() => setMode(null)}>Volver</button>
+            </div>
+          </form>
+        )}
+
         {mode === 'finish' && (
-          <form className="adm-inline" onSubmit={(e) => { e.preventDefault(); run(() => admin.act(id, 'finish', pay.method === 'local' ? { collected } : {})); }}>
+          <form className="adm-inline" onSubmit={(e) => {
+            e.preventDefault();
+            if (pay.method !== 'local') { run(() => admin.act(id, 'finish', {})); return; }
+            if (!collected) { run(() => admin.act(id, 'finish', { collected: false })); return; }
+            const c = col.check();
+            if (c) run(() => admin.act(id, 'finish', { collected: true, ...c }));
+          }}>
             {pay.method === 'local' && (
               <label className="pro-check"><input type="checkbox" checked={collected} onChange={(e) => setCollected(e.target.checked)} /> <span>Se cobró en el local</span></label>
             )}
+            {pay.method === 'local' && collected && <CollectFields method={col.method} onMethod={col.setMethod} boleta={col.boleta} onBoleta={col.setBoleta} error={col.error} />}
             <div className="ag-actions ag-actions--wrap">
               <button type="submit" className="btn btn--primary" disabled={busy}>Terminar la cita</button>
               <button type="button" className="btn btn--ghost" onClick={() => setMode(null)}>Volver</button>

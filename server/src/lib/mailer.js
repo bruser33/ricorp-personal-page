@@ -1,5 +1,6 @@
-/* Correo de la agenda y de las cuentas (RN-17, RN-21, RN-22). Misma prioridad que
-   /api/contact: Resend → SMTP (Gmail) → dry-run. MAIL_DRY_RUN=1 fuerza el dry-run
+/* Correo de la agenda y de las cuentas (RN-17, RN-21, RN-22). Prioridad:
+   Resend → buzón SMTP local (SMTP_HOST/SMTP_PORT, sin auth: Mailpit en desarrollo) →
+   SMTP de Gmail (SMTP_USER/SMTP_PASS) → dry-run. MAIL_DRY_RUN=1 fuerza el dry-run
    (desarrollo y tests): nada sale, y lo "enviado" queda en `outbox` para revisarlo. */
 import { Resend } from 'resend';
 import nodemailer from 'nodemailer';
@@ -9,11 +10,26 @@ export function createMailer({ env = process.env, logger = console } = {}) {
   const from = env.MAIL_FROM || env.CONTACT_FROM || 'WS Style <onboarding@resend.dev>';
   const resend = !forceDry && env.RESEND_API_KEY ? new Resend(env.RESEND_API_KEY) : null;
   const smtpPass = (env.SMTP_PASS || '').replace(/\s+/g, '');
+  /* Buzón local (SPEC-36): Mailpit/MailHog escuchan SMTP sin TLS ni auth (p.ej. localhost:1025)
+     y muestran los correos en su web. Si además vienen SMTP_USER/SMTP_PASS se usan como auth. */
+  const smtpHost = String(env.SMTP_HOST || '').trim();
+  const local =
+    !forceDry && !resend && smtpHost
+      ? nodemailer.createTransport({
+          host: smtpHost,
+          port: Number(env.SMTP_PORT) || 1025,
+          secure: false,
+          ignoreTLS: !(env.SMTP_USER && smtpPass),
+          ...(env.SMTP_USER && smtpPass ? { auth: { user: env.SMTP_USER, pass: smtpPass } } : {}),
+          connectionTimeout: 10_000,
+          greetingTimeout: 10_000,
+        })
+      : null;
   const smtp =
-    !forceDry && !resend && env.SMTP_USER && smtpPass
+    !forceDry && !resend && !local && env.SMTP_USER && smtpPass
       ? nodemailer.createTransport({ service: 'gmail', auth: { user: env.SMTP_USER, pass: smtpPass }, connectionTimeout: 10_000 })
       : null;
-  const mode = resend ? 'resend' : smtp ? 'smtp' : 'dry-run';
+  const mode = resend ? 'resend' : local ? 'smtp-local' : smtp ? 'smtp' : 'dry-run';
   const outbox = [];
 
   async function send({ to, subject, text, html, template }) {
@@ -30,7 +46,7 @@ export function createMailer({ env = process.env, logger = console } = {}) {
         const { error } = await resend.emails.send(mail);
         if (error) throw new Error(error.message || String(error));
       } else {
-        await smtp.sendMail({ ...mail, to });
+        await (local || smtp).sendMail({ ...mail, to });
       }
       return { ok: true, status: 'sent' };
     } catch (err) {

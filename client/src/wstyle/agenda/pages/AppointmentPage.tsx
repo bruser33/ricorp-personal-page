@@ -150,6 +150,8 @@ export default function AppointmentPage({ ctx }: { ctx: AgendaCtx }) {
           <div><dt>Servicio</dt><dd>{clp.format(appt.pricing.priceCLP)}</dd></div>
           {appt.pricing.surchargeCLP > 0 && <div><dt>Domicilio</dt><dd>{clp.format(appt.pricing.surchargeCLP)}</dd></div>}
           <div className="ag-breakdown__total"><dt>{payTotalLabel(appt)}</dt><dd>{clp.format(appt.pricing.totalCLP)}</dd></div>
+          {/* SPEC-37: el comprobante del pago (desde 2025 es obligatorio entregarlo al cliente). */}
+          {appt.payment.backing && <div data-backing={appt.payment.backing.kind}><dt>Comprobante</dt><dd>{appt.payment.backing.label}</dd></div>}
         </dl>
         {appt.note && <p className="ag-muted">Nota: {appt.note}</p>}
 

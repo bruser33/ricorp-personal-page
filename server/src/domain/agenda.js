@@ -27,6 +27,8 @@ import { appointmentMail, BARBER_EVENT_TITLE, waLink } from '../lib/emails.js';
 import { daySlots, distanceKm, slotsFor } from './availability.js';
 import { addDays, formatLong, isDate, isoWeekday, wallClock, zonedToUtc } from './time.js';
 import { entriesToWeek, weekToSiteRows } from './hours.js';
+import { applyLocalCollection, boletaClash, isBoletaClash, parseCollectInput } from './tax.js';
+import { TAX_DOCUMENT_PROVIDERS } from '../lib/taxDocuments.js';
 
 const MIN = 60 * 1000;
 const HOUR = 60 * MIN;
@@ -68,7 +70,7 @@ export const PAY_OPEN = ['pendiente', 'en_proceso', 'rechazado'];
 
 /* `onlinePayments.ready`: hay credenciales de Mercado Pago (SPEC-35). Sin ellas "Pagar en
    línea" no se ofrece aunque el admin lo habilite (CB-09). */
-export function createAgenda({ clock = Date.now, mailer, logger = console, frontUrl = 'http://localhost:5173', geocoder, businessSlug = 'ws-style', adminInbox = null, onlinePayments = { ready: false } }) {
+export function createAgenda({ clock = Date.now, mailer, logger = console, frontUrl = 'http://localhost:5173', geocoder, businessSlug = 'ws-style', adminInbox = null, onlinePayments = { ready: false }, taxProvider = TAX_DOCUMENT_PROVIDERS.voucher }) {
   async function business() {
     const b = await Business.findOne({ slug: businessSlug }).lean();
     if (!b) throw new HttpError(503, 'agenda_unavailable', 'La agenda aún no está configurada');
@@ -571,6 +573,13 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
     const p = appt.payment || {};
     const out = { method: p.method || 'local', status: p.status || 'pendiente' };
     if (p.collectedAt) out.collectedAt = p.collectedAt.toISOString();
+    /* SPEC-37: forma de cobro en el local y respaldo tributario (el cliente lo ve en "Mis citas"). */
+    if (p.localMethod) out.localMethod = p.localMethod;
+    if (p.taxDoc?.kind) {
+      out.backing = p.taxDoc.kind === 'voucher_mp'
+        ? { kind: 'voucher_mp', label: 'Comprobante de Mercado Pago (vale como boleta)', number: p.taxDoc.number || null }
+        : { kind: 'boleta_sii', label: `Boleta SII N° ${p.taxDoc.number}`, number: p.taxDoc.number || null };
+    }
     if (out.method === 'online') {
       if (appt.status === 'pendiente_pago' && appt.expiresAt) out.holdUntil = appt.expiresAt.toISOString();
       if (p.paidAt) out.paidAt = p.paidAt.toISOString();
@@ -658,6 +667,7 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
       }, logger);
     } catch (err) {
       if (err?.name === 'VersionError') throw invalid('stale');
+      if (isBoletaClash(err)) throw boletaClash();
       if (isDuplicateKey(err)) throw new HttpError(409, 'slot_taken', 'Esa hora se acaba de ocupar. Elige otra.');
       throw err;
     }
@@ -830,13 +840,16 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
       if (action === 'finish' && role === 'barber' && localPay && typeof payload.collected !== 'boolean') {
         throw new HttpError(400, 'collected_required', '¿Cobraste la cita?', { fields: { collected: 'required' } });
       }
+      /* SPEC-37: al cobrar se registra la forma de pago y, si ya se emitió, el N° de boleta SII. */
+      const collect = action === 'finish' && localPay && payload.collected === true ? parseCollectInput(payload, { methodKey: 'localMethod' }) : null;
+      if (collect?.number && (await Appointment.exists({ businessId: b._id, 'payment.taxDoc.kind': 'boleta_sii', 'payment.taxDoc.number': collect.number }))) throw boletaClash();
       const to = { start: 'en_curso', finish: 'terminada', no_show: 'no_asistio' }[action];
       const appt = await mutate(b, current._id, (a) => {
         if (a.status !== need) throw invalid('stale');
         a.status = to;
         if (action === 'finish' && localPay && typeof payload.collected === 'boolean') {
-          a.payment.status = payload.collected ? 'cobrado' : 'pago_pendiente';
-          if (payload.collected) a.payment.collectedAt = new Date(now);
+          if (payload.collected) applyLocalCollection(a, { ...collect, provider: taxProvider, now });
+          else a.payment.status = 'pago_pendiente';
         }
         return { by, byUserId, reason: reason ?? (action === 'finish' && typeof payload.collected === 'boolean' ? (payload.collected ? 'Cobrado' : 'Sin cobrar') : undefined) };
       });

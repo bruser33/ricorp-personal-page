@@ -1,7 +1,10 @@
 /* Datos de demostración del panel del super admin (SPEC-34 AC-11), SOLO para desarrollo:
    - un barbero PENDIENTE de aprobación (Tomás Vidal) con fotos vacías, servicios y horario,
      ya enviado a revisión;
-   - citas terminadas/canceladas de días pasados del mes en curso para las estadísticas.
+   - citas terminadas/canceladas de días pasados del mes en curso para las estadísticas;
+   - SPEC-37: sus pagos con respaldo para Pagos y Rendición: Mercado Pago (voucher, con
+     comisión), cobros en el local (efectivo / transferencia / tarjeta, algunos con N° de
+     boleta y otros sin respaldo), un reembolso y alguna terminada sin cobrar.
 
    Uso: `npm run seed` → `npm run seed:admin` (con SUPERADMIN_* en .env) → `npm run seed:admin-demo`.
    Re-ejecutarlo rehace las citas demo (marcadas con idempotencyKey "demo-admin-*"). */
@@ -12,6 +15,23 @@ import { addDays, wallClock, zonedToUtc } from './domain/time.js';
 
 const MIN = 60 * 1000;
 const TAG = 'demo-admin';
+
+/* SPEC-37: pago de la cita demo. Comisión MP aproximada (3,19 % + IVA) solo para mostrar el panel. */
+function demoPayment({ status, roll, n, total, startsAt }) {
+  const at = new Date(startsAt.getTime() + 45 * MIN);
+  const mp = (extra = {}) => {
+    const id = String(90000000000 + n);
+    const fee = Math.round(total * 0.0319 * 1.19);
+    return { method: 'online', status: 'pagado', mpPaymentId: id, mpStatus: 'approved', paidAt: new Date(startsAt.getTime() - 26 * 60 * MIN), mpFeeCLP: fee, mpNetCLP: total - fee, mpPaymentType: 'credit_card', taxModel: 'voucher', taxDoc: { kind: 'voucher_mp', number: id, provider: 'voucher', at: new Date(startsAt.getTime() - 26 * 60 * MIN) }, ...extra };
+  };
+  if (status === 'cancelada') return n % 2 ? mp({ status: 'reembolsado', mpStatus: 'refunded', refundedAt: new Date(startsAt.getTime() - 2 * 60 * MIN) }) : { method: 'local', status: 'pendiente' };
+  if (status !== 'terminada') return { method: 'local', status: 'pendiente' };
+  if (roll === 3) return { method: 'local', status: 'pago_pendiente' };
+  if (roll === 4 || roll === 5 || roll === 8) return mp();
+  const localMethod = ['efectivo', 'transferencia', 'tarjeta'][n % 3];
+  const boleta = roll === 6 || roll === 9 ? { taxDoc: { kind: 'boleta_sii', number: String(1000 + n), provider: 'voucher', at } } : {};
+  return { method: 'local', status: 'cobrado', collectedAt: at, localMethod, taxModel: 'voucher', ...boleta };
+}
 
 export async function seedAdminDemo({ now = Date.now() } = {}) {
   const b = await Business.findOne({ slug: 'ws-style' }).lean();
@@ -60,7 +80,7 @@ export async function seedAdminDemo({ now = Date.now() } = {}) {
           endsAt: new Date(startsAt.getTime() + s.durationMin * MIN),
           location: { kind: roll === 2 && p.homeService?.enabled ? 'home' : 'shop', travelBufferMin: 0 },
           pricing: { priceCLP: s.priceCLP, surchargeCLP: 0, totalCLP: s.priceCLP, platformFeeRate: 0, platformFeeCLP: 0 },
-          payment: { method: 'local', status: status === 'terminada' ? (roll === 3 ? 'pago_pendiente' : 'cobrado') : 'pendiente' },
+          payment: demoPayment({ status, roll, n, total: s.priceCLP, startsAt }),
           status,
           idempotencyKey: `${TAG}-${n}`,
           history: [{ at: startsAt, from: null, to: status, by: 'system', reason: 'Demo' }],

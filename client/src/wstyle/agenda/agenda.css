@@ -161,6 +161,9 @@
 .ag-item__main { display: flex; flex-direction: column; gap: 4px; }
 .ag-item__when { color: #b3ab9f; font-size: 14px; }
 .ag-item__side { display: flex; align-items: center; gap: 12px; }
+/* SPEC-37: comprobante del pago (voucher MP / N° de boleta) en "Mis citas". */
+.ag-item__side { flex-wrap: wrap; justify-content: flex-end; }
+.ag-item__receipt { flex-basis: 100%; text-align: right; font-size: 12px; letter-spacing: .04em; color: #b3ab9f; }
 .ag-danger { margin-top: 26px; color: #b3ab9f; font-size: 14px; }
 .ag-danger summary { cursor: pointer; }
 .ag-lastdata { margin-bottom: 18px; padding-bottom: 8px; border-bottom: 1px solid var(--brass-line); }
@@ -176,3 +179,14 @@
   .ag-actions .btn { flex: 0 0 auto; }
 }
 @media (prefers-reduced-motion: reduce) { .ag-spinner { animation-duration: 2.4s; } }
+
+/* SPEC-37: cobro en el local (cómo pagó + N° de boleta SII), compartido por el panel del barbero y el del admin. */
+.pay-collect { display: grid; gap: 10px; margin: 6px 0 4px; }
+.pay-collect__methods { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; border: 0; min-width: 0; }
+.pay-collect__methods legend { width: 100%; margin-bottom: 8px; padding: 0; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: #b3ab9f; }
+.pay-collect__methods .ag-chip { position: relative; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+.pay-collect__methods input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.pay-collect__methods .ag-chip:has(input:focus-visible) { outline: 2px solid var(--brass); outline-offset: 2px; }
+.pay-collect .ag-field, .pay-boleta .ag-field { margin-bottom: 8px; }
+.pay-boleta { margin-top: 10px; }
+.pay-boleta input, .pay-collect input[inputmode] { max-width: 220px; }

@@ -24,11 +24,13 @@ import { isDuplicateKey, withTransaction } from '../lib/db.js';
 import { checkPassword, hashPassword, publicUser } from '../lib/session.js';
 import { clMobile, cleanName, isEmail, MAX_NOTE, normEmail, passwordProblem } from '../lib/validate.js';
 import { reassignedMail } from '../lib/emails.js';
+import { csvCell } from '../lib/csv.js';
 import { slotsFor } from './availability.js';
 import { entriesToWeek, fitsInRanges, parseWeek, weekToEntries, weekToSiteRows } from './hours.js';
 import { computeStats, monthRange, parseRange } from './stats.js';
 import { addDays, formatLong, isDate, isoWeekday, wallClock, zonedToUtc } from './time.js';
 import { photoUrl, STATUS_LABEL } from './agenda.js';
+import { applyLocalCollection, boletaClash, parseCollectInput } from './tax.js';
 
 const MIN = 60 * 1000;
 const { ObjectId } = mongoose.Types;
@@ -80,15 +82,8 @@ export const CSV_COLUMNS = [
   ['source', 'Origen'],
 ];
 
-const csvCell = (v) => {
-  const s = v === null || v === undefined ? '' : String(v);
-  /* Anti-inyección de fórmulas en planillas (=, +, -, @ al inicio) + comillas. Un número puro
-     (precio, o un celular "+569…") no es fórmula peligrosa y se deja tal cual. */
-  const safe = /^[=+\-@\t\r]/.test(s) && !/^[+-]?\d+(\.\d+)?$/.test(s) ? `'${s}` : s;
-  return /[",\n\r;]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
-};
 
-export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = console, frontUrl = 'http://localhost:5173', env = {}, adminInbox, onlinePayments = { ready: false }, payments = null }) {
+export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = console, frontUrl = 'http://localhost:5173', env = {}, adminInbox, onlinePayments = { ready: false }, payments = null, billing = null }) {
   /* ─── Acceso */
   function requireAdmin(user) {
     if (!user) throw new HttpError(401, 'unauthorized', 'Tu sesión venció. Inicia sesión para continuar.');
@@ -470,20 +465,47 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
     return serializeAdmin(fresh, b, clock());
   }
 
-  /* RN-03: pago en el local cobrado (p.ej. cita terminada "sin cobrar" que se cobró después). */
-  async function collect(user, id) {
+  /* RN-03: pago en el local cobrado (p.ej. cita terminada "sin cobrar" que se cobró después).
+     SPEC-37: con la forma de pago y, si ya se emitió, el N° de la boleta SII. */
+  async function collect(user, id, body = {}) {
     const b = await ctx(user);
     const current = await loadAppt(b, id);
     if (!canCollect(current)) throw new HttpError(409, 'invalid_transition', 'Esta cita no tiene un pago en el local por cobrar', { reason: 'bad_state' });
+    const input = parseCollectInput(body);
+    if (input.number && (await Appointment.exists({ businessId: b._id, 'payment.taxDoc.kind': 'boleta_sii', 'payment.taxDoc.number': input.number }))) throw boletaClash();
     const before = { payment: current.payment?.status };
     const appt = await agenda.mutate(b, current._id, (a) => {
       if (!canCollect(a)) throw new HttpError(409, 'invalid_transition', 'Recarga para ver el estado actual', { reason: 'stale' });
-      a.payment.status = 'cobrado';
-      a.payment.collectedAt = new Date(clock());
+      applyLocalCollection(a, { ...input, provider: billing?.provider ?? payments?.taxProvider ?? { id: 'voucher', automaticFor: () => null }, now: clock() });
       return { by: 'admin', byUserId: user._id, reason: 'Pago en el local cobrado' };
     });
-    await audit(user, b, 'appointment.collect', { entity: 'appointment', entityId: appt._id, summary: `${appt.customerSnapshot?.name || 'Cliente'} · $${appt.pricing?.totalCLP}`, before, after: { payment: 'cobrado' } });
+    await audit(user, b, 'appointment.collect', { entity: 'appointment', entityId: appt._id, summary: `${appt.customerSnapshot?.name || 'Cliente'} · $${appt.pricing?.totalCLP}${input.method ? ` · ${input.method}` : ''}${input.number ? ` · boleta ${input.number}` : ''}`, before, after: { payment: 'cobrado', method: input.method, boleta: input.number } });
     return serializeAdmin(appt, b, clock());
+  }
+
+  /* ─── Pagos y rendición (SPEC-37). El RUT del emisor nunca sale del server. */
+  async function listPayments(user, q = {}) {
+    const b = await ctx(user);
+    return billing.list(b, q, { role: 'admin' });
+  }
+
+  async function registerBoleta(user, id, body = {}) {
+    const b = await ctx(user);
+    const r = await billing.registerBoleta(b, id, body.number, { by: 'admin', user });
+    await audit(user, b, 'payment.boleta', { entity: 'appointment', entityId: r.appt._id, summary: `${r.appt.customerSnapshot?.name || 'Cliente'} · $${r.appt.pricing?.totalCLP} · boleta ${r.payment?.boletaNumber}`, before: { boleta: r.before }, after: { boleta: r.payment?.boletaNumber } });
+    return { payment: r.payment };
+  }
+
+  async function rendicion(user, q = {}) {
+    const b = await ctx(user);
+    return billing.rendicion(b, q);
+  }
+
+  async function rendicionCsv(user, q = {}) {
+    const b = await ctx(user);
+    const r = await billing.rendicionCsv(b, q);
+    await audit(user, b, 'rendicion.export', { entity: 'business', summary: `Rendición ${r.month}`, after: { month: r.month } });
+    return r;
   }
 
   /* CB-04: candidatos para reasignar = aprobados, que hacen el servicio (y domicilio con
@@ -940,6 +962,10 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
     actOnAppointment,
     collect,
     refund,
+    listPayments,
+    registerBoleta,
+    rendicion,
+    rendicionCsv,
     reassignOptions,
     reassign,
     createAppointment,

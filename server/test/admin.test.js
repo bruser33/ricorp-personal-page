@@ -878,6 +878,8 @@ describe('AC-02 matriz de autorización', () => {
       ['GET /api/pro/appointments/:id', barberOperate, { path: `/api/pro/appointments/${appt}` }],
       ...['confirm', 'reject', 'propose', 'reschedule', 'cancel', 'start', 'finish', 'no-show'].map((a) => [`POST /api/pro/appointments/:id/${a}`, barberOperate, { path: `/api/pro/appointments/${appt}/${a}` }]),
       ['POST /api/pro/invitations', barberOperate],
+      /* SPEC-37: pagos del barbero (solo los suyos); sin sesión también 403. */
+      ['GET /api/pro/payments', { ...barberOperate, anon: 403 }], ['POST /api/pro/payments/:id/boleta', { ...barberOperate, anon: 403 }, { path: `/api/pro/payments/${appt}/boleta` }],
       /* Super admin */
       ['GET /api/admin/status', pub],
       ['GET /api/admin/overview', adminOnly], ['GET /api/admin/notifications', adminOnly], ['POST /api/admin/notifications/read', adminOnly], ['POST /api/admin/me/password', adminOnly],
@@ -898,6 +900,9 @@ describe('AC-02 matriz de autorización', () => {
       ['GET /api/admin/schedule', adminOnly], ['PUT /api/admin/schedule/hours', adminOnly], ['POST /api/admin/schedule/closures', adminOnly],
       ['DELETE /api/admin/schedule/closures/:id', adminOnly, { path: `/api/admin/schedule/closures/${fake}` }],
       ['GET /api/admin/stats', adminOnly], ['GET /api/admin/settings', adminOnly], ['PUT /api/admin/settings', adminOnly], ['GET /api/admin/audit', adminOnly],
+      /* SPEC-37 regla 1: pagos y rendición solo para el super admin; el resto (también el visitante) → 403. */
+      ['GET /api/admin/payments', { ...adminOnly, anon: 403 }], ['POST /api/admin/payments/:id/boleta', { ...adminOnly, anon: 403 }, { path: `/api/admin/payments/${appt}/boleta` }],
+      ['GET /api/admin/rendicion', { ...adminOnly, anon: 403 }], ['GET /api/admin/rendicion.csv', { ...adminOnly, anon: 403 }],
       /* Al final: agregan roles a la cuenta (cliente → barbero, barbero → cliente) y cambiarían las filas anteriores. */
       ['POST /api/auth/me/client-role', logged],
       ['POST /api/pro/join', { anon: 401, client: OK, approved: OK, pending: OK, admin: OK }],

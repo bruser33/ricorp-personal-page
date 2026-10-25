@@ -50,3 +50,12 @@ services:
         sync: false
       - key: API_PUBLIC_URL
         sync: false
+      # Respaldo tributario y rendición (SPEC-37). SII_TAX_PROVIDER = voucher | manual (modelo
+      # declarado en el SII). El RUT del emisor es dato sensible: solo acá (sync: false), nunca en
+      # el repo, el client ni los logs. Sin RUT el panel muestra "Emisor pendiente".
+      - key: SII_TAX_PROVIDER
+        value: voucher
+      - key: SII_EMITTER_NAME
+        sync: false
+      - key: SII_EMITTER_RUT
+        sync: false

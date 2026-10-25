@@ -16,7 +16,7 @@ const HOUR = 60 * 60 * 1000;
 
 const fieldError = (fields) => new HttpError(400, Object.values(fields)[0], 'Revisa los datos', { fields });
 
-export function createProRouter({ pro, env, clock, mailer, logger, frontUrl, loginLimiter }) {
+export function createProRouter({ pro, env, clock, mailer, logger, frontUrl, loginLimiter, billing = null }) {
   const r = express.Router();
   const h = (fn) => handle(fn, logger);
 
@@ -175,6 +175,22 @@ export function createProRouter({ pro, env, clock, mailer, logger, frontUrl, log
   r.get('/stats', h(async (req, res) => {
     const { b, pro: me } = await pro.context(u(req), { operate: true });
     res.json(await computeStats(b, { ...parseRange(req.query, clock(), b.timezone), professionalId: me._id }));
+  }));
+  /* SPEC-37 regla 1 / asunción 4: el barbero ve solo los pagos de SUS citas (sin totales del local
+     ni comisiones) y registra el N° de boleta de sus cobros en el local. Sin sesión → 403. */
+  const barberPay = async (req) => {
+    if (!req.user) throw new HttpError(403, 'forbidden', 'Inicia sesión con tu cuenta de barbero.');
+    if (!billing) throw new HttpError(503, 'unavailable', 'Pagos no disponibles');
+    return pro.context(u(req), { operate: true });
+  };
+  r.get('/payments', h(async (req, res) => {
+    const { b, pro: me } = await barberPay(req);
+    res.json(await billing.list(b, req.query, { role: 'barber', professionalId: me._id }));
+  }));
+  r.post('/payments/:id/boleta', h(async (req, res) => {
+    const { b, pro: me } = await barberPay(req);
+    const out = await billing.registerBoleta(b, req.params.id, req.body?.number, { professionalId: me._id, by: 'barber', user: u(req) });
+    res.json({ payment: out.payment });
   }));
   r.get('/notifications', h(async (req, res) => res.json(await pro.notifications(u(req)))));
   r.post('/notifications/read', h(async (req, res) => res.json(await pro.markRead(u(req), req.body?.ids))));

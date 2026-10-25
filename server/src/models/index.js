@@ -271,9 +271,20 @@ const AppointmentSchema = new Schema(
       lastError: String,
       /* CB-08: pagos aprobados de más (dos pestañas) → a reembolsar. */
       duplicates: {
-        type: [{ _id: false, mpPaymentId: String, amountCLP: Number, status: String, refundError: String, refundInFlight: Boolean, refundedAt: Date }],
+        type: [{ _id: false, mpPaymentId: String, amountCLP: Number, status: String, refundError: String, refundInFlight: Boolean, refundedAt: Date, paidAt: Date, mpFeeCLP: Number, mpNetCLP: Number, taxModel: String, taxDoc: { kind: String, number: String, provider: String, at: Date } }],
         default: undefined,
       },
+      /* SPEC-37: comisión y neto recibido de Mercado Pago (del API, no del webhook), contracargo,
+         forma de cobro en el local y respaldo tributario. `taxModel` = el TaxDocumentProvider
+         vigente cuando se aprobó/cobró (la rendición separa los tramos si cambia a mitad de mes).
+         `taxDoc`: UN solo respaldo por venta (voucher_mp | boleta_sii). */
+      mpFeeCLP: Number,
+      mpNetCLP: Number,
+      mpPaymentType: String,
+      chargebackAt: Date,
+      localMethod: { type: String, enum: ['efectivo', 'transferencia', 'tarjeta'] },
+      taxModel: String,
+      taxDoc: { kind: { type: String, enum: ['voucher_mp', 'boleta_sii'] }, number: String, provider: String, at: Date, byUserId: ObjectId },
     },
     /* Invitación del barbero (SPEC-33 RN-12): el token va en el link que se manda por WhatsApp. */
     invite: { token: String, sentAt: Date },
@@ -315,6 +326,11 @@ AppointmentSchema.index(
   { unique: true, partialFilterExpression: { idempotencyKey: { $type: 'string' } } }
 );
 AppointmentSchema.index({ 'location.point': '2dsphere' }, { sparse: true });
+/* SPEC-37: un folio de boleta SII respalda una sola venta. */
+AppointmentSchema.index(
+  { businessId: 1, 'payment.taxDoc.number': 1 },
+  { unique: true, name: 'boleta_unica', partialFilterExpression: { 'payment.taxDoc.kind': 'boleta_sii' } }
+);
 export const Appointment = model('Appointment', AppointmentSchema);
 
 /* Bloques de 15 min ocupados. El índice único es la garantía de "sin solapes"

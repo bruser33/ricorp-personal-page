@@ -55,8 +55,13 @@ export function fakeMercadoPago() {
   }
 
   /* Registra (o actualiza) un pago en "Mercado Pago". */
-  function pay(appointmentId, { id = String(Math.floor(Math.random() * 1e10)), status = 'approved', amount, currency = 'CLP' } = {}) {
-    const p = { id: Number(id), status, status_detail: status === 'approved' ? 'accredited' : status, external_reference: String(appointmentId), transaction_amount: amount, currency_id: currency, date_created: new Date().toISOString() };
+  /* `fee` (SPEC-37): comisión de Mercado Pago en CLP → fee_details + neto recibido, como los devuelve el API. */
+  function pay(appointmentId, { id = String(Math.floor(Math.random() * 1e10)), status = 'approved', amount, currency = 'CLP', fee } = {}) {
+    const p = { id: Number(id), status, status_detail: status === 'approved' ? 'accredited' : status, external_reference: String(appointmentId), transaction_amount: amount, currency_id: currency, date_created: new Date().toISOString(), payment_type_id: 'credit_card' };
+    if (fee !== undefined) {
+      p.fee_details = [{ type: 'mercadopago_fee', amount: fee, fee_payer: 'collector' }];
+      p.transaction_details = { net_received_amount: amount - fee, total_paid_amount: amount };
+    }
     payments.set(String(id), p);
     return p;
   }

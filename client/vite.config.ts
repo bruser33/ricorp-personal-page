@@ -38,13 +38,13 @@ export default defineConfig({
             resolve(import.meta.dirname, `wstyle/${r}/index.html`),
           ]),
         ),
-        // Panel del barbero (SPEC-33): /wstyle/pro/, /pro/registro/, /pro/agenda/ y /pro/perfil/.
+        // Panel del barbero (SPEC-33): /wstyle/pro/, /pro/registro/, /pro/agenda/, /pro/pagos/ (SPEC-37) y /pro/perfil/.
         ...Object.fromEntries(
-          ['pro', 'pro/registro', 'pro/agenda', 'pro/perfil'].map((r) => [`wstyle-${r.replace('/', '-')}`, resolve(import.meta.dirname, `wstyle/${r}/index.html`)]),
+          ['pro', 'pro/registro', 'pro/agenda', 'pro/pagos', 'pro/perfil'].map((r) => [`wstyle-${r.replace('/', '-')}`, resolve(import.meta.dirname, `wstyle/${r}/index.html`)]),
         ),
         // Panel del super admin (SPEC-34): /wstyle/admin/ y una carpeta por sección (recargar funciona). Sin enlace público, noindex.
         ...Object.fromEntries(
-          ['admin', ...['barberos', 'citas', 'carta', 'horario', 'estadisticas', 'configuracion', 'auditoria'].map((s) => `admin/${s}`)].map((r) => [
+          ['admin', ...['barberos', 'citas', 'pagos', 'rendicion', 'carta', 'horario', 'estadisticas', 'configuracion', 'auditoria'].map((s) => `admin/${s}`)].map((r) => [
             `wstyle-${r.replace('/', '-')}`,
             resolve(import.meta.dirname, `wstyle/${r}/index.html`),
           ]),

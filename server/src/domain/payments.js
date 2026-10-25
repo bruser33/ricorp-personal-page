@@ -13,6 +13,7 @@ import { Appointment, FINAL, PaymentEvent, SlotLock } from '../models/index.js';
 import { HttpError } from '../lib/errors.js';
 import { isDuplicateKey, withTransaction } from '../lib/db.js';
 import { createMercadoPagoClient, mpMode, verifySignature } from '../lib/mercadopago.js';
+import { createTaxDocumentProvider } from '../lib/taxDocuments.js';
 import { slotsFor } from './availability.js';
 import { formatLong, wallClock } from './time.js';
 import { PAY_OPEN, PAYMENT_HOLD_MIN } from './agenda.js';
@@ -34,7 +35,19 @@ const oid = (s) => (ObjectId.isValid(String(s)) && String(new ObjectId(String(s)
 const money = (n) => `$${Number(n || 0).toLocaleString('es-CL')}`;
 const isHttps = (u) => /^https:\/\//i.test(String(u || ''));
 
-export function createPayments({ agenda, env = {}, clock = Date.now, logger = console, adminInbox = null, frontUrl = 'http://localhost:5173', fetchImpl = fetch }) {
+/* SPEC-37: comisión y neto recibido según el API de Mercado Pago (`fee_details`,
+   `transaction_details.net_received_amount`). Sin datos → comisión 0 y neto = monto. */
+export function mpFees(p) {
+  const amount = Math.round(Number(p?.transaction_amount) || 0);
+  const fee = Array.isArray(p?.fee_details) ? Math.round(p.fee_details.reduce((acc, f) => acc + (f?.fee_payer && f.fee_payer !== 'collector' ? 0 : Number(f?.amount) || 0), 0)) : 0;
+  const rawNet = p?.transaction_details?.net_received_amount;
+  const net = rawNet === null || rawNet === undefined || !Number.isFinite(Number(rawNet)) ? amount - fee : Math.round(Number(rawNet));
+  return { feeCLP: fee, netCLP: net };
+}
+
+export function createPayments({ agenda, env = {}, clock = Date.now, logger = console, adminInbox = null, frontUrl = 'http://localhost:5173', fetchImpl = fetch, taxProvider = null }) {
+  /* SPEC-37: quién respalda la venta (voucher MP o boleta manual), según SII_TAX_PROVIDER. */
+  const tax = taxProvider || createTaxDocumentProvider(env, logger);
   const token = String(env.MP_ACCESS_TOKEN || '');
   const secret = String(env.MP_WEBHOOK_SECRET || '');
   const mp = createMercadoPagoClient({ accessToken: token, fetchImpl, baseUrl: env.MP_API_BASE || undefined });
@@ -174,7 +187,7 @@ export function createPayments({ agenda, env = {}, clock = Date.now, logger = co
       return 'mismatch';
     }
 
-    if (status === 'approved') return approve({ b, appt, mpId, now });
+    if (status === 'approved') return approve({ b, appt, mpId, now, p });
 
     if (['pending', 'in_process', 'authorized'].includes(status)) {
       const r = await txn(appt._id, (a) => {
@@ -243,6 +256,8 @@ export function createPayments({ agenda, env = {}, clock = Date.now, logger = co
         if (a.payment.mpPaymentId !== mpId || a.payment.status === 'contracargo') return null;
         a.payment.status = 'contracargo';
         a.payment.mpStatus = status;
+        /* SPEC-37: la rendición lo descuenta en el mes del contracargo. */
+        a.payment.chargebackAt = new Date(now);
         return { reason: 'Contracargo en Mercado Pago' };
       });
       await alert('payment_chargeback', `Contracargo de ${money(p.transaction_amount)}`, `${appt.customerSnapshot?.name || 'Cliente'} desconoció el pago ${mpId} (${formatLong(appt.startsAt.getTime(), b.timezone)}). Revísalo en Mercado Pago.`, appt);
@@ -257,7 +272,11 @@ export function createPayments({ agenda, env = {}, clock = Date.now, logger = co
   }
 
   /* RN-04 / RN-08 / CB-08 */
-  async function approve({ b, appt, mpId, now }) {
+  async function approve({ b, appt, mpId, now, p = {} }) {
+    const fees = mpFees(p);
+    /* SPEC-37: el respaldo se fija al aprobarse (voucher MP con el modelo voucher; con el
+       manual queda "sin respaldo" hasta registrar la boleta). */
+    const backing = () => ({ taxModel: tax.id, taxDoc: tax.automaticFor({ channel: 'online', mpPaymentId: mpId, amountCLP: Math.round(Number(p.transaction_amount) || 0), at: new Date(now) }) });
     const paid = (a, reason) => {
       a.payment.method = 'online';
       a.payment.status = 'pagado';
@@ -265,6 +284,14 @@ export function createPayments({ agenda, env = {}, clock = Date.now, logger = co
       a.payment.mpStatus = 'approved';
       a.payment.paidAt = new Date(now);
       a.payment.lastError = undefined;
+      a.payment.mpFeeCLP = fees.feeCLP;
+      a.payment.mpNetCLP = fees.netCLP;
+      if (p.payment_type_id) a.payment.mpPaymentType = String(p.payment_type_id);
+      const { taxModel, taxDoc } = backing();
+      a.payment.taxModel = taxModel;
+      /* Una venta, un respaldo: si la cita traía una boleta de un cobro en el local, el pago en
+         línea no la pisa (el panel lo muestra como diferencia a revisar). */
+      if (taxDoc && !a.payment.taxDoc?.kind) a.payment.taxDoc = taxDoc;
       return { reason };
     };
     let r;
@@ -274,7 +301,8 @@ export function createPayments({ agenda, env = {}, clock = Date.now, logger = co
         if (PAY_CLOSED.includes(pay.status) && pay.method === 'online') {
           if (pay.mpPaymentId === mpId || pay.duplicates?.some((d) => d.mpPaymentId === mpId)) return null;
           /* CB-08: la cita ya estaba pagada → este segundo pago se devuelve. */
-          pay.duplicates = [...(pay.duplicates || []), { mpPaymentId: mpId, amountCLP: a.pricing.totalCLP, status: 'reembolso_pendiente' }];
+          const { taxModel, taxDoc } = backing();
+          pay.duplicates = [...(pay.duplicates || []), { mpPaymentId: mpId, amountCLP: a.pricing.totalCLP, status: 'reembolso_pendiente', paidAt: new Date(now), mpFeeCLP: fees.feeCLP, mpNetCLP: fees.netCLP, taxModel, ...(taxDoc ? { taxDoc } : {}) }];
           return { reason: `Pago duplicado ${mpId}: queda para reembolso`, kind: 'duplicate' };
         }
         if (a.status === 'pendiente_pago') {
@@ -490,5 +518,5 @@ export function createPayments({ agenda, env = {}, clock = Date.now, logger = co
     return { appt, paymentId: pid, duplicate: isDup };
   }
 
-  return { info, ready, checkout, webhook, applyPayment, reconcile, syncForView, runHolds, refund };
+  return { info, ready, checkout, webhook, applyPayment, reconcile, syncForView, runHolds, refund, taxProvider: tax };
 }

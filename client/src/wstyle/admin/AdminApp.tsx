@@ -10,6 +10,8 @@ import AppointmentsPage from './pages/AppointmentsPage';
 import AuditPage from './pages/AuditPage';
 import BarbersPage from './pages/BarbersPage';
 import HomePage from './pages/HomePage';
+import PaymentsPage from './pages/PaymentsPage';
+import RendicionPage from './pages/RendicionPage';
 import SchedulePage from './pages/SchedulePage';
 import ServicesPage from './pages/ServicesPage';
 import SettingsPage from './pages/SettingsPage';
@@ -102,6 +104,8 @@ export default function AdminApp({ fbReturn }: { fbReturn: FacebookReturn | null
     inicio: <HomePage onUnread={setUnread} />,
     barberos: <BarbersPage />,
     citas: <AppointmentsPage />,
+    pagos: <PaymentsPage />,
+    rendicion: <RendicionPage />,
     carta: <ServicesPage />,
     horario: <SchedulePage />,
     estadisticas: <StatsPage />,

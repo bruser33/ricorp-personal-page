@@ -1,7 +1,7 @@
 /* API del super admin: /api/admin/... (SPEC-34). Solo HTTP: la lógica y la
    autorización (sesión + rol superadmin, en el server) viven en domain/admin.js. */
 import express from 'express';
-import { handle } from '../lib/errors.js';
+import { handle, HttpError } from '../lib/errors.js';
 
 export function createAdminRouter({ admin, logger }) {
   const r = express.Router();
@@ -10,6 +10,23 @@ export function createAdminRouter({ admin, logger }) {
 
   /* Público (CB-01): ¿hay super admin? Solo un booleano. */
   r.get('/status', h(async (_req, res) => res.json(await admin.status())));
+
+  /* Pagos y rendición (SPEC-37 regla 1): solo el super admin; cualquier otro, también el
+     visitante sin sesión, recibe 403. */
+  const payGuard = h(async (req, _res, next) => {
+    if (!req.user) throw new HttpError(403, 'forbidden', 'Inicia sesión con la cuenta de administrador.');
+    admin.requireAdmin(req.user);
+    next();
+  });
+  r.get('/payments', payGuard, h(async (req, res) => res.json(await admin.listPayments(u(req), req.query))));
+  r.post('/payments/:id/boleta', payGuard, h(async (req, res) => res.json(await admin.registerBoleta(u(req), req.params.id, req.body || {}))));
+  r.get('/rendicion', payGuard, h(async (req, res) => res.json(await admin.rendicion(u(req), req.query))));
+  r.get('/rendicion.csv', payGuard, h(async (req, res) => {
+    const { month, csv } = await admin.rendicionCsv(u(req), req.query);
+    res.set('Content-Type', 'text/csv; charset=utf-8');
+    res.set('Content-Disposition', `attachment; filename="rendicion-wstyle-${month}.csv"`);
+    res.send(csv);
+  }));
 
   /* Todo lo demás exige superadmin ANTES de leer nada (401 sin sesión, 403 otro rol). */
   r.use(h(async (req, _res, next) => {
@@ -45,7 +62,7 @@ export function createAdminRouter({ admin, logger }) {
   r.get('/appointments/:id', h(async (req, res) => res.json(await admin.viewAppointment(u(req), req.params.id))));
   r.get('/appointments/:id/reassign-options', h(async (req, res) => res.json(await admin.reassignOptions(u(req), req.params.id))));
   r.post('/appointments/:id/reassign', h(async (req, res) => res.json(await admin.reassign(u(req), req.params.id, req.body || {}))));
-  r.post('/appointments/:id/collect', h(async (req, res) => res.json(await admin.collect(u(req), req.params.id))));
+  r.post('/appointments/:id/collect', h(async (req, res) => res.json(await admin.collect(u(req), req.params.id, req.body || {}))));
   /* SPEC-35 RN-09: reembolso total en Mercado Pago (body.paymentId = un pago duplicado). */
   r.post('/appointments/:id/refund', h(async (req, res) => res.json(await admin.refund(u(req), req.params.id, req.body || {}))));
   for (const [path, action] of [['confirm', 'confirm'], ['reject', 'reject'], ['cancel', 'cancel'], ['propose', 'propose'], ['start', 'start'], ['finish', 'finish'], ['no-show', 'no_show']]) {

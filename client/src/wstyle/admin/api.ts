@@ -11,6 +11,7 @@ export interface AdminAppointment extends Omit<Appointment, 'customer' | 'pricin
   // SPEC-35: en línea trae el id del pago en Mercado Pago, el error del último reembolso y los pagos duplicados (CB-08).
   payment: {
     method: string; status: string; holdUntil?: string; mpPaymentId?: string | null; refundError?: string | null; refundInFlight?: boolean;
+    localMethod?: string; backing?: { kind: 'voucher_mp' | 'boleta_sii'; label: string; number: string | null };
     duplicates?: { mpPaymentId: string; amountCLP: number; status: string; refundError: string | null }[];
   };
   canRefund?: boolean;
@@ -100,7 +101,8 @@ export const admin = {
   csvUrl: (f: ApptFilters) => `${API_BASE}/api/admin/appointments.csv?${qs(f)}`,
   appointment: (aid: string) => api<AdminAppointment>(`/api/admin/appointments/${id(aid)}`),
   act: (aid: string, action: string, body: Record<string, unknown> = {}) => send<AdminAppointment>(`/api/admin/appointments/${id(aid)}/${action === 'no_show' ? 'no-show' : action}`, 'POST', body),
-  collect: (aid: string) => send<AdminAppointment>(`/api/admin/appointments/${id(aid)}/collect`, 'POST'),
+  // SPEC-37: con la forma de pago y, si ya se emitió, el N° de boleta SII.
+  collect: (aid: string, body: { method?: string; boletaNumber?: string } = {}) => send<AdminAppointment>(`/api/admin/appointments/${id(aid)}/collect`, 'POST', body),
   // SPEC-35 RN-09: reembolso total en Mercado Pago (paymentId = un pago duplicado; sin él, el pago de la cita).
   refund: (aid: string, paymentId?: string) => send<AdminAppointment>(`/api/admin/appointments/${id(aid)}/refund`, 'POST', paymentId ? { paymentId } : {}),
   reassignOptions: (aid: string) => api<{ options: { id: string; name: string }[] }>(`/api/admin/appointments/${id(aid)}/reassign-options`),

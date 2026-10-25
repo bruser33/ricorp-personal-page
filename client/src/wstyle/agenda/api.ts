@@ -86,7 +86,11 @@ export interface Availability { timezone: string; days: { date: string; slots: S
 export interface Quote { distanceKm: number; formatted: string; priceCLP: number; professionals: { id: string; surchargeCLP: number; totalCLP: number }[] }
 export type Action = 'cancel' | 'accept' | 'counter' | 'confirm' | 'propose' | 'start' | 'finish' | 'no_show' | 'pay' | 'pay_local';
 // SPEC-35: pago de la cita. method 'local' | 'online'; holdUntil = hasta cuándo se retiene la hora mientras se paga.
-export interface Payment { method: string; status: string; holdUntil?: string; paidAt?: string; refundedAt?: string }
+// SPEC-37: forma de cobro en el local y respaldo tributario (voucher MP o boleta SII) cuando existe.
+export interface Payment {
+  method: string; status: string; holdUntil?: string; paidAt?: string; refundedAt?: string; collectedAt?: string;
+  localMethod?: string; backing?: { kind: 'voucher_mp' | 'boleta_sii'; label: string; number: string | null };
+}
 export interface Appointment {
   id: string; status: string; statusLabel: string;
   service: { id: string; name: string; durationMin: number };

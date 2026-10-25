@@ -220,3 +220,40 @@ button.adm-row:hover { border-color: var(--brass-soft); }
 /* SPEC-35: reembolsos en la ficha de la cita. */
 .adm-refund-err { color: #f2b3a4; }
 .adm-dups { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; }
+
+/* SPEC-37: Pagos y Rendición. */
+.pay-notice { margin: 0 0 18px; padding: 12px 14px; border-left: 3px solid #e0a86b; background: rgba(224, 168, 107, .1); font-size: 14px; }
+.pay-notice p { margin: 0; }
+.pay-notice__warn { font-weight: 600; }
+.pay-notice__emitter { margin-top: 8px !important; color: #cfc7bb; }
+.pay-notice code { font-size: 12px; }
+.pay-filters__check { align-self: end; min-height: 44px; margin-bottom: 10px; }
+.pay-cards { margin-bottom: 18px; }
+.pay-card--warn { border-color: rgba(224, 128, 107, .55); }
+.pay-num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pay-table td.pay-num { text-align: right; }
+.pay-open { text-align: left; font: inherit; font-weight: 600; }
+.pay-lines { margin: 0; padding: 0; list-style: none; display: grid; gap: 2px; }
+.pay-lines li { display: flex; justify-content: space-between; gap: 16px; }
+.pay-lines__total { padding-top: 4px; border-top: 1px solid var(--brass-line); font-weight: 600; }
+.pay-hint { margin-top: 10px; font-size: 14px; }
+.pay-cuadre { margin: 8px 0; line-height: 1.6; }
+.pay-diffs, .pay-tramos { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 4px; }
+.pay-f29 p { max-width: 70ch; color: #cfc7bb; }
+/* En móvil la tabla de pagos se apila: una tarjeta por pago con la etiqueta de cada columna. */
+@media (max-width: 699px) {
+  .pay-table-wrap { border: 0; overflow: visible; }
+  .pay-table { min-width: 0; }
+  .pay-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .pay-table, .pay-table tbody, .pay-table tr, .pay-table th, .pay-table td { display: block; }
+  .pay-table tr { margin-bottom: 10px; padding: 10px 12px; border: 1px solid var(--brass-line); border-radius: 4px; }
+  .pay-table th, .pay-table td { display: flex; justify-content: space-between; gap: 12px; padding: 4px 0; border: 0; text-align: right; }
+  .pay-table td.pay-num { text-align: right; }
+  .pay-table [data-label]::before { content: attr(data-label); flex: none; color: #8e877d; font-size: 12px; letter-spacing: .1em; text-transform: uppercase; text-align: left; }
+}
+@media (min-width: 700px) {
+  .pay-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (min-width: 700px) {
+  .pay-table td[data-label="Fecha"], .pay-table th[data-label="Cliente"], .pay-table td[data-label="Respaldo"] .ag-pill { white-space: nowrap; }
+}

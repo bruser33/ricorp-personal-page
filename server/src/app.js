@@ -19,6 +19,8 @@ import { createAdminInbox } from './lib/adminInbox.js';
 import { createAdmin } from './domain/admin.js';
 import { createAdminRouter } from './routes/admin.js';
 import { createPayments, WEBHOOK_PATH } from './domain/payments.js';
+import { createBilling } from './domain/billing.js';
+import { createTaxDocumentProvider } from './lib/taxDocuments.js';
 import { handle } from './lib/errors.js';
 
 /* La app SIN listen ni connect: index.js conecta Mongo y escucha, y los tests
@@ -198,6 +200,8 @@ export function createApp({
   const secret = env.AUTH_SECRET || crypto.randomBytes(32).toString('hex');
   /* Avisos al super admin (SPEC-34 RN-10): bandeja del panel + correo. */
   const adminInbox = createAdminInbox({ mailer: agendaMailer, logger, env, frontUrl });
+  /* SPEC-37: respaldo tributario de cada venta (SII_TAX_PROVIDER = voucher | manual). */
+  const taxProvider = createTaxDocumentProvider(env, logger);
   const agenda = createAgenda({
     clock,
     mailer: agendaMailer,
@@ -207,14 +211,17 @@ export function createApp({
     businessSlug: env.BUSINESS_SLUG || 'ws-style',
     adminInbox,
     onlinePayments,
+    taxProvider,
   });
   /* Pago en línea (SPEC-35). */
-  const payments = createPayments({ agenda, env, clock, logger, adminInbox, frontUrl, fetchImpl: mercadoPagoFetch });
+  const payments = createPayments({ agenda, env, clock, logger, adminInbox, frontUrl, fetchImpl: mercadoPagoFetch, taxProvider });
+  /* Pagos en el panel y rendición mensual (SPEC-37). */
+  const billing = createBilling({ agenda, env, clock, logger, taxProvider });
   const bookingLimiter = createRateLimiter(bookingRateLimit);
   /* Barbero (SPEC-33): registro, perfil y panel. */
   const pro = createPro({ agenda, clock, mailer: agendaMailer, logger, frontUrl, env, adminInbox });
   /* Super admin (SPEC-34). */
-  const admin = createAdmin({ agenda, pro, clock, mailer: agendaMailer, logger, frontUrl, env, adminInbox, onlinePayments, payments });
+  const admin = createAdmin({ agenda, pro, clock, mailer: agendaMailer, logger, frontUrl, env, adminInbox, onlinePayments, payments, billing });
   const authRouter = createAuthRouter({ env, clock, mailer: agendaMailer, logger, facebook, frontUrl, secret, loginLimit, onAccountDeleted: agenda.onAccountDeleted, onBarberFacebook: pro.ensureBarber });
   const withSession = sessionMiddleware({ clock });
   const needsDb = (_req, res, next) =>
@@ -233,9 +240,9 @@ export function createApp({
     const [status, body] = await payments.webhook(req);
     res.status(status).json(body);
   }, logger));
-  app.use('/api/pro', needsDb, withSession, createProRouter({ pro, env, clock, mailer: agendaMailer, logger, frontUrl, loginLimiter: authRouter.loginLimiter }));
+  app.use('/api/pro', needsDb, withSession, createProRouter({ pro, env, clock, mailer: agendaMailer, logger, frontUrl, loginLimiter: authRouter.loginLimiter, billing }));
   app.use('/api/admin', needsDb, withSession, createAdminRouter({ admin, logger }));
-  Object.assign(app.locals, { agenda, pro, admin, payments, agendaMailer, bookingLimiter, loginLimiter: authRouter.loginLimiter });
+  Object.assign(app.locals, { agenda, pro, admin, payments, billing, agendaMailer, bookingLimiter, loginLimiter: authRouter.loginLimiter });
 
   app.get('/api/health', (_req, res) => {
     /* 'unconfigured' y no 'dry-run' en Render: ahí sin mailer el envío es un 503,

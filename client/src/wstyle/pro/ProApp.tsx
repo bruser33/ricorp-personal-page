@@ -10,6 +10,7 @@ import ProShell from './components/ProShell';
 import ReviewState from './components/ReviewState';
 import type { MeState, ProCtx } from './ctx';
 import AgendaPage from './pages/AgendaPage';
+import PaymentsPage from './pages/PaymentsPage';
 import ProfilePage from './pages/ProfilePage';
 import RegisterPage from './pages/RegisterPage';
 import TodayPage from './pages/TodayPage';
@@ -58,7 +59,7 @@ export default function ProApp({ fbReturn }: { fbReturn: FacebookReturn | null }
   const ctx: ProCtx = { session, me, meState, setMe, reloadMe, fbReturn, whatsapp };
   const path = location.pathname.replace(/\/+$/, '/');
   if (path.endsWith('/wstyle/pro/registro/')) return <RegisterPage ctx={ctx} />;
-  const tab = path.endsWith('/wstyle/pro/agenda/') ? 'agenda' : path.endsWith('/wstyle/pro/perfil/') ? 'perfil' : 'hoy';
+  const tab = path.endsWith('/wstyle/pro/agenda/') ? 'agenda' : path.endsWith('/wstyle/pro/pagos/') ? 'pagos' : path.endsWith('/wstyle/pro/perfil/') ? 'perfil' : 'hoy';
 
   if (session.status === 'loading' || (user && (meState === 'loading' || meState === 'idle'))) return <ProShell tab="entrar"><Spinner label="Cargando tu panel…" /></ProShell>;
   if (session.status === 'offline' || meState === 'error') return <ProShell tab="entrar"><Unavailable whatsapp={whatsapp} onRetry={() => (user ? reloadMe() : session.refresh())} /></ProShell>;
@@ -116,5 +117,6 @@ export default function ProApp({ fbReturn }: { fbReturn: FacebookReturn | null }
 
   if (tab === 'perfil') return <ProfilePage ctx={ctx} />;
   if (tab === 'agenda') return <AgendaPage ctx={ctx} />;
+  if (tab === 'pagos') return <PaymentsPage ctx={ctx} />;
   return <TodayPage ctx={ctx} />;
 }
