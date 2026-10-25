@@ -28,13 +28,21 @@
 .policies dt { font: italic 500 28px/1.1 var(--font-serif); color: var(--bone); }
 .policies dd { margin: 10px 0 0; color: var(--muted); font-size: 14px; }
 
-/* Franja de demostración (D1): discreta, bajo el header. */
+/* Franja de demostración (D1, SPEC-27): una línea de 22 px pegada al header y con su misma superficie (degradado
+   translúcido sobre el hero, casi opaca al dejarlo, con el filete latón bajo la franja y no entre ambos). Su alto
+   entra en --chrome-h, que fija el scroll-margin de las secciones. */
+:root:has([data-demo-banner]) { --strip-h: calc(22px + env(safe-area-inset-top)); }
 .demo-strip {
   position: fixed; z-index: 39; top: calc(var(--nav-h) + env(safe-area-inset-top)); left: 0; right: 0; margin: 0;
-  padding: 7px var(--gutter); background: rgba(14, 13, 12, .9); border-bottom: 1px solid var(--brass-line);
-  backdrop-filter: blur(12px);
-  font: 500 10px/1.2 var(--font-body); letter-spacing: .3em; text-transform: uppercase; color: var(--muted); text-align: center;
+  height: 22px; padding: 0 var(--gutter); overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  background: rgba(14, 13, 12, .55); border-bottom: 1px solid transparent; backdrop-filter: blur(12px);
+  font: 500 10px/21px var(--font-body); letter-spacing: .3em; text-transform: uppercase; color: var(--muted); text-align: center;
+  transition: background-color .25s ease, border-color .25s ease;
 }
+.nav:has(+ .demo-strip):not(.is-scrolled) { background: linear-gradient(180deg, rgba(14, 13, 12, .85), rgba(14, 13, 12, .55)); }
+.nav.is-scrolled:has(+ .demo-strip) { box-shadow: none; }
+.nav.is-scrolled + .demo-strip { background: rgba(14, 13, 12, .96); border-bottom-color: var(--brass-line); backdrop-filter: blur(16px) saturate(1.2); }
+@media (prefers-reduced-motion: reduce) { .demo-strip { transition: none; } }
 .demo-strip__short { display: none; }
 
 .compact .reviews, .compact .barbers, .compact .policies, .compact .member { grid-template-columns: 1fr; }

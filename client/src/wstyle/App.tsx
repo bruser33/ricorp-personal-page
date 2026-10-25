@@ -40,6 +40,12 @@ export default function App({ initial }: { initial: Content | null }) {
   useReveal([content]);
   useMotion(loaderDone, content);
   useFilmDim([content]);
+  // SPEC-27: con la URL cargada con #ancla el navegador salta antes de tener el contenido final (sin prerender, o con
+  // alturas que cambian al leer los JSON): al salir el loader se vuelve a anclar (respeta el scroll-margin-top).
+  useEffect(() => {
+    if (!loaderDone || location.hash.length < 2) return;
+    document.getElementById(decodeURIComponent(location.hash.slice(1)))?.scrollIntoView({ block: 'start', behavior: 'instant' });
+  }, [loaderDone]);
 
   const site = content?.site ?? {}, services = content?.services ?? [];
   const poweredBy = content?.config?.poweredBy !== false;   // la marca de agua solo se apaga con false literal

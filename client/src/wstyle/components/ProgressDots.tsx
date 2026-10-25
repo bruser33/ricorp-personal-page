@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import './ProgressDots.css';
 
 // Puntos laterales (PR #9 D4): uno por cada sección visible de la página (tomas y paneles), activo según la
-// sección que ocupa el centro de la pantalla.
+// sección que ocupa el centro de la pantalla. SPEC-27: cada punto se llama como su capítulo (aria-label) y muestra
+// ese nombre a su izquierda en hover y en foco de teclado; el activo se anuncia con aria-current.
 export default function ProgressDots({ chapters }: { chapters: { id: string; label: string }[] }) {
   const [active, setActive] = useState(0);
   useEffect(() => {
@@ -20,7 +21,11 @@ export default function ProgressDots({ chapters }: { chapters: { id: string; lab
   }, [chapters]);
   return (
     <nav className="dots" aria-label="Secciones">
-      {chapters.map((c, i) => <a key={c.id} href={`#${c.id}`} aria-label={c.label} className={i === active ? 'is-active' : undefined}></a>)}
+      {chapters.map((c, i) => (
+        <a key={c.id} href={`#${c.id}`} aria-label={c.label} aria-current={i === active ? 'location' : undefined} className={i === active ? 'is-active' : undefined}>
+          <span className="dots__label" aria-hidden="true">{c.label}</span>
+        </a>
+      ))}
     </nav>
   );
 }

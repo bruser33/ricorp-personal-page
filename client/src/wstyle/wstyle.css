@@ -19,6 +19,10 @@
   --accent-ink: var(--ink);
   --panel: rgba(26, 24, 22, .92);
   --nav-h: 68px;
+  /* SPEC-27: alto real del cromo fijo (header + franja de demostración). La franja suma su alto solo si existe
+     (Extras.css). */
+  --strip-h: 0px;
+  --chrome-h: calc(var(--nav-h) + var(--strip-h));
   --font-display: "Anton", "Bebas Neue", Impact, "Arial Narrow", sans-serif;
   --font-serif: "Cormorant Garamond", "Iowan Old Style", Georgia, serif;
   --font-body: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -61,8 +65,13 @@ a { color: inherit; }
 main { position: relative; z-index: 2; }
 .panel {
   position: relative; min-height: 100vh; display: flex; flex-direction: column; justify-content: center;
-  padding: calc(var(--nav-h) + 32px) var(--gutter) 72px;
+  padding: calc(var(--chrome-h) + 32px) var(--gutter) 72px;
 }
+/* SPEC-27: al saltar a una sección (nav, puntos, menú o URL con #ancla) su borde superior queda bajo el header +
+   franja. Los paneles con toma ya no reservan el cromo en su padding: ocupan justo el alto visible bajo el cromo, así
+   el contenido queda donde estaba y la película llega a su toma en ese mismo scroll (experience.ts resta el
+   scroll-margin a las anclas). El hero sigue arriba del todo (scroll 0) y conserva su padding. */
+main > section { scroll-margin-top: var(--chrome-h); }
 .panel__inner { max-width: 620px; }
 .panel--wide .panel__inner { max-width: min(520px, 42vw); }
 .panel--wide h2 { font-size: clamp(40px, 4.3vw, 60px); white-space: nowrap; }
@@ -110,7 +119,8 @@ html.lenis, html.lenis body { height: auto; }
 .compact { --nav-h: 56px; --gutter: 20px; }
 .compact .shade { background: linear-gradient(180deg, rgba(11, 10, 9, .92) 0%, rgba(11, 10, 9, .86) 24%, rgba(11, 10, 9, .72) 38%, rgba(11, 10, 9, .4) 50%, rgba(11, 10, 9, .2) 62%, rgba(11, 10, 9, .07) 74%, rgba(11, 10, 9, 0) 86%); }
 /* En móvil el texto va arriba, sobre el degradado; el 3D queda visible abajo y lejos del badge. */
-.compact .panel { justify-content: flex-start; padding: calc(var(--nav-h) + 40px) var(--gutter) 96px; }
+.compact .panel { justify-content: flex-start; padding: calc(var(--chrome-h) + 32px) var(--gutter) 96px; }
+.panel:not(.panel--hero, .panel--extra) { min-height: calc(100vh - var(--chrome-h)); padding-top: 32px; }
 .compact .panel--extra { padding-top: 80px; padding-bottom: 96px; }
 .compact .ctas .btn { padding: 0 16px; }
 .compact .lead { text-shadow: 0 1px 2px rgba(0, 0, 0, .9), 0 2px 14px rgba(0, 0, 0, .8); }
@@ -164,7 +174,7 @@ h1, h2 { text-shadow: none; filter: drop-shadow(0 6px 16px rgba(0, 0, 0, .55)); 
    dock, en compacto se ajustan los aires del panel y de las filas. */
 .compact #servicios .panel__inner { padding: 20px 20px 16px; }
 .compact #servicios .lead { margin-top: 12px; font-size: 15px; }
-.compact .is-demo #servicios.panel { padding-top: calc(var(--nav-h) + 36px); }
+.compact .is-demo #servicios.panel { padding-top: 14px; }
 /* T1 (ronda 4): en compacto la película respira entre la carta y el primer panel de venta: más aire bajo la carta y
    ese panel entra fundiéndose desde la película (degradado largo, el contenido arranca ya sobre graphite). */
 .compact #servicios.panel { padding-bottom: 14vh; }
@@ -180,6 +190,8 @@ h1, h2 { text-shadow: none; filter: drop-shadow(0 6px 16px rgba(0, 0, 0, .55)); 
 /* D3: revelado de titulares por tiempo al entrar en vista (solo con <html class="motion">; useMotion añade .is-in). */
 .motion .kinetic__word { transform: translateY(110%); transition: transform .62s cubic-bezier(.2, .75, .1, 1) var(--wd, 0ms); }
 .motion .kinetic.is-in .kinetic__word { transform: none; }
-/* D1: solo con la franja de demostración el contenido arranca más abajo (sin hueco con demo:false). */
-.is-demo .panel { padding-top: calc(var(--nav-h) + 56px); }
-.compact .is-demo .panel { padding-top: calc(var(--nav-h) + 52px); }
+/* D1: con la franja de demostración los paneles de venta conservan su aire superior previo (la geometría del
+   scroll con la que se afinaron la píldora y la marca de agua, SPEC-25/26). El salto por ancla ya lo resuelve el
+   scroll-margin-top (SPEC-27). */
+.is-demo .panel--extra { padding-top: calc(var(--nav-h) + 56px); }
+.compact .is-demo .panel--extra { padding-top: calc(var(--nav-h) + 52px); }
