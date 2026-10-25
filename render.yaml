@@ -9,7 +9,7 @@ services:
     healthCheckPath: /api/health
     envVars:
       - key: NODE_VERSION
-        value: 20
+        value: 24
       # El sitio se sirve en ricorp.cl (dominio propio sobre Pages), NO en
       # bruser33.github.io. Con solo el github.io acá, el preflight del
       # formulario de contacto desde ricorp.cl moría en 500 y el envío nunca
