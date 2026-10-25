@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { headTexts, jsonLd, str, type Content } from './content';
-import { bookingLink, clp, ctaLinks, fromPrice } from './links';
+import { bookingLink, clp, ctaLinks, ext, fromPrice } from './links';
 import { useContent } from './hooks/useContent';
 import { useScrollCamera } from './hooks/useScrollCamera';
 import { useReveal } from './hooks/useReveal';
@@ -91,7 +91,7 @@ export default function App({ initial }: { initial: Content | null }) {
           {str(site.concept) && <p className="concept reveal">{site.concept}</p>}
           <div className="hero__cta reveal">
             {from && <p className="hero__from" data-from-price="">{from.label} desde <strong>{clp.format(from.price)}</strong></p>}
-            {booking && <a className="btn btn--primary" data-cta="hero-booking" href={booking} target={booking.startsWith('tel:') ? undefined : '_blank'} rel="noopener">Reservar</a>}
+            {booking && <a className="btn btn--primary" data-cta="hero-booking" href={booking} {...ext(booking)}>Reservar</a>}
           </div>
           <p className="hint reveal" aria-hidden="true">Desliza para recorrer el local</p>
         </Section>

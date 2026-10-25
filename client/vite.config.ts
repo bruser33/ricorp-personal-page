@@ -31,6 +31,13 @@ export default defineConfig({
       input: {
         main: resolve(import.meta.dirname, 'index.html'),
         wstyle: resolve(import.meta.dirname, 'wstyle/index.html'),
+        // Agenda (SPEC-32): cada ruta es una carpeta real con su index.html (Pages solo sirve carpetas que existen).
+        ...Object.fromEntries(
+          ['reservar', 'cita', 'cuenta', 'cuenta/mis-citas', 'cuenta/recuperar', 'cuenta/confirmar'].map((r) => [
+            `wstyle-${r.replace('/', '-')}`,
+            resolve(import.meta.dirname, `wstyle/${r}/index.html`),
+          ]),
+        ),
       },
       // Chunk explícito para React (compartido por ambas páginas): sin esto el bundler arma un chunk común que
       // mezcla React con la matemática de three y la home terminaría precargándola.

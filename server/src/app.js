@@ -4,6 +4,14 @@ import mongoose from 'mongoose';
 import multer from 'multer';
 import { Resend } from 'resend';
 import nodemailer from 'nodemailer';
+import crypto from 'node:crypto';
+import { createMailer } from './lib/mailer.js';
+import { createNominatimGeocoder } from './lib/geocoder.js';
+import { createFacebookClient } from './lib/facebook.js';
+import { sessionMiddleware } from './lib/session.js';
+import { createAgenda } from './domain/agenda.js';
+import { createAuthRouter, LOGIN_LIMIT } from './routes/auth.js';
+import { createWstyleRouter } from './routes/wstyle.js';
 
 /* La app SIN listen ni connect: index.js conecta Mongo y escucha, y los tests
    (server/test/contact.test.js) la levantan en un puerto efímero con su
@@ -78,7 +86,22 @@ function escapeHtml(s) {
  * Arma la app. Por defecto lee process.env; los tests pasan su propio `env`
  * (p.ej. sin credenciales de correo, o con RENDER=true) y su `rateLimit`.
  */
-export function createApp({ env = process.env, rateLimit = RATE_LIMIT, logger = console } = {}) {
+/* Rate limit de intentos de reserva por IP (RN-14): mismo patrón que /api/contact. */
+export const BOOKING_RATE_LIMIT = { max: 5, windowMs: 10 * 60 * 1000 };
+
+export function createApp({
+  env = process.env,
+  rateLimit = RATE_LIMIT,
+  logger = console,
+  /* Agenda y cuentas (SPEC-32). Los tests inyectan reloj, mailer, geocodificador y
+     el borde HTTP de Facebook; la BD siempre es real. */
+  clock = () => Date.now(),
+  agendaMailer: injectedMailer = null,
+  geocoder = null,
+  facebookFetch = fetch,
+  bookingRateLimit = BOOKING_RATE_LIMIT,
+  loginLimit = LOGIN_LIMIT,
+} = {}) {
   const app = express();
   /* Detrás del proxy de Render: req.ip tiene que ser la IP del visitante (del
      X-Forwarded-For) y no la del proxy, o el rate limit sería uno para todos. */
@@ -91,6 +114,8 @@ export function createApp({ env = process.env, rateLimit = RATE_LIMIT, logger = 
 
   app.use(
     cors({
+      /* credentials: la sesión de la agenda viaja en una cookie httpOnly. */
+      credentials: true,
       origin: (origin, cb) => {
         if (!origin) return cb(null, true);
         if (allowedOrigins.some((a) => origin.startsWith(a))) return cb(null, true);
@@ -149,6 +174,30 @@ export function createApp({ env = process.env, rateLimit = RATE_LIMIT, logger = 
   const contactLimiter = createRateLimiter(rateLimit);
   /* Expuesto para los tests (reset entre casos). */
   app.locals.contactLimiter = contactLimiter;
+
+  /* ─── Agenda y cuentas de WS Style (SPEC-32) */
+  const frontUrl = (env.FRONT_URL || 'http://localhost:5173').replace(/\/$/, '');
+  const agendaMailer = injectedMailer || createMailer({ env, logger });
+  const facebook = createFacebookClient({ appId: env.FB_APP_ID, appSecret: env.FB_APP_SECRET, redirectUri: env.FB_REDIRECT_URI, fetchImpl: facebookFetch });
+  /* Firma del `state` de OAuth. Sin AUTH_SECRET se genera uno por proceso (un
+     reinicio invalida los inicios con Facebook en curso, nada más). */
+  const secret = env.AUTH_SECRET || crypto.randomBytes(32).toString('hex');
+  const agenda = createAgenda({
+    clock,
+    mailer: agendaMailer,
+    logger,
+    frontUrl,
+    geocoder: geocoder || createNominatimGeocoder({ logger }),
+    businessSlug: env.BUSINESS_SLUG || 'ws-style',
+  });
+  const bookingLimiter = createRateLimiter(bookingRateLimit);
+  const authRouter = createAuthRouter({ env, clock, mailer: agendaMailer, logger, facebook, frontUrl, secret, loginLimit, onAccountDeleted: agenda.onAccountDeleted });
+  const withSession = sessionMiddleware({ clock });
+  const needsDb = (_req, res, next) =>
+    mongoose.connection.readyState === 1 ? next() : res.status(503).json({ ok: false, error: 'db_unavailable' });
+  app.use('/api/auth', needsDb, withSession, authRouter);
+  app.use('/api/wstyle', needsDb, withSession, createWstyleRouter({ agenda, logger, bookingLimiter }));
+  Object.assign(app.locals, { agenda, agendaMailer, bookingLimiter, loginLimiter: authRouter.loginLimiter });
 
   app.get('/api/health', (_req, res) => {
     /* 'unconfigured' y no 'dry-run' en Render: ahí sin mailer el envío es un 503,
