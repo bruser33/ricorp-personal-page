@@ -11,15 +11,15 @@ const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/pagina_per
 
 mongoose
   .connect(MONGO_URI)
+  /* SPEC-38 RN-09: los defaults de la tarifa se aplican ANTES de recibir reservas (sin carrera). */
+  .then(() => ensurePlatformDefaults().then(
+    (r) => (r.created || r.migrated) && console.log('[pricing] defaults de SPEC-38 aplicados'),
+    (err) => console.error('[pricing] defaults:', err.message)
+  ))
   .then(() => {
     app.listen(PORT, () => console.log(`api on :${PORT}`));
     /* SPEC-34 RN-01: primer super admin desde SUPERADMIN_EMAIL/SUPERADMIN_PASSWORD. */
     ensureSuperAdmin().catch((err) => console.error('[admin] seed del super admin falló:', err.message));
-    /* SPEC-38 RN-09: administración 10 % y costo de pagos 3,19 % + IVA por defecto (idempotente: una
-       sola vez por BD; después manda lo que configure el admin). */
-    ensurePlatformDefaults()
-      .then((r) => (r.created || r.migrated) && console.log('[pricing] defaults de SPEC-38 aplicados'))
-      .catch((err) => console.error('[pricing] defaults:', err.message));
     /* RN-11/RN-12: expira citas sin confirmar y propuestas sin respuesta. Una sola
        instancia en Render free: un intervalo en proceso basta. */
     const quiet = (label) => (err) => {

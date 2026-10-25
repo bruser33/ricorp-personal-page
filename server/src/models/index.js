@@ -391,7 +391,7 @@ const PlatformSettingsSchema = new Schema(
     key: { type: String, default: 'default', unique: true },
     /* SPEC-38: administración de la plataforma, cobrada al cliente (fracción: 0.1 = 10 %). */
     defaultPlatformFeeRate: { type: Number, default: 0.1 },
-    /* SPEC-38: comisión de Mercado Pago que se traslada al cliente al pagar en línea (0.0319 = 3,19 %)
+    /* SPEC-38: comisión de Mercado Pago que se traslada al cliente en la tarifa de servicio (0.0319 = 3,19 %)
        y si se le suma el IVA de esa comisión. */
     paymentFeeRate: { type: Number, default: 0.0319 },
     paymentFeeVat: { type: Boolean, default: true },

@@ -26,6 +26,8 @@ const FB_MESSAGES: Record<string, string> = {
 const GG_MESSAGES: Record<string, string> = {
   error: 'No se completó el inicio con Google. Puedes intentarlo de nuevo o usar tu correo.',
   no_disponible: 'El inicio con Google aún no está disponible. Usa tu correo.',
+  // SPEC-38: la cuenta de ese correo no estaba verificada → se confirma por correo antes de vincular Google.
+  revisa_correo: 'Ese correo ya tiene una cuenta sin confirmar. Te enviamos un link para confirmar que es tuyo y vincular Google; ábrelo y vuelve a entrar con Google.',
 };
 
 interface Props {

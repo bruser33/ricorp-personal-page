@@ -26,6 +26,11 @@ export function linkFacebookMail({ name, url }) {
   return { subject, template: 'fb_link_email', ...layout(subject, [`Hola ${name || ''}`.trim() + ',', 'Alguien pidió vincular una cuenta de Facebook a tu cuenta de WS Style. Si fuiste tú, confírmalo con este link (vale 24 horas). Si no, ignora este correo.'], [['Vincular Facebook', url]]) };
 }
 
+export function linkGoogleMail({ name, url }) {
+  const subject = 'Confirma que quieres entrar con Google · WS Style';
+  return { subject, template: 'gg_link_email', ...layout(subject, [`Hola ${name || ''}`.trim() + ',', 'Alguien quiso entrar con Google a la cuenta de WS Style de este correo. Si fuiste tú, confírmalo con este link (vale 24 horas): tu cuenta quedará con Google como forma de entrar. Si no, ignora este correo.'], [['Confirmar y vincular Google', url]]) };
+}
+
 export function resetPasswordMail({ name, url }) {
   const subject = 'Recupera tu contraseña · WS Style';
   return { subject, template: 'reset_password', ...layout(subject, [`Hola ${name || ''}`.trim() + ',', 'Usa este link para crear una contraseña nueva. Vale 1 hora y sirve una sola vez. Si no lo pediste, ignora este correo.'], [['Crear contraseña nueva', url]]) };

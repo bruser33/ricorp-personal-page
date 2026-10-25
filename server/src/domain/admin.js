@@ -429,7 +429,7 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
         totalCLP: a.pricing?.totalCLP ?? '',
         paymentMethod: (a.payment?.method || 'local') === 'local' ? 'En el local' : 'En línea',
         paymentStatus: a.payment?.status || 'pendiente',
-        platformFeeCLP: a.pricing?.platformFeeCLP ?? 0,
+        platformFeeCLP: a.pricing?.feesIncluded ? a.pricing?.platformFeeCLP ?? 0 : 0,
         paymentFeeCLP: a.pricing?.paymentFeeCLP ?? 0,
         barberCLP: a.pricing?.barberCLP ?? (a.pricing?.priceCLP ?? 0) + (a.pricing?.surchargeCLP ?? 0),
         source: a.source || 'web',
@@ -601,7 +601,7 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
     const target = slot && pros.find((p) => slot.professionalIds.includes(String(p._id)));
     if (!target) throw new HttpError(409, 'slot_unavailable', 'Esa hora no está libre para ese barbero. Elige otra.');
     const customer = await User.findOne({ status: 'active', $or: [...(email ? [{ email }] : []), { phoneE164: phone }] }).lean();
-    /* SPEC-38 RN-21: agendada por WS Style = pago en el local → administración sí, procesamiento no. */
+    /* SPEC-38 RN-21: la tarifa de servicio (administración + costo de pagos) es la misma para cualquier forma de pago. */
     const pricing = quote({ priceCLP: service.priceCLP, surchargeCLP: 0, method: 'local', ...(await currentRates()) });
     const doc = {
       _id: new ObjectId(),
@@ -892,7 +892,7 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
       payments: { online: Boolean(b.payments?.onlineEnabled), local: b.payments?.localEnabled !== false },
       mercadoPago: mpInfo(),
       platformFeePercent: rates.platformFeePercent,
-      /* SPEC-38 RN-08: comisión de Mercado Pago que paga el cliente al pagar en línea (+ IVA si corresponde). */
+      /* SPEC-38 RN-08: comisión de Mercado Pago que paga el cliente dentro de la tarifa de servicio (+ IVA si corresponde). */
       paymentFeePercent: rates.paymentFeePercent,
       paymentFeeVat: rates.paymentFeeVat,
       rules: Object.fromEntries(Object.keys(RULE_LIMITS).map((k) => [k, b.settings?.[k]])),

@@ -16,7 +16,7 @@ import {
 } from '../lib/session.js';
 import { appendCookie, parseCookies, serializeCookie } from '../lib/cookies.js';
 import { signState, verifyState } from '../lib/facebook.js';
-import { linkFacebookMail, resetPasswordMail, verifyEmailMail } from '../lib/emails.js';
+import { linkFacebookMail, linkGoogleMail, resetPasswordMail, verifyEmailMail } from '../lib/emails.js';
 
 const MIN = 60 * 1000;
 const HOUR = 60 * MIN;
@@ -172,10 +172,21 @@ export function createAuthRouter({ env, clock, mailer, logger, facebook, google 
     if (doc === 'expired') throw new HttpError(410, 'token_expired', 'El link venció. Pide uno nuevo desde tu cuenta.');
     const user = await User.findById(doc.userId);
     if (!user) throw new HttpError(400, 'invalid_token', 'El link no es válido');
+    const wasVerified = user.emailVerified;
     user.emailVerified = true;
     /* Vincular Facebook pedido con email (CB-20): se confirma al abrir este link. */
     if (doc.data?.facebookId && !user.identities.some((i) => i.provider === 'facebook')) {
       user.identities.push({ provider: 'facebook', providerUserId: doc.data.facebookId });
+    }
+    /* SPEC-38: vincular Google a una cuenta cuyo correo nadie había verificado. Quien abre el link es el
+       dueño del correo: se quitan las identidades sociales y el celular que puso otra persona. */
+    if (doc.data?.googleId && !user.identities.some((i) => i.provider === 'google')) {
+      if (doc.data.takeover && !wasVerified) {
+        user.identities = user.identities.filter((i) => i.provider === 'email');
+        user.phoneE164 = undefined;
+        await AuthToken.deleteMany({ type: 'session', userId: user._id });
+      }
+      user.identities.push({ provider: 'google', providerUserId: doc.data.googleId });
     }
     await user.save();
     doc.usedAt = new Date(clock());
@@ -405,7 +416,15 @@ export function createAuthRouter({ env, clock, mailer, logger, facebook, google 
         const t = await issueToken({ type: 'gg_link', userId: existing._id, ttlMs: 30 * MIN, now, data: { googleId: profile.id, returnTo } });
         return res.redirect(302, front(returnTo, { gg: 'vincular', t, email: profile.email }));
       }
-      /* Sin contraseña (p.ej. solo Facebook): Google verificó que la persona controla ese correo. */
+      /* Sin contraseña y con el correo ya verificado (p.ej. Facebook con email de Facebook): las dos
+         partes probaron controlar ese correo → se vincula. Si el correo NO estaba verificado (cuenta de
+         Facebook donde alguien ESCRIBIÓ este email), no se entrega esa cuenta: se confirma por correo y,
+         al confirmar, se quitan las identidades y el celular que no fueron verificados (toma previa). */
+      if (!existing.emailVerified) {
+        const t = await issueToken({ type: 'verify_email', userId: existing._id, ttlMs: 24 * HOUR, now, data: { googleId: profile.id, takeover: true } });
+        await mailer.send({ to: existing.email, ...linkGoogleMail({ name: existing.name, url: `${frontUrl}/wstyle/cuenta/confirmar/?t=${t}` }) });
+        return res.redirect(302, front(returnTo, { gg: 'revisa_correo' }));
+      }
       existing.identities.push({ provider: 'google', providerUserId: profile.id });
       existing.emailVerified = true;
       await existing.save();

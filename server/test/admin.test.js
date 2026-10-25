@@ -578,7 +578,7 @@ describe('AC-08 estadísticas', () => {
         startsAt,
         endsAt: new Date(startsAt.getTime() + s.durationMin * MIN),
         location: { kind: home ? 'home' : 'shop' },
-        pricing: { priceCLP: s.priceCLP, surchargeCLP: (total ?? s.priceCLP) - s.priceCLP, totalCLP: total ?? s.priceCLP, platformFeeRate: 0, platformFeeCLP: fee },
+        pricing: { priceCLP: s.priceCLP, surchargeCLP: (total ?? s.priceCLP) - s.priceCLP, totalCLP: total ?? s.priceCLP, platformFeeRate: 0, platformFeeCLP: fee, feesIncluded: true },
         payment: { method, status: pay },
         status,
         history: [],

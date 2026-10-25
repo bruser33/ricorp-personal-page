@@ -212,16 +212,38 @@ describe('login con Google (SPEC-38)', () => {
     assert.equal(back(await callback({ code: 'codigo-bueno', state: f2.state }, f2.cookie)).searchParams.get('gg'), 'ok');
   });
 
-  test('AC-10 cuenta solo Facebook con ese email → se vincula y entra (email verificado)', async () => {
-    await User.create({ email: 'ana@gmail.com', emailVerified: false, name: 'Ana', roles: ['client'], identities: [{ provider: 'facebook', providerUserId: 'fb-1' }] });
+  test('AC-10 cuenta solo Facebook con el email YA verificado → se vincula y entra', async () => {
+    await User.create({ email: 'ana@gmail.com', emailVerified: true, name: 'Ana', roles: ['client'], identities: [{ provider: 'facebook', providerUserId: 'fb-1' }] });
     const f = await startFlow();
     const r = await callback({ code: 'codigo-bueno', state: f.state }, f.cookie);
     assert.equal(back(r).searchParams.get('gg'), 'ok');
     assert.ok(sessionCookie(r.headers));
     const u = await User.findOne({ email: 'ana@gmail.com' });
     assert.deepEqual(u.identities.map((i) => i.provider).sort(), ['facebook', 'google']);
-    assert.equal(u.emailVerified, true);
     assert.equal(await User.countDocuments(), 1);
+  });
+
+  test('toma previa: cuenta de Facebook con el email de la víctima SIN verificar → no entrega la cuenta; al confirmar por correo se quita el Facebook ajeno', async () => {
+    /* El atacante entró con su Facebook y escribió el correo de la víctima (facebook/complete: emailVerified false). */
+    await User.create({ email: 'ana@gmail.com', emailVerified: false, name: 'Atacante', phoneE164: '+56911112222', roles: ['client'], identities: [{ provider: 'facebook', providerUserId: 'fb-atacante' }] });
+    const f = await startFlow();
+    const r = await callback({ code: 'codigo-bueno', state: f.state }, f.cookie);
+    assert.equal(back(r).searchParams.get('gg'), 'revisa_correo');
+    assert.equal(sessionCookie(r.headers), null);
+    let u = await User.findOne({ email: 'ana@gmail.com' });
+    assert.deepEqual(u.identities.map((i) => i.provider), ['facebook']);
+    const mail = ctx.mailer.outbox.find((m) => m.to === 'ana@gmail.com' && /Google/.test(m.subject));
+    assert.ok(mail, 'correo de confirmación a la dueña del correo');
+    const t = new URL(mail.text.match(/https?:\/\/\S+confirmar\/\?t=\S+/)[0]).searchParams.get('t');
+    const ok = await api(ctx.base, 'POST', '/api/auth/verify-email', { body: { token: t } });
+    assert.equal(ok.status, 200);
+    u = await User.findOne({ email: 'ana@gmail.com' });
+    assert.deepEqual(u.identities.map((i) => i.provider), ['google']);
+    assert.equal(u.phoneE164, undefined);
+    assert.equal(u.emailVerified, true);
+    /* Ahora Google entra directo; el Facebook del atacante ya no. */
+    const f2 = await startFlow();
+    assert.equal(back(await callback({ code: 'codigo-bueno', state: f2.state }, f2.cookie)).searchParams.get('gg'), 'ok');
   });
 
   test('AC-11 GOOGLE_CLIENT_SECRET nunca aparece en respuestas, Location, cookies ni logs', async () => {

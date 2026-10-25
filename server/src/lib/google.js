@@ -65,6 +65,8 @@ export function createGoogleClient({ clientId, clientSecret, redirectUri, fetchI
     if (!ISSUERS.includes(t.iss)) throw fail('google_invalid', 'iss inválido');
     const aud = Array.isArray(t.aud) ? t.aud : [t.aud];
     if (!aud.includes(clientId)) throw fail('google_invalid', 'aud inválido');
+    /* Con varias audiencias, el token debe haber sido emitido para este cliente (azp). */
+    if (aud.length > 1 && t.azp !== clientId) throw fail('google_invalid', 'azp inválido');
     if (!(Number(t.exp) * 1000 > now)) throw fail('google_invalid', 'id_token vencido');
     if (!t.sub) throw fail('google_invalid', 'sin sub');
     if (!nonce || t.nonce !== nonce) throw fail('google_invalid', 'nonce inválido');

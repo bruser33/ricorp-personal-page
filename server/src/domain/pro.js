@@ -588,7 +588,7 @@ export function createPro({ agenda, clock = Date.now, mailer, logger = console, 
 
     const customer = await User.findOne({ phoneE164: phone, status: 'active', roles: 'client', _id: { $ne: user._id } }).lean();
     const surcharge = mode === 'home' ? pro.homeService.surchargeCLP : 0;
-    /* SPEC-38 RN-21: invitación = pago en el local → administración sí, procesamiento no. */
+    /* SPEC-38 RN-21: la tarifa de servicio (administración + costo de pagos) es la misma para cualquier forma de pago. */
     const pricing = quote({ priceCLP: service.priceCLP, surchargeCLP: surcharge, method: 'local', ...(await currentRates()) });
     const doc = {
       _id: new ObjectId(),

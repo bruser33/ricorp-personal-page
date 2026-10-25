@@ -63,7 +63,8 @@ export async function computeStats(b, { from, to, professionalId = null }) {
   for (const a of finished) {
     const total = a.pricing?.totalCLP || 0;
     revenue.totalCLP += total;
-    platformFeeCLP += a.pricing?.platformFeeCLP || 0;
+    /* SPEC-38 RN-13: en citas antiguas la comisión era interna (no se cobró): no suma acá. */
+    if (a.pricing?.feesIncluded) platformFeeCLP += a.pricing?.platformFeeCLP || 0;
     barbersCLP += barberPart(a);
     paymentFeeCLP += a.pricing?.paymentFeeCLP || 0;
     const method = a.payment?.method || 'local';
