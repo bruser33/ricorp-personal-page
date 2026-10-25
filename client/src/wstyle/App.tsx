@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { headTexts, jsonLd, str, type Content } from './content';
-import { bookingLink, clp, ctaLinks, fromPrice } from './links';
+import { bookingLink, clp, ctaLinks, ext, fromPrice, isDemo } from './links';
 import { useContent } from './hooks/useContent';
 import { useScrollCamera } from './hooks/useScrollCamera';
 import { useReveal } from './hooks/useReveal';
@@ -47,7 +47,7 @@ export default function App({ initial }: { initial: Content | null }) {
   const booking = bookingLink(site), from = fromPrice(services);
   const city = str(site.contact?.address?.city);
   const stat = site.stat;
-  const demo = site.demo === true || String(site.demo).trim().toLowerCase() === 'true';
+  const demo = isDemo(site);
 
   // Capítulos numerados sin huecos (D4): 01… en el orden en que se publican (barberos/reseñas solo con enabled).
   const chapters = useMemo(() => {
@@ -91,7 +91,7 @@ export default function App({ initial }: { initial: Content | null }) {
           {str(site.concept) && <p className="concept reveal">{site.concept}</p>}
           <div className="hero__cta reveal">
             {from && <p className="hero__from" data-from-price="">{from.label} desde <strong>{clp.format(from.price)}</strong></p>}
-            {booking && <a className="btn btn--primary" data-cta="hero-booking" href={booking} target={booking.startsWith('tel:') ? undefined : '_blank'} rel="noopener">Reservar</a>}
+            {booking && <a className="btn btn--primary" data-cta="hero-booking" href={booking} {...ext(booking)}>Reservar</a>}
           </div>
           <p className="hint reveal" aria-hidden="true">Desliza para recorrer el local</p>
         </Section>
@@ -103,7 +103,7 @@ export default function App({ initial }: { initial: Content | null }) {
         <Section id="trono" label={lab('trono')} headline={h.trono} copy={copy.trono}>
           <div className="ctas reveal">
             {links.whatsapp && <a className="btn btn--primary" data-cta="whatsapp" href={links.whatsapp} target="_blank" rel="noopener">Reservar por WhatsApp</a>}
-            {links.tel && <a className="btn btn--ghost" data-cta="tel" href={links.tel}>Llamar</a>}
+            {links.tel && <a className="btn btn--ghost" data-cta="tel" href={links.tel} {...ext(links.tel)}>Llamar</a>}
           </div>
         </Section>
         <Marquee words={(site.marquee ?? []).filter((w): w is string => !!str(w))} />

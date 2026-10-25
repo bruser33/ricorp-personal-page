@@ -1,19 +1,29 @@
 import { clPhone, toCLP } from './lib';
 import { str, type Service, type SiteContent } from './content';
 
+// Destino seguro de los CTA en modo demo (SPEC-31): el teléfono del JSON es ficticio y podría ser de una persona
+// real, así que WhatsApp/Llamar/Reservar llevan al contacto de Ricorp en vez de marcarlo o escribirle.
+export const DEMO_CONTACT_URL = 'https://ricorp.cl/contacto';
+
+// demo: true o "true" (editado a mano, sin importar mayúsculas ni espacios) ⇒ modo demostración.
+export const isDemo = (site: SiteContent) => site.demo === true || String(site.demo).trim().toLowerCase() === 'true';
+
 // Enlaces de CTA desde el JSON. null ⇒ el botón no se muestra (dato faltante o teléfono no reconocido).
+// En demo, los botones que existirían con el número real apuntan a DEMO_CONTACT_URL.
 export function ctaLinks(site: SiteContent) {
   const c = site.contact ?? {};
   const wa = clPhone(c.whatsapp), tel = clPhone(c.phone);
+  const demo = isDemo(site);
   return {
-    whatsapp: wa ? `https://wa.me/${wa}` + (str(c.whatsappText) ? `?text=${encodeURIComponent(c.whatsappText!)}` : '') : null,
-    tel: tel ? `tel:+${tel}` : null,
+    whatsapp: wa ? (demo ? DEMO_CONTACT_URL : `https://wa.me/${wa}` + (str(c.whatsappText) ? `?text=${encodeURIComponent(c.whatsappText!)}` : '')) : null,
+    tel: tel ? (demo ? DEMO_CONTACT_URL : `tel:+${tel}`) : null,
     maps: str(c.mapsUrl),
   };
 }
 
 // Link de reserva (regla documentada en docs/direccion-de-arte.md): agenda online (AgendaPro/Reservo) → WhatsApp →
-// teléfono. Así el CTA fijo siempre lleva a un canal real; sin ninguno de los tres no se muestra.
+// teléfono. Así el CTA fijo siempre lleva a un canal real; sin ninguno de los tres no se muestra. En demo, sin
+// agenda configurada, cae en el destino seguro vía ctaLinks.
 export function bookingLink(site: SiteContent) {
   const l = ctaLinks(site);
   return str(site.booking?.url) ?? l.whatsapp ?? l.tel;

@@ -1,4 +1,5 @@
 import { hoursText, str, validHours, type SiteContent } from '../content';
+import { ext } from '../links';
 import './Location.css';
 
 interface Props { site: SiteContent; links: { whatsapp: string | null; tel: string | null; maps: string | null } }
@@ -16,7 +17,7 @@ export default function Location({ site, links }: Props) {
       <div className="ctas reveal">
         {links.maps && <a className="btn btn--primary" data-cta="maps" href={links.maps} target="_blank" rel="noopener">Cómo llegar</a>}
         {links.whatsapp && <a className="btn btn--ghost" data-cta="whatsapp" href={links.whatsapp} target="_blank" rel="noopener">WhatsApp</a>}
-        {links.tel && <a className="btn btn--ghost" data-cta="tel" href={links.tel}>Llamar</a>}
+        {links.tel && <a className="btn btn--ghost" data-cta="tel" href={links.tel} {...ext(links.tel)}>Llamar</a>}
       </div>
       <div className="info reveal">
         {rows.length > 0 && (

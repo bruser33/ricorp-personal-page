@@ -16,7 +16,7 @@
     "stat"
   ],
   "_nota": "Todos los campos listados en _placeholders son SUPUESTOS hasta recibir los datos reales del negocio (SPEC-01).",
-  "_demo": "Mientras demo sea true se muestra la franja «Versión de demostración · precios y datos de ejemplo». Pasar a false al cargar los datos reales.",
+  "_demo": "Mientras demo sea true se muestra la franja «Versión de demostración · precios y datos de ejemplo». Pasar a false al cargar los datos reales. En demo, WhatsApp/Llamar/Reservar llevan al contacto de Ricorp (el teléfono es ficticio y solo se muestra).",
   "demo": true,
   "name": "WS Style",
   "slogan": "Cortes clásicos y barba con oficio, en un local hecho para quedarse.",
@@ -52,15 +52,15 @@
     "llega": "Estamos a pasos de ti. Revisa el horario y pasa."
   },
   "contact": {
-    "phone": "+56 9 0000 0000",
-    "whatsapp": "+56 9 0000 0000",
+    "phone": "+56 9 6482 3175",
+    "whatsapp": "+56 9 6482 3175",
     "whatsappText": "Hola, quiero reservar una hora",
     "address": {
-      "street": "Calle Falsa 123",
-      "city": "Santiago",
+      "street": "Av. Providencia 2124, local 7",
+      "city": "Providencia",
       "region": "Región Metropolitana"
     },
-    "mapsUrl": "https://www.google.com/maps/search/?api=1&query=Calle+Falsa+123+Santiago"
+    "mapsUrl": "https://www.google.com/maps/search/?api=1&query=Av.%20Providencia%202124%2C%20local%207%2C%20Providencia"
   },
   "_hours": "Horario (única fuente: también genera openingHours del JSON-LD). dayCodes = días en formato schema.org (Mo, Tu, We, Th, Fr, Sa, Su; rangos con guion). Si falta opens o closes se muestra \"desde\"/\"hasta\"; sin ambos = Cerrado.",
   "hours": [
