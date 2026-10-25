@@ -1,21 +1,16 @@
-/* Persistentes abajo a la derecha (SPEC-15 AC-08, PR #9 D7): píldora RESERVAR latón (oculta mientras se ve el CTA
-   del hero) + WhatsApp flotante. El badge Ricorp va abajo a la izquierda. */
-.dock { position: fixed; z-index: 75; right: calc(18px + env(safe-area-inset-right)); bottom: calc(18px + env(safe-area-inset-bottom)); display: flex; align-items: center; gap: 10px; }
+/* Único CTA fijo en móvil (SPEC-26): píldora RESERVAR latón abajo a la derecha. Oculta mientras una sección con CTA
+   propio lo tiene en pantalla. En desktop no existe (el fijo es el RESERVAR del header). El badge Ricorp va abajo a
+   la izquierda. */
+.dock { display: none; }
+.compact .dock { display: flex; position: fixed; z-index: 75; right: calc(12px + env(safe-area-inset-right)); bottom: calc(12px + env(safe-area-inset-bottom)); align-items: center; }
+/* Con el menú abierto la píldora no queda encima del overlay. */
+.compact.menu-open .dock { display: none; }
 .book-fab {
-  display: inline-flex; align-items: center; min-height: 52px; padding: 0 28px; border-radius: 999px;
+  display: inline-flex; align-items: center; min-height: 46px; padding: 0 22px; border-radius: 999px;
   background: var(--brass); color: var(--ink); text-decoration: none;
-  font: 600 12px/1 var(--font-body); letter-spacing: .26em; text-transform: uppercase;
+  font: 600 11px/1 var(--font-body); letter-spacing: var(--tracking-caps); text-transform: uppercase;
   box-shadow: 0 16px 40px rgba(0, 0, 0, .55); transition: background-color .25s ease, color .25s ease, opacity .12s ease, transform .12s ease;
 }
 .book-fab.is-hidden { opacity: 0; visibility: hidden; transform: translateY(8px); pointer-events: none; transition: opacity .18s ease, transform .18s ease, visibility 0s .18s; }
 .book-fab:hover { background: var(--wood); color: var(--bone); }
-.wa-fab {
-  display: grid; place-items: center; width: 52px; height: 52px; border-radius: 50%;
-  background: var(--graphite); border: 1px solid var(--brass-soft); color: var(--bone);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, .55); transition: border-color .25s ease, color .25s ease;
-}
-.wa-fab:hover { border-color: var(--brass); color: var(--brass); }
-.compact .dock { right: calc(12px + env(safe-area-inset-right)); bottom: calc(12px + env(safe-area-inset-bottom)); gap: 8px; }
-.compact .book-fab { min-height: 46px; padding: 0 22px; font-size: 11px; }
-.compact .wa-fab { width: 46px; height: 46px; }
-@media (prefers-reduced-motion: reduce) { .book-fab, .wa-fab { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .book-fab { transition: none; } }

@@ -109,10 +109,11 @@ export class Experience {
     this.r3d?.resize(w, h, m);
     this.computeAnchors(); this.dirty = true;
   };
-  // Ancla de cada sección = su offsetTop, limitado al scroll máximo.
+  // Ancla de cada sección = el scroll al que la lleva un salto a su #id: offsetTop menos su scroll-margin-top (alto del
+  // header + franja, SPEC-27), limitado a [0, scroll máximo].
   private computeAnchors() {
     const max = Math.max(0, document.documentElement.scrollHeight - innerHeight);
-    this.anchors = this.o.sections.map((s) => Math.min(s.offsetTop, max));
+    this.anchors = this.o.sections.map((s) => Math.max(0, Math.min(s.offsetTop - (parseFloat(getComputedStyle(s).scrollMarginTop) || 0), max)));
   }
   private rebuildShots(compact: boolean) {
     this.SH = shotsFor(compact);

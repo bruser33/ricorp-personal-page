@@ -11,7 +11,7 @@
 .loader__track { width: min(280px, 60vw); height: 1px; background: rgba(237, 230, 218, .14); overflow: hidden; }
 /* P4 (ronda 4): sin transición: la barra y el % salen del mismo valor en el mismo cuadro. */
 .loader__bar { display: block; height: 100%; transform-origin: 0 50%; transform: scaleX(0); background: var(--brass); }
-.loader__pct { margin: 0; font: 500 11px/1 var(--font-body); letter-spacing: .3em; color: var(--muted); }
-.loader__by { position: absolute; left: 0; right: 0; bottom: calc(28px + env(safe-area-inset-bottom)); margin: 0; text-align: center; font: 500 11px/1 var(--font-body); letter-spacing: .24em; text-transform: uppercase; color: var(--muted); }
+.loader__pct { margin: 0; font: 500 11px/1 var(--font-body); letter-spacing: var(--tracking-caps); color: var(--muted); }
+.loader__by { position: absolute; left: 0; right: 0; bottom: calc(28px + env(safe-area-inset-bottom)); margin: 0; text-align: center; font: 500 11px/1 var(--font-body); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--muted); }
 .loader__by span { color: var(--bone); }
 @media (prefers-reduced-motion: reduce) { .loader { transition: opacity .2s ease, visibility 0s .2s; clip-path: none; } .loader.is-done { clip-path: none; } .loader__bar { transition: none; } }

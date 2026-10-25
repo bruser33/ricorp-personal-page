@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { headTexts, jsonLd, str, type Content } from './content';
-import { bookingLink, clp, ctaLinks, fromPrice } from './links';
+import { bookingLabel, bookingLink, clp, ctaLinks, ext, fromPrice, isDemo, isWhatsAppUrl } from './links';
 import { useContent } from './hooks/useContent';
 import { useScrollCamera } from './hooks/useScrollCamera';
 import { useReveal } from './hooks/useReveal';
@@ -14,6 +14,8 @@ import Location, { Footer } from './components/Location';
 import RicorpBadge from './components/RicorpBadge';
 import Loader from './components/Loader';
 import Booking from './components/Booking';
+import Stat from './components/Stat';
+import Icon from './components/Icons';
 import FilmFx, { Marquee } from './components/FilmFx';
 import { Barbers, DemoStrip, Membership, Policies, Reviews } from './components/Extras';
 import Scene3D from './scene/Scene3D';
@@ -21,7 +23,7 @@ import './wstyle.css';
 
 export const SITE_URL = 'https://ricorp.cl/wstyle/';
 
-// Landing de la barbería W Style (SPEC-12/13/15), dirección "Noir de oficio": el render de Blender es la película
+// Landing de la barbería WS Style (SPEC-12/13/15), dirección "Noir de oficio": el render de Blender es la película
 // (secuencia ligada al scroll, three.js de respaldo) y la web es la edición (titulares de cartel, etiquetas
 // numeradas, paneles sólidos para vender). Todo el texto viene de public/wstyle/content/*.json.
 // Las 7 secciones data-shot son las tomas del render; los paneles intermedios avanzan la película hacia la toma
@@ -39,15 +41,20 @@ export default function App({ initial }: { initial: Content | null }) {
   useReveal([content]);
   useMotion(loaderDone, content);
   useFilmDim([content]);
+  // SPEC-27: con la URL cargada con #ancla el navegador salta antes de tener el contenido final (sin prerender, o con
+  // alturas que cambian al leer los JSON): al salir el loader se vuelve a anclar (respeta el scroll-margin-top).
+  useEffect(() => {
+    if (!loaderDone || location.hash.length < 2) return;
+    document.getElementById(decodeURIComponent(location.hash.slice(1)))?.scrollIntoView({ block: 'start', behavior: 'instant' });
+  }, [loaderDone]);
 
   const site = content?.site ?? {}, services = content?.services ?? [];
   const poweredBy = content?.config?.poweredBy !== false;   // la marca de agua solo se apaga con false literal
   const name = str(site.name), h = site.headlines ?? {}, copy = site.copy ?? {};
   const links = ctaLinks(site);
-  const booking = bookingLink(site), from = fromPrice(services);
+  const booking = bookingLink(site), bookLabel = bookingLabel(site), from = fromPrice(services);
   const city = str(site.contact?.address?.city);
-  const stat = site.stat;
-  const demo = site.demo === true || String(site.demo).trim().toLowerCase() === 'true';
+  const demo = isDemo(site);
 
   // Capítulos numerados sin huecos (D4): 01… en el orden en que se publican (barberos/reseñas solo con enabled).
   const chapters = useMemo(() => {
@@ -81,7 +88,7 @@ export default function App({ initial }: { initial: Content | null }) {
       <Scene3D active={mode === '3d'} onRenderer={setRenderer3D} />
       <FilmFx />
       <Loader name={name} progress={progress} done={loaderDone} poweredBy={poweredBy} />
-      <div className="shade" aria-hidden="true"></div>
+      <div className={`shade${scrolled ? '' : ' is-top'}`} aria-hidden="true"></div>
       <div className="progress" aria-hidden="true"><span className="progress__bar" ref={progressBar}></span></div>
       <Nav name={name} booking={booking} scrolled={scrolled} />
       {demo && <DemoStrip />}
@@ -89,21 +96,25 @@ export default function App({ initial }: { initial: Content | null }) {
       <main ref={main} className={demo ? 'is-demo' : undefined}>
         <Section id="hero" className="panel--hero" label={city ? `Barbería · ${city}` : 'Barbería'} headline={h.hero} copy={str(site.slogan)}>
           {str(site.concept) && <p className="concept reveal">{site.concept}</p>}
-          <div className="hero__cta reveal">
+          <div className="hero__cta reveal" data-own-cta="">
             {from && <p className="hero__from" data-from-price="">{from.label} desde <strong>{clp.format(from.price)}</strong></p>}
-            {booking && <a className="btn btn--primary" data-cta="hero-booking" href={booking} target={booking.startsWith('tel:') ? undefined : '_blank'} rel="noopener">Reservar</a>}
+            {booking && <a className="btn btn--primary" data-cta="hero-booking" href={booking} {...ext(booking)}>Reservar</a>}
           </div>
-          <p className="hint reveal" aria-hidden="true">Desliza para recorrer el local</p>
+          {/* SPEC-28: en compacto el hint va centrado al pie con una flecha que late; se desvanece al empezar a scrollear. */}
+          <p className={`hint reveal${scrolled ? ' is-gone' : ''}`} aria-hidden="true">Desliza para recorrer el local<span className="hint__arrow"></span></p>
         </Section>
-        <Section id="reyes" label={lab('reyes')} headline={h.reyes} copy={copy.reyes}>
-          {stat && str(stat.value) && <p className="stat reveal"><span className="stat__value">{stat.value}</span> <span className="stat__label">{stat.label}</span> {str(stat.note) && <em>{stat.note}</em>}</p>}
+        <Section id="reyes" className="panel--copy" label={lab('reyes')} headline={h.reyes} copy={copy.reyes}>
+          <Stat stat={site.stat} />
         </Section>
-        <Section id="linea" label={lab('linea')} headline={h.linea} copy={copy.linea} />
-        <Section id="afilado" label={lab('afilado')} headline={h.afilado} copy={copy.afilado} />
-        <Section id="trono" label={lab('trono')} headline={h.trono} copy={copy.trono}>
-          <div className="ctas reveal">
-            {links.whatsapp && <a className="btn btn--primary" data-cta="whatsapp" href={links.whatsapp} target="_blank" rel="noopener">Reservar por WhatsApp</a>}
-            {links.tel && <a className="btn btn--ghost" data-cta="tel" href={links.tel}>Llamar</a>}
+        <Section id="linea" className="panel--copy" label={lab('linea')} headline={h.linea} copy={copy.linea} />
+        <Section id="afilado" className="panel--copy" label={lab('afilado')} headline={h.afilado} copy={copy.afilado} />
+        <Section id="trono" className="panel--copy" label={lab('trono')} headline={h.trono} copy={copy.trono}>
+          {/* SPEC-26: el primario reserva (bookingLink); WhatsApp y Llamar quedan como secundarios. El ghost de WhatsApp
+              solo se omite si el primario ya es ese mismo wa.me (en demo ambos van al contacto y se muestran). */}
+          <div className="ctas reveal" data-own-cta="">
+            {booking && <a className="btn btn--primary" data-cta="booking" href={booking} {...ext(booking)}>{bookLabel}</a>}
+            {links.whatsapp && !(booking === links.whatsapp && isWhatsAppUrl(booking)) && <a className="btn btn--ghost" data-cta="whatsapp" href={links.whatsapp} target="_blank" rel="noopener"><Icon name="whatsapp" />WhatsApp</a>}
+            {links.tel && <a className="btn btn--ghost" data-cta="tel" href={links.tel} {...ext(links.tel)}><Icon name="phone" />Llamar</a>}
           </div>
         </Section>
         <Marquee words={(site.marquee ?? []).filter((w): w is string => !!str(w))} />
@@ -119,8 +130,8 @@ export default function App({ initial }: { initial: Content | null }) {
           <Location site={site} links={links} />
         </Section>
       </main>
-      <Booking booking={booking} whatsapp={links.whatsapp} />
-      {poweredBy && <RicorpBadge />}
+      <Booking booking={booking} watch={chapters} />
+      {poweredBy && <RicorpBadge watch={chapters} />}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: ld }} />
     </>
   );

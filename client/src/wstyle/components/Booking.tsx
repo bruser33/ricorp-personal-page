@@ -1,30 +1,35 @@
 import { useEffect, useState } from 'react';
+import { ext } from '../links';
 import './Booking.css';
 
-interface Props { booking: string | null; whatsapp: string | null }
+interface Props { booking: string | null; watch: unknown }
 
-// Persistentes abajo a la derecha (SPEC-15 AC-08 / PR #9 D7): píldora RESERVAR (agenda → WhatsApp → teléfono) y
-// WhatsApp flotante. La píldora se oculta mientras el CTA del hero está en vista (no se duplica el botón).
-export default function Booking({ booking, whatsapp }: Props) {
-  const [heroCta, setHeroCta] = useState(true);
+// Secciones con CTA propio (SPEC-26 regla 3): mientras alguno de estos está en pantalla la píldora se oculta.
+// Solo se observan los montados (Membresía/Barberos apagados no cuentan).
+const OWN_CTA = '[data-own-cta]';
+
+// Único CTA fijo en móvil (SPEC-26): píldora RESERVAR abajo a la derecha (zona del pulgar), destino bookingLink().
+// En desktop el único fijo es el RESERVAR del header (la píldora no se muestra, ver Booking.css). Sin WhatsApp
+// flotante: WhatsApp/Llamar quedan como botones secundarios en Tu trono y Llega.
+export default function Booking({ booking, watch }: Props) {
+  const [covered, setCovered] = useState(true);
   useEffect(() => {
-    const el = document.querySelector('[data-cta="hero-booking"]');
-    if (!el) { const t = setTimeout(() => setHeroCta(false)); return () => clearTimeout(t); }
-    // "En vista" = entero y fuera de la franja del header (arriba) y del dock (abajo); si no, aparece la píldora.
-    const io = new IntersectionObserver(([e]) => setHeroCta(e.intersectionRatio > .9), { threshold: [0, .25, .5, .75, .9, .95, 1], rootMargin: '-120px 0px -96px 0px' });
-    io.observe(el);
+    const els = [...document.querySelectorAll(OWN_CTA)];
+    if (!els.length) { const t = setTimeout(() => setCovered(false)); return () => clearTimeout(t); }
+    const inView = new Set<Element>();
+    const io = new IntersectionObserver((entries) => {
+      for (const e of entries) { if (e.isIntersecting) inView.add(e.target); else inView.delete(e.target); }
+      setCovered(inView.size > 0);
+    });
+    els.forEach((el) => io.observe(el));
     return () => io.disconnect();
-  }, [booking]);
+  }, [booking, watch]);
   // Sin agenda, WhatsApp ni teléfono no hay nada que fijar: no queda un contenedor vacío.
-  if (!booking && !whatsapp) return null;
+  if (!booking) return null;
   return (
     <div className="dock">
-      {booking && <a className={`book-fab${heroCta ? ' is-hidden' : ''}`} data-cta="booking" href={booking} target={booking.startsWith('tel:') ? undefined : '_blank'} rel="noopener" aria-hidden={heroCta || undefined} tabIndex={heroCta ? -1 : undefined}>Reservar</a>}
-      {whatsapp && (
-        <a className="wa-fab" data-cta="whatsapp-float" href={whatsapp} target="_blank" rel="noopener" aria-label="Escribir por WhatsApp">
-          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2Zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.7.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.2-.4.2-.4.7-1.2.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.8 11.9 11.9 0 0 0 4.6 4c1.7.7 2.3.8 3.2.7a2.7 2.7 0 0 0 1.8-1.3 2.2 2.2 0 0 0 .2-1.3c-.1-.1-.3-.2-.5-.3Z"/></svg>
-        </a>
-      )}
+      <a className={`book-fab${covered ? ' is-hidden' : ''}`} data-cta="booking" href={booking} {...ext(booking)}
+        aria-hidden={covered || undefined} tabIndex={covered ? -1 : undefined}>Reservar</a>
     </div>
   );
 }

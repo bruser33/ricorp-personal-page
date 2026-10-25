@@ -24,7 +24,7 @@ export default defineConfig({
     // current Chromium ignores → no blur in Chrome (PR #9 round 4, B2; checked
     // by barberia-3d/scripts/verify.mjs on dist/assets/*.css).
     cssTarget: ['chrome100', 'safari16', 'firefox100', 'edge100'],
-    // Multi-página: la home (index.html) y la landing W Style (wstyle/index.html → ricorp.cl/wstyle/).
+    // Multi-página: la home (index.html) y la landing WS Style (wstyle/index.html → ricorp.cl/wstyle/).
     // Cada entrada tiene su propio JS/CSS: three.js y el código de wstyle no entran en el bundle de la home.
     // El HTML de wstyle se prerenderiza después del build (scripts/prerender-wstyle.mjs).
     rollupOptions: {

@@ -16,14 +16,14 @@
 .nav__logo { font: 400 26px/1 var(--font-display); letter-spacing: .08em; text-transform: uppercase; text-decoration: none; margin-right: auto; }
 .nav__menu { display: flex; align-items: center; gap: 28px; }
 .nav-links { display: flex; gap: 28px; list-style: none; margin: 0; padding: 0; }
-.nav-links a { font: 600 12px/1 var(--font-body); letter-spacing: .2em; text-decoration: none; color: var(--muted); padding: 8px 0; }
+.nav-links a { font: 600 12px/1 var(--font-body); letter-spacing: var(--tracking-caps); text-decoration: none; color: var(--muted); padding: 8px 0; }
 .nav-links a:hover { color: var(--bone); }
 .nav-links__num { display: none; }
 .nav-links__book { display: none; }
 .nav-toggle { display: none; }
 .nav-cta { min-height: 40px; padding: 0 20px; }
 
-/* Compacto: sin RESERVAR en el header (queda el dock); menú overlay a pantalla completa. */
+/* Compacto: sin RESERVAR en el header (el único fijo es la píldora del dock, SPEC-26); menú overlay a pantalla completa. */
 .compact .nav { gap: 12px; }
 .compact .nav__logo { font-size: 22px; }
 .compact .nav-cta { display: none; }
@@ -44,7 +44,7 @@
 }
 .compact .nav.is-open .nav-links { visibility: visible; opacity: 1; transition: opacity .3s ease; }
 .compact .nav-links a { display: flex; align-items: baseline; gap: 16px; padding: 10px 0; font: 400 clamp(44px, 13vw, 72px)/1 var(--font-display); letter-spacing: .01em; color: var(--bone); border-bottom: 1px solid var(--brass-line); }
-.compact .nav-links__num { display: inline; font: 500 12px/1 var(--font-body); letter-spacing: .2em; color: var(--brass); }
+.compact .nav-links__num { display: inline; font: 500 12px/1 var(--font-body); letter-spacing: var(--tracking-caps); color: var(--brass); }
 .compact .nav-links__book { display: block; }
 .compact .nav-links__book a { color: var(--brass); }
 @media (prefers-reduced-motion: reduce) { .compact .nav-links, .compact .nav.is-open .nav-links { transition: none; } }
