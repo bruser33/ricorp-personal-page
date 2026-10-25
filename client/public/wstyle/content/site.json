@@ -84,9 +84,9 @@
     }
   ],
   "booking": {
-    "_nota": "Link de agenda online (AgendaPro, Reservo, etc.). Vacío ⇒ el botón Reservar abre WhatsApp.",
-    "provider": "",
-    "url": ""
+    "_nota": "Agenda propia (SPEC-32): provider \"propio\" y url \"/wstyle/reservar/\" (misma pestaña). Vacío ⇒ el botón Reservar abre WhatsApp.",
+    "provider": "propio",
+    "url": "/wstyle/reservar/"
   },
   "membership": {
     "name": "Club WS",

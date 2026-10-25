@@ -85,10 +85,11 @@ describe('bookingLabel (SPEC-26)', () => {
     const s: SiteContent = { ...real, contact: {} };
     expect(bookingLink(s)).toBeNull();
     expect(bookingLabel(s)).toBeNull();
-  });  // El site.json que se entrega es demo:true sin booking.url: el destino es DEMO_CONTACT_URL, que no es WhatsApp.
-  it('site.json tal cual (demo): "Reservar" con destino el contacto de Ricorp', () => {
+  });  // El site.json que se entrega es demo:true con la agenda propia (SPEC-32) en booking.url: en demo también se
+  // reserva ahí, porque no contacta a ningún número inventado (SPEC-31). Sin agenda caería en DEMO_CONTACT_URL.
+  it('site.json tal cual (demo): "Reservar" con destino la agenda propia', () => {
     expect(isDemo(site)).toBe(true);
-    expect(bookingLink(site)).toBe(DEMO_CONTACT_URL);
+    expect(bookingLink(site)).toBe('/wstyle/reservar/');
     expect(bookingLabel(site)).toBe('Reservar');
   });
   it.each([true, 'true'])('demo=%j sin agenda: nunca dice "por WhatsApp"', (demo) => {

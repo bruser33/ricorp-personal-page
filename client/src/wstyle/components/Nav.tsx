@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { ext as linkAttrs } from '../links';
 import './Nav.css';
 
 interface Props { name: string | null; booking: string | null; scrolled: boolean }
@@ -18,7 +19,7 @@ export default function Nav({ name, booking, scrolled }: Props) {
   }, []);
   useEffect(() => { document.documentElement.classList.toggle('menu-open', open); }, [open]);
   const close = () => setOpen(false);
-  const ext = booking && !booking.startsWith('tel:') ? { target: '_blank', rel: 'noopener' } : {};   // tel: en la misma pestaña
+  const ext = booking ? linkAttrs(booking) : {};
   return (
     <header className={`nav${open ? ' is-open' : ''}${scrolled ? ' is-scrolled' : ''}`}>
       {name && <a className="nav__logo" href="#hero" data-field="name">{name}</a>}

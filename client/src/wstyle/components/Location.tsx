@@ -46,6 +46,8 @@ export function Footer({ name, poweredBy }: { name: string | null; poweredBy: bo
   return (
     <footer className="footer">
       {name && <span>© <span data-field="name">{name}</span></span>}
+      {/* SPEC-33: registro de barberos (asunción 13). */}
+      <a href="/wstyle/pro/registro/" data-cta="pro-registro">¿Eres barbero? Trabaja con nosotros</a>
       {/* SPEC-25: el mismo logo SVG del badge (en "Llega" este es el único crédito Ricorp en pantalla). */}
       {poweredBy && <span data-powered="">Sitio desarrollado por <a className="footer__ricorp" href="https://ricorp.cl" target="_blank" rel="noopener" aria-label="Ricorp (ricorp.cl)"><img src="/wstyle/brand/ricorp-logo.svg" alt="RICORP" width={105} height={24} /></a></span>}
     </footer>
