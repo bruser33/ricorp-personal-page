@@ -1,0 +1,461 @@
+{
+ "label": "final-img",
+ "generated": "2026-10-26T00:42:13.737Z",
+ "commit": "c006f33+cambios",
+ "command": "cd client && npm run build && npm run measure:seq -- --label final-img --query '?seqdecode=img'",
+ "config": {
+  "cpu": 4,
+  "query": "?seqdecode=img",
+  "network": "Fast 4G (9 Mbps / 1.5 Mbps / 165 ms)",
+  "runs": 3,
+  "dwellMs": 1500,
+  "devices": {
+   "desktop": {
+    "viewport": {
+     "width": 1440,
+     "height": 900
+    },
+    "deviceScaleFactor": 1
+   },
+   "mobile": {
+    "viewport": {
+     "width": 390,
+     "height": 844
+    },
+    "deviceScaleFactor": 3,
+    "isMobile": true,
+    "hasTouch": true
+   }
+  }
+ },
+ "devices": {
+  "desktop": {
+   "scenarios": {
+    "normal": {
+     "M1": {
+      "pct": 0,
+      "runs": [
+       0,
+       0,
+       0
+      ],
+      "causes": [
+       null,
+       null,
+       null
+      ]
+     },
+     "M2": {
+      "maxMs": 34,
+      "runs": [
+       34,
+       50,
+       33
+      ]
+     },
+     "M3": {
+      "count": 0,
+      "totalMs": 0,
+      "maxMs": 0,
+      "over100": 0,
+      "runs": [
+       0,
+       0,
+       0
+      ],
+      "drawMaxMs": 1.5,
+      "scheduleMaxMs": 10.6
+     },
+     "M4": {
+      "readyMs": 1384,
+      "lcpMs": 512,
+      "seqBytesToReady": 271468,
+      "totalBytesToReady": 482032
+     },
+     "M5": {
+      "heapPeakMB": 7.8,
+      "bitmapsPeakMB": 225,
+      "retainedPeak": 64
+     },
+     "requests": {
+      "frames": 301,
+      "network": 301,
+      "distinct": 301,
+      "dupUrls": 0,
+      "seqBytes": 12060508
+     },
+     "seq": {
+      "count": 301,
+      "decoder": "img",
+      "variant": "sd",
+      "size": [
+       1280,
+       720
+      ],
+      "format": "desktop",
+      "mode": "seq",
+      "maxScroll": 6878,
+      "pxPerFrame": 22.9
+     },
+     "errors": []
+    },
+    "rapido": {
+     "M1": {
+      "pct": 0,
+      "runs": [
+       0,
+       0,
+       0
+      ],
+      "causes": [
+       null,
+       null,
+       null
+      ]
+     },
+     "M2": {
+      "maxMs": 33,
+      "runs": [
+       33,
+       33,
+       33
+      ]
+     },
+     "M3": {
+      "count": 0,
+      "totalMs": 0,
+      "maxMs": 0,
+      "over100": 0,
+      "runs": [
+       0,
+       0,
+       0
+      ],
+      "drawMaxMs": 1.9,
+      "scheduleMaxMs": 4.3
+     },
+     "M4": {
+      "readyMs": 1385,
+      "lcpMs": 520,
+      "seqBytesToReady": 271468,
+      "totalBytesToReady": 482032
+     },
+     "M5": {
+      "heapPeakMB": 6.3,
+      "bitmapsPeakMB": 225,
+      "retainedPeak": 64
+     },
+     "requests": {
+      "frames": 119,
+      "network": 119,
+      "distinct": 119,
+      "dupUrls": 0,
+      "seqBytes": 3971424
+     },
+     "seq": {
+      "count": 301,
+      "decoder": "img",
+      "variant": "sd",
+      "size": [
+       1280,
+       720
+      ],
+      "format": "desktop",
+      "mode": "seq",
+      "maxScroll": 6878,
+      "pxPerFrame": 22.9
+     },
+     "errors": []
+    },
+    "vaiven": {
+     "M1": {
+      "pct": 0,
+      "runs": [
+       0,
+       0,
+       0
+      ],
+      "causes": [
+       null,
+       null,
+       null
+      ]
+     },
+     "M2": {
+      "maxMs": 50,
+      "runs": [
+       50,
+       50,
+       50
+      ]
+     },
+     "M3": {
+      "count": 1,
+      "totalMs": 142,
+      "maxMs": 160,
+      "over100": 1,
+      "runs": [
+       142,
+       160,
+       125
+      ],
+      "drawMaxMs": 1.8,
+      "scheduleMaxMs": 136.8
+     },
+     "M4": {
+      "readyMs": 1380,
+      "lcpMs": 520,
+      "seqBytesToReady": 271468,
+      "totalBytesToReady": 482032
+     },
+     "M5": {
+      "heapPeakMB": 7.4,
+      "bitmapsPeakMB": 225,
+      "retainedPeak": 64
+     },
+     "requests": {
+      "frames": 301,
+      "network": 301,
+      "distinct": 301,
+      "dupUrls": 0,
+      "seqBytes": 12060508
+     },
+     "seq": {
+      "count": 301,
+      "decoder": "img",
+      "variant": "sd",
+      "size": [
+       1280,
+       720
+      ],
+      "format": "desktop",
+      "mode": "seq",
+      "maxScroll": 6878,
+      "pxPerFrame": 22.9
+     },
+     "errors": []
+    }
+   }
+  },
+  "mobile": {
+   "scenarios": {
+    "normal": {
+     "M1": {
+      "pct": 0,
+      "runs": [
+       0,
+       0,
+       0
+      ],
+      "causes": [
+       null,
+       null,
+       null
+      ]
+     },
+     "M2": {
+      "maxMs": 50,
+      "runs": [
+       50,
+       50,
+       50
+      ]
+     },
+     "M3": {
+      "count": 0,
+      "totalMs": 0,
+      "maxMs": 0,
+      "over100": 0,
+      "runs": [
+       0,
+       0,
+       0
+      ],
+      "drawMaxMs": 1.9,
+      "scheduleMaxMs": 17.6
+     },
+     "M4": {
+      "readyMs": 1503,
+      "lcpMs": 772,
+      "seqBytesToReady": 397848,
+      "totalBytesToReady": 608412
+     },
+     "M5": {
+      "heapPeakMB": 6.7,
+      "bitmapsPeakMB": 115.4,
+      "retainedPeak": 21
+     },
+     "requests": {
+      "frames": 223,
+      "network": 223,
+      "distinct": 223,
+      "dupUrls": 0,
+      "seqBytes": 13396018
+     },
+     "seq": {
+      "count": 223,
+      "decoder": "img",
+      "variant": "hd",
+      "size": [
+       900,
+       1600
+      ],
+      "format": "mobile",
+      "mode": "seq",
+      "maxScroll": 6908,
+      "pxPerFrame": 31.1
+     },
+     "errors": []
+    },
+    "rapido": {
+     "M1": {
+      "pct": 1.24,
+      "runs": [
+       1.25,
+       0.63,
+       1.24
+      ],
+      "causes": [
+       {
+        "network": 2,
+        "decode": 0,
+        "other": 0
+       },
+       {
+        "network": 1,
+        "decode": 0,
+        "other": 0
+       },
+       {
+        "network": 2,
+        "decode": 0,
+        "other": 0
+       }
+      ]
+     },
+     "M2": {
+      "maxMs": 50,
+      "runs": [
+       50,
+       50,
+       50
+      ]
+     },
+     "M3": {
+      "count": 0,
+      "totalMs": 0,
+      "maxMs": 0,
+      "over100": 0,
+      "runs": [
+       0,
+       0,
+       0
+      ],
+      "drawMaxMs": 1.7,
+      "scheduleMaxMs": 4.2
+     },
+     "M4": {
+      "readyMs": 1506,
+      "lcpMs": 760,
+      "seqBytesToReady": 397848,
+      "totalBytesToReady": 608412
+     },
+     "M5": {
+      "heapPeakMB": 6.6,
+      "bitmapsPeakMB": 115.4,
+      "retainedPeak": 21
+     },
+     "requests": {
+      "frames": 92,
+      "network": 92,
+      "distinct": 92,
+      "dupUrls": 0,
+      "seqBytes": 4776184
+     },
+     "seq": {
+      "count": 223,
+      "decoder": "img",
+      "variant": "hd",
+      "size": [
+       900,
+       1600
+      ],
+      "format": "mobile",
+      "mode": "seq",
+      "maxScroll": 6908,
+      "pxPerFrame": 31.1
+     },
+     "errors": []
+    },
+    "vaiven": {
+     "M1": {
+      "pct": 0,
+      "runs": [
+       0,
+       0,
+       0
+      ],
+      "causes": [
+       null,
+       null,
+       null
+      ]
+     },
+     "M2": {
+      "maxMs": 67,
+      "runs": [
+       50,
+       67,
+       67
+      ]
+     },
+     "M3": {
+      "count": 0,
+      "totalMs": 0,
+      "maxMs": 153,
+      "over100": 1,
+      "runs": [
+       0,
+       153,
+       0
+      ],
+      "drawMaxMs": 1.8,
+      "scheduleMaxMs": 123.9
+     },
+     "M4": {
+      "readyMs": 1507,
+      "lcpMs": 780,
+      "seqBytesToReady": 397848,
+      "totalBytesToReady": 608412
+     },
+     "M5": {
+      "heapPeakMB": 6.8,
+      "bitmapsPeakMB": 115.4,
+      "retainedPeak": 21
+     },
+     "requests": {
+      "frames": 223,
+      "network": 223,
+      "distinct": 223,
+      "dupUrls": 0,
+      "seqBytes": 13714996
+     },
+     "seq": {
+      "count": 223,
+      "decoder": "img",
+      "variant": "hd",
+      "size": [
+       900,
+       1600
+      ],
+      "format": "mobile",
+      "mode": "seq",
+      "maxScroll": 6908,
+      "pxPerFrame": 31.1
+     },
+     "errors": []
+    }
+   }
+  }
+ }
+}

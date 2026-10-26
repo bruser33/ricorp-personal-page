@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bitmapBudget, decodeTargets, evictionOrder, level, nearestAvailable, nextFetch } from './schedule';
+import { COVER_GAP, bitmapBudget, coverageFrames, decodeTargets, evictionOrder, level, nearestAvailable, nextFetch } from './schedule';
 
 const range = (a: number, b: number) => Array.from({ length: b - a + 1 }, (_, i) => a + i);
 
@@ -122,5 +122,50 @@ describe('bitmapBudget', () => {
   });
   it('desktop sd tiene más margen que móvil', () => {
     expect(bitmapBudget({ width: 1280, height: 720, mobile: false, deviceMemory: 8 })).toBeGreaterThan(bitmapBudget({ width: 900, height: 1600, mobile: true, deviceMemory: 4 }));
+  });
+});
+
+describe('coverageFrames', () => {
+  it('incluye primero, último y anclas, con huecos ≤ 5 (M1 tolera ±2)', () => {
+    const A = [1, 40, 79, 118, 157, 201, 301];
+    const c = [...coverageFrames(301, A)].sort((a, b) => a - b);
+    for (const a of A) expect(c).toContain(a);
+    for (let k = 1; k < c.length; k++) expect(c[k] - c[k - 1]).toBeLessThanOrEqual(COVER_GAP);
+    expect(c.length).toBeLessThanOrEqual(Math.ceil(300 / COVER_GAP) + A.length);
+  });
+});
+
+describe('nextFetch: cobertura completa antes que lo fino (AC-02 rápido)', () => {
+  const A = [1, 40, 79, 118, 157, 201, 301];
+  const C = coverageFrames(301, A), cover = (n: number) => C.has(n);
+  it('quieto: tras los ±12 vecinos, baja toda la cobertura (adelante primero) antes de rellenar lo fino', () => {
+    const got = new Set<number>(A);
+    const order: number[] = [];
+    for (let k = 0; k < 80; k++) { const n = nextFetch(301, 1, 0, (i) => !got.has(i), .3, cover)!; order.push(n); got.add(n); }
+    const firstFine = order.findIndex((n) => n > 13 && !C.has(n));
+    expect([...C].every((n) => got.has(n))).toBe(true);
+    expect(order.slice(0, firstFine).filter((n) => n > 13).length).toBe([...C].filter((n) => n > 13 && !A.includes(n)).length);
+    const cov = order.filter((n) => n > 13);
+    expect(cov.slice(0, 10).every((n, k, a) => k === 0 || n > a[k - 1])).toBe(true);   // de adelante hacia atrás
+  });
+  it('rápido (≥ 60 f/s): solo pide cobertura, por delante del usuario y la más próxima primero', () => {
+    const got = new Set<number>(A);
+    const order: number[] = [];
+    for (let k = 0; k < 30; k++) { const n = nextFetch(301, 50, 100, (i) => !got.has(i), .3, cover)!; order.push(n); got.add(n); }
+    expect(order.every((n) => C.has(n) && n > 50)).toBe(true);
+    expect(order.slice(0, 6)).toEqual([84, 89, 94, 99, 104, 109]);   // desde donde estará al llegar la respuesta (50 + 100 × 0.3)
+  });
+  it('scroll normal (25 f/s) sigue rellenando lo fino cercano', () => {
+    const got = new Set<number>();
+    for (let k = 0; k < 20; k++) { const n = nextFetch(301, 50, 25, (i) => !got.has(i), .3, cover)!; got.add(n); }
+    expect([...got].some((n) => !C.has(n))).toBe(true);
+  });
+});
+
+describe('decodeTargets con cobertura', () => {
+  it('a alta velocidad decodifica los frames de cobertura aunque no sean del nivel del salto', () => {
+    const C = coverageFrames(301, [1, 301]);
+    const t = decodeTargets(301, 50, 150, 20, (n) => C.has(n), (n) => C.has(n));
+    expect(t.length).toBeGreaterThan(5);
   });
 });

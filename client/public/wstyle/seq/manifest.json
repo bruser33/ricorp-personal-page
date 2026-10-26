@@ -1,6 +1,6 @@
 {
   "formato": "webp",
-  "generado": "2026-10-25T23:15:38.046747+00:00",
+  "generado": "2026-10-25T23:37:25.957728+00:00",
   "spec": "SPEC-30",
   "formats": {
     "desktop": {
@@ -24,7 +24,7 @@
       "bytes": 11977682,
       "anchorBytes": 267434,
       "quality": 74,
-      "budget": 14680064,
+      "budget": 14000000,
       "renderViewport": {
         "width": 1600,
         "height": 900
@@ -52,7 +52,7 @@
           "bytes": 11977682,
           "anchorBytes": 267434,
           "quality": 74,
-          "budget": 14680064,
+          "budget": 14000000,
           "renderViewport": {
             "width": 1600,
             "height": 900
@@ -80,7 +80,7 @@
           "bytes": 15205968,
           "anchorBytes": 339510,
           "quality": 70,
-          "budget": 20971520,
+          "budget": 20000000,
           "renderViewport": {
             "width": 1600,
             "height": 900
@@ -107,10 +107,10 @@
         223
       ],
       "anchorsAvailable": true,
-      "bytes": 10127790,
-      "anchorBytes": 288126,
-      "quality": 78,
-      "budget": 10485760,
+      "bytes": 9681138,
+      "anchorBytes": 274690,
+      "quality": 77,
+      "budget": 10000000,
       "renderViewport": {
         "width": 900,
         "height": 1600
@@ -360,10 +360,10 @@
             223
           ],
           "anchorsAvailable": true,
-          "bytes": 10127790,
-          "anchorBytes": 288126,
-          "quality": 78,
-          "budget": 10485760,
+          "bytes": 9681138,
+          "anchorBytes": 274690,
+          "quality": 77,
+          "budget": 10000000,
           "renderViewport": {
             "width": 900,
             "height": 1600
@@ -616,7 +616,7 @@
           "bytes": 13653066,
           "anchorBytes": 393814,
           "quality": 78,
-          "budget": 14680064,
+          "budget": 14000000,
           "renderViewport": {
             "width": 900,
             "height": 1600

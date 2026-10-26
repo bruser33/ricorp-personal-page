@@ -1,5 +1,5 @@
 {
- "generado": "2026-10-25T23:19:47.410685+00:00",
+ "generado": "2026-10-25T23:39:47.790270+00:00",
  "metodo": "SSIM luminancia BT.601, gaussiana sigma 1.5, data_range 1; referencia = PNG del render (sd: PNG reescalado Lanczos)",
  "variantes": {
   "desktop-sd": {
@@ -76,21 +76,21 @@
     223
    ],
    "ssim": [
-    0.9614,
-    0.9551,
-    0.9689,
-    0.9653,
-    0.9831,
-    0.9725,
-    0.9703,
-    0.9702,
-    0.9805,
-    0.9784
+    0.9591,
+    0.9533,
+    0.9673,
+    0.9643,
+    0.9823,
+    0.971,
+    0.9691,
+    0.969,
+    0.9797,
+    0.9771
    ],
-   "min": 0.9551,
-   "media": 0.9706,
-   "calidad": 78,
-   "bytes": 10127790
+   "min": 0.9533,
+   "media": 0.9692,
+   "calidad": 77,
+   "bytes": 9681138
   },
   "mobile-hd": {
    "frames": [

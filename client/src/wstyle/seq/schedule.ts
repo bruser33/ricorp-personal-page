@@ -6,9 +6,10 @@
 // penaliza. Quieto (|vel| chico) es simétrico.
 
 const MOVING = 2;   // frames/s: por debajo se considera quieto
-// Quieto: los ±NEAR vecinos completos primero (≈ 1 s de scroll lento); sin esto la cobertura gruesa lejana se
-// llevaba la conexión y el primer gesto lento mostraba un frame adelantado o atrasado (M2 en móvil).
-const NEAR = 6;
+// Quieto: los ±NEAR vecinos completos primero (≈ 1.6 s de scroll lento en móvil); sin esto la cobertura lejana se
+// llevaba la conexión y el primer gesto lento mostraba un frame adelantado o atrasado (M2 en móvil: con ±6 y la
+// cobertura completa en reposo, el frame 10 no llegaba a tiempo y quedaba pegado 117 ms, peor que el baseline).
+const NEAR = 12;
 
 // Nivel jerárquico de un frame (1-based): 16 para 1, 17, 33…; 8 para 9, 25…; 4, 2 y 1 para el resto. Bajar primero
 // los niveles gruesos reparte la cobertura por toda la secuencia (un scroll rápido siempre tiene un vecino a ≤ 2).
@@ -20,6 +21,23 @@ export function level(n: number) {
 // Con la tolerancia de ±2 frames, 1 de cada 4 ya evita el desfase y 1 de cada 2 evita el "pegado": esos niveles
 // se piden bastante antes (horizonte 4–16× más lejos) que los frames finos.
 const LEVEL_WEIGHT: Record<number, number> = { 16: 64, 8: 48, 4: 32, 2: 6, 1: 1 };
+// Cobertura (AC-02 rápido). M1 tolera ±2 frames: con un frame cada ≤ COVER_GAP (5) en TODA la secuencia, el disponible
+// más cercano nunca está a más de 2 del pedido. Esos frames ("cobertura") se piden en orden de necesidad (adelante
+// primero) y lo fino espera mientras falten: quieto (fuera de ±NEAR) y en scroll rápido (≥ FAST f/s, donde un frame
+// fino llega cuando el usuario ya pasó). Medido: con la secuencia densa (301 frames) y el prefetch anterior (gruesos
+// por nivel 16/8/4 en toda la secuencia, mezclados con finos cercanos) el rápido daba 18.7 % de desfase en desktop:
+// con Fast 4G sobre HTTP/1.1 (6 conexiones × 165 ms de latencia por request) entran ~20 frames/s y no alcanzaban para
+// 1 de cada 4 (76 frames) por delante de un scroll de 100 frames/s; 1 de cada 5 (61) sí.
+export const COVER_GAP = 5;
+const FAST = 60;
+const FINE_PENALTY = 1e3;
+// Frames de cobertura: anclas + uno cada COVER_GAP entre anclas consecutivas (huecos ≤ COVER_GAP).
+export function coverageFrames(count: number, anchors: number[] = []): Set<number> {
+  const a = [...new Set([1, count, ...anchors.filter((n) => n >= 1 && n <= count)])].sort((x, y) => x - y), out = new Set(a);
+  for (let k = 0; k + 1 < a.length; k++) for (let n = a[k] + COVER_GAP; n < a[k + 1]; n += COVER_GAP) out.add(n);
+  return out;
+}
+const gridCover = (count: number) => (n: number) => (n - 1) % COVER_GAP === 0 || n === count;
 
 // Segundos (relativos) hasta que se necesite el frame n si el pedido está en `at` y se mueve a `vel`.
 function timeToNeed(n: number, at: number, vel: number, minSpeed: number) {
@@ -45,13 +63,18 @@ export function nearestAvailable(n: number, has: (i: number) => boolean, count: 
 // (at + vel × latency): lo que el usuario ya habrá pasado no vale una conexión (antes se bajaba todo en orden justo
 // detrás del scroll y la cobertura gruesa de adelante nunca llegaba). Después, tiempo hasta necesitarlo dividido por
 // el peso del nivel jerárquico.
-export function nextFetch(count: number, at: number, vel: number, want: (n: number) => boolean, latency = .3): number | null {
+// `cover(n)`: ¿es frame de cobertura? (por defecto la grilla 1, 6, 11…; el reproductor pasa coverageFrames con anclas).
+export function nextFetch(count: number, at: number, vel: number, want: (n: number) => boolean, latency = .3, cover = gridCover(count)): number | null {
   const moving = Math.abs(vel) >= MOVING, p = moving ? at + vel * latency : at;
+  const coverFirst = moving ? Math.abs(vel) >= FAST : true;
   let best: number | null = null, bestScore = Infinity;
   for (let n = 1; n <= count; n++) {
     if (!want(n)) continue;
     const dist = Math.abs(n - p);
-    const score = !moving && dist <= NEAR ? dist * 1e-3 : timeToNeed(n, p, vel, 10) / LEVEL_WEIGHT[level(n)];
+    let score: number;
+    if (!moving && dist <= NEAR) score = dist * 1e-3;
+    else if (coverFirst) score = timeToNeed(n, p, vel, 10) + (cover(n) ? 0 : FINE_PENALTY);   // cobertura en orden de necesidad
+    else score = timeToNeed(n, p, vel, 10) / LEVEL_WEIGHT[level(n)];
     if (score < bestScore) { bestScore = score; best = n; }
   }
   return best;
@@ -60,10 +83,11 @@ export function nextFetch(count: number, at: number, vel: number, want: (n: numb
 // Hasta `budget` frames a tener decodificados (con bytes ya disponibles), ordenados por urgencia.
 // Con scroll muy rápido se decodifica a saltos (1 de cada 2 sobre 60 frames/s, 1 de cada 4 sobre 120): cada rAF
 // avanza varios frames y la ventana de bitmaps rinde más; el frame pedido siempre entra.
-export function decodeTargets(count: number, at: number, vel: number, budget: number, has: (n: number) => boolean): number[] {
+// Los frames de cobertura (`cover`) siempre son candidatos: a alta velocidad es lo que hay descargado.
+export function decodeTargets(count: number, at: number, vel: number, budget: number, has: (n: number) => boolean, cover?: (n: number) => boolean): number[] {
   const stride = Math.abs(vel) >= 120 ? 4 : Math.abs(vel) >= 60 ? 2 : 1, here = Math.round(at);
   const c: [number, number][] = [];
-  for (let n = 1; n <= count; n++) if (has(n) && (n === here || level(n) >= stride)) c.push([n, timeToNeed(n, at, vel, 4)]);
+  for (let n = 1; n <= count; n++) if (has(n) && (n === here || level(n) >= stride || (stride > 1 && cover?.(n)))) c.push([n, timeToNeed(n, at, vel, 4)]);
   c.sort((a, b) => a[1] - b[1]);
   return c.slice(0, Math.max(0, budget)).map(([n]) => n);
 }

@@ -7,9 +7,9 @@
 //   ImageBitmap se dibuja sin re-decodificar (un <img> grande puede decodificarse de nuevo dentro de drawImage, en el
 //   hilo principal). Respaldo para navegadores sin createImageBitmap (Safari antiguo): <img> desde un blob URL +
 //   img.decode(). Se puede forzar el respaldo con ?seqdecode=img para probarlo.
-// - Prefetch direccional y jerárquico (schedule.ts): lo inmediato primero; después lo que viene en el sentido y a la
-//   velocidad del scroll, repartiendo primero frames gruesos (1 de cada 16, 8, 4, 2) por toda la secuencia, así un
-//   scroll rápido siempre tiene un vecino cercano.
+// - Prefetch direccional y jerárquico (schedule.ts): lo inmediato primero; quieto o con scroll rápido, la cobertura
+//   (anclas + 1 de cada 5 frames, coverageFrames) en orden de necesidad antes que lo fino, así un scroll rápido siempre
+//   tiene un vecino a ≤ 2 frames; con scroll normal, lo que viene en el sentido y a la velocidad del scroll.
 // - Ventana de bitmaps adaptable: presupuesto en bytes según dispositivo (bitmapBudget), más ancha hacia donde va el
 //   usuario; se libera primero lo que más tardaría en volver a necesitarse (histéresis: solo al pasar el presupuesto).
 // - Se dibuja siempre el frame decodificado MÁS CERCANO al pedido (nearestAvailable), nunca un ancla lejana si hay
@@ -18,7 +18,7 @@
 // - Un frame que falla (404/decode) queda marcado y se salta al vecino disponible.
 // - Si falla un ancla de la variante hd se reintenta con la sd; si el manifest o un ancla sd falla (404, decode) o el
 //   manifest no responde en MANIFEST_TIMEOUT ms, create() devuelve null y el sitio cae al 3D en tiempo real.
-import { bitmapBudget, decodeTargets, evictionOrder, nearestAvailable, nextFetch } from './schedule';
+import { bitmapBudget, coverageFrames, decodeTargets, evictionOrder, nearestAvailable, nextFetch } from './schedule';
 
 const pad = (i: number) => String(i).padStart(4, '0');
 const MANIFEST_TIMEOUT = 8000;
@@ -118,6 +118,8 @@ export class SequencePlayer {
   private readonly decoding = new Set<number>();
   private readonly failed = new Set<number>();
   private keep = new Set<number>();
+  private readonly coverSet: Set<number>;
+  private readonly cover = (n: number) => this.coverSet.has(n);
   private readonly ac = new AbortController();
   private background = false;
   private disposed = false;
@@ -144,6 +146,7 @@ export class SequencePlayer {
     this.canvas = canvas; this.dir = dir; this.reduced = reduced; this.format = format; this.variant = variant;
     this.ctx = canvas.getContext('2d', { alpha: false })!;
     this.count = m.available; this.total = m.count; this.size = m.size; this.anchorFrames = m.anchorFrames;
+    this.coverSet = coverageFrames(this.count, this.anchorFrames);
     const nav = navigator as Navigator & { deviceMemory?: number };
     const mobile = format === 'mobile' || matchMedia('(pointer: coarse)').matches;
     this.budget = Math.max(this.anchorFrames.length, bitmapBudget({ width: m.size[0], height: m.size[1], mobile, deviceMemory: nav.deviceMemory }));
@@ -184,7 +187,8 @@ export class SequencePlayer {
     this.decoding.add(n);
     return decodeBlob(blob, this.decoder).then((d) => {
       this.decoding.delete(n);
-      if (this.disposed) { d.close(); return; }
+      // Dispuesto (p.ej. tras un cambio de formato) o ya decodificado por otra vía: se cierra, nunca queda huérfano.
+      if (this.disposed || this.bmps.has(n)) { d.close(); return; }
       // El usuario ya se fue de esa zona y no hay lugar: no se retiene (el presupuesto nunca se pasa).
       if (this.background && !this.keep.has(n) && this.bmps.size >= this.budget) { d.close(); return; }
       this.bmps.set(n, d);
@@ -207,13 +211,13 @@ export class SequencePlayer {
     if (this.background) {
       const want = (i: number) => !this.blobs.has(i) && !this.fetching.has(i) && !this.failed.has(i);
       while (this.fetching.size < this.fetchConcurrency) {
-        const n = nextFetch(this.count, at, vel, want, this.fetchMs / 1000);
+        const n = nextFetch(this.count, at, vel, want, this.fetchMs / 1000, this.cover);
         if (n == null) break;
         this.fetchFrame(n).catch(() => {}).finally(() => this.pump());
       }
     }
     // budget − 1: siempre queda lugar para el frame que se está mostrando (puede no estar entre los deseados).
-    const targets = this.reduced ? this.anchorFrames : decodeTargets(this.count, at, vel, this.budget - 1, (i) => this.blobs.has(i) && !this.failed.has(i));
+    const targets = this.reduced ? this.anchorFrames : decodeTargets(this.count, at, vel, this.budget - 1, (i) => this.blobs.has(i) && !this.failed.has(i), this.cover);
     this.keep = new Set(targets);
     for (const n of targets) {
       if (this.decoding.size >= this.decodeConcurrency) break;

@@ -4,6 +4,7 @@
 //   npm run build && npm run measure:seq -- --label baseline      → ../docs/perf/seq-baseline.json + .md
 //   npm run measure:seq -- --label player [--runs 3] [--only desktop|mobile] [--scenarios normal,rapido]
 //   npm run measure:seq -- --compare baseline,player,final        → ../docs/perf/seq-informe.md (tabla antes/después)
+//   npm run measure:seq -- --label final-img --query '?seqdecode=img' → ruta de respaldo del decodificador (<img>)
 //   [--dump <carpeta>]: además guarda las muestras por rAF y los requests de cada corrida (diagnóstico)
 // Levanta su propio `vite preview` (127.0.0.1, puerto --port, por defecto 4182) salvo que se pase --url.
 // Navegador: Google Chrome instalado (playwright-core, channel 'chrome').
@@ -46,6 +47,7 @@ const DEVICES = {
 const FAST_4G = { offline: false, latency: 165, downloadThroughput: 9e6 * .9 / 8, uploadThroughput: 1.5e6 * .9 / 8 };
 const CPU_RATE = 4;
 const SCENARIOS = ['lento', 'normal', 'rapido', 'salto', 'vaiven'];
+const QUERY = arg('query', '');   // p.ej. '?seqdecode=img' (fuerza el decodificador de respaldo)
 
 // ─── Init script: muestreo por rAF, long tasks, LCP y heap. Corre antes que el código del sitio.
 const INIT = () => {
@@ -121,7 +123,7 @@ async function runScenario(browser, base, device, scenario) {
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
 
-  await page.goto(base + '/wstyle/', { waitUntil: 'domcontentloaded', timeout: 120000 });
+  await page.goto(base + '/wstyle/' + QUERY, { waitUntil: 'domcontentloaded', timeout: 120000 });
   await page.waitForFunction(() => window.__m.readyAt > 0, null, { timeout: 120000 });
   // Monotónico de CDP al momento del ready (para cortar los bytes "hasta el primer frame").
   const { result: { value: readyWall } } = await cdp.send('Runtime.evaluate', { expression: 'performance.timeOrigin + window.__m.readyAt' });
@@ -176,7 +178,7 @@ async function runScenario(browser, base, device, scenario) {
     M4: { readyMs: Math.round(info.readyAt), lcpMs: Math.round(info.lcp), seqBytesToReady: toReady(seqReqs), totalBytesToReady: toReady(all) },
     M5: { heapPeakMB: +(m.heapPeak / 1048576).toFixed(1), bitmapsPeakMB: +(m.bitmapsPeak / 1048576).toFixed(1), retainedPeak: m.retainedPeak },
     requests: { frames: frameReqs.length, network: [...perUrl.values()].reduce((a, b) => a + b, 0), distinct: perUrl.size, dupUrls: [...perUrl.values()].filter((c) => c > 1).length, seqBytes: seqReqs.reduce((a, r) => a + r.bytes, 0) },
-    seq: info.seq && { count: info.seq.count, variant: info.seq.variant, size: info.seq.size, format: info.seq.format, mode: info.mode, maxScroll: max, pxPerFrame: +(max / Math.max(1, info.seq.count - 1)).toFixed(1) },
+    seq: info.seq && { count: info.seq.count, decoder: info.seq.decoder, variant: info.seq.variant, size: info.seq.size, format: info.seq.format, mode: info.mode, maxScroll: max, pxPerFrame: +(max / Math.max(1, info.seq.count - 1)).toFixed(1) },
     errors,
   };
 }
@@ -190,7 +192,7 @@ async function runMemory(browser, base, device) {
   await cdp.send('Network.enable');
   await cdp.send('Network.emulateNetworkConditions', FAST_4G);
   await cdp.send('Emulation.setCPUThrottlingRate', { rate: CPU_RATE });
-  await page.goto(base + '/wstyle/', { waitUntil: 'domcontentloaded', timeout: 120000 });
+  await page.goto(base + '/wstyle/' + QUERY, { waitUntil: 'domcontentloaded', timeout: 120000 });
   await page.waitForFunction(() => window.__site && window.__site.ready, null, { timeout: 120000 });
   await page.waitForTimeout(1500);
   const max = await page.evaluate(() => document.documentElement.scrollHeight - innerHeight);
@@ -280,8 +282,8 @@ const browser = await chromium.launch({ channel: 'chrome', args: ['--enable-prec
 const result = {
   label, generated: new Date().toISOString(),
   commit: (() => { try { return execSync('git rev-parse --short HEAD', { cwd: CLIENT }).toString().trim() + (execSync('git status --porcelain -- src public', { cwd: CLIENT }).toString().trim() ? '+cambios' : ''); } catch { return '?'; } })(),
-  command: `cd client && npm run build && npm run measure:seq -- --label ${label}`,
-  config: { cpu: CPU_RATE, network: 'Fast 4G (9 Mbps / 1.5 Mbps / 165 ms)', runs, dwellMs: 1500, devices: DEVICES },
+  command: `cd client && npm run build && npm run measure:seq -- --label ${label}${QUERY ? ` --query '${QUERY}'` : ''}`,
+  config: { cpu: CPU_RATE, query: QUERY || undefined, network: 'Fast 4G (9 Mbps / 1.5 Mbps / 165 ms)', runs, dwellMs: 1500, devices: DEVICES },
   devices: {},
 };
 try {
