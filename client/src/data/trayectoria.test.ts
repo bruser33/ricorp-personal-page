@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { trayectoria, type HitoTrayectoria } from './trayectoria';
+import { hitosOrdenados, trayectoria, type HitoTrayectoria } from './trayectoria';
 
 /* SPEC-41: los hitos reales que eran cortos llevan un post del mismo largo que
    W Style / Haru / Invasión UFPS (5 párrafos, 400–700 palabras). */
@@ -8,6 +8,11 @@ const IDS_EXTENDIDOS = [
   'youtube-proyectos-informaticos',
   'tuapp-2014-smartcorp',
   'tuapp-2013-r2d2',
+  // SPEC-46: banca y logística.
+  'banco-de-chile-3it',
+  'banco-security-pagos',
+  'cargo-ex-logistica',
+  'trabajo-actual-2025',
 ] as const;
 
 const hito = (id: string): HitoTrayectoria => {
@@ -50,7 +55,7 @@ describe('SPEC-41 · escritos de la Trayectoria con largo de post', () => {
     const texto = (h.parrafos ?? []).join(' ');
     const PERMITIDAS = new Set([
       'Workana', 'Latinoamérica', 'Android', 'iOS', 'Three.js', 'JavaScript', 'Avanzado',
-      'React', 'Native', 'Angular', 'Chile', 'Colombia', 'YouTube', 'Unity', 'Node',
+      'React', 'Native', 'Angular', 'DevSkiller', 'Chile', 'Colombia', 'YouTube', 'Unity', 'Node',
     ]);
 
     it('no aparece ningún nombre propio fuera de la lista de tecnologías/lugares', () => {
@@ -65,5 +70,26 @@ describe('SPEC-41 · escritos de la Trayectoria con largo de post', () => {
       const citas = [...texto.matchAll(/"([^"]+)"/g)].map((m) => m[1]);
       for (const c of citas) expect(h.descripcion).toContain(c);
     });
+  });
+});
+
+/* SPEC-46 AC1/AC2: los tres hitos de banca y logística van entre Haru e
+   Invasión UFPS (más nuevo arriba), con banner propio y 2 mockups, y no
+   entran al slider de Proyectos. */
+describe('SPEC-46 · banca y logística', () => {
+  const ids = hitosOrdenados().map((h) => h.id);
+  const pos = (id: string) => ids.indexOf(id);
+
+  it('AC1: Haru > Banco de Chile > Banco Security > Cargo Ex > Invasión UFPS', () => {
+    const orden = ['haru', 'banco-de-chile-3it', 'banco-security-pagos', 'cargo-ex-logistica', 'tesis-invasion-ufps'];
+    for (const id of orden) expect(pos(id)).toBeGreaterThanOrEqual(0);
+    for (let i = 1; i < orden.length; i++) expect(pos(orden[i - 1])).toBeLessThan(pos(orden[i]));
+  });
+
+  it.each(['banco-de-chile-3it', 'banco-security-pagos', 'cargo-ex-logistica'])('AC2: %s abre en modo post con banner y 2 mockups', (id) => {
+    const h = hito(id);
+    expect(h.imagen).toBe(`figma-frames/${id}-banner.webp`);
+    expect(h.mockups).toEqual([`figma-frames/${id}-1.webp`, `figma-frames/${id}-2.webp`]);
+    expect(h.destacado).toBeFalsy();
   });
 });

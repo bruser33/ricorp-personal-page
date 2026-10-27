@@ -151,7 +151,7 @@ export const trayectoria: HitoTrayectoria[] = [
     imagen: 'figma-frames/wstyle-card.webp',
     descripcion:
       'Landing inmersiva para la barbería WS Style, en Santiago. El recorrido es una secuencia renderizada en Blender que avanza con el scroll, con dirección de arte "Noir de oficio". Incluye carta de servicios con precios en CLP (corte, corte + barba, perfilado, lavado + masaje, limpieza facial), membresía Club WS, reserva por WhatsApp, horario y ubicación. Hecha en React + TypeScript + Vite, con HTML prerenderizado para SEO, variantes HD para escritorio y móvil, y respaldo en three.js. Publicada en ricorp.cl/wstyle.',
-    mockups: ['figma-frames/wstyle-mockup-desktop.webp', 'figma-frames/wstyle-mockup-mobile.webp'],
+    mockups: ['figma-frames/wstyle-mockup-desktop.webp'],
     parrafos: [
       'WS Style es una barbería de Santiago que quería una web a la altura de su oficio, y nos propusimos que entrar a su sitio se sintiera como cruzar la puerta del local. Por eso la landing no es una página más con fotos: es un recorrido inmersivo en el que una secuencia renderizada en Blender avanza a medida que haces scroll, con una dirección de arte que bautizamos "Noir de oficio": luces bajas, materiales nobles y el detalle de cada herramienta.',
       'El reto técnico fue que esa secuencia se viera fluida en cualquier dispositivo. Preparamos variantes HD para escritorio y para móvil, la cargamos de forma progresiva para no hacer esperar a nadie y dejamos un respaldo en three.js para los navegadores que lo necesitan. Todo está construido en React con TypeScript y Vite, y el HTML se prerenderiza para que Google pueda leer la página completa desde el primer momento.',
@@ -173,6 +173,41 @@ export const trayectoria: HitoTrayectoria[] = [
       },
     },
     destacado: true,
+  },
+
+  /* SPEC-47: mi trabajo actual. Todo sale del CV 2026 (extendido y normal):
+     plataforma de logística integrada con préstamos bancarios, abr-2025 – hoy,
+     mejora de rendimiento del módulo de ruta propuesta, stack (Angular, React,
+     React Native, Node.js, MySQL) y Claude Code con workflows multi-agente.
+     Nada más de la empresa. Banner y mockups tipográficos propios, generados
+     con client/scripts/banners-trabajo-actual.mjs.
+     Video promocional: el comercial "Gestión Admin › Usuarios" que hizo Pedro
+     (57 s, 1080p), comprimido a 1280×720 con +faststart (4,6 MB).
+  */
+  {
+    id: 'trabajo-actual-2025',
+    fecha: '2025-04',
+    titulo: 'Full Stack Developer en Ordename:\nlogística con préstamos bancarios',
+    tituloTarjeta: 'Ordename',
+    etiqueta: 'Full stack + IA',
+    imagen: 'figma-frames/trabajo-actual-banner.webp',
+    mockups: ['figma-frames/trabajo-actual-1.webp', 'figma-frames/trabajo-actual-2.webp'],
+    videos: {
+      tutorial: {
+        src: 'videos/video-promocional.mp4',
+        poster: 'videos/video-promocional.webp',
+        titulo: 'Video promocional',
+      },
+    },
+    parrafos: [
+      'Desde abril de 2025 trabajo como Full Stack Developer en Ordename, una plataforma de logística integrada con préstamos bancarios. Es un producto que junta dos mundos que rara vez conversan: la operación diaria de los envíos, con sus paradas, sus rutas y sus entregas, y el financiamiento que una empresa necesita para seguir creciendo. Mi trabajo está en las dos puntas de la plataforma, el frontend y el backend, y también en las herramientas de operación que usa el equipo para gestionar el día a día.',
+      'Uno de los logros que más me enorgullece es el módulo de ruta propuesta, la pieza que sugiere en qué orden conviene recorrer las paradas. Como se usa todos los días, cada segundo de espera se multiplica, así que nos enfocamos en mejorar su rendimiento y su velocidad. El resultado fue directo: menos tiempo de gestión de envíos para quienes operan la plataforma. Volver a la logística, después de haber llevado a Cargo Ex del papel a la informática, fue reencontrarme con un problema que conozco bien desde adentro.',
+      'En el día a día desarrollo y mantengo funcionalidades full stack para una plataforma que está en producción: Angular y React en la web, React Native en el teléfono, Node.js en el backend y MySQL para los datos. Trabajar sobre un producto vivo exige otra disciplina, porque cada cambio tiene que convivir con lo que ya funciona y nadie debería notar que algo se movió por detrás, salvo porque ahora todo anda mejor. Esa costumbre la traigo de la banca, donde los sistemas no podían detenerse.',
+      'Lo más nuevo de esta etapa es cómo trabajamos. Incorporé el desarrollo asistido por IA con Claude Code al día a día del equipo, con workflows multi-agente: un agente planifica la tarea, otro implementa el código, otro lo revisa y, antes de dar algo por terminado, se prueba en el navegador, tal como lo usaría una persona. No se trata de que la máquina haga el trabajo por nosotros, sino de entregar más rápido sin bajar la calidad, con más ojos revisando cada cambio antes de que llegue a producción.',
+      'Esta etapa resume buena parte de lo que aprendí en doce años de oficio: la logística de mis primeros trabajos, la exigencia de la banca y la forma más moderna de construir software. Cada semana hay un módulo que optimizar, una funcionalidad que llevar a producción o un flujo de trabajo que pulir, y eso es justamente lo que me mantiene aprendiendo. ¡Seguimos construyendo, ahora con la IA como parte del equipo!',
+    ],
+    descripcion:
+      'Desde abril de 2025 soy Full Stack Developer en Ordename, una plataforma de logística integrada con préstamos bancarios. Mejoré el rendimiento y la velocidad del módulo de ruta propuesta, reduciendo el tiempo de gestión de envíos; desarrollo funcionalidades full stack con Angular, React, React Native, Node.js y MySQL, e incorporé al día a día el desarrollo asistido por IA con Claude Code: workflows multi-agente que planifican, implementan, revisan y prueban en el navegador. ¡Entregar más rápido sin bajar la calidad!',
   },
 
   {
@@ -217,10 +252,12 @@ export const trayectoria: HitoTrayectoria[] = [
      acá abajo son ejemplos de relleno: ya no van al slider, quedan en la
      Bitácora hasta que se reemplacen o se borren. Fechas inventadas. */
   /* Haru: proyecto real (descripción de Pedro, 2026-10-18). La fecha sigue
-     siendo la de relleno: falta la real. */
+     siendo de relleno: falta la real. SPEC-46 la movió de '2022-10-20' a
+     '2025-03' solo para que Haru quede arriba de Banco de Chile (2023-05),
+     Banco Security y Cargo Ex, como se pidió; cuando esté la real, va acá. */
   {
     id: 'haru',
-    fecha: '2022-10-20',
+    fecha: '2025-03',
     titulo: 'Haru',
     etiqueta: 'App development',
     /* Banner HD (2880x1620) al estilo del de Invasión UFPS: el logo ORIGINAL
@@ -235,11 +272,22 @@ export const trayectoria: HitoTrayectoria[] = [
     focoBanner: '50% 50%',
     descripcion:
       'Haru nace de una idea simple: hay muchísimos trabajos que la gente hace todos los días de manera informal y que merecen hacerse con las mismas garantías que cualquier otro, como acompañar a alguien a una cita médica, hacer un trámite o dar una mano por unas horas. Construimos una app para regularizar ese tipo de trabajos, conectando a quien necesita la ayuda con quien la ofrece, de forma clara y segura para las dos partes. ¡Creemos que la tecnología tiene que servir justamente para eso: hacer más fácil y más digno el trabajo de todos los días!',
-    /* Solo las 2 pantallas que cuentan la app (el detalle está maquetado para
-       2 teléfonos): el home con los servicios cercanos y el servicio en curso
-       con su cronómetro. Recortadas de "44 vistas" (HARU.zip); las tablas son
-       de 1920 px, así que cada teléfono se escaló 2× con Lanczos. */
-    mockups: ['figma-frames/haru-brand.webp', 'figma-frames/haru-home.webp'],
+    /* La imagen de la marca (brand board, recortada de "44 vistas") a la
+       izquierda; el lugar del teléfono lo ocupa el reel de abajo. */
+    mockups: ['figma-frames/haru-brand.webp'],
+    /* SPEC-48: el reel promocional reemplaza a la galería de SPEC-45 y ocupa el
+       lugar del teléfono (como en W Style).
+       Hecho en ~/Projects/haru-promo (README con cómo regenerarlo): pantallas
+       reales de Haru animadas en un teléfono, voz es-US-PalomaNeural (edge-tts),
+       subtítulos, música CC0 y cierre "POWERED BY ricorp.cl". 720×1280, 35 s,
+       −14 LUFS, +faststart. El guion sale solo de los `parrafos` de abajo. */
+    videos: {
+      reel: {
+        src: 'videos/haru-promo.mp4',
+        poster: 'videos/haru-promo.webp',
+        titulo: 'Reel de Haru',
+      },
+    },
     parrafos: [
       'Haru nace de una idea simple: hay muchísimos trabajos que la gente hace todos los días de manera informal y que merecen hacerse con las mismas garantías que cualquier otro, como acompañar a alguien a una cita médica, hacer un trámite, dar una clase particular o una mano en el hogar por unas horas. Construimos una app para regularizar ese tipo de trabajos, conectando a quien necesita la ayuda con quien la ofrece, de forma clara y segura para las dos partes.',
       'Todo parte de una identidad propia: "Ayuda, Crea, Anuncia, Crece". Elegimos la tipografía Montserrat, una paleta de verdes y naranjos que transmite confianza y cercanía, y fondos de hojas que acompañan cada pantalla. La app se organiza en tres pestañas: Asistir, para encontrar a alguien que te ayude; Servicios, para explorar por categorías como Hogar, Salud, Educación o Belleza según la distancia y las calificaciones; y Crear, para publicar tu propio servicio con su precio por hora y tu disponibilidad.',
@@ -281,7 +329,7 @@ export const trayectoria: HitoTrayectoria[] = [
     fecha: '2022-04-20',
     titulo: 'Project 6',
     etiqueta: 'Editorial',
-    imagen: 'figma-frames/news-1.webp',
+    imagen: 'figma-frames/image-1.webp',
     descripcion:
       'Lorem ipsum dolor sit amet consectetur. Felis leo eleifend elit urna habitasse integer. Ornare donec vivamus eget facilisi interdum.',
   },
@@ -290,7 +338,7 @@ export const trayectoria: HitoTrayectoria[] = [
     fecha: '2022-03-08',
     titulo: 'Project 7',
     etiqueta: 'Motion',
-    imagen: 'figma-frames/news-2.webp',
+    imagen: 'figma-frames/project-haru-2.webp',
     descripcion:
       'Lorem ipsum dolor sit amet consectetur. Sodales ultrices cursus condimentum hac scelerisque elementum morbi nisl.',
   },
@@ -307,16 +355,17 @@ export const trayectoria: HitoTrayectoria[] = [
     fecha: '2015-01',
     titulo: 'Freelancer en Workana\ndesde hace 11 años',
     tituloTarjeta: 'Workana',
-    /* SPEC-42: portada y mockups tipográficos con los datos de la ficha (11
-       años, 10 proyectos, 13 calificaciones, certificaciones, dos reseñas sin
-       nombre). Sin logo ni capturas de Workana. Generadas con
-       client/scripts/banners-trayectoria.mjs. */
-    imagen: 'figma-frames/workana-freelancer-banner.webp',
-    mockups: ['figma-frames/workana-freelancer-1.webp', 'figma-frames/workana-freelancer-2.webp'],
+    /* SPEC-45: portada y mockups tipo "credencial" con los datos de la ficha
+       (11 años, 10 proyectos, 13 calificaciones, certificaciones de la
+       plataforma) y los dos tests DevSkiller del CV 2026 extendido (React.js
+       89%, Angular 9 85%; llegaron por invitación de Workana). Sin logo ni
+       capturas de Workana. Generadas con client/scripts/banners-trayectoria.mjs. */
+    imagen: 'figma-frames/workana-credencial-banner.webp',
+    mockups: ['figma-frames/workana-credencial-ficha.webp', 'figma-frames/workana-credencial-devskiller.webp'],
     parrafos: [
       'Hace once años abrimos una puerta que hasta hoy no se ha cerrado: mi perfil de freelancer en Workana. La idea era simple y a la vez ambiciosa: que el software que sabíamos construir no tuviera que quedarse en la ciudad donde estábamos, sino que pudiera llegar a clientes de toda Latinoamérica que necesitaran una app, un sitio web o una idea convertida en producto. Workana nos dio esa vitrina, y desde entonces ha sido una parte constante de mi trayectoria.',
       'Los proyectos fueron de lo más variados. Desarrollamos aplicaciones móviles para Android e iOS, sitios web a la medida de cada negocio y también trabajos de animación con Three.js, donde el navegador deja de ser una hoja plana y se convierte en un espacio en tres dimensiones. Cada encargo traía su propio desafío y nos obligaba a aprender algo nuevo, porque trabajar a distancia significa entender rápido qué necesita el cliente, proponer una solución concreta y explicarla con claridad, sin una reunión cara a cara de por medio.',
-      'Ese aprendizaje también quedó por escrito. En la plataforma rendimos las certificaciones de JavaScript Avanzado, donde obtuvimos un 80%, de React Native y de Angular. Más que un número en una ficha, esas certificaciones son una forma de mostrarle a un cliente que no nos conoce en persona que lo que decimos saber hacer, lo sabemos hacer. Cuando alguien te encarga su proyecto sin haberte visto nunca, cada señal de confianza cuenta, y preferimos que esas señales hablen por nosotros antes que cualquier promesa.',
+      'Ese aprendizaje también quedó por escrito. En la plataforma rendimos las certificaciones de JavaScript Avanzado, donde obtuvimos un 80%, de React Native y de Angular, y por invitación de la misma plataforma rendimos los tests técnicos de DevSkiller, con un 89% en React y un 85% en Angular 9. Más que un número en una ficha, esas certificaciones son una forma de mostrarle a un cliente que no nos conoce en persona que lo que decimos saber hacer, lo sabemos hacer. Cuando alguien te encarga su proyecto sin haberte visto nunca, cada señal de confianza cuenta, y preferimos que esas señales hablen por nosotros antes que cualquier promesa.',
       'Hoy mi ficha suma 10 proyectos completados y 13 calificaciones de clientes, y detrás de cada una hay un trabajo hecho en equipo con alguien que confió en nosotros. Por respeto a esas personas no publicamos sus nombres, pero sí nos quedamos con sus palabras: "su profesionalismo me inspiró confianza y no me equivoqué; definitivamente lo buscaré para otros proyectos" y "muy buen profesional, cumple en las fechas establecidas y con gran responsabilidad". Leerlas todavía nos recuerda por qué este trabajo vale la pena.',
       'Esas frases resumen lo que buscamos en cada entrega: cumplir con lo prometido, en la fecha acordada, y que el cliente sepa que puede volver a contar con nosotros para lo que venga. Si quieres conocer el perfil completo, con sus calificaciones y certificaciones, lo encuentras enlazado en este mismo post. Y si estás pensando en una app, un sitio web o una experiencia en 3D, conversemos: cada proyecto nuevo es una oportunidad de volver a aprender. ¡Once años después, seguimos con las mismas ganas de construir el próximo proyecto contigo!',
     ],
@@ -324,6 +373,72 @@ export const trayectoria: HitoTrayectoria[] = [
       'En Workana empecé a construir software para clientes de toda Latinoamérica: apps Android e iOS, sitios web y animación con Three.js. Hoy mi ficha suma 10 proyectos completados, 13 calificaciones de clientes y certificaciones en JavaScript Avanzado (80%), React Native y Angular. De esos clientes me quedo con frases como "su profesionalismo me inspiró confianza y no me equivoqué; definitivamente lo buscaré para otros proyectos" y "muy buen profesional, cumple en las fechas establecidas y con gran responsabilidad", ¡que son justamente lo que busco en cada entrega!',
     enlace: 'https://www.workana.com/freelancer/ad4614d2e994b49a7fd475e709d3020e',
     textoEnlace: 'Ver perfil en Workana',
+  },
+  /* SPEC-46: banca y logística, entre Haru e Invasión UFPS. Fecha = inicio de
+     cada trabajo. Datos del CV 2026 (extendido y normal) y, para Cargo Ex y
+     Banco Security, de los escritos "Cargo Ex", "Banco Security" y "Manual de
+     usuario cargoex" del Drive personal (sin nombres de personas ni montos).
+     Banner y mockups: client/scripts/banners-banca-logistica.mjs, con el logo
+     oficial de cada empresa (descargado de su sitio, sin alterar). No van al
+     slider: sin `destacado`. */
+  {
+    id: 'banco-de-chile-3it',
+    fecha: '2023-05',
+    titulo: 'Banco de Chile: migrar Java\nsin cortar el servicio',
+    tituloTarjeta: 'Banco de Chile',
+    etiqueta: 'Banca · Full Stack',
+    imagen: 'figma-frames/banco-de-chile-3it-banner.webp',
+    mockups: ['figma-frames/banco-de-chile-3it-1.webp', 'figma-frames/banco-de-chile-3it-2.webp'],
+    descripcion:
+      'Con 3IT trabajé para Banco de Chile en sistemas backend que estaban en producción y no podían detenerse. Migramos las APIs de Java 8 a Java 9 y después a Java 11, actualizando o reemplazando las librerías obsoletas, con mejor rendimiento, menos vulnerabilidades y sin interrupciones del servicio. ¡Modernizar sin apagar nada!',
+    parrafos: [
+      'En mayo de 2023 llegué a 3IT para trabajar con uno de sus clientes más importantes: Banco de Chile. El encargo era delicado, porque se trataba de sistemas backend que estaban en producción y que no podían detenerse. Ahí estuve hasta marzo de 2025, casi dos años en los que aprendimos que modernizar un sistema en marcha se parece mucho a cambiarle las piezas a un avión en pleno vuelo: todo tiene que seguir funcionando mientras trabajas.',
+      'El corazón del trabajo fue la migración de las APIs backend de Java 8 a Java 9, y después a Java 11. Ir por etapas nos permitió avanzar con seguridad, porque cada salto de versión trae cambios en el lenguaje, en las herramientas y en las librerías, y no queríamos que nadie notara la mudanza. El objetivo era doble: mejorar el rendimiento de las APIs y reducir sus vulnerabilidades, dos cosas que en un banco no son un lujo, sino una obligación.',
+      'Migrar Java no es solo cambiar un número de versión. Cada salto exigía revisar las librerías y tecnologías de las que dependían las APIs, construidas sobre Java y Spring, actualizar las que podían seguir y reemplazar las que ya habían quedado obsoletas. Así, además de subir de versión, el sistema quedó libre de dependencias antiguas, de esas que con el tiempo se convierten en un riesgo, y mejor preparado para lo que venga.',
+      'Para que cada cambio no rompiera lo que ya funcionaba, escribimos pruebas unitarias con JUnit, la red de seguridad que permite tocar un sistema en producción con tranquilidad. Y no todo fue backend: también desarrollé frontend en Angular 9 y en React, y trabajé con Node.js, así que el proyecto me permitió moverme de punta a punta, desde la API hasta la pantalla que ve el usuario. Ese recorrido completo nos ayudó a entender cómo cada cambio en el backend se reflejaba en lo que el usuario ve, y a probarlo desde los dos lados.',
+      'Lo que más valoro de esta etapa es el resultado: las APIs pasaron de Java 8 a Java 11, más rápidas y más seguras, y todo sin interrupciones del servicio, que es justamente lo que se busca cuando se trabaja con sistemas que no se pueden apagar. Junto con Cargo Ex y Banco Security, cierra una etapa en la que llevamos procesos del papel a la informática, conectamos pagos entre bancos y modernizamos sistemas críticos. ¡Modernizar sin cortar el servicio es, para mí, una de las formas más bonitas de hacer ingeniería!',
+    ],
+  },
+  {
+    id: 'banco-security-pagos',
+    fecha: '2019-11',
+    titulo: 'Banco Security: pagos en línea\ncon los bancos de Chile',
+    tituloTarjeta: 'Banco Security',
+    etiqueta: 'Banca · Full Stack',
+    imagen: 'figma-frames/banco-security-pagos-banner.webp',
+    mockups: ['figma-frames/banco-security-pagos-1.webp', 'figma-frames/banco-security-pagos-2.webp'],
+    descripcion:
+      'Banco Security necesitaba que sus clientes pudieran pagar en línea desde su sitio web con la cuenta de cualquier banco de Chile. Construimos el botón de pago en línea, integrando uno a uno los bancos, cada uno con su API, sus credenciales y su certificación, con una tasa de éxito del 99% en las transacciones mensuales. ¡Una escuela de calidad!',
+    parrafos: [
+      'En noviembre de 2019 entré a Banco Security, uno de los bancos chilenos más representativos, parte del Grupo Security junto a sus áreas de inversiones, seguros de vida, viajes, inmobiliaria, corredora y factoring. El banco tenía una necesidad muy concreta: que sus clientes pudieran pagar en línea desde su sitio web usando la cuenta de cualquier banco de Chile. Ese fue mi trabajo hasta abril de 2022, y es uno de los proyectos de los que más orgulloso me siento.',
+      'Construimos el botón de pago en línea del sitio web. Detrás de un botón que parece simple hay un trabajo enorme, porque integramos uno a uno los bancos de Chile, y cada uno tenía su propia API, sus propias credenciales y su propio proceso de certificación. No había atajos: había que estudiar cada integración, configurar cada ambiente, pasar cada certificación y recién entonces abrirles la puerta a los clientes de ese banco. Banco por banco, el botón fue sumando opciones para pagar.',
+      'El resultado se resume en una cifra: una tasa de éxito del 99% en las transacciones mensuales. En un pago no hay margen para fallar, así que esa era la cifra que más cuidábamos: cada transacción exitosa es un cliente que pudo pagar sin salir del sitio del banco. Para lograrlo trabajamos de punta a punta: en el backend con Node.js y .NET, en el frontend con Angular y Flutter, con GraphQL, servicios en AWS y diseños en Figma.',
+      'La banca también me enseñó una forma de trabajar. Security dedica un día completo al planning: ese día se lee el código, se busca la información y se entienden a fondo las tareas, para que durante el sprint nadie tenga que interrumpir al equipo con preguntas. Todos los días se espera un pull request o un avance visible, y un día y medio antes del cierre del sprint se hace una puesta en común de todo lo comprometido, para recibir feedback y corregir a tiempo. Es un proceso exigente, con compañeros de gran nivel, que te enseña a entender rápido un requerimiento y a entregarlo bien.',
+      'También fue un ambiente distinto al de una empresa de software tradicional: compartíamos el día con asesores de finanzas, ventas, atención al cliente y la alta gerencia, y de cada conversación se aprendía algo nuevo. Esa mezcla de rigor técnico y trato con personas de otras áreas cambió mi forma de trabajar y de relacionarme con los equipos. ¡Una experiencia que me enseñó que en la banca la calidad no se negocia, y que hoy aplicamos en cada proyecto!',
+    ],
+  },
+  {
+    id: 'cargo-ex-logistica',
+    fecha: '2017-06',
+    titulo: 'Cargo Ex: del papel a la\nlogística digital',
+    tituloTarjeta: 'Cargo Ex',
+    etiqueta: 'Logística · Full Stack',
+    imagen: 'figma-frames/cargo-ex-logistica-banner.webp',
+    /* La banda (4:1) muestra solo la franja del medio del banner (16:9) y
+       cortaba el rótulo de arriba; corrida un poco hacia arriba entra entero. */
+    focoBanner: '50% 40%',
+    mockups: ['figma-frames/cargo-ex-logistica-1.webp', 'figma-frames/cargo-ex-logistica-2.webp'],
+    descripcion:
+      'Cuando llegué a Cargo Ex, la operación de envíos se manejaba en papel. Lideramos su transformación digital: un portal web, una aplicación de impresión de etiquetas con React, Node.js y AWS, y una app Android de última milla para los repartidores. Se redujo el tiempo de procesamiento de envíos y aumentaron las entregas diarias. ¡Del papel a la informática!',
+    parrafos: [
+      'En junio de 2017, en mi primer año viviendo en Santiago, llegué a Cargo Ex, una empresa de logística y última milla con más de veinte años de trayectoria en Chile, de las primeras en operar en el rubro y que incluso se atrevió con el transporte aéreo. Cuando llegué, la operación de envíos se manejaba en papel. Nuestro desafío fue llevarla del papel a la informática, desde el levantamiento del proceso hasta la puesta en producción, para que la empresa pudiera competir en el mercado con ayuda de las nuevas tecnologías.',
+      'Antes de escribir una sola línea de código tuvimos que entender el negocio. Trabajar codo a codo con un ingeniero senior con muchos años en logística me enseñó a analizar una empresa completa, a identificar cada flujo y cómo se relaciona con los demás, porque las grandes ventajas de la programación se pierden si los procesos no se definen bien primero. Hasta entonces mi fuerte era programar; en Cargo Ex aprendí a mirar el negocio entero, y esa lección me acompaña en cada proyecto.',
+      'Así nació un sistema que cubre cada fase del envío. El cliente informa sus envíos en un portal web, con un archivo Excel de formato definido; en su bodega, cada caja sale con una etiqueta impresa desde nuestra aplicación web, hecha con React, Node.js y AWS, y esa etiqueta se pickea con la app móvil al entrar y al salir de bodega. Como quien pickea un producto es responsable de llevarlo al siguiente punto, el trackeo es total y la merma se reduce al mínimo. Desde la bodega, los envíos viajan al aeropuerto y los reciben los agentes en cada región de Chile.',
+      'El último tramo es la última milla: una app Android, publicada en Google Play, con la que los repartidores informan cada entrega, cada retiro y cada envío que no se pudo entregar, con su motivo y una foto del domicilio como prueba. La entrega se puede registrar con huella, para ahorrar escritura y tener datos más precisos, y si no hay señal, la app guarda todo en el teléfono y lo sincroniza apenas vuelve internet. Con ella aumentó el número de entregas diarias, y el portal en React con Redux sumó cinco módulos de gestión en seis meses, sobre EC2, Lambda y API Gateway.',
+      'Lo que más recuerdo es la gente. No era una oficina con veinte programadores en cubículos: el sistema lo usaban a diario secretarias, ejecutivos de atención al cliente, operadores y la gerencia, y conversar con cada uno nos daba el feedback para mejorarlo. Varias veces salí en ruta con un operador para ver la app funcionando en la calle. El resultado fue una empresa que redujo el tiempo de procesamiento de sus envíos y quedó competitiva en el mercado. ¡Un proyecto que nos enseñó que el mejor software nace de entender el trabajo de quienes lo usan!',
+    ],
+    enlace: 'https://www.youtube.com/watch?v=I8gpO6U7JJg',
+    textoEnlace: 'Ver el portal en YouTube',
   },
   /* Tesis: videojuego "Invasión UFPS" en Unity. Etapas reconstruidas de los
      correos 2016-2017 (anteproyecto con el director, contrato del ilustrador
@@ -428,25 +543,31 @@ export const trayectoria: HitoTrayectoria[] = [
      finalistas y certificado) salen de los correos de TuApp.org de 2013 y 2014.
      `parrafos` (SPEC-41): mismos datos que la `descripcion` de cada uno, más el
      video "Video SmartCorp" de la playlist (1-nov-2014, Android Studio + PHP).
-     El Gmail conectado hoy es el de trabajo y no tiene esos correos: el resto
-     de los párrafos es reflexión, sin datos nuevos (no se sabe qué hacía la
-     app de R2D2 ni la de SmartCorp, así que no se describe). */
+     SPEC-44: los números de 2014 (97 equipos, 7 países, +30 universidades, 24
+     finalistas) salen de la carta-certificado. El resto de los párrafos es
+     reflexión (no se sabe qué hacía la app de R2D2 ni la de SmartCorp, así que
+     no se describe). */
   {
     id: 'tuapp-2014-smartcorp',
     fecha: '2014-12-10',
     titulo: 'Finalistas del Torneo TuApp 2014\ncon SmartCorp',
     tituloTarjeta: 'TuApp 2014',
-    /* SPEC-42: portada tipográfica (10-12-2014, GAM, Santiago) y mockups con la
-       miniatura real del "Video SmartCorp" de la playlist (nov-2014). Generadas
-       con client/scripts/banners-trayectoria.mjs. */
+    /* SPEC-44: la carta-certificado REAL de TuApp.org (16-dic-2014, PDF
+       rasterizado a 300 dpi) sobre la foto de la final desenfocada; mockups: la
+       foto real de la final en el GAM y los datos de la carta (97 equipos,
+       7 países, +30 universidades, 24 finalistas). Generadas con
+       client/scripts/banners-tuapp.mjs. Banda alta y al centro: la cabecera y
+       el "CERTIFICA…" quedan arriba del título del post a 1440. */
     imagen: 'figma-frames/tuapp-2014-smartcorp-banner.webp',
+    altoBanner: 0.75, // más alta: con 0.6 el título del modal tapaba la última línea de la carta
+    focoBanner: '50% 50%',
     mockups: ['figma-frames/tuapp-2014-smartcorp-1.webp', 'figma-frames/tuapp-2014-smartcorp-2.webp'],
     parrafos: [
       'Un año después de nuestra primera final, volvimos al Torneo TuApp. Esta vez nos presentamos como equipo SmartCorp, con la experiencia de 2013 a cuestas y una meta clara: llegar otra vez a la final, pero mejor preparados. Ya sabíamos lo que significaba presentar frente a un público exigente, y queríamos que esta vez la aplicación hablara por sí sola, funcionando de punta a punta y sin depender de explicaciones. Volver a un torneo después de haber llegado a la final no es lo mismo que ir por primera vez: uno sabe lo que viene y también lo que está en juego.',
-      'El camino a la final pasaba por un video beta: había que mostrar la app funcionando antes de que se definieran los finalistas. De esa misma época es el video de SmartCorp que todavía está en mi canal de YouTube, subido en noviembre de 2014: una app nativa para Android construida en Android Studio, con un backend en PHP. Después de enviar nuestro video beta recibimos la carta oficial de TuApp.org que nos confirmaba en la final.',
+      'El camino a la final pasaba por un video beta: había que mostrar la app funcionando antes de que se definieran los finalistas. De esa misma época es el video de SmartCorp que todavía está en mi canal de YouTube, subido en noviembre de 2014: una app nativa para Android construida en Android Studio, con un backend en PHP. Después de enviar nuestro video beta recibimos la carta oficial de TuApp.org que nos confirmaba en la final. La competencia era grande: ese año se inscribieron 97 equipos de siete países, México, Colombia, Ecuador, Perú, Bolivia, Argentina y Chile, con más de 30 universidades representadas, y solo 24 llegaron a la final.',
       'La final fue el 10 de diciembre en el Centro Cultural Gabriela Mistral (GAM) de Santiago. Las reglas eran claras y exigentes: tres minutos para presentar la app en vivo, funcionando en nuestro propio smartphone, frente a empresarios, inversionistas y estudiantes de toda la región. En tres minutos no hay espacio para improvisar: cada palabra y cada toque en la pantalla tienen que estar pensados, porque una falla en vivo no se puede esconder. Por eso la demostración tenía que ser real, en nuestro propio teléfono, tal como la usaría cualquier persona.',
       'Lo más exigente fue que todo eso pasó mientras cerrábamos el semestre en la universidad. El semestre no se detuvo por el torneo, así que preparar la presentación fue también un ejercicio de organización: ensayar el recorrido por la app, ajustar lo que fallaba y volver a ensayar, una y otra vez, hasta que cada paso salía natural y el tiempo alcanzaba justo para mostrarlo todo.',
-      'De esa final nos quedó el certificado de participación firmado por la dirección de TuApp.org y una lección que sigue vigente en cada proyecto que entregamos: la preparación se nota cuando llega el momento de mostrar el trabajo, y lo que parece fácil sobre el escenario es fruto de muchas horas de práctica antes. Mirar ese certificado hoy es recordar a un equipo de estudiantes que se atrevió a mostrar su trabajo frente a quienes podían invertir en él. ¡Practicar y practicar hasta lograrlo sí funciona!',
+      'De esa final nos quedó el certificado de participación firmado por la dirección de TuApp.org, que destaca que el equipo representó a su universidad y a Colombia, y una lección que sigue vigente en cada proyecto que entregamos: la preparación se nota cuando llega el momento de mostrar el trabajo, y lo que parece fácil sobre el escenario es fruto de muchas horas de práctica antes. Mirar ese certificado hoy es recordar a un equipo de estudiantes que se atrevió a mostrar su trabajo frente a quienes podían invertir en él. ¡Practicar y practicar hasta lograrlo sí funciona!',
     ],
     descripcion:
       'Volvimos al Torneo TuApp, esta vez como equipo SmartCorp, y después de enviar nuestro video beta recibimos la carta oficial que nos confirmaba en la final. El 10 de diciembre presentamos nuestra app en vivo en el Centro Cultural Gabriela Mistral (GAM) de Santiago: tres minutos, funcionando en nuestro propio smartphone, frente a empresarios, inversionistas y estudiantes de toda la región. Lo logramos mientras cerrábamos semestre en la universidad, y de ahí nos quedó el certificado de participación firmado por la dirección de TuApp.org y la certeza de que ¡practicar y practicar hasta lograrlo sí funciona!',
@@ -456,17 +577,21 @@ export const trayectoria: HitoTrayectoria[] = [
     fecha: '2013-12-11',
     titulo: 'Seleccionados para la final del\nTorneo Universitario de Apps TuApp 2013',
     tituloTarjeta: 'TuApp 2013',
-    /* SPEC-42: portada tipográfica (11-12-2013, Santiago, equipo R2D2) y mockups
-       con el formato de la final (3 min + 1 de preguntas) y su ficha. Generadas
-       con client/scripts/banners-trayectoria.mjs. */
+    /* SPEC-44: el "Certificado de Finalistas" REAL de 2013 (PDF del 16-dic-2013,
+       correo "Certificados"), sin el pie con la dirección y el teléfono de la
+       oficina; mockups: el programa del evento final y la lista oficial de
+       finalistas con R2D2 marcado (programa_final_TuApp-1.pdf, mismo correo).
+       Generadas con client/scripts/banners-tuapp.mjs. */
     imagen: 'figma-frames/tuapp-2013-r2d2-banner.webp',
+    altoBanner: 0.75, // más alta: con 0.6 el título del modal tapaba la firma y el pie del certificado
+    focoBanner: '50% 50%',
     mockups: ['figma-frames/tuapp-2013-r2d2-1.webp', 'figma-frames/tuapp-2013-r2d2-2.webp'],
     parrafos: [
       'En 2013 nos animamos por primera vez a competir con una aplicación móvil. Formamos el equipo R2D2 y participamos en el Torneo Universitario de Apps de TuApp.org, una competencia pensada para estudiantes que quieren llevar lo que aprenden en clases a un producto real. Para un grupo que recién empezaba en el mundo de las apps, presentarse ya era un desafío, y llegar al evento final parecía una meta lejana. Lo que teníamos eran ganas, una idea y muchas horas de trabajo en la universidad.',
-      'La noticia llegó por correo: TuApp.org nos confirmó que estábamos entre los equipos seleccionados para presentar en el evento final, el 11 de diciembre de 2013 en Santiago de Chile. Pasar de una idea trabajada en la universidad a un escenario de ese nivel era un salto enorme, y también la oportunidad de medir nuestro trabajo con otros equipos universitarios. Que una organización dedicada a promover el talento universitario en aplicaciones eligiera nuestro proyecto fue una enorme motivación para seguir.',
+      'La noticia llegó por correo: TuApp.org nos confirmó que estábamos entre los equipos seleccionados para presentar en el evento final, el 11 de diciembre de 2013 en el Auditorio SOFOFA de Santiago de Chile, junto a otros 27 equipos de toda la región. Pasar de una idea trabajada en la universidad a un escenario de ese nivel era un salto enorme, y también la oportunidad de medir nuestro trabajo con otros equipos universitarios. Que una organización dedicada a promover el talento universitario en aplicaciones eligiera nuestro proyecto fue una enorme motivación para seguir.',
       'El formato no daba espacio para rodeos: tres minutos para mostrar la app y uno para responder las preguntas del público. Tres minutos obligan a decidir qué es lo esencial: qué problema resuelve la aplicación, cómo se usa y por qué vale la pena. Cuando el tiempo es tan corto, cada segundo cuenta, y aprender a resumir un proyecto se vuelve tan importante como saber programarlo. Ese minuto de preguntas, además, es el más honesto: el público pregunta lo que de verdad le importa, y responder bien depende de conocer el proyecto de punta a punta.',
       'El público hacía que todo fuera todavía más importante. Ese día había empresarios, profesores y siete ejecutivos de Google USA que venían a buscar talento latinoamericano. Para un grupo de estudiantes, presentar frente a personas así era una oportunidad que no se repite seguido, y también una forma de entender cómo se mira un producto desde afuera de la sala de clases. Ver de cerca a una empresa como Google interesada en el talento de la región nos mostró que el trabajo bien hecho no tiene fronteras.',
-      'TuApp 2013 fue nuestro primer paso en las competencias de aplicaciones, y no fue el último: al año siguiente volvimos al torneo como equipo SmartCorp y llegamos otra vez a la final. Desde entonces, cada vez que mostramos un proyecto recordamos esos tres minutos y ese minuto de preguntas. Esa primera experiencia nos dejó la prueba de que lo que construíamos en la universidad podía llegar ¡mucho más lejos de lo que imaginábamos!',
+      'TuApp 2013 fue nuestro primer paso en las competencias de aplicaciones, y no fue el último: al año siguiente volvimos al torneo como equipo SmartCorp y llegamos otra vez a la final. Desde entonces, cada vez que mostramos un proyecto recordamos esos tres minutos y ese minuto de preguntas. Esa primera experiencia nos dejó el certificado de finalistas firmado por la dirección de TuApp.org y la prueba de que lo que construíamos en la universidad podía llegar ¡mucho más lejos de lo que imaginábamos!',
     ],
     descripcion:
       'Nuestra primera vez compitiendo con una aplicación móvil, como equipo R2D2: fuimos seleccionados para presentar en el evento final del Torneo Universitario de Apps, el 11 de diciembre de 2013 en Santiago de Chile, con tres minutos para mostrar la app y uno para las preguntas del público. Ese día había empresarios, profesores y siete ejecutivos de Google USA buscando talento latinoamericano, y para un grupo de estudiantes eso fue la prueba de que lo que construíamos en la universidad podía llegar ¡mucho más lejos de lo que imaginábamos!',
