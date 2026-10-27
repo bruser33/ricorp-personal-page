@@ -8,6 +8,8 @@ import { useLang } from '../i18n';
 import { formatearFecha, hitosOrdenados } from '../data/trayectoria';
 import type { HitoTrayectoria } from '../data/trayectoria';
 import { DetailModal } from './DetailModal';
+import { PostModal } from './Post';
+import { usaModoPost } from '../lib/post';
 import { Footline } from './Footline';
 import './News.css';
 
@@ -238,7 +240,13 @@ export function News() {
         <Footline />
       </div>
 
-      {detalle && (
+      {/* SPEC-39: un hito con contenido de post (párrafos, mockups, videos o
+          destacado) abre EXACTAMENTE el mismo modal que el slider de
+          Proyectos. El resto sigue con el detalle simple de siempre. */}
+      {detalle && usaModoPost(detalle) && (
+        <PostModal hito={detalle} originRect={origen} onClose={cerrarDetalle} />
+      )}
+      {detalle && !usaModoPost(detalle) && (
         <DetailModal
           originRect={origen}
           title={detalle.titulo.replace(/\n/g, ' ')}

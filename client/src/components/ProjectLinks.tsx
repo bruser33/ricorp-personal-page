@@ -6,14 +6,14 @@ import './ProjectLinks.css';
    así el modal compartido (SPEC-18) lo monta con una sola línea, igual que el
    de Proyectos. Sin ninguno de los dos no se renderiza nada — en particular, sin
    `reel` no queda ni un nodo que mencione Instagram. */
-export function ProjectLinks({ hito }: { hito: Pick<HitoTrayectoria, 'enlace' | 'reel'> }) {
-  const { enlace, reel } = hito;
+export function ProjectLinks({ hito }: { hito: Pick<HitoTrayectoria, 'enlace' | 'reel' | 'textoEnlace'> }) {
+  const { enlace, reel, textoEnlace } = hito;
   if (!enlace && !reel) return null;
   return (
     <div className="project-links">
       {enlace && (
         <a className="project-link" href={enlace} target="_blank" rel="noreferrer">
-          Ver sitio <span aria-hidden="true">↗</span>
+          {textoEnlace || 'Ver sitio'} <span aria-hidden="true">↗</span>
         </a>
       )}
       {reel && (
