@@ -1,21 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useLang } from '../i18n';
-import { DetailModal } from './DetailModal';
-import { ProjectLinks } from './ProjectLinks';
+import { PostModal } from './Post';
+import { rotulo, rutaPublica as rutaImagen, tituloPlano, tituloTarjeta } from '../lib/post';
 import { hitosDestacados } from '../data/trayectoria';
 import type { HitoTrayectoria } from '../data/trayectoria';
 import './Projects.css';
 
-const BASE = import.meta.env.BASE_URL;
-
-/* En `trayectoria.ts` las rutas se guardan relativas a `client/public`
-   ('figma-frames/x.png') para que quien edita ese archivo no tenga que saber
-   nada del base path de GitHub Pages. El prefijo se agrega acá, igual que en
-   News.tsx. */
-function rutaImagen(ruta: string): string {
-  if (/^(https?:)?\/\//.test(ruta) || ruta.startsWith('/')) return ruta;
-  return BASE + ruta;
-}
+/* rutaImagen, tituloPlano, tituloTarjeta y rotulo viven en lib/post.ts: los
+   comparten este slider y la Trayectoria (SPEC-39). */
 
 /* La tarjeta de Proyectos ES la imagen (el título vive afuera), así que un
    destacado sin `imagen` no se puede dibujar. Se DESCARTA acá en vez de
@@ -28,19 +20,6 @@ type Proyecto = HitoTrayectoria & { imagen: string };
    Se resuelve a nivel de módulo porque `trayectoria` es una constante: así la
    referencia es estable entre renders y no hace falta memoizar nada. */
 const projects: Proyecto[] = hitosDestacados().filter((h): h is Proyecto => !!h.imagen);
-
-/* El título admite un \n forzado (lo usa la línea de tiempo); en las tarjetas y
-   en los textos accesibles se aplana a una sola línea. */
-const tituloPlano = (titulo: string) => titulo.replace(/\n/g, ' ');
-
-/* Lo que se escribe EN la tarjeta (letra muy grande): el título corto si lo
-   hay. Textos accesibles y el detalle siguen con el título completo. */
-const tituloTarjeta = (p: Proyecto) => p.tituloTarjeta ?? tituloPlano(p.titulo);
-
-/* Texto accesible de una tarjeta. `etiqueta` es opcional: sin ella el rótulo es
-   solo el título. */
-const rotulo = (p: Proyecto) =>
-  p.etiqueta ? `${tituloPlano(p.titulo)} — ${p.etiqueta}` : tituloPlano(p.titulo);
 
 /* Loop visual del carrusel. La lista se repite REPEATS veces y el índice que
    manda es VIRTUAL (un entero sin acotar sobre esa tira): así el slot activo
@@ -161,47 +140,6 @@ function useMediaQuery(query: string) {
     return () => mq.removeEventListener('change', onChange);
   }, [query]);
   return matches;
-}
-
-/* Cuerpo del post, con la distribución del prototipo de Figma (video
-   2026-10-18): párrafo a todo el ancho; imagen a la izquierda con el texto
-   corriendo a su derecha; teléfono inclinado a la derecha con texto a su
-   izquierda; y el texto sigue corriendo al lado del teléfono hasta que se
-   termina, sin dejar huecos. Las imágenes van flotando (no en una columna
-   aparte) para que el texto las rodee como en el diseño. Sin
-   `parrafos`, la descripción hace de único párrafo. */
-function PostCuerpo({ hito }: { hito: Proyecto }) {
-  const parrafos = hito.parrafos?.length ? hito.parrafos : hito.descripcion ? [hito.descripcion] : [];
-  const [primero, segundo, tercero, ...resto] = parrafos;
-  const [figura, telefono] = hito.mockups ?? [];
-  return (
-    /* lang="es": el contenido de trayectoria.ts está en español aunque el sitio
-       esté en inglés, y el justificado parte las palabras según este idioma. */
-    <div className="post" lang="es">
-      {primero && <p className="project-modal-text">{primero}</p>}
-      {figura && (
-        <figure className="post-figura">
-          <img src={rutaImagen(figura)} alt="" loading="lazy" decoding="async" />
-        </figure>
-      )}
-      {segundo && <p className="project-modal-text">{segundo}</p>}
-      {telefono && (
-        <img
-          className="post-telefono"
-          src={rutaImagen(telefono)}
-          alt=""
-          loading="lazy"
-          decoding="async"
-        />
-      )}
-      {tercero && <p className="project-modal-text">{tercero}</p>}
-      {resto.map((p, i) => (
-        <p key={i} className="project-modal-text">
-          {p}
-        </p>
-      ))}
-    </div>
-  );
 }
 
 export function Projects() {
@@ -906,24 +844,8 @@ export function Projects() {
 
       {isMobile ? stack : carousel}
 
-      {expanded && (
-        <DetailModal
-          originRect={originRect}
-          /* El título corto de la tarjeta, si lo hay: en la banda un título de
-             dos líneas en letra gigante tapa la imagen. El completo queda como
-             texto accesible del diálogo. */
-          title={tituloTarjeta(expanded)}
-          ariaLabel={rotulo(expanded)}
-          image={rutaImagen(expanded.imagen)}
-          imagePosition={expanded.focoBanner}
-          heroVh={expanded.altoBanner}
-          tag={expanded.etiqueta}
-          onClose={closeProject}
-          footer={<ProjectLinks hito={expanded} />}
-        >
-          <PostCuerpo hito={expanded} />
-        </DetailModal>
-      )}
+      {/* El post es el mismo componente que abre la Trayectoria (SPEC-39). */}
+      {expanded && <PostModal hito={expanded} originRect={originRect} onClose={closeProject} />}
     </section>
   );
 }

@@ -108,6 +108,10 @@ export function DetailModal({
   const requestClose = useCallback(() => {
     if (cerrandoRef.current) return;
     cerrandoRef.current = true;
+    /* Ningún video del post sigue sonando mientras corre la animación de
+       cierre (SPEC-39); al desmontarse el <video> se detiene solo, pero eso
+       llega recién al final del cierre. */
+    overlayRef.current?.querySelectorAll('video').forEach((v) => v.pause());
     if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
       onClose();
       return;

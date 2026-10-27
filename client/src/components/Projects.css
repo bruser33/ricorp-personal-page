@@ -643,7 +643,7 @@ html.glide-dots-hidden .carousel-dots {
 
 .project-modal-text:last-child { margin-bottom: 0; }
 
-/* --- Cuerpo del post (PostCuerpo en Projects.tsx) --------------------------
+/* --- Cuerpo del post (PostCuerpo en Post.tsx) ------------------------------
    Distribución del prototipo de Figma: párrafo a todo el ancho; imagen a la
    izquierda con el texto corriendo a su derecha; teléfono inclinado a la
    derecha con texto a su izquierda; y el resto a todo el ancho. Floats y no
