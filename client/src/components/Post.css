@@ -1,27 +1,14 @@
-/* --- Fila de videos del post (SPEC-39, PostCuerpo en Post.tsx) -------------
-   Tutorial 16:9 a la izquierda y reel 9:16 a la derecha, con el MISMO alto.
-   Truco: cada celda crece en proporción a su relación de aspecto (flex-grow =
-   ancho/alto, con base 0); como los dos videos llevan aspect-ratio, a anchos
-   proporcionales les tocan altos iguales. El resto de .post vive en
-   Projects.css. */
-.post-videos {
+/* --- Videos del post (SPEC-39 / SPEC-43, PostCuerpo en Post.tsx) ----------
+   Arriba, después del 1er párrafo, va SOLO el tutorial, 16:9 a todo el ancho.
+   El reel no va en esa fila: ocupa el hueco del "teléfono" (.post-telefono en
+   Projects.css: flotante a la derecha, 30% de ancho, rotado 14°, drop-shadow,
+   texto corriendo a su izquierda). El resto de .post vive en Projects.css. */
+.post-video--tutorial {
   /* Va entre el primer párrafo y la primera imagen flotante: no tiene que
      quedar al lado de ningún float. */
   clear: both;
-  display: flex;
-  align-items: flex-start;
-  gap: clamp(16px, 2vw, 32px);
   margin: 0.4em 0 2.4em;
 }
-
-.post-video {
-  margin: 0;
-  min-width: 0;
-  flex-basis: 0;
-}
-
-.post-video--tutorial { flex-grow: 1.7778; } /* 16 / 9 */
-.post-video--reel { flex-grow: 0.5625; }     /* 9 / 16 */
 
 .post-video__titulo {
   font-size: 13px;
@@ -29,7 +16,6 @@
   text-transform: uppercase;
   color: rgba(255, 255, 255, 0.7);
   margin: 0 0 0.7em;
-  /* Un título más largo que la celda del reel no tiene que desalinear la fila. */
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -45,22 +31,26 @@
 }
 
 .post-video--tutorial .post-video__media { aspect-ratio: 16 / 9; }
-.post-video--reel .post-video__media { aspect-ratio: 9 / 16; }
 
-/* Mobile: uno debajo del otro, tutorial arriba; el reel con ancho de
-   teléfono y centrado (a todo el ancho mediría casi dos pantallas). */
-@media (max-width: 768px) {
-  .post-videos {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 1.6em;
-  }
-  .post-video {
-    flex: none;
-    width: 100%;
-  }
-  .post-video--reel {
-    max-width: min(360px, 100%);
-    margin: 0 auto;
+/* El reel en el lugar del teléfono. La caja (float, ancho, margen y
+   drop-shadow) la pone .post-telefono, en desktop y en mobile (≤720px: sin
+   float, 58% centrado). La rotación del teléfono NO: un video inclinado deja
+   los controles torcidos e incómodos de usar. Acá además lo propio del video:
+   vertical 9:16, el radio del teléfono y sin box-shadow propia (la sombra ya
+   la da el filter del contenedor; las dos juntas se veían dobles). */
+.post-telefono.post-reel {
+  transform: none;
+}
+
+.post-reel .post-video__media {
+  aspect-ratio: 9 / 16;
+  border-radius: 22px;
+  box-shadow: none;
+}
+
+/* Mobile: el reel con ancho de teléfono, nunca más de 360px (AC3). */
+@media (max-width: 720px) {
+  .post-reel {
+    max-width: 360px;
   }
 }

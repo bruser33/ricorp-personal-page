@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { rotulo, rutaPublica, tituloPlano, tituloTarjeta, usaModoPost } from './post';
+import { distribucionPost, rotulo, rutaPublica, tituloPlano, tituloTarjeta, usaModoPost } from './post';
 import type { HitoTrayectoria } from '../data/trayectoria';
 
 const base: HitoTrayectoria = { id: 'x', fecha: '2024-03', titulo: 'Un hito\ncon salto' };
@@ -61,5 +61,45 @@ describe('hitos de relleno', () => {
     const relleno = trayectoria.filter((h) => h.id.startsWith('relleno-'));
     expect(relleno.length).toBeGreaterThan(0);
     for (const h of relleno) expect(usaModoPost(h)).toBe(false);
+  });
+});
+
+/* SPEC-43: arriba solo el tutorial (ancho completo) y el reel ocupa el lugar
+   del teléfono; con reel, el 2.º mockup no se muestra. */
+describe('distribucionPost (SPEC-43)', () => {
+  const tutorial = { src: 'videos/t.mp4', titulo: 'Tutorial' };
+  const reel = { src: 'videos/r.mp4', titulo: 'Reel' };
+
+  it('tutorial arriba y reel en el lugar del teléfono, sin 2.º mockup', () => {
+    const d = distribucionPost({ ...base, mockups: ['a.webp', 'b.webp'], videos: { tutorial, reel } });
+    expect(d.tutorial).toBe(tutorial);
+    expect(d.figura).toBe('a.webp');
+    expect(d.telefono).toEqual({ tipo: 'reel', video: reel });
+  });
+
+  it('sin reel el 2.º mockup sigue siendo el teléfono', () => {
+    const d = distribucionPost({ ...base, mockups: ['a.webp', 'b.webp'], videos: { tutorial } });
+    expect(d.tutorial).toBe(tutorial);
+    expect(d.telefono).toEqual({ tipo: 'imagen', src: 'b.webp' });
+  });
+
+  it('solo reel: no hay fila de arriba y el reel va flotando', () => {
+    const d = distribucionPost({ ...base, mockups: ['a.webp'], videos: { reel } });
+    expect(d.tutorial).toBeUndefined();
+    expect(d.telefono).toEqual({ tipo: 'reel', video: reel });
+  });
+
+  it('sin videos ni mockups no hay nada', () => {
+    expect(distribucionPost(base)).toEqual({ tutorial: undefined, figura: undefined, telefono: undefined });
+  });
+
+  it('W Style real: 2 videos, solo el mockup desktop y nunca el mobile', async () => {
+    const { trayectoria } = await import('../data/trayectoria');
+    const ws = trayectoria.find((h) => h.id === 'wstyle-2026')!;
+    expect(ws.mockups).toEqual(['figma-frames/wstyle-mockup-desktop.webp']);
+    const d = distribucionPost(ws);
+    expect(d.tutorial?.src).toBe('videos/wstyle-tutorial.mp4');
+    expect(d.telefono).toEqual({ tipo: 'reel', video: ws.videos!.reel });
+    expect(JSON.stringify(d)).not.toContain('wstyle-mockup-mobile');
   });
 });

@@ -1,4 +1,4 @@
-import type { HitoTrayectoria } from '../data/trayectoria';
+import type { HitoTrayectoria, VideoPost } from '../data/trayectoria';
 
 /* Helpers puros del post de un proyecto, compartidos por el slider de
    Proyectos y la página Trayectoria (SPEC-39). Viven fuera de los componentes
@@ -41,4 +41,26 @@ export function usaModoPost(h: HitoTrayectoria): boolean {
     !!h.galeria?.length ||
     !!(h.videos?.tutorial || h.videos?.reel)
   );
+}
+
+/* Qué va en cada hueco del post (SPEC-43). Arriba, después del 1er párrafo,
+   SOLO el tutorial a todo el ancho. El hueco del "teléfono" (flotante a la
+   derecha) lo ocupa el reel si existe —y entonces el 2.º mockup no se usa—;
+   si no hay reel, sigue siendo la 2.ª imagen. La 1.ª imagen (o la galería)
+   no cambia. */
+export type HuecoTelefono = { tipo: 'reel'; video: VideoPost } | { tipo: 'imagen'; src: string };
+
+export function distribucionPost(h: HitoTrayectoria): {
+  tutorial: VideoPost | undefined;
+  figura: string | undefined;
+  telefono: HuecoTelefono | undefined;
+} {
+  const [figura, segundo] = h.mockups ?? [];
+  const reel = h.videos?.reel;
+  const telefono: HuecoTelefono | undefined = reel
+    ? { tipo: 'reel', video: reel }
+    : segundo
+      ? { tipo: 'imagen', src: segundo }
+      : undefined;
+  return { tutorial: h.videos?.tutorial, figura, telefono };
 }

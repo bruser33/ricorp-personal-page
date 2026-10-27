@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { formatearFecha } from '../data/trayectoria';
 import type { HitoTrayectoria, VideoPost } from '../data/trayectoria';
 import { useLang } from '../i18n';
-import { rotulo, rutaPublica, tituloTarjeta } from '../lib/post';
+import { distribucionPost, rotulo, rutaPublica, tituloTarjeta } from '../lib/post';
 import { DetailModal } from './DetailModal';
 import { ProjectLinks } from './ProjectLinks';
 import './Post.css';
@@ -13,36 +13,32 @@ import './Post.css';
    montan ESTE modal: misma banda, mismo título, mismos párrafos, imágenes,
    videos y enlaces. */
 
-/* Una celda de la fila de videos. preload="none" + póster: no se baja nada
-   hasta que el usuario le da play, y nunca hay autoplay (ni con sonido ni sin
-   él), así que prefers-reduced-motion queda respetado de entrada. */
-function VideoCelda({ video, tipo }: { video: VideoPost; tipo: 'tutorial' | 'reel' }) {
+/* Un video del post. preload="none" + póster: no se baja nada hasta que el
+   usuario le da play, y nunca hay autoplay (ni con sonido ni sin él), así que
+   prefers-reduced-motion queda respetado de entrada. La pausa al cerrar la
+   hace DetailModal sobre todos los <video> del overlay. */
+function VideoMedia({ video }: { video: VideoPost }) {
   return (
-    <figure className={`post-video post-video--${tipo}`}>
-      <figcaption className="post-video__titulo">{video.titulo}</figcaption>
-      <video
-        className="post-video__media"
-        src={rutaPublica(video.src)}
-        poster={video.poster ? rutaPublica(video.poster) : undefined}
-        controls
-        playsInline
-        preload="none"
-        aria-label={video.titulo}
-      />
-    </figure>
+    <video
+      className="post-video__media"
+      src={rutaPublica(video.src)}
+      poster={video.poster ? rutaPublica(video.poster) : undefined}
+      controls
+      playsInline
+      preload="none"
+      aria-label={video.titulo}
+    />
   );
 }
 
-/* Fila de videos: tutorial 16:9 a la izquierda y reel 9:16 a la derecha, con
-   el mismo alto (ver Post.css); en mobile se apilan. */
-function VideosPost({ videos }: { videos: NonNullable<HitoTrayectoria['videos']> }) {
-  const { tutorial, reel } = videos;
-  if (!tutorial && !reel) return null;
+/* Fila de arriba (SPEC-43): SOLO el tutorial, 16:9 a todo el ancho del post.
+   El reel ya no va acá: ocupa el lugar del teléfono (ver PostCuerpo). */
+function TutorialPost({ video }: { video: VideoPost }) {
   return (
-    <div className="post-videos">
-      {tutorial && <VideoCelda video={tutorial} tipo="tutorial" />}
-      {reel && <VideoCelda video={reel} tipo="reel" />}
-    </div>
+    <figure className="post-video post-video--tutorial">
+      <figcaption className="post-video__titulo">{video.titulo}</figcaption>
+      <VideoMedia video={video} />
+    </figure>
   );
 }
 
@@ -51,9 +47,10 @@ function VideosPost({ videos }: { videos: NonNullable<HitoTrayectoria['videos']>
    corriendo a su derecha; teléfono inclinado a la derecha con texto a su
    izquierda; y el texto sigue corriendo al lado del teléfono hasta que se
    termina, sin dejar huecos. Las imágenes van flotando (no en una columna
-   aparte) para que el texto las rodee como en el diseño. Los videos van
-   después del primer párrafo, antes de la primera imagen. Sin `parrafos`, la
-   descripción hace de único párrafo. */
+   aparte) para que el texto las rodee como en el diseño. El tutorial va
+   después del primer párrafo, antes de la primera imagen; el reel, si hay,
+   ocupa el lugar del teléfono (SPEC-43, ver distribucionPost). Sin
+   `parrafos`, la descripción hace de único párrafo. */
 /* Galería con slider en el lugar de la imagen de la izquierda del post. El
    desplazamiento es scroll horizontal nativo con scroll-snap: así el dedo, el
    trackpad (dos dedos) y la rueda horizontal funcionan solos y con su inercia,
@@ -146,13 +143,13 @@ function GaleriaPost({ fotos }: { fotos: { src: string; pie: string }[] }) {
 export function PostCuerpo({ hito }: { hito: HitoTrayectoria }) {
   const parrafos = hito.parrafos?.length ? hito.parrafos : hito.descripcion ? [hito.descripcion] : [];
   const [primero, segundo, tercero, ...resto] = parrafos;
-  const [figura, telefono] = hito.mockups ?? [];
+  const { tutorial, figura, telefono } = distribucionPost(hito);
   return (
     /* lang="es": el contenido de trayectoria.ts está en español aunque el sitio
        esté en inglés, y el justificado parte las palabras según este idioma. */
     <div className="post" lang="es">
       {primero && <p className="project-modal-text">{primero}</p>}
-      {hito.videos && <VideosPost videos={hito.videos} />}
+      {tutorial && <TutorialPost video={tutorial} />}
       {hito.galeria?.length ? (
         <GaleriaPost fotos={hito.galeria} />
       ) : (
@@ -163,10 +160,17 @@ export function PostCuerpo({ hito }: { hito: HitoTrayectoria }) {
         )
       )}
       {segundo && <p className="project-modal-text">{segundo}</p>}
-      {telefono && (
+      {telefono?.tipo === 'reel' && (
+        /* El reel en el hueco del teléfono: misma caja flotante, ancho,
+           inclinación y sombra (.post-telefono), vertical 9:16. */
+        <figure className="post-telefono post-reel">
+          <VideoMedia video={telefono.video} />
+        </figure>
+      )}
+      {telefono?.tipo === 'imagen' && (
         <img
           className="post-telefono"
-          src={rutaPublica(telefono)}
+          src={rutaPublica(telefono.src)}
           alt=""
           loading="lazy"
           decoding="async"
