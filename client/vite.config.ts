@@ -24,13 +24,34 @@ export default defineConfig({
     // current Chromium ignores → no blur in Chrome (PR #9 round 4, B2; checked
     // by barberia-3d/scripts/verify.mjs on dist/assets/*.css).
     cssTarget: ['chrome100', 'safari16', 'firefox100', 'edge100'],
-    // Multi-página: la home (index.html) y la landing W Style (wstyle/index.html → ricorp.cl/wstyle/).
+    // Multi-página: la home (index.html) y la landing WS Style (wstyle/index.html → ricorp.cl/wstyle/).
     // Cada entrada tiene su propio JS/CSS: three.js y el código de wstyle no entran en el bundle de la home.
     // El HTML de wstyle se prerenderiza después del build (scripts/prerender-wstyle.mjs).
     rollupOptions: {
       input: {
         main: resolve(import.meta.dirname, 'index.html'),
         wstyle: resolve(import.meta.dirname, 'wstyle/index.html'),
+        // Agenda (SPEC-32): cada ruta es una carpeta real con su index.html (Pages solo sirve carpetas que existen).
+        ...Object.fromEntries(
+          ['reservar', 'cita', 'cuenta', 'cuenta/mis-citas', 'cuenta/recuperar', 'cuenta/confirmar'].map((r) => [
+            `wstyle-${r.replace('/', '-')}`,
+            resolve(import.meta.dirname, `wstyle/${r}/index.html`),
+          ]),
+        ),
+        // Panel del barbero (SPEC-33): /wstyle/pro/, /pro/registro/, /pro/agenda/, /pro/pagos/ (SPEC-37) y /pro/perfil/.
+        ...Object.fromEntries(
+          ['pro', 'pro/registro', 'pro/agenda', 'pro/pagos', 'pro/perfil'].map((r) => [`wstyle-${r.replace('/', '-')}`, resolve(import.meta.dirname, `wstyle/${r}/index.html`)]),
+        ),
+        // Páginas legales (Política de privacidad y Términos, requeridas por Meta para el inicio con Facebook): HTML
+        // prerenderizado en el build (scripts/prerender-wstyle.mjs).
+        ...Object.fromEntries(['privacidad', 'terminos'].map((r) => [`wstyle-${r}`, resolve(import.meta.dirname, `wstyle/${r}/index.html`)])),
+        // Panel del super admin (SPEC-34): /wstyle/admin/ y una carpeta por sección (recargar funciona). Sin enlace público, noindex.
+        ...Object.fromEntries(
+          ['admin', ...['barberos', 'citas', 'pagos', 'rendicion', 'carta', 'horario', 'estadisticas', 'configuracion', 'auditoria'].map((s) => `admin/${s}`)].map((r) => [
+            `wstyle-${r.replace('/', '-')}`,
+            resolve(import.meta.dirname, `wstyle/${r}/index.html`),
+          ]),
+        ),
       },
       // Chunk explícito para React (compartido por ambas páginas): sin esto el bundler arma un chunk común que
       // mezcla React con la matemática de three y la home terminaría precargándola.

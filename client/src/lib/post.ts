@@ -38,6 +38,7 @@ export function usaModoPost(h: HitoTrayectoria): boolean {
     !!h.destacado ||
     !!h.parrafos?.length ||
     !!h.mockups?.length ||
+    !!h.galeria?.length ||
     !!(h.videos?.tutorial || h.videos?.reel)
   );
 }

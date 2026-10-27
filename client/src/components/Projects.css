@@ -699,6 +699,90 @@ html.glide-dots-hidden .carousel-dots {
   height: auto;
 }
 
+/* Galería con slider (GaleriaPost): misma caja que la imagen de la izquierda.
+   Las ilustraciones tienen fondo transparente: van sobre un papel claro para
+   que se lean, y las fotos se ven enteras (contain) sin recortes. */
+.post-galeria {
+  position: relative;
+  /* Por encima de los párrafos: su animación de entrada deja un transform que
+     los sube a una capa propia, y como sus cajas pasan por debajo del float,
+     tapaban las flechas y se quedaban con el clic. */
+  z-index: 2;
+  overflow: visible;
+  box-shadow: none;
+}
+
+.galeria-pista {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  border-radius: 14px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+  outline-offset: 4px;
+}
+.galeria-pista::-webkit-scrollbar { display: none; }
+
+.galeria-slide {
+  flex: 0 0 100%;
+  scroll-snap-align: center;
+  scroll-snap-stop: always;
+  aspect-ratio: 1 / 1;
+  background: #f1eee8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.galeria-slide img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  user-select: none;
+}
+
+.galeria-flecha {
+  position: absolute;
+  top: calc(50% - 22px);
+  width: 44px;
+  height: 44px;
+  margin-top: -22px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  background: rgba(12, 11, 15, 0.7);
+  backdrop-filter: blur(6px);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: opacity 200ms, background 200ms;
+}
+.galeria-flecha--prev { left: 12px; }
+.galeria-flecha--next { right: 12px; }
+.galeria-flecha:hover { background: rgba(30, 29, 40, 0.92); }
+.galeria-flecha:disabled { opacity: 0; pointer-events: none; }
+.galeria-flecha:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+
+.galeria-pie {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  margin-top: 12px;
+  font-size: clamp(13px, 0.9vw, 15px);
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.62);
+  min-height: 2.9em;
+}
+
+.galeria-contador {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255, 255, 255, 0.85);
+}
+
 /* El teléfono inclinado del diseño: flota a la derecha, rotado, y asoma un
    poco por fuera del panel (lo recorta el overflow-x del overlay). */
 .post-telefono {
@@ -709,7 +793,7 @@ html.glide-dots-hidden .carousel-dots {
   width: 30%;
   margin: 2em -2% 2.4em clamp(32px, 3.4vw, 64px);
   transform: rotate(14deg);
-  /* Radio para las capturas opacas (W Style); a un PNG ya redondeado no le
+  /* Radio para las capturas opacas (WS Style); a un PNG ya redondeado no le
      cambia nada. */
   border-radius: 22px;
   filter: drop-shadow(0 18px 32px rgba(0, 0, 0, 0.5));

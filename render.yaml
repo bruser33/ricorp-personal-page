@@ -9,7 +9,7 @@ services:
     healthCheckPath: /api/health
     envVars:
       - key: NODE_VERSION
-        value: 20
+        value: 24
       # El sitio se sirve en ricorp.cl (dominio propio sobre Pages), NO en
       # bruser33.github.io. Con solo el github.io acá, el preflight del
       # formulario de contacto desde ricorp.cl moría en 500 y el envío nunca
@@ -35,4 +35,35 @@ services:
       - key: SMTP_PASS
         sync: false
       - key: CONTACT_TO
+        sync: false
+      # Pago en línea con Mercado Pago Checkout Pro (SPEC-35). Secretos: solo acá (sync: false),
+      # nunca en el repo ni en el client. MP_ACCESS_TOKEN TEST-… = sandbox, APP_USR-… = producción.
+      - key: MP_ACCESS_TOKEN
+        sync: false
+      - key: MP_WEBHOOK_SECRET
+        sync: false
+      # Opcional: URL completa del webhook (si no, API_PUBLIC_URL + /api/payments/mp/webhook).
+      - key: MP_NOTIFICATION_URL
+        sync: false
+      # Front público (back_urls del checkout) y URL pública de esta API.
+      - key: PUBLIC_SITE_URL
+        sync: false
+      - key: API_PUBLIC_URL
+        sync: false
+      # Respaldo tributario y rendición (SPEC-37). SII_TAX_PROVIDER = voucher | manual (modelo
+      # declarado en el SII). El RUT del emisor es dato sensible: solo acá (sync: false), nunca en
+      # el repo, el client ni los logs. Sin RUT el panel muestra "Emisor pendiente".
+      - key: SII_TAX_PROVIDER
+        value: voucher
+      - key: SII_EMITTER_NAME
+        sync: false
+      - key: SII_EMITTER_RUT
+        sync: false
+      # Login con Google (SPEC-38). Secreto solo acá (sync: false). GOOGLE_REDIRECT_URI =
+      # https://api.ricorp.cl/api/auth/google/callback (registrado en el cliente OAuth de Google).
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_REDIRECT_URI
         sync: false

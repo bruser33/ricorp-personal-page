@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="es" class="no-js">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Confirmar correo · WS Style</title>
+<!-- Agenda de WS Style (SPEC-32): misma entrada para todas las rutas (src/wstyle/agenda/main.tsx). -->
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#0E0D0C">
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Cormorant+Garamond:ital,wght@1,400;1,500;1,600&family=Inter:wght@400;500;600;700&display=swap">
+<script>document.documentElement.classList.replace('no-js', 'js');</script>
+</head>
+<body>
+<div id="root">
+  <!-- Sin JavaScript (o antes de montar) nunca queda en blanco: aviso + WhatsApp (CB-16). El build reemplaza el
+       href de data-wa por el wa.me del local (scripts/prerender-wstyle.mjs). -->
+  <div class="ag ag-static">
+    <header class="ag-header"><a class="ag-brand" href="/wstyle/">WS STYLE</a></header>
+    <main class="ag-main">
+      <h1 class="ag-h1">Confirmar correo</h1>
+      <p class="ag-loading ag-js-only">Cargando la agenda…</p>
+      <noscript><div class="ag-card"><p>La agenda en línea necesita JavaScript activado. También puedes reservar por WhatsApp.</p><a class="btn btn--primary" data-wa href="/wstyle/#llega">Reservar por WhatsApp</a></div></noscript>
+    </main>
+  </div>
+</div>
+<script type="module" src="/src/wstyle/agenda/main.tsx"></script>
+</body>
+</html>

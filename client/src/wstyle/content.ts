@@ -63,3 +63,42 @@ export async function loadContent(base = './'): Promise<Content> {
   const [site, services, cfg] = await Promise.all([load('site'), load('services'), config]);
   return { site, services: Array.isArray(services) ? services : [], config: cfg ?? {} };
 }
+
+// ─── Carta y horario desde la API (SPEC-34 RN-06). La BD es la fuente de verdad en runtime: al cargar, la landing
+// pide GET /api/wstyle/catalog y reemplaza lo prerenderizado (servicios activos, horario y contacto). Si la API falla
+// o tarda más de 4 s, se queda con el JSON estático (fallback) sin mostrar ningún error (CB-07).
+export const CATALOG_TIMEOUT_MS = 4000;
+export interface LandingCatalog {
+  services: { id: string; name: string; description?: string; priceCLP: number; durationMin: number }[];
+  business: {
+    hoursRows?: Hours[];
+    contact?: { whatsapp?: string | null; phone?: string | null };
+  };
+}
+
+// Mezcla pura (probada en content.test.ts): la carta de la BD reemplaza a la del JSON; el horario solo si la BD trae
+// filas; del contacto solo teléfono y WhatsApp (dirección, mapa y textos siguen en site.json, asunción 9).
+export function mergeCatalog(content: Content, catalog: LandingCatalog | null): Content {
+  if (!catalog || !Array.isArray(catalog.services)) return content;
+  const services: Service[] = catalog.services.map((s) => ({ id: s.id, name: s.name, description: s.description ?? '', priceCLP: s.priceCLP, durationMin: s.durationMin }));
+  const site: SiteContent = { ...content.site };
+  const rows = catalog.business?.hoursRows;
+  if (Array.isArray(rows) && rows.some((h) => h && str(h.days))) site.hours = rows;
+  const c = catalog.business?.contact;
+  if (c && (str(c.phone) || str(c.whatsapp))) {
+    site.contact = { ...(site.contact ?? {}), ...(str(c.phone) ? { phone: c.phone as string } : {}), ...(str(c.whatsapp) ? { whatsapp: c.whatsapp as string } : {}) };
+  }
+  return { ...content, site, services };
+}
+
+// GET /api/wstyle/catalog con tope de 4 s. null = usar el JSON (API caída, dormida, lenta o sin negocio configurado).
+export async function loadCatalog(apiBase: string, timeoutMs = CATALOG_TIMEOUT_MS): Promise<LandingCatalog | null> {
+  try {
+    const r = await fetch(`${apiBase}/api/wstyle/catalog`, { signal: AbortSignal.timeout(timeoutMs), credentials: 'omit' });
+    if (!r.ok) return null;
+    const data = await r.json();
+    return data && Array.isArray(data.services) ? (data as LandingCatalog) : null;
+  } catch {
+    return null;
+  }
+}

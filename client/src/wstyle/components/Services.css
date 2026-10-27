@@ -3,15 +3,15 @@
 .card { padding: 18px 0 16px; border-top: 1px solid rgba(184, 135, 90, .28); }
 .card:last-child { border-bottom: 1px solid rgba(184, 135, 90, .28); }
 .card__row { display: flex; align-items: baseline; gap: 14px; }
-.card h3 { margin: 0; color: var(--bone); font: 600 14px/1.2 var(--font-body); letter-spacing: .18em; text-transform: uppercase; }
+.card h3 { margin: 0; color: var(--bone); font: 600 14px/1.2 var(--font-body); letter-spacing: var(--tracking-caps); text-transform: uppercase; }
 .card__leader { flex: 1; min-width: 20px; border-bottom: 1px dotted rgba(237, 230, 218, .28); transform: translateY(-4px); }
 .card [data-svc="price"] { font: italic 500 32px/1 var(--font-serif); font-variant-numeric: lining-nums; color: var(--brass); white-space: nowrap; }
 .card .card__meta { display: flex; justify-content: space-between; gap: 18px; margin: 8px 0 0; font-size: 14px; color: var(--muted); }
-.card [data-svc="duration"] { white-space: nowrap; font-size: 12px; letter-spacing: .2em; text-transform: uppercase; color: var(--muted); }
+.card [data-svc="duration"] { white-space: nowrap; font-size: 12px; letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--muted); }
 
 /* Compacto (PR #9 D6): lista vertical con filete guía dentro de un panel graphite (no carrusel de tarjetas). */
 .compact .cards { margin-top: 14px; }
 .compact .card { padding: 10px 0 8px; }
 .compact .card [data-svc="price"] { font-size: 26px; }
-.compact .card h3 { font-size: 12px; letter-spacing: .14em; }
+.compact .card h3 { font-size: 12px; letter-spacing: var(--tracking-caps-tight); }
 .compact .card .card__meta { margin-top: 4px; font-size: 13px; line-height: 1.4; }

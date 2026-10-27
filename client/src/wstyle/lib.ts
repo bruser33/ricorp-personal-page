@@ -1,4 +1,4 @@
-// Funciones puras del sitio W Style: copia TS de barberia-3d/site/lib.js (scripts/verify.mjs las prueba con los
+// Funciones puras del sitio WS Style: copia TS de barberia-3d/site/lib.js (scripts/verify.mjs las prueba con los
 // mismos casos). Todas reciben datos que el dueño escribe a mano en public/wstyle/content/*.json.
 
 const digits = (s: unknown) => String(s ?? '').replace(/\D/g, '');

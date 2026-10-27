@@ -1,4 +1,4 @@
-// Escena 3D del local W Style (blockout v0). Puerto TS de barberia-3d/shared/scene.js (SPEC-15): misma geometría y
+// Escena 3D del local WS Style (blockout v0). Puerto TS de barberia-3d/shared/scene.js (SPEC-15): misma geometría y
 // mismas medidas supuestas (L, en shots.ts). Solo lo que usa el sitio (sin etiquetas ni exportador GLB). Se importa
 // dinámicamente: solo se descarga y construye en modo 3D. Cambios intencionales respecto del blockout original
 // documentados en barberia-3d/docs/blockout-supuestos.md.

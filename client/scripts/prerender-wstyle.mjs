@@ -29,6 +29,34 @@ try {
   put('<!--wstyle-data-->', `<script id="wstyle-data" type="application/json">${JSON.stringify(content).replace(/</g, '\\u003c')}</script>`);
   writeFileSync(OUT, page);
   console.log(`[prerender] dist/wstyle/index.html (${(page.length / 1024).toFixed(1)} kB)`);
+
+  // Páginas legales: HTML estático con el texto (el revisor de Meta y los buscadores lo leen sin JavaScript).
+  const { renderLegal } = await vite.ssrLoadModule('/src/wstyle/legal/ssr.tsx');
+  for (const kind of ['privacidad', 'terminos']) {
+    const file = resolve(ROOT, `dist/wstyle/${kind}/index.html`);
+    const html = readFileSync(file, 'utf8');
+    const mark = `<div id="root" data-legal="${kind}"><!--legal-app--></div>`;
+    if (!html.includes(mark)) throw new Error(`prerender: falta el marcador de la página legal en dist/wstyle/${kind}/index.html`);
+    writeFileSync(file, html.replace(mark, () => `<div id="root" data-legal="${kind}" data-prerendered="">${renderLegal(kind, content.site)}</div>`));
+    console.log(`[prerender] dist/wstyle/${kind}/index.html`);
+  }
 } finally {
   await vite.close();
 }
+
+// Agenda (SPEC-32, CB-16): las páginas /wstyle/reservar/, /cita/ y /cuenta/… traen un aviso sin JavaScript con el
+// link de WhatsApp del local (el mismo wa.me que arma links.ts desde site.json).
+const waDigits = (() => {
+  let d = String(content.site?.contact?.whatsapp ?? '').replace(/\D/g, '');
+  if (d.startsWith('00')) d = d.slice(2); else if (d.startsWith('0')) d = d.slice(1);
+  return d.length === 11 && /^56[2-9]/.test(d) ? d : d.length === 9 && /^[2-9]/.test(d) ? '56' + d : null;
+})();
+const waText = content.site?.contact?.whatsappText;
+const wa = waDigits ? `https://wa.me/${waDigits}${waText ? `?text=${encodeURIComponent(waText)}` : ''}` : null;
+for (const r of ['reservar', 'cita', 'cuenta', 'cuenta/mis-citas', 'cuenta/recuperar', 'cuenta/confirmar']) {
+  const file = resolve(ROOT, `dist/wstyle/${r}/index.html`);
+  const html = readFileSync(file, 'utf8');
+  if (!html.includes('data-wa href="/wstyle/#llega"')) throw new Error(`prerender: falta el link data-wa en dist/wstyle/${r}/index.html`);
+  if (wa) writeFileSync(file, html.replace('data-wa href="/wstyle/#llega"', `data-wa href="${esc(wa)}" target="_blank" rel="noopener"`));
+}
+console.log(`[prerender] agenda: aviso sin JavaScript ${wa ? 'con WhatsApp' : 'sin WhatsApp (teléfono no reconocido)'}`);

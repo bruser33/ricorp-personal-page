@@ -16,6 +16,7 @@ const rutasDe = (h: (typeof trayectoria)[number]) =>
   [
     h.imagen,
     ...(h.mockups ?? []),
+    ...(h.galeria ?? []).map((f) => f.src),
     h.videos?.tutorial?.src,
     h.videos?.tutorial?.poster,
     h.videos?.reel?.src,

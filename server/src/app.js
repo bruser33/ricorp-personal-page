@@ -4,6 +4,25 @@ import mongoose from 'mongoose';
 import multer from 'multer';
 import { Resend } from 'resend';
 import nodemailer from 'nodemailer';
+import crypto from 'node:crypto';
+import { createMailer } from './lib/mailer.js';
+import { createNominatimGeocoder } from './lib/geocoder.js';
+import { createFacebookClient } from './lib/facebook.js';
+import { createGoogleClient } from './lib/google.js';
+import { sessionMiddleware } from './lib/session.js';
+import { createAgenda } from './domain/agenda.js';
+import { createAuthRouter, LOGIN_LIMIT } from './routes/auth.js';
+import { createWstyleRouter } from './routes/wstyle.js';
+import { createPro } from './domain/pro.js';
+import { createProRouter } from './routes/pro.js';
+import { sendPhoto } from './lib/photos.js';
+import { createAdminInbox } from './lib/adminInbox.js';
+import { createAdmin } from './domain/admin.js';
+import { createAdminRouter } from './routes/admin.js';
+import { createPayments, WEBHOOK_PATH } from './domain/payments.js';
+import { createBilling } from './domain/billing.js';
+import { createTaxDocumentProvider } from './lib/taxDocuments.js';
+import { handle } from './lib/errors.js';
 
 /* La app SIN listen ni connect: index.js conecta Mongo y escucha, y los tests
    (server/test/contact.test.js) la levantan en un puerto efímero con su
@@ -78,7 +97,30 @@ function escapeHtml(s) {
  * Arma la app. Por defecto lee process.env; los tests pasan su propio `env`
  * (p.ej. sin credenciales de correo, o con RENDER=true) y su `rateLimit`.
  */
-export function createApp({ env = process.env, rateLimit = RATE_LIMIT, logger = console } = {}) {
+/* Rate limit de intentos de reserva por IP (RN-14): mismo patrón que /api/contact. */
+export const BOOKING_RATE_LIMIT = { max: 5, windowMs: 10 * 60 * 1000 };
+
+export function createApp({
+  env = process.env,
+  rateLimit = RATE_LIMIT,
+  logger = console,
+  /* Agenda y cuentas (SPEC-32). Los tests inyectan reloj, mailer, geocodificador y
+     el borde HTTP de Facebook; la BD siempre es real. */
+  clock = () => Date.now(),
+  agendaMailer: injectedMailer = null,
+  geocoder = null,
+  facebookFetch = fetch,
+  /* SPEC-38: borde HTTP de Google (token endpoint); los tests lo simulan. */
+  googleFetch = fetch,
+  bookingRateLimit = BOOKING_RATE_LIMIT,
+  loginLimit = LOGIN_LIMIT,
+  /* SPEC-35: "Pagar en línea" se ofrece si hay credenciales de Mercado Pago (MP_ACCESS_TOKEN).
+     Los tests pueden forzarlo; por defecto se deduce del env. */
+  onlinePayments = null,
+  /* Borde HTTP de Mercado Pago (servicio externo): los tests lo simulan; la BD siempre es real. */
+  mercadoPagoFetch = fetch,
+} = {}) {
+  onlinePayments = onlinePayments ?? { ready: Boolean(env.MP_ACCESS_TOKEN) };
   const app = express();
   /* Detrás del proxy de Render: req.ip tiene que ser la IP del visitante (del
      X-Forwarded-For) y no la del proxy, o el rate limit sería uno para todos. */
@@ -91,6 +133,8 @@ export function createApp({ env = process.env, rateLimit = RATE_LIMIT, logger = 
 
   app.use(
     cors({
+      /* credentials: la sesión de la agenda viaja en una cookie httpOnly. */
+      credentials: true,
       origin: (origin, cb) => {
         if (!origin) return cb(null, true);
         if (allowedOrigins.some((a) => origin.startsWith(a))) return cb(null, true);
@@ -149,6 +193,60 @@ export function createApp({ env = process.env, rateLimit = RATE_LIMIT, logger = 
   const contactLimiter = createRateLimiter(rateLimit);
   /* Expuesto para los tests (reset entre casos). */
   app.locals.contactLimiter = contactLimiter;
+
+  /* ─── Agenda y cuentas de WS Style (SPEC-32) */
+  const frontUrl = (env.FRONT_URL || 'http://localhost:5173').replace(/\/$/, '');
+  const agendaMailer = injectedMailer || createMailer({ env, logger });
+  const facebook = createFacebookClient({ appId: env.FB_APP_ID, appSecret: env.FB_APP_SECRET, redirectUri: env.FB_REDIRECT_URI, fetchImpl: facebookFetch });
+  const google = createGoogleClient({ clientId: env.GOOGLE_CLIENT_ID, clientSecret: env.GOOGLE_CLIENT_SECRET, redirectUri: env.GOOGLE_REDIRECT_URI, fetchImpl: googleFetch });
+  /* Firma del `state` de OAuth. Sin AUTH_SECRET se genera uno por proceso (un
+     reinicio invalida los inicios con Facebook en curso, nada más). */
+  const secret = env.AUTH_SECRET || crypto.randomBytes(32).toString('hex');
+  /* Avisos al super admin (SPEC-34 RN-10): bandeja del panel + correo. */
+  const adminInbox = createAdminInbox({ mailer: agendaMailer, logger, env, frontUrl });
+  /* SPEC-37: respaldo tributario de cada venta (SII_TAX_PROVIDER = voucher | manual). */
+  const taxProvider = createTaxDocumentProvider(env, logger);
+  const agenda = createAgenda({
+    clock,
+    mailer: agendaMailer,
+    logger,
+    frontUrl,
+    geocoder: geocoder || createNominatimGeocoder({ logger }),
+    businessSlug: env.BUSINESS_SLUG || 'ws-style',
+    adminInbox,
+    onlinePayments,
+    taxProvider,
+  });
+  /* Pago en línea (SPEC-35). */
+  const payments = createPayments({ agenda, env, clock, logger, adminInbox, frontUrl, fetchImpl: mercadoPagoFetch, taxProvider });
+  /* Pagos en el panel y rendición mensual (SPEC-37). */
+  const billing = createBilling({ agenda, env, clock, logger, taxProvider });
+  const bookingLimiter = createRateLimiter(bookingRateLimit);
+  /* Barbero (SPEC-33): registro, perfil y panel. */
+  const pro = createPro({ agenda, clock, mailer: agendaMailer, logger, frontUrl, env, adminInbox });
+  /* Super admin (SPEC-34). */
+  const admin = createAdmin({ agenda, pro, clock, mailer: agendaMailer, logger, frontUrl, env, adminInbox, onlinePayments, payments, billing });
+  const authRouter = createAuthRouter({ env, clock, mailer: agendaMailer, logger, facebook, google, frontUrl, secret, loginLimit, onAccountDeleted: agenda.onAccountDeleted, onBarberFacebook: pro.ensureBarber });
+  const withSession = sessionMiddleware({ clock });
+  const needsDb = (_req, res, next) =>
+    mongoose.connection.readyState === 1 ? next() : res.status(503).json({ ok: false, error: 'db_unavailable' });
+  app.use('/api/auth', needsDb, withSession, authRouter);
+  app.get('/api/wstyle/photos/:id', needsDb, (req, res) => {
+    sendPhoto(req.params.id, res).catch((err) => {
+      logger.error('[photos]', err.message);
+      if (!res.headersSent) res.status(500).json({ ok: false, error: 'server_error' });
+    });
+  });
+  app.use('/api/wstyle', needsDb, withSession, createWstyleRouter({ agenda, payments, logger, bookingLimiter }));
+  /* Webhook de Mercado Pago: público (lo llama Mercado Pago, sin Origin ni cookie); la
+     autenticidad la da la firma x-signature. */
+  app.post(WEBHOOK_PATH, needsDb, handle(async (req, res) => {
+    const [status, body] = await payments.webhook(req);
+    res.status(status).json(body);
+  }, logger));
+  app.use('/api/pro', needsDb, withSession, createProRouter({ pro, env, clock, mailer: agendaMailer, logger, frontUrl, loginLimiter: authRouter.loginLimiter, billing }));
+  app.use('/api/admin', needsDb, withSession, createAdminRouter({ admin, logger }));
+  Object.assign(app.locals, { agenda, pro, admin, payments, billing, agendaMailer, bookingLimiter, loginLimiter: authRouter.loginLimiter });
 
   app.get('/api/health', (_req, res) => {
     /* 'unconfigured' y no 'dry-run' en Render: ahí sin mailer el envío es un 503,
