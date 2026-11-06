@@ -1,0 +1,18 @@
+{
+  "files": {
+    "main.css": "/medical-courrier/static/css/main.8d55da02.css",
+    "main.js": "/medical-courrier/static/js/main.8ddc0d40.js",
+    "static/js/52.7217e84e.chunk.js": "/medical-courrier/static/js/52.7217e84e.chunk.js",
+    "static/js/760.b709660c.chunk.js": "/medical-courrier/static/js/760.b709660c.chunk.js",
+    "static/js/239.e5c1a16d.chunk.js": "/medical-courrier/static/js/239.e5c1a16d.chunk.js",
+    "static/js/206.f7112ced.chunk.js": "/medical-courrier/static/js/206.f7112ced.chunk.js",
+    "static/media/logo-scb-azul.png": "/medical-courrier/static/media/logo-scb-azul.86e3124bc8ae36c88629.png",
+    "static/media/logo.png": "/medical-courrier/static/media/logo.52419070eb95ada01dad.png",
+    "static/media/marca-scb-blanco.png": "/medical-courrier/static/media/marca-scb-blanco.56e5964ccb5899ea0b28.png",
+    "index.html": "/medical-courrier/index.html"
+  },
+  "entrypoints": [
+    "static/css/main.8d55da02.css",
+    "static/js/main.8ddc0d40.js"
+  ]
+}
