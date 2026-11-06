@@ -1,7 +1,7 @@
 {
   "files": {
-    "main.css": "/medical-courrier/static/css/main.8d55da02.css",
-    "main.js": "/medical-courrier/static/js/main.8ddc0d40.js",
+    "main.css": "/medical-courrier/static/css/main.94cc6223.css",
+    "main.js": "/medical-courrier/static/js/main.a0df4930.js",
     "static/js/52.7217e84e.chunk.js": "/medical-courrier/static/js/52.7217e84e.chunk.js",
     "static/js/760.b709660c.chunk.js": "/medical-courrier/static/js/760.b709660c.chunk.js",
     "static/js/239.e5c1a16d.chunk.js": "/medical-courrier/static/js/239.e5c1a16d.chunk.js",
@@ -12,7 +12,7 @@
     "index.html": "/medical-courrier/index.html"
   },
   "entrypoints": [
-    "static/css/main.8d55da02.css",
-    "static/js/main.8ddc0d40.js"
+    "static/css/main.94cc6223.css",
+    "static/js/main.a0df4930.js"
   ]
 }
