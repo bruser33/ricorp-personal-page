@@ -172,41 +172,6 @@ export const trayectoria: HitoTrayectoria[] = [
     destacado: true,
   },
 
-  /* SPEC-47: mi trabajo actual. Todo sale del CV 2026 (extendido y normal):
-     plataforma de logística integrada con préstamos bancarios, abr-2025 – hoy,
-     mejora de rendimiento del módulo de ruta propuesta, stack (Angular, React,
-     React Native, Node.js, MySQL) y Claude Code con workflows multi-agente.
-     Nada más de la empresa. Banner y mockups tipográficos propios, generados
-     con client/scripts/banners-trabajo-actual.mjs.
-     Video promocional: el comercial "Gestión Admin › Usuarios" que hizo Pedro
-     (57 s, 1080p), comprimido a 1280×720 con +faststart (4,6 MB).
-  */
-  {
-    id: 'trabajo-actual-2025',
-    fecha: '2025-04',
-    titulo: 'Full Stack Developer en Ordename:\nlogística con préstamos bancarios',
-    tituloTarjeta: 'Ordename',
-    etiqueta: 'Full stack + IA',
-    imagen: 'figma-frames/trabajo-actual-banner.webp',
-    mockups: ['figma-frames/trabajo-actual-1.webp', 'figma-frames/trabajo-actual-2.webp'],
-    videos: {
-      tutorial: {
-        src: 'videos/video-promocional.mp4',
-        poster: 'videos/video-promocional.webp',
-        titulo: 'Video promocional',
-      },
-    },
-    parrafos: [
-      'Desde abril de 2025 trabajo como Full Stack Developer en Ordename, una plataforma de logística integrada con préstamos bancarios. Es un producto que junta dos mundos que rara vez conversan: la operación diaria de los envíos, con sus paradas, sus rutas y sus entregas, y el financiamiento que una empresa necesita para seguir creciendo. Mi trabajo está en las dos puntas de la plataforma, el frontend y el backend, y también en las herramientas de operación que usa el equipo para gestionar el día a día.',
-      'Uno de los logros que más me enorgullece es el módulo de ruta propuesta, la pieza que sugiere en qué orden conviene recorrer las paradas. Como se usa todos los días, cada segundo de espera se multiplica, así que nos enfocamos en mejorar su rendimiento y su velocidad. El resultado fue directo: menos tiempo de gestión de envíos para quienes operan la plataforma. Volver a la logística, después de haber llevado a Cargo Ex del papel a la informática, fue reencontrarme con un problema que conozco bien desde adentro.',
-      'En el día a día desarrollo y mantengo funcionalidades full stack para una plataforma que está en producción: Angular y React en la web, React Native en el teléfono, Node.js en el backend y MySQL para los datos. Trabajar sobre un producto vivo exige otra disciplina, porque cada cambio tiene que convivir con lo que ya funciona y nadie debería notar que algo se movió por detrás, salvo porque ahora todo anda mejor. Esa costumbre la traigo de la banca, donde los sistemas no podían detenerse.',
-      'Lo más nuevo de esta etapa es cómo trabajamos. Incorporé el desarrollo asistido por IA con Claude Code al día a día del equipo, con workflows multi-agente: un agente planifica la tarea, otro implementa el código, otro lo revisa y, antes de dar algo por terminado, se prueba en el navegador, tal como lo usaría una persona. No se trata de que la máquina haga el trabajo por nosotros, sino de entregar más rápido sin bajar la calidad, con más ojos revisando cada cambio antes de que llegue a producción.',
-      'Esta etapa resume buena parte de lo que aprendí en doce años de oficio: la logística de mis primeros trabajos, la exigencia de la banca y la forma más moderna de construir software. Cada semana hay un módulo que optimizar, una funcionalidad que llevar a producción o un flujo de trabajo que pulir, y eso es justamente lo que me mantiene aprendiendo. ¡Seguimos construyendo, ahora con la IA como parte del equipo!',
-    ],
-    descripcion:
-      'Desde abril de 2025 soy Full Stack Developer en Ordename, una plataforma de logística integrada con préstamos bancarios. Mejoré el rendimiento y la velocidad del módulo de ruta propuesta, reduciendo el tiempo de gestión de envíos; desarrollo funcionalidades full stack con Angular, React, React Native, Node.js y MySQL, e incorporé al día a día el desarrollo asistido por IA con Claude Code: workflows multi-agente que planifican, implementan, revisan y prueban en el navegador. ¡Entregar más rápido sin bajar la calidad!',
-  },
-
   /* Proyectos informáticos (slider) = SOLO los mejores: hoy WS Style, Haru e
      Invasión UFPS (pedido 2026-10-18: "por ahora solo 3"). */
   /* Haru: proyecto real (descripción de Pedro, 2026-10-18). La fecha sigue

@@ -24,11 +24,18 @@ const rutasDe = (h: (typeof trayectoria)[number]) =>
   ].filter((r): r is string => !!r && !/^(https?:)?\/\//.test(r));
 
 describe('assets de la trayectoria', () => {
-  it('SPEC-47: el trabajo actual trae su video promocional (≤ 15 MB)', () => {
-    const t = trayectoria.find((x) => x.id === 'trabajo-actual-2025')!;
-    expect(t.videos?.tutorial?.src).toBe('videos/video-promocional.mp4');
-    expect(t.videos?.tutorial?.poster).toBe('videos/video-promocional.webp');
-    expect(statSync(resolve(PUBLIC, t.videos!.tutorial!.src)).size).toBeLessThanOrEqual(15 * MB);
+  /* El trabajo actual se bajó por confidencialidad (2026-11-12): ni la
+     publicación ni sus archivos pueden volver a quedar públicos. */
+  it('sin la publicación del trabajo actual ni sus archivos', () => {
+    expect(trayectoria.some((x) => /^trabajo-actual/.test(x.id))).toBe(false);
+    expect(JSON.stringify(trayectoria)).not.toMatch(/orden[a]me/i);
+    for (const f of [
+      'videos/video-promocional.mp4',
+      'videos/video-promocional.webp',
+      'figma-frames/trabajo-actual-banner.webp',
+      'figma-frames/trabajo-actual-1.webp',
+      'figma-frames/trabajo-actual-2.webp',
+    ]) expect(existsSync(resolve(PUBLIC, f))).toBe(false);
   });
 
 
