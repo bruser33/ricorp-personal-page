@@ -53,14 +53,15 @@ describe('títulos y rutas compartidos por el slider y la Trayectoria', () => {
   });
 });
 
-/* Regresión (panel de verificación): los hitos de relleno no tienen contenido
-   de post y tienen que seguir abriendo el detalle simple. */
-describe('hitos de relleno', () => {
-  it('siguen en el detalle simple', async () => {
+/* Los hitos de relleno de la maqueta se borraron: no puede volver ninguno. */
+describe('sin hitos de relleno', () => {
+  it('no quedan ids relleno-, "Project N" ni lorem ipsum', async () => {
     const { trayectoria } = await import('../data/trayectoria');
-    const relleno = trayectoria.filter((h) => h.id.startsWith('relleno-'));
-    expect(relleno.length).toBeGreaterThan(0);
-    for (const h of relleno) expect(usaModoPost(h)).toBe(false);
+    for (const h of trayectoria) {
+      expect(h.id).not.toMatch(/^relleno-/);
+      expect(h.titulo).not.toMatch(/^(Project \d+|Análisis:)/);
+      expect(h.descripcion ?? '').not.toMatch(/lorem ipsum/i);
+    }
   });
 });
 

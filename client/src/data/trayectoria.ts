@@ -131,12 +131,9 @@ export type VideoPost = {
 };
 
 /* ---------------------------------------------------------------------------
- * TODO(pedro): reemplazar por tu trayectoria real.
- * WS Style (el primero) es real. Los 12 hitos que le siguen son CONTENIDO DE
- * RELLENO heredado de la maqueta: los 6 primeros son análisis de tecnología que
- * no son tuyos, y los 6 con `destacado` son los proyectos de ejemplo que traía la maqueta (títulos "Project N" y
- * textos en lorem ipsum). Están solo para que las secciones tengan forma
- * mientras armás tu historia: borralos todos y escribí los tuyos.
+ * Trayectoria real de Pedro. Los hitos de relleno que traía la maqueta
+ * (los "Análisis: …" de tecnología y los "Project N" en lorem ipsum) se
+ * borraron: acá solo van publicaciones reales.
  * ------------------------------------------------------------------------- */
 export const trayectoria: HitoTrayectoria[] = [
   /* Proyecto real (SPEC-20). Por fecha es el hito más nuevo: abre la
@@ -210,49 +207,10 @@ export const trayectoria: HitoTrayectoria[] = [
       'Desde abril de 2025 soy Full Stack Developer en Ordename, una plataforma de logística integrada con préstamos bancarios. Mejoré el rendimiento y la velocidad del módulo de ruta propuesta, reduciendo el tiempo de gestión de envíos; desarrollo funcionalidades full stack con Angular, React, React Native, Node.js y MySQL, e incorporé al día a día el desarrollo asistido por IA con Claude Code: workflows multi-agente que planifican, implementan, revisan y prueban en el navegador. ¡Entregar más rápido sin bajar la calidad!',
   },
 
-  {
-    id: 'relleno-radeon',
-    fecha: '2022-12-14',
-    titulo: 'Análisis: AMD Radeon RX 7900 XTX',
-    imagen: 'figma-frames/news-featured.webp',
-  },
-  {
-    id: 'relleno-suunto',
-    fecha: '2022-12-02',
-    titulo: 'Análisis: Suunto 9 Peak Pro',
-    imagen: 'figma-frames/news-1.webp',
-  },
-  {
-    id: 'relleno-iphone',
-    fecha: '2022-11-24',
-    titulo: 'Análisis: iPhone 14 vs 14 Plus\nvs 14 Pro vs 14 Pro Max',
-    imagen: 'figma-frames/news-2.webp',
-  },
-  {
-    id: 'relleno-vr',
-    fecha: '2022-11-15',
-    titulo: 'Nuevo aspirante al trono\nde la realidad virtual',
-    imagen: 'figma-frames/news-3.webp',
-  },
-  {
-    id: 'relleno-airpods',
-    fecha: '2022-11-08',
-    titulo: 'Análisis: AirPods Pro de 2ª Generación',
-    imagen: 'figma-frames/news-4.webp',
-  },
-  {
-    id: 'relleno-proscenic',
-    fecha: '2022-11-01',
-    titulo: 'Análisis: Proscenic WashVac F20',
-    imagen: 'figma-frames/news-5.webp',
-  },
-
   /* Proyectos informáticos (slider) = SOLO los mejores: hoy WS Style, Haru e
-     Invasión UFPS (pedido 2026-10-18: "por ahora solo 3"). Los "Project N" de
-     acá abajo son ejemplos de relleno: ya no van al slider, quedan en la
-     Bitácora hasta que se reemplacen o se borren. Fechas inventadas. */
+     Invasión UFPS (pedido 2026-10-18: "por ahora solo 3"). */
   /* Haru: proyecto real (descripción de Pedro, 2026-10-18). La fecha sigue
-     siendo de relleno: falta la real. SPEC-46 la movió de '2022-10-20' a
+     siendo provisoria: falta la real. SPEC-46 la movió de '2022-10-20' a
      '2025-03' solo para que Haru quede arriba de Banco de Chile (2023-05),
      Banco Security y Cargo Ex, como se pidió; cuando esté la real, va acá. */
   {
@@ -296,51 +254,6 @@ export const trayectoria: HitoTrayectoria[] = [
       'Al terminar, Haru muestra un resumen con el total a recibir, la persona califica el servicio y puede premiarlo con una insignia, y el pago queda registrado por transferencia o efectivo, con una comisión clara para la plataforma. ¡Creemos que la tecnología tiene que servir justamente para eso: hacer más fácil, más seguro y más digno el trabajo de todos los días!',
     ],
     destacado: true,
-  },
-  {
-    id: 'relleno-proyecto-3',
-    fecha: '2022-08-10',
-    titulo: 'Project 3',
-    etiqueta: 'Web design',
-    imagen: 'figma-frames/image-4.webp',
-    descripcion:
-      'Lorem ipsum dolor sit amet consectetur. Quis sed ultrices sed ornare iaculis viverra nec vivamus. Eu ullamcorper sed in dictumst mauris nunc a posuere.',
-  },
-  {
-    id: 'relleno-proyecto-4',
-    fecha: '2022-07-05',
-    titulo: 'Project 4',
-    etiqueta: 'Illustration',
-    imagen: 'figma-frames/image-5.webp',
-    descripcion:
-      'Lorem ipsum dolor sit amet consectetur. Pulvinar congue sed eu blandit fusce. Lorem vivamus elementum vitae faucibus malesuada dictum diam.',
-  },
-  {
-    id: 'relleno-proyecto-5',
-    fecha: '2022-06-01',
-    titulo: 'Project 5',
-    etiqueta: 'Product design',
-    imagen: 'figma-frames/image-6.webp',
-    descripcion:
-      'Lorem ipsum dolor sit amet consectetur. Quam faucibus sem sed odio augue lectus cursus ultricies morbi. Eu elit cursus orci justo accumsan sit.',
-  },
-  {
-    id: 'relleno-proyecto-6',
-    fecha: '2022-04-20',
-    titulo: 'Project 6',
-    etiqueta: 'Editorial',
-    imagen: 'figma-frames/image-1.webp',
-    descripcion:
-      'Lorem ipsum dolor sit amet consectetur. Felis leo eleifend elit urna habitasse integer. Ornare donec vivamus eget facilisi interdum.',
-  },
-  {
-    id: 'relleno-proyecto-7',
-    fecha: '2022-03-08',
-    titulo: 'Project 7',
-    etiqueta: 'Motion',
-    imagen: 'figma-frames/project-haru-2.webp',
-    descripcion:
-      'Lorem ipsum dolor sit amet consectetur. Sodales ultrices cursus condimentum hac scelerisque elementum morbi nisl.',
   },
   /* Workana: datos del perfil público (2026-10-18), como texto propio y con
      enlace al perfil — sin capturas ni logo (los TyC de Workana no lo permiten)
