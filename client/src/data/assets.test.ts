@@ -24,6 +24,14 @@ const rutasDe = (h: (typeof trayectoria)[number]) =>
   ].filter((r): r is string => !!r && !/^(https?:)?\/\//.test(r));
 
 describe('assets de la trayectoria', () => {
+  it('SPEC-47: el trabajo actual trae su video promocional (≤ 15 MB)', () => {
+    const t = trayectoria.find((x) => x.id === 'trabajo-actual-2025')!;
+    expect(t.videos?.tutorial?.src).toBe('videos/video-promocional.mp4');
+    expect(t.videos?.tutorial?.poster).toBe('videos/video-promocional.webp');
+    expect(statSync(resolve(PUBLIC, t.videos!.tutorial!.src)).size).toBeLessThanOrEqual(15 * MB);
+  });
+
+
   for (const h of trayectoria) {
     for (const ruta of rutasDe(h)) {
       it(`${h.id}: existe ${ruta}`, () => {
@@ -32,13 +40,73 @@ describe('assets de la trayectoria', () => {
     }
   }
 
-  it('SPEC-42: los 4 hitos llevan banner propio y 2 mockups', () => {
-    for (const id of ['workana-freelancer', 'youtube-proyectos-informaticos', 'tuapp-2014-smartcorp', 'tuapp-2013-r2d2']) {
+  it('SPEC-42: los hitos llevan banner propio y 2 mockups', () => {
+    for (const id of ['youtube-proyectos-informaticos', 'tuapp-2014-smartcorp', 'tuapp-2013-r2d2']) {
       const h = trayectoria.find((x) => x.id === id)!;
       expect(h.imagen).toBe(`figma-frames/${id}-banner.webp`);
       expect(h.mockups).toHaveLength(2);
       expect(statSync(resolve(PUBLIC, h.imagen!)).size).toBeLessThanOrEqual(500 * KB);
     }
+  });
+
+  /* SPEC-47 AC2: cada publicación usa imágenes propias. Ninguna ruta de
+     `imagen`, `mockups`, `galeria` o póster de video se repite entre DOS hitos
+     distintos (dentro de un mismo hito tampoco tiene sentido repetirla). */
+  it('SPEC-47: ninguna imagen se repite entre hitos', () => {
+    const duenos = new Map<string, string[]>();
+    for (const h of trayectoria) {
+      const imagenes = new Set(
+        [
+          h.imagen,
+          ...(h.mockups ?? []),
+          ...(h.galeria ?? []).map((f) => f.src),
+          h.videos?.tutorial?.poster,
+          h.videos?.reel?.poster,
+        ].filter((r): r is string => !!r),
+      );
+      for (const ruta of imagenes) duenos.set(ruta, [...(duenos.get(ruta) ?? []), h.id]);
+    }
+    const repetidas = [...duenos].filter(([, ids]) => ids.length > 1).map(([ruta, ids]) => `${ruta} ← ${ids.join(', ')}`);
+    expect(repetidas).toEqual([]);
+  });
+
+  it('SPEC-45: Workana lleva la credencial nueva (no los archivos de SPEC-42)', () => {
+    const h = trayectoria.find((x) => x.id === 'workana-freelancer')!;
+    expect(h.imagen).toBe('figma-frames/workana-credencial-banner.webp');
+    expect(h.mockups).toEqual([
+      'figma-frames/workana-credencial-ficha.webp',
+      'figma-frames/workana-credencial-devskiller.webp',
+    ]);
+    for (const r of [h.imagen!, ...h.mockups!]) {
+      expect(r).not.toMatch(/workana-freelancer-/);
+      expect(statSync(resolve(PUBLIC, r)).size).toBeLessThanOrEqual(500 * KB);
+    }
+  });
+
+  /* SPEC-48: el reel promocional reemplazó a la galería de SPEC-45. */
+  it('SPEC-48: Haru trae su reel (MP4 ≤ 10 MB + póster) y ya no la galería', () => {
+    const haru = trayectoria.find((x) => x.id === 'haru')!;
+    expect(haru.galeria).toBeUndefined();
+    expect(haru.videos?.tutorial).toBeUndefined();
+    const reel = haru.videos?.reel;
+    expect(reel).toEqual({ src: 'videos/haru-promo.mp4', poster: 'videos/haru-promo.webp', titulo: 'Reel de Haru' });
+    expect(statSync(resolve(PUBLIC, reel!.src)).size).toBeLessThanOrEqual(10 * MB);
+    expect(statSync(resolve(PUBLIC, reel!.poster!)).size).toBeLessThanOrEqual(250 * KB);
+    // Las pantallas de la galería se borraron: no queda la carpeta huérfana.
+    expect(existsSync(resolve(PUBLIC, 'figma-frames/haru'))).toBe(false);
+  });
+
+  it('SPEC-45: ninguna imagen se repite entre publicaciones', () => {
+    const vistas = new Map<string, string>();
+    const repetidas: string[] = [];
+    for (const h of trayectoria) {
+      for (const r of new Set([...(h.mockups ?? []), ...(h.galeria ?? []).map((f) => f.src)])) {
+        const otro = vistas.get(r);
+        if (otro) repetidas.push(`${r} (${otro} y ${h.id})`);
+        else vistas.set(r, h.id);
+      }
+    }
+    expect(repetidas).toEqual([]);
   });
 
   it('SPEC-40: Haru usa su banner HD (≤ 600 KB)', () => {
