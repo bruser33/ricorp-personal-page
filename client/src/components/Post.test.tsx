@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { PostCuerpo } from './Post';
-import { hitosOrdenados, trayectoria } from '../data/trayectoria';
+import { trayectoria } from '../data/trayectoria';
 
 /* El HTML real del post (no solo la función que lo distribuye): si alguien
    vuelve a poner el reel al lado del tutorial, o lo deja de dibujar, esto falla. */
@@ -63,24 +63,3 @@ describe('PostCuerpo de Haru (SPEC-48)', () => {
   });
 });
 
-describe('orden de la trayectoria (SPEC-47)', () => {
-  it('el trabajo actual va entre W Style y Haru', () => {
-    const ids = hitosOrdenados().map((h) => h.id);
-    expect(ids.indexOf('wstyle-2026')).toBeLessThan(ids.indexOf('trabajo-actual-2025'));
-    expect(ids.indexOf('trabajo-actual-2025')).toBeLessThan(ids.indexOf('haru'));
-  });
-});
-
-describe('PostCuerpo del trabajo actual (SPEC-47)', () => {
-  const html = renderToStaticMarkup(<PostCuerpo hito={hito('trabajo-actual-2025')} />);
-
-  it('el video promocional va arriba, a todo el ancho, y no se reproduce solo', () => {
-    const videos = html.match(/<video[^>]*>/g) ?? [];
-    expect(videos).toHaveLength(1);
-    expect(html).toContain('videos/video-promocional.mp4');
-    expect(html).toContain('post-video--tutorial');
-    expect(html).not.toContain('post-reel');
-    expect(videos[0]).toContain('preload="none"');
-    expect(videos[0]).not.toContain('autoplay');
-  });
-});

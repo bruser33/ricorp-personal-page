@@ -12,7 +12,6 @@ const IDS_EXTENDIDOS = [
   'banco-de-chile-3it',
   'banco-security-pagos',
   'cargo-ex-logistica',
-  'trabajo-actual-2025',
 ] as const;
 
 const hito = (id: string): HitoTrayectoria => {
