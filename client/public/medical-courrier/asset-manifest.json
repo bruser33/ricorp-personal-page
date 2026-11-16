@@ -1,18 +1,24 @@
 {
   "files": {
-    "main.css": "/medical-courrier/static/css/main.3a9832ca.css",
-    "main.js": "/medical-courrier/static/js/main.592ac20e.js",
-    "static/js/52.7217e84e.chunk.js": "/medical-courrier/static/js/52.7217e84e.chunk.js",
-    "static/js/760.b709660c.chunk.js": "/medical-courrier/static/js/760.b709660c.chunk.js",
-    "static/js/239.e5c1a16d.chunk.js": "/medical-courrier/static/js/239.e5c1a16d.chunk.js",
-    "static/js/206.f7112ced.chunk.js": "/medical-courrier/static/js/206.f7112ced.chunk.js",
-    "static/media/logo-scb-azul.png": "/medical-courrier/static/media/logo-scb-azul.86e3124bc8ae36c88629.png",
+    "main.css": "/medical-courrier/static/css/main.e7e57d0e.css",
+    "main.js": "/medical-courrier/static/js/main.c9fb30a8.js",
+    "static/js/239.7f905b37.chunk.js": "/medical-courrier/static/js/239.7f905b37.chunk.js",
+    "static/js/213.e22461ca.chunk.js": "/medical-courrier/static/js/213.e22461ca.chunk.js",
+    "static/js/455.f3578bce.chunk.js": "/medical-courrier/static/js/455.f3578bce.chunk.js",
+    "static/js/453.c19a74f2.chunk.js": "/medical-courrier/static/js/453.c19a74f2.chunk.js",
     "static/media/logo.png": "/medical-courrier/static/media/logo.52419070eb95ada01dad.png",
+    "static/media/logo-scb-rojo.png": "/medical-courrier/static/media/logo-scb-rojo.05c15544ab35b02b1b3c.png",
     "static/media/marca-scb-blanco.png": "/medical-courrier/static/media/marca-scb-blanco.56e5964ccb5899ea0b28.png",
-    "index.html": "/medical-courrier/index.html"
+    "index.html": "/medical-courrier/index.html",
+    "main.e7e57d0e.css.map": "/medical-courrier/static/css/main.e7e57d0e.css.map",
+    "main.c9fb30a8.js.map": "/medical-courrier/static/js/main.c9fb30a8.js.map",
+    "239.7f905b37.chunk.js.map": "/medical-courrier/static/js/239.7f905b37.chunk.js.map",
+    "213.e22461ca.chunk.js.map": "/medical-courrier/static/js/213.e22461ca.chunk.js.map",
+    "455.f3578bce.chunk.js.map": "/medical-courrier/static/js/455.f3578bce.chunk.js.map",
+    "453.c19a74f2.chunk.js.map": "/medical-courrier/static/js/453.c19a74f2.chunk.js.map"
   },
   "entrypoints": [
-    "static/css/main.3a9832ca.css",
-    "static/js/main.592ac20e.js"
+    "static/css/main.e7e57d0e.css",
+    "static/js/main.c9fb30a8.js"
   ]
 }
