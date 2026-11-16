@@ -129,6 +129,20 @@ describe('assets de la trayectoria', () => {
       expect(statSync(resolve(PUBLIC, v!.src)).size).toBeLessThanOrEqual(15 * MB);
     }
   });
+
+  it('Courier Medical Express: destacado con banner, 2 mockups y su video 16:9 (MP4 ≤ 15 MB + póster)', () => {
+    const mc = trayectoria.find((x) => x.id === 'medical-courrier')!;
+    expect(mc.destacado).toBe(true);
+    expect(mc.imagen).toBe('figma-frames/medical-courrier-banner.webp');
+    expect(statSync(resolve(PUBLIC, mc.imagen!)).size).toBeLessThanOrEqual(600 * KB);
+    expect(mc.mockups).toHaveLength(2);
+    expect(mc.videos?.reel).toBeUndefined();
+    const v = mc.videos?.tutorial;
+    expect(v).toEqual({ src: 'videos/medical-courrier-demo.mp4', poster: 'videos/medical-courrier-demo.webp', titulo: 'Recorrido por la página y la plataforma' });
+    expect(statSync(resolve(PUBLIC, v!.src)).size).toBeLessThanOrEqual(15 * MB);
+    expect(statSync(resolve(PUBLIC, v!.poster!)).size).toBeLessThanOrEqual(250 * KB);
+    expect(mc.enlace).toBe('/medical-courrier/');
+  });
 });
 
 /* SPEC-39 AC1: el slider y la Trayectoria tienen que montar el MISMO modal.
