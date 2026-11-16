@@ -1,7 +1,7 @@
 {
   "files": {
     "main.css": "/medical-courrier/static/css/main.d975dabb.css",
-    "main.js": "/medical-courrier/static/js/main.58ff7833.js",
+    "main.js": "/medical-courrier/static/js/main.f77e6356.js",
     "static/js/239.7f905b37.chunk.js": "/medical-courrier/static/js/239.7f905b37.chunk.js",
     "static/js/213.e22461ca.chunk.js": "/medical-courrier/static/js/213.e22461ca.chunk.js",
     "static/js/455.f3578bce.chunk.js": "/medical-courrier/static/js/455.f3578bce.chunk.js",
@@ -11,7 +11,7 @@
     "static/media/marca-scb-blanco.png": "/medical-courrier/static/media/marca-scb-blanco.56e5964ccb5899ea0b28.png",
     "index.html": "/medical-courrier/index.html",
     "main.d975dabb.css.map": "/medical-courrier/static/css/main.d975dabb.css.map",
-    "main.58ff7833.js.map": "/medical-courrier/static/js/main.58ff7833.js.map",
+    "main.f77e6356.js.map": "/medical-courrier/static/js/main.f77e6356.js.map",
     "239.7f905b37.chunk.js.map": "/medical-courrier/static/js/239.7f905b37.chunk.js.map",
     "213.e22461ca.chunk.js.map": "/medical-courrier/static/js/213.e22461ca.chunk.js.map",
     "455.f3578bce.chunk.js.map": "/medical-courrier/static/js/455.f3578bce.chunk.js.map",
@@ -19,6 +19,6 @@
   },
   "entrypoints": [
     "static/css/main.d975dabb.css",
-    "static/js/main.58ff7833.js"
+    "static/js/main.f77e6356.js"
   ]
 }
