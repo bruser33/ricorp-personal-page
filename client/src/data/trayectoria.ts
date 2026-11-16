@@ -136,8 +136,41 @@ export type VideoPost = {
  * borraron: acá solo van publicaciones reales.
  * ------------------------------------------------------------------------- */
 export const trayectoria: HitoTrayectoria[] = [
-  /* Proyecto real (SPEC-20). Por fecha es el hito más nuevo: abre la
-     trayectoria y la sección Proyectos. Imagen y mockups son frames de la
+  /* Courier Medical Express (2026-11): web + plataforma de un courier y transporte de carga de Arica a Punta
+     Arenas, publicada como demo en ricorp.cl/medical-courrier (datos ficticios). Es el hito más nuevo.
+     Banner: el camión del hero (foto real CC0 con el logo de la marca). Video 16:9 en `tutorial`: recorrido
+     de la página y de cada vista, hecho en ~/Projects/medical-courrier-promo (voz es-US-PalomaNeural,
+     cierre "Un producto desarrollado por ricorp.cl"). */
+  {
+    id: 'medical-courrier',
+    fecha: '2026-11',
+    titulo: 'Courier Medical Express',
+    tituloTarjeta: 'Courier Medical',
+    etiqueta: 'Web + plataforma logística',
+    imagen: 'figma-frames/medical-courrier-banner.webp',
+    focoBanner: '50% 62%',
+    descripcion:
+      'Web y plataforma para Courier Medical Express, courier y transporte de carga de Arica a Punta Arenas: landing con cotización por correo, demo con datos de prueba y una plataforma renovada para crear órdenes, imprimir etiquetas y seguir cada ruta en el mapa. Publicada en ricorp.cl/medical-courrier.',
+    mockups: ['figma-frames/medical-courrier-landing.webp', 'figma-frames/medical-courrier-control-rutas.webp'],
+    videos: {
+      tutorial: {
+        src: 'videos/medical-courrier-demo.mp4',
+        poster: 'videos/medical-courrier-demo.webp',
+        titulo: 'Recorrido por la página y la plataforma',
+      },
+    },
+    parrafos: [
+      'Courier Medical Express es un courier y transporte de carga que recorre Chile de Arica a Punta Arenas. Ya tenían una plataforma propia para crear órdenes e imprimir etiquetas, y nos pidieron dos cosas: una web a la altura de su servicio y una plataforma que se viera y funcionara como un producto de primer nivel. Todo lo diseñamos con los colores de su marca, rojo y gris, y con su camión en la portada.',
+      'La landing cuenta lo que hacen en un solo recorrido: seguimiento de envíos por número de orden, servicios de carga general, refrigerada, documentos urgentes, retiros en el domicilio del cliente (logística inversa) y devolución de documentos, y la cobertura nacional ciudad por ciudad con su plazo de entrega. Al final, cualquier empresa puede pedir una cotización desde la misma página, y le llega por correo al equipo, lista para responder.',
+      'Por dentro rediseñamos cada vista de la plataforma. En Orden excel el cliente sube su planilla y el sistema revisa cada fila antes de crear las órdenes; en Crear orden ve un resumen en vivo y la misma etiqueta que se va a imprimir; en Consultar imprime una etiqueta por bulto y descarga el manifiesto; y en Reporte de envíos baja un Excel con el estado de cada orden. La etiqueta, además, se pensó para ahorrar tinta y mantener su tamaño exacto en impresora térmica, 4×6, A4 y Carta.',
+      'Para el equipo de operaciones construimos un nuevo Control de rutas: el recorrido de cada chofer en el mapa, parada por parada y numerada según su resultado, con la efectividad del día, la distribución de entregas y un "ritmo del día" que muestra cada gestión en su hora. Desde Administrar OD filtran y corrigen cualquier orden sin tener que rehacerla.',
+      'La página tiene también una sección de demo: con un clic se entra a la plataforma con datos de prueba, para que un cliente nuevo vea cómo funciona antes de pedir su cuenta. Está construida en React con TypeScript y Firebase, y publicada en ricorp.cl/medical-courrier. ¡Te invitamos a recorrerla y a probar la demo!',
+    ],
+    enlace: '/medical-courrier/',
+    destacado: true,
+  },
+
+  /* Proyecto real (SPEC-20). Fue el hito más nuevo hasta Courier Medical Express (2026-11). Imagen y mockups son frames de la
      secuencia de Blender de la propia landing (client/public/wstyle/seq/).
      Cuando el reel esté en Instagram, agregá la línea `reel: 'https://…'`. */
   {
@@ -172,8 +205,8 @@ export const trayectoria: HitoTrayectoria[] = [
     destacado: true,
   },
 
-  /* Proyectos informáticos (slider) = SOLO los mejores: hoy WS Style, Haru e
-     Invasión UFPS (pedido 2026-10-18: "por ahora solo 3"). */
+  /* Proyectos informáticos (slider) = SOLO los mejores: Courier Medical Express
+     (agregado 2026-11-15 a pedido), WS Style, Haru e Invasión UFPS. */
   /* Haru: proyecto real (descripción de Pedro, 2026-10-18). La fecha sigue
      siendo provisoria: falta la real. SPEC-46 la movió de '2022-10-20' a
      '2025-03' solo para que Haru quede arriba de Banco de Chile (2023-05),
