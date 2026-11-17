@@ -17,6 +17,8 @@ import Booking from './components/Booking';
 import Stat from './components/Stat';
 import Icon from './components/Icons';
 import FilmFx, { Marquee } from './components/FilmFx';
+import HeroFire from './components/HeroFire';
+import Embers from './components/Embers';
 import { Barbers, DemoStrip, Membership, Policies, Reviews } from './components/Extras';
 import Scene3D from './scene/Scene3D';
 import './wstyle.css';
@@ -86,9 +88,12 @@ export default function App({ initial }: { initial: Content | null }) {
     <>
       <canvas id="seq" ref={seqCanvas} aria-hidden="true" hidden={mode !== 'seq'} />
       <Scene3D active={mode === '3d'} onRenderer={setRenderer3D} />
+      {/* SPEC-49: fuego + retrato sobre la película y bajo el grano/viñeta; las brasas sobre el sombreado y bajo el texto. */}
+      <HeroFire name={name ?? ''} />
       <FilmFx />
       <Loader name={name} progress={progress} done={loaderDone} poweredBy={poweredBy} />
       <div className={`shade${scrolled ? '' : ' is-top'}`} aria-hidden="true"></div>
+      <Embers />
       <div className="progress" aria-hidden="true"><span className="progress__bar" ref={progressBar}></span></div>
       <Nav name={name} booking={booking} scrolled={scrolled} />
       {demo && <DemoStrip />}

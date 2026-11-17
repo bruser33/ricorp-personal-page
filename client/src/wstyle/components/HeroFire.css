@@ -1,0 +1,50 @@
+/* SPEC-49: fuego + retrato del hero y brasas del recorrido. Orden de capas (todas fijas, z-index 1 en el contexto
+   raíz, el orden del DOM decide): película (0) < fuego (screen) < retrato < grano/viñeta < sombreado del texto < brasas
+   < texto (main, 2). .hero-fx no posiciona ni crea contexto: así el screen del fuego mezcla con la película. */
+.hero-fx { --hero-out: 0; }
+.hero-fx::before, .hero-fire, .hero-portrait, .embers { position: fixed; z-index: 1; pointer-events: none; }
+/* Fondo del retrato: la película se oscurece detrás de él para que el fuego lea sobre negro y la base se funda en
+   oscuro (no sobre el piso iluminado del local). */
+.hero-fx::before {
+  content: ""; inset: 0; opacity: calc(1 - var(--hero-out));
+  background: radial-gradient(60% 90% at 80% 75%, rgba(14, 13, 12, .96) 0%, rgba(14, 13, 12, .9) 50%, rgba(14, 13, 12, 0) 100%);
+}
+.compact .hero-fx::before { background: radial-gradient(90% 55% at 50% 40%, rgba(14, 13, 12, .88) 0%, rgba(14, 13, 12, .6) 55%, rgba(14, 13, 12, 0) 100%); }
+.hero-fire {
+  inset: 0; width: 100%; height: 100%; display: block; mix-blend-mode: screen;
+  opacity: calc(1 - min(1, var(--hero-out) * 1.15));
+}
+/* Sin WebGL: degradado cobre estático al pie del retrato (mismo screen). */
+.hero-fx.is-static .hero-fire { background: radial-gradient(42% 70% at 72% 100%, rgba(194, 98, 45, .55), rgba(122, 59, 34, .32) 50%, rgba(14, 13, 12, 0) 100%); }
+.compact .hero-fx.is-static .hero-fire { background: radial-gradient(80% 55% at 50% 100%, rgba(194, 98, 45, .5), rgba(122, 59, 34, .3) 50%, rgba(14, 13, 12, 0) 100%); }
+.hero-fx.is-out::before, .hero-fx.is-out .hero-fire, .hero-fx.is-out .hero-portrait { visibility: hidden; }
+
+/* Retrato: desktop en la mitad derecha (37vw pegado al borde: el titular de 15vw llega hasta ~62vw, AC-02), apoyado en el borde inferior; la base y los brazos se funden a negro. */
+.hero-portrait {
+  right: 0; bottom: 0; width: min(37vw, 90vh * 1100 / 1354); aspect-ratio: 1100 / 1354;
+  opacity: calc(1 - var(--hero-out));
+  transform: translateY(calc(var(--hero-out) * 6vh)) scale(calc(1 - var(--hero-out) * .1));
+  transform-origin: 50% 100%;
+}
+.hero-portrait__img {
+  display: block; width: 100%; height: 100%; object-fit: contain; object-position: 50% 100%;
+  mask-image: linear-gradient(0deg, transparent 0, #000 34%), linear-gradient(90deg, transparent 0, #000 16%, #000 84%, transparent 100%);
+  mask-composite: intersect;
+}
+/* Compacto: centrado arriba (el bloque de texto va al pie, SPEC-28); el cuerpo queda detrás del degradado del texto. */
+/* Compacto: la base se funde antes (el bloque de texto empieza a la altura del pecho; contraste ≥ 4.5:1, AC-02). */
+.compact .hero-portrait__img { mask-image: linear-gradient(0deg, transparent 0, transparent 24%, #000 60%), linear-gradient(90deg, transparent 0, #000 16%, #000 84%, transparent 100%); }
+/* Centrado con margin auto (no translate): HeroFire lee offsetLeft para centrar el fuego. */
+.compact .hero-portrait { left: 0; right: 0; margin-inline: auto; bottom: auto; top: calc(var(--chrome-h) + 4px); width: min(86vw, 58svh * 1100 / 1354); }
+
+.embers { inset: 0; width: 100%; height: 100%; display: block; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .hero-portrait__img { animation: hero-portrait-in 1.6s .5s cubic-bezier(.2, .7, .2, 1) both; }
+}
+@keyframes hero-portrait-in { from { opacity: 0; translate: 0 3vh; filter: brightness(.35); } }
+@media (prefers-reduced-motion: reduce) { .embers { display: none; } }
+
+/* Compacto en scroll 0: el sombreado superior se aclara un poco más que en SPEC-28 para que el retrato (que ocupa la
+   mitad de arriba) se lea; el header conserva su propio fondo. */
+.compact .hero-fx ~ .shade.is-top { opacity: .25; }
