@@ -1,7 +1,7 @@
 // Funciones puras del panel del super admin (probadas en util.test.ts).
 import type { AdminService, ExportContent, MembershipStatus, WeekDay } from './api';
 
-export type AdminSection = 'inicio' | 'barberos' | 'citas' | 'pagos' | 'rendicion' | 'carta' | 'resenas' | 'horario' | 'estadisticas' | 'difusion' | 'configuracion' | 'auditoria';
+export type AdminSection = 'inicio' | 'barberos' | 'citas' | 'pagos' | 'rendicion' | 'mensajes' | 'carta' | 'resenas' | 'horario' | 'estadisticas' | 'difusion' | 'configuracion' | 'auditoria';
 export const SECTIONS: { key: AdminSection; label: string; path: string }[] = [
   { key: 'inicio', label: 'Inicio', path: '/wstyle/admin/' },
   { key: 'barberos', label: 'Barberos', path: '/wstyle/admin/barberos/' },
@@ -9,6 +9,8 @@ export const SECTIONS: { key: AdminSection; label: string; path: string }[] = [
   // SPEC-37: pagos con su respaldo tributario y la rendición mensual.
   { key: 'pagos', label: 'Pagos', path: '/wstyle/admin/pagos/' },
   { key: 'rendicion', label: 'Rendición', path: '/wstyle/admin/rendicion/' },
+  // SPEC-53: WhatsApp a los clientes (por salir, enviados y fallidos).
+  { key: 'mensajes', label: 'Mensajes', path: '/wstyle/admin/mensajes/' },
   { key: 'carta', label: 'Carta', path: '/wstyle/admin/carta/' },
   // SPEC-52: reseñas de clientes (ocultar / mostrar).
   { key: 'resenas', label: 'Reseñas', path: '/wstyle/admin/resenas/' },
@@ -118,6 +120,7 @@ export const AUDIT_LABEL: Record<string, string> = {
   'appointments.export': 'Exportó CSV', 'service.create': 'Creó servicio', 'service.update': 'Editó servicio', 'service.price': 'Cambió precio', 'service.archive': 'Archivó servicio', 'service.delete': 'Borró servicio',
   'service.category': 'Cambió categoría de servicio', 'service.category.create': 'Creó categoría', 'service.category.update': 'Editó categoría', 'service.category.reorder': 'Reordenó categorías', 'service.category.delete': 'Borró categoría',
   'content.export': 'Exportó JSON', 'schedule.hours': 'Cambió horario', 'schedule.closure_add': 'Agregó cierre', 'schedule.closure_remove': 'Quitó cierre', 'settings.update': 'Cambió configuración', 'account.password': 'Cambió su contraseña',
+  'whatsapp.stop': 'Frenó un WhatsApp', 'whatsapp.retry': 'Reintentó un WhatsApp', 'settings.whatsapp': 'Cambió avisos por WhatsApp',
   'review.hide': 'Ocultó reseña', 'review.show': 'Mostró reseña',
   'payment.boleta': 'Registró N° de boleta', 'rendicion.export': 'Exportó rendición', 'appointment.refund': 'Reembolsó pago', 'appointment.refund_failed': 'Reembolso fallido',
 };

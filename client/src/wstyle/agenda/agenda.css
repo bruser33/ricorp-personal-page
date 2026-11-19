@@ -205,6 +205,9 @@
 .pay-collect .ag-field, .pay-boleta .ag-field { margin-bottom: 8px; }
 .pay-boleta { margin-top: 10px; }
 .pay-boleta input, .pay-collect input[inputmode] { max-width: 220px; }
+.ag-wa-pref { display: grid; gap: 10px; margin: 16px 0; }
+.ag-wa-pref p { margin: 0; }
+.ag-nowrap { white-space: nowrap; }
 
 /* SPEC-52: reseñas. "Dejar reseña" / "Tu reseña: ★★★★☆" bajo la cita pasada; formulario con estrellas como radio group. */
 .ag-item__review { display: inline-block; margin: 6px 0 0 14px; font-size: 14px; color: var(--muted); }

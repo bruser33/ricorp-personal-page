@@ -11,6 +11,7 @@ import AuditPage from './pages/AuditPage';
 import BarbersPage from './pages/BarbersPage';
 import DifusionPage from './pages/DifusionPage';
 import HomePage from './pages/HomePage';
+import MessagesPage from './pages/MessagesPage';
 import PaymentsPage from './pages/PaymentsPage';
 import RendicionPage from './pages/RendicionPage';
 import ReviewsPage from './pages/ReviewsPage';
@@ -108,6 +109,7 @@ export default function AdminApp({ fbReturn }: { fbReturn: FacebookReturn | null
     citas: <AppointmentsPage />,
     pagos: <PaymentsPage />,
     rendicion: <RendicionPage />,
+    mensajes: <MessagesPage />,
     carta: <ServicesPage />,
     resenas: <ReviewsPage />,
     horario: <SchedulePage />,

@@ -92,7 +92,7 @@ export const CSV_COLUMNS = [
 ];
 
 
-export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = console, frontUrl = 'http://localhost:5173', env = {}, adminInbox, onlinePayments = { ready: false }, payments = null, billing = null, reviews = null }) {
+export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = console, frontUrl = 'http://localhost:5173', env = {}, adminInbox, onlinePayments = { ready: false }, payments = null, billing = null, messaging = null, reviews = null }) {
   /* ─── Acceso */
   function requireAdmin(user) {
     if (!user) throw new HttpError(401, 'unauthorized', 'Tu sesión venció. Inicia sesión para continuar.');
@@ -750,6 +750,8 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
       throw err;
     }
     await Promise.all([doc.customerSnapshot.email ? agenda.notify(b, appt, 'client', 'confirmed') : null, agenda.notify(b, appt, 'barber', 'admin_booked')]);
+    /* SPEC-53: nace confirmada → WhatsApp si el cliente ya tiene opt-in guardado. */
+    await agenda.afterChange(appt, null);
     await audit(user, b, 'appointment.create', { entity: 'appointment', entityId: appt._id, summary: `${name} · ${service.name} · ${formatLong(startMs, b.timezone)} · ${target.displayName}`, after: { status: 'confirmada', professional: target.displayName, totalCLP: doc.pricing.totalCLP } });
     return serializeAdmin(appt, b, now);
   }
@@ -1198,6 +1200,50 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
     return after;
   }
 
+  /* ─── WhatsApp (SPEC-53): mensajes programados y configuración. Las credenciales de Meta nunca
+     pasan por acá (server/.env); la API del panel no devuelve el token ni el app secret. */
+  function needMessaging() {
+    if (!messaging) throw new HttpError(503, 'whatsapp_unavailable', 'Los avisos por WhatsApp no están disponibles');
+    return messaging;
+  }
+
+  async function listMessages(user, q = {}) {
+    const b = await ctx(user);
+    return needMessaging().list(b, q);
+  }
+
+  async function messageDetail(user, id) {
+    const b = await ctx(user);
+    return needMessaging().detail(b, id);
+  }
+
+  async function stopMessage(user, id) {
+    const b = await ctx(user);
+    const { message, appt } = await needMessaging().stop(b, id, user.email || String(user._id));
+    await audit(user, b, 'whatsapp.stop', { entity: 'message', entityId: message.id, summary: `${message.kindLabel} · ${appt?.customerSnapshot?.name || 'Cliente'} · ${appt ? formatLong(appt.startsAt.getTime(), b.timezone) : ''}`, before: { status: 'por_salir' }, after: { status: 'frenado' } });
+    return message;
+  }
+
+  async function retryMessage(user, id) {
+    const b = await ctx(user);
+    const { message, appt } = await needMessaging().retry(b, id);
+    await audit(user, b, 'whatsapp.retry', { entity: 'message', entityId: message.id, summary: `${message.kindLabel} · ${appt?.customerSnapshot?.name || 'Cliente'}`, before: { status: 'fallido' }, after: { status: 'por_salir' } });
+    return message;
+  }
+
+  async function getWhatsapp(user) {
+    const b = await ctx(user);
+    return needMessaging().config(b);
+  }
+
+  async function setWhatsapp(user, body = {}) {
+    const b = await ctx(user);
+    const m = needMessaging();
+    const r = await m.setConfig(b, body);
+    await audit(user, b, 'settings.whatsapp', { entity: 'settings', summary: `WhatsApp${r.rescheduled ? ` · ${r.rescheduled} recordatorio(s) re-programado(s)` : ''}`, before: r.before, after: r.after });
+    return { ...(await m.config(await agenda.business())), rescheduled: r.rescheduled };
+  }
+
   /* ─── Mi cuenta */
   /* ─── Reseñas (SPEC-52 RN-09): ocultar y mostrar quedan en la auditoría. */
   async function listReviews(user, q = {}) {
@@ -1280,6 +1326,12 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
     setSettings,
     auditList,
     changePassword,
+    listMessages,
+    messageDetail,
+    stopMessage,
+    retryMessage,
+    getWhatsapp,
+    setWhatsapp,
     listReviews,
     hideReview,
     showReview,

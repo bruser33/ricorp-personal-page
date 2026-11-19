@@ -47,7 +47,7 @@ function createLoginLimiter({ max, windowMs }, clock) {
   };
 }
 
-export function createAuthRouter({ env, clock, mailer, logger, facebook, google = { enabled: false }, frontUrl, secret, loginLimit = LOGIN_LIMIT, onAccountDeleted, onBarberFacebook = null }) {
+export function createAuthRouter({ env, clock, mailer, logger, facebook, google = { enabled: false }, frontUrl, secret, loginLimit = LOGIN_LIMIT, onAccountDeleted, onBarberFacebook = null, onWhatsappOptOut = null }) {
   const r = express.Router();
   const h = (fn) => handle(fn, logger);
   const loginLimiter = createLoginLimiter(loginLimit, clock);
@@ -145,8 +145,20 @@ export function createAuthRouter({ env, clock, mailer, logger, facebook, google 
       if (!phone) fields.phone = 'invalid_phone';
       else user.phoneE164 = phone;
     }
+    /* SPEC-53: "Mi cuenta" activa o desactiva los avisos por WhatsApp. */
+    let optOut = false;
+    if (req.body?.whatsappOptIn !== undefined) {
+      const v = req.body.whatsappOptIn;
+      if (typeof v !== 'boolean') fields.whatsappOptIn = 'invalid';
+      else if (v && !clMobile(user.phoneE164)) fields.whatsappOptIn = 'invalid_phone';
+      else {
+        user.whatsappOptIn = { accepted: v, at: new Date(clock()), phoneE164: user.phoneE164 || null, source: 'cuenta' };
+        optOut = !v;
+      }
+    }
     if (Object.keys(fields).length) throw fieldError(fields);
     await user.save();
+    if (optOut && onWhatsappOptOut) await onWhatsappOptOut(user._id).catch((err) => logger.error('[wa] baja:', err.message));
     res.json({ user: publicUser(user) });
   }));
 

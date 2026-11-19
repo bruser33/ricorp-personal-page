@@ -102,6 +102,8 @@ export async function start({ now, geocoder, facebookFetch, googleFetch, env = {
     onlinePayments: opts.onlinePayments,
     /* SPEC-35: borde HTTP de Mercado Pago (servicio externo) → doble en test/mp-fake.js. */
     mercadoPagoFetch: opts.mercadoPagoFetch,
+    /* SPEC-53: borde HTTP de la WhatsApp Cloud API (servicio externo) → doble en test/wa-fake.js. */
+    whatsappFetch: opts.whatsappFetch,
   });
   const server = await new Promise((resolve) => {
     const s = app.listen(0, '127.0.0.1', () => resolve(s));

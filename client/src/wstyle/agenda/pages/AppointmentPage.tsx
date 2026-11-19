@@ -13,10 +13,13 @@ const FINAL = ['terminada', 'cancelada', 'expirada', 'no_asistio'];
 
 // /wstyle/cita/?id=<id>: estado de la cita y sus acciones válidas (RN-12, RN-13, RN-16). Requiere sesión del dueño
 // (o del barbero asignado / super admin). Otro cliente o id inexistente: "No encontramos esta cita" (CB-12).
+// SPEC-53: con ?t=<token> (link "Ver o cancelar mi cita" del WhatsApp) se ve y se cancela sin sesión; un token
+// inválido o vencido lleva al login normal.
 export default function AppointmentPage({ ctx }: { ctx: AgendaCtx }) {
   const { session, whatsapp, fbReturn } = ctx;
   const id = new URLSearchParams(location.search).get('id') ?? '';
   const inv = new URLSearchParams(location.search).get('inv');
+  const token = new URLSearchParams(location.search).get('t');
   // SPEC-35: vuelta del checkout de Mercado Pago (?pago=approved|pending|failure) o checkout que no abrió (?pago=error).
   const returning = new URLSearchParams(location.search).get('pago');
   const [appt, setAppt] = useState<Appointment | null>(null);
@@ -32,21 +35,23 @@ export default function AppointmentPage({ ctx }: { ctx: AgendaCtx }) {
 
   const fetchAppt = useCallback(async () => {
     try {
-      setAppt(await agenda.get(id, inv));
+      setAppt(await agenda.get(id, inv, token));
       setState('ready');
     } catch (e) {
       if (e instanceof ApiError && (e.status === 404 || e.status === 400)) setState('notfound');
       else if (e instanceof ApiError && e.status === 401) session.setUser(null);
       else setState('error');
     }
-  }, [id, inv, session]);
+  }, [id, inv, token, session]);
 
   const user = session.user;
+  const asGuest = !user && Boolean(token);
   useEffect(() => {
-    if (!user) return;
+    if (!user && !token) return;
+    if (session.status === 'loading') return;
     const t = setTimeout(fetchAppt);
     return () => clearTimeout(t);
-  }, [user, fetchAppt, tick]);
+  }, [user, token, session.status, fetchAppt, tick]);
 
   // "Estamos confirmando tu pago…": se le pregunta al server (que consulta a Mercado Pago) cada 4 s. Tras 60 s sin
   // novedades se deja de esperar (un "en proceso" sigue mostrando su aviso: se resuelve por correo).
@@ -75,7 +80,7 @@ export default function AppointmentPage({ ctx }: { ctx: AgendaCtx }) {
     setBusy(true);
     setMsg(null);
     try {
-      const next = await agenda.act(id, action, body);
+      const next = await agenda.act(id, action, asGuest || appt?.guest ? { ...body, t: token } : body);
       setAppt(next);   // el estado cambia sin recargar (AC-16)
       setCounter(false);
       setConfirmCancel(false);
@@ -93,18 +98,18 @@ export default function AppointmentPage({ ctx }: { ctx: AgendaCtx }) {
   const here = `/wstyle/cita/?id=${encodeURIComponent(id)}${inv ? `&inv=${encodeURIComponent(inv)}` : ''}`;
   if (session.status === 'loading') return <Shell user={null} current="cita"><Spinner label="Cargando tu cita…" /></Shell>;
   if (session.status === 'offline') return <Shell user={null} current="cita"><Unavailable whatsapp={whatsapp} onRetry={() => session.refresh()} /></Shell>;
-  if (!user) {
+  if (!user && (!token || state === 'notfound')) {
     return (
       <Shell user={null} current="cita">
         <h1 className="ag-h1">Tu cita</h1>
         <div className="ag-card ag-narrow">
-          <Notice>Inicia sesión para ver tu cita.</Notice>
+          <Notice>{token ? 'Este link ya no sirve (venció o está incompleto). Inicia sesión para ver tu cita.' : 'Inicia sesión para ver tu cita.'}</Notice>
           <AuthPanel facebook={session.facebook} returnTo={here} fbReturn={fbReturn} onAuthed={(u) => session.setUser(u)} />
         </div>
       </Shell>
     );
   }
-  if (state === 'notfound') {
+  if (state === 'notfound' && user) {
     return (
       <Shell user={user} current="cita">
         <div className="ag-card ag-narrow" data-state="notfound">
@@ -130,6 +135,7 @@ export default function AppointmentPage({ ctx }: { ctx: AgendaCtx }) {
         <p className="ag-appt__status"><StatusPill status={appt.status} label={appt.status === 'pendiente' ? `Esperando confirmación de ${appt.professional.name}` : appt.statusLabel} /></p>
         <h1 className="ag-h2" id="ag-appt-title">{appt.service.name} con {appt.professional.name}</h1>
         {msg && <Notice tone={msg.tone}>{msg.text}</Notice>}
+        {appt.guest && <p className="ag-muted" data-guest="">Abriste tu cita desde el link de WhatsApp: puedes verla y cancelarla. Para otras acciones, <a href={here}>inicia sesión</a>.</p>}
         {isClient && returning === 'error' && view === 'due' && !msg && <Notice tone="error">No pudimos abrir Mercado Pago. Reintenta o elige pagar en el local.</Notice>}
 
         {isClient && view !== 'none' && (
