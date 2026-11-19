@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import NotificationsSheet from './NotificationsSheet';
+import { UndoHost } from './UndoHost';
 
 export type ProTab = 'hoy' | 'agenda' | 'pagos' | 'perfil' | 'registro' | 'entrar';
 
@@ -39,6 +40,7 @@ export default function ProShell({ tab, children, operative = false, unread = 0,
       </header>
       <main id="ag-main" className="ag-main pro-main">{children}</main>
       <footer className="ag-footer"><a href="/wstyle/">← Volver a WS Style</a></footer>
+      <UndoHost />
       {bell && onUnreadChange && (
         <NotificationsSheet onClose={() => setBell(false)} onRead={() => onUnreadChange(0)}
           onOpenAppointment={onOpenAppointment ? (id) => { setBell(false); onOpenAppointment(id); } : undefined} />

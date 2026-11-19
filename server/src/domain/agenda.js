@@ -13,6 +13,7 @@ import {
   Notification,
   PanelNotification,
   Professional,
+  Review,
   ProfessionalService,
   Service,
   SlotLock,
@@ -24,12 +25,14 @@ import { isDuplicateKey, withTransaction } from '../lib/db.js';
 import { clMobile, MAX_NOTE } from '../lib/validate.js';
 import { appointmentMail, BARBER_EVENT_TITLE, waLink } from '../lib/emails.js';
 import { daySlots, distanceKm, slotsFor } from './availability.js';
-import { addDays, formatLong, isDate, isoWeekday, wallClock, zonedToUtc } from './time.js';
+import { addDays, ceilSlot, formatLong, isDate, isoWeekday, wallClock, zonedToUtc } from './time.js';
 import { entriesToWeek, weekToSiteRows } from './hours.js';
 import { applyLocalCollection, boletaClash, isBoletaClash, parseCollectInput } from './tax.js';
 import { TAX_DOCUMENT_PROVIDERS } from '../lib/taxDocuments.js';
 import { currentRates, pricingView, quote, ratesView } from './pricing.js';
 import { attachPhoto, referenceView, resolveReference } from './styles.js';
+import { canReview } from './reviews.js';
+import { normalizeOrigin } from './origin.js';
 
 const MIN = 60 * 1000;
 const HOUR = 60 * MIN;
@@ -72,6 +75,9 @@ export const PAY_OPEN = ['pendiente', 'en_proceso', 'rechazado'];
 /* `onlinePayments.ready`: hay credenciales de Mercado Pago (SPEC-35). Sin ellas "Pagar en
    línea" no se ofrece aunque el admin lo habilite (CB-09). */
 export function createAgenda({ clock = Date.now, mailer, logger = console, frontUrl = 'http://localhost:5173', geocoder, businessSlug = 'ws-style', adminInbox = null, onlinePayments = { ready: false }, taxProvider = TAX_DOCUMENT_PROVIDERS.voucher }) {
+  /* SPEC-55: enchufes para otras specs. `onSlotFreed` = lista de espera (SPEC-54) cuando se libera un rato. */
+  const hooks = { onSlotFreed: null };
+
   async function business() {
     const b = await Business.findOne({ slug: businessSlug }).lean();
     if (!b) throw new HttpError(503, 'agenda_unavailable', 'La agenda aún no está configurada');
@@ -401,6 +407,7 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
         expiresAt: new Date(online ? now + PAYMENT_HOLD_MIN * MIN : confirmDeadline(b, startsAt, now)),
         history: [{ at: new Date(now), from: null, to: firstStatus, by: 'client', byUserId: user._id }],
         source: 'web',
+        origin: normalizeOrigin(input.origin),
         idempotencyKey,
       };
       try {
@@ -542,7 +549,39 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
     return a;
   }
 
-  async function serialize(appt, role, b, now) {
+  /* SPEC-55 RN-07: inasistencias de WS Style. Con cuenta → CustomerProfile del negocio; sin cuenta → las
+     no_asistio con el mismo celular. En lote (una consulta por tipo, no una por cita). */
+  async function noShowCounts(b, { userIds = [], phones = [] }) {
+    const uniq = (xs) => [...new Set(xs.filter(Boolean).map(String))];
+    const us = uniq(userIds);
+    const ps = uniq(phones);
+    const [profiles, byPhone] = await Promise.all([
+      us.length ? CustomerProfile.find({ businessId: b._id, userId: { $in: us.map((x) => new ObjectId(x)) } }, { userId: 1, counters: 1 }).lean() : [],
+      ps.length
+        ? Appointment.aggregate([
+            { $match: { businessId: b._id, customerUserId: null, status: 'no_asistio', 'customerSnapshot.phoneE164': { $in: ps } } },
+            { $group: { _id: '$customerSnapshot.phoneE164', n: { $sum: 1 } } },
+          ])
+        : [],
+    ]);
+    return {
+      user: new Map(profiles.map((p) => [String(p.userId), p.counters?.noShows ?? 0])),
+      phone: new Map(byPhone.map((x) => [x._id, x.n])),
+    };
+  }
+
+  async function noShowsFor(b, appts) {
+    const c = await noShowCounts(b, {
+      userIds: appts.map((a) => a.customerUserId),
+      phones: appts.filter((a) => !a.customerUserId).map((a) => a.customerSnapshot?.phoneE164),
+    });
+    /* "Anteriores": si esta misma cita ya es un "no vino", no se cuenta a sí misma. */
+    const total = (a) => (a.customerUserId ? c.user.get(String(a.customerUserId)) ?? 0 : c.phone.get(a.customerSnapshot?.phoneE164) ?? 0);
+    return new Map(appts.map((a) => [String(a._id), Math.max(0, total(a) - (a.status === 'no_asistio' ? 1 : 0))]));
+  }
+
+  /* `extra.noShows` = Map precalculado con noShowsFor (listas); si no viene, se calcula para esta cita. */
+  async function serialize(appt, role, b, now, extra = {}) {
     const pro = await Professional.findById(appt.professionalId).lean();
     const tz = b.timezone;
     const p = appt.proposal?.startsAt ? appt.proposal : null;
@@ -575,7 +614,11 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
       shopWhatsapp: waLink(b.contact?.whatsapp, 'Hola, te escribo por mi cita'),
       history: appt.history.map((h) => ({ at: h.at.toISOString(), from: h.from, to: h.to, by: h.by, reason: h.reason })),
     };
-    if (role === 'barber' || role === 'admin') Object.assign(out, proExtras(appt, b));
+    if (role === 'barber' || role === 'admin') {
+      Object.assign(out, proExtras(appt, b));
+      const counts = extra.noShows || (await noShowsFor(b, [appt]));
+      out.noShows = counts.get(String(appt._id)) ?? 0;
+    }
     return out;
   }
 
@@ -599,6 +642,13 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
     return out;
   }
 
+  function heldUntil(appt) {
+    const h = [...(appt.history || [])].reverse().find((x) => x.to === 'no_asistio');
+    if (!h?.at) return null;
+    const t = Math.min(appt.endsAt.getTime(), Math.max(appt.startsAt.getTime() + 15 * MIN, ceilSlot(h.at.getTime())));
+    return new Date(t).toISOString();
+  }
+
   /* SPEC-33 RN-14/RN-15: lo que el barbero necesita para atender (nunca el email del cliente). */
   function proExtras(appt, b) {
     const home = appt.location?.kind === 'home';
@@ -611,6 +661,8 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
       telUrl: phone ? `tel:${phone}` : null,
       startOpensAt: new Date(appt.startsAt.getTime() - START_WINDOW_MIN * MIN).toISOString(),
       noShowOpensAt: new Date(appt.startsAt.getTime() + START_WINDOW_MIN * MIN).toISOString(),
+      /* SPEC-55: un "no vino" ocupa la grilla solo hasta que se marcó (el resto se liberó). */
+      heldUntil: appt.status === 'no_asistio' ? heldUntil(appt) : null,
       source: appt.source,
       invite: appt.status === 'invitacion_enviada' && appt.invite?.token ? inviteLinks(appt, b) : null,
       expiresAt: appt.expiresAt ? appt.expiresAt.toISOString() : null,
@@ -637,7 +689,20 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
     const b = await business();
     const now = clock();
     const list = await Appointment.find({ businessId: b._id, customerUserId: user._id }).sort({ startsAt: -1 }).limit(100);
-    const items = await Promise.all(list.map((a) => serialize(a, 'client', b, now)));
+    /* SPEC-52: en "Pasadas", la reseña de cada cita terminada (sus estrellas) o si todavía se puede dejar. */
+    const done = list.filter((a) => a.status === 'terminada');
+    const reviews = done.length ? await Review.find({ appointmentId: { $in: done.map((a) => a._id) } }, { appointmentId: 1, rating: 1 }).lean() : [];
+    const byAppt = new Map(reviews.map((r) => [String(r.appointmentId), { rating: r.rating }]));
+    const items = await Promise.all(
+      list.map(async (a) => {
+        const out = await serialize(a, 'client', b, now);
+        if (a.status === 'terminada') {
+          out.review = byAppt.get(String(a._id)) ?? null;
+          out.canReview = canReview(a, Boolean(out.review), now);
+        }
+        return out;
+      })
+    );
     const upcoming = items.filter((a) => Date.parse(a.endsAt) > now && !FINAL.includes(a.status)).reverse();
     const past = items.filter((a) => !upcoming.includes(a));
     return { upcoming, past };
@@ -855,19 +920,39 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
       const collect = action === 'finish' && localPay && payload.collected === true ? parseCollectInput(payload, { methodKey: 'localMethod' }) : null;
       if (collect?.number && (await Appointment.exists({ businessId: b._id, 'payment.taxDoc.kind': 'boleta_sii', 'payment.taxDoc.number': collect.number }))) throw boletaClash();
       const to = { start: 'en_curso', finish: 'terminada', no_show: 'no_asistio' }[action];
-      const appt = await mutate(b, current._id, (a) => {
+      /* SPEC-55 RN-03: al marcar la inasistencia se libera el resto de la cita, desde el bloque de 15 min en
+         curso redondeado hacia arriba (nunca horas pasadas ni bloques de otra cita). */
+      const freeFrom = ceilSlot(now);
+      let freedLocks = 0;
+      const appt = await mutate(b, current._id, async (a) => {
         if (a.status !== need) throw invalid('stale');
         a.status = to;
         if (action === 'finish' && localPay && typeof payload.collected === 'boolean') {
           if (payload.collected) applyLocalCollection(a, { ...collect, provider: taxProvider, now });
           else a.payment.status = 'pago_pendiente';
         }
-        return { by, byUserId, reason: reason ?? (action === 'finish' && typeof payload.collected === 'boolean' ? (payload.collected ? 'Cobrado' : 'Sin cobrar') : undefined) };
+        /* `at` = el mismo instante del que sale freeFrom: la grilla (heldUntil) y los bloques liberados coinciden. */
+        return { at: new Date(now), by, byUserId, reason: reason ?? (action === 'finish' && typeof payload.collected === 'boolean' ? (payload.collected ? 'Cobrado' : 'Sin cobrar') : undefined) };
       });
-      if (to === 'terminada') await notify(b, appt, 'client', 'finished');
+      /* Se liberan DESPUÉS de guardar el "no vino": si el guardado falla (otra pestaña), los bloques siguen. */
+      if (to === 'no_asistio') {
+        const r = await SlotLock.deleteMany({ appointmentId: appt._id, slotStart: { $gte: new Date(freeFrom) } });
+        freedLocks = r.deletedCount || 0;
+      }
+      /* SPEC-52: el "Gracias por venir" invita a dejar la reseña (solo si la cita tiene cuenta: RN-01). */
+      if (to === 'terminada') await notify(b, appt, 'client', 'finished', appt.customerUserId ? { reviewUrl: `${frontUrl}/wstyle/cuenta/resena/?cita=${appt._id}` } : {});
       if (to === 'no_asistio') await notify(b, appt, 'client', 'no_show');
       if (to === 'no_asistio' && appt.customerUserId) {
-        await CustomerProfile.updateOne({ businessId: b._id, userId: appt.customerUserId }, { $inc: { 'counters.noShows': 1 } }, { upsert: true }).catch(() => {});
+        await CustomerProfile.updateOne({ businessId: b._id, userId: appt.customerUserId }, { $inc: { 'counters.noShows': 1 } }, { upsert: true }).catch((err) => logger.error('[agenda] contador de inasistencias:', err.message));
+      }
+      /* SPEC-55: el rato liberado va a la lista de espera (SPEC-54) si existe. Un error ahí no deshace nada. */
+      if (to === 'no_asistio' && freedLocks && hooks.onSlotFreed) {
+        const end = appt.endsAt.getTime() + (appt.location?.travelBufferMin || 0) * MIN;
+        try {
+          await hooks.onSlotFreed({ businessId: b._id, professionalId: appt.professionalId, appointmentId: appt._id, startsAt: new Date(freeFrom), endsAt: new Date(Math.max(end, freeFrom)) });
+        } catch (err) {
+          logger.error('[agenda] lista de espera:', err.message);
+        }
       }
       return serialize(appt, role, b, now);
     }
@@ -1002,6 +1087,9 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
     runExpirations,
     onAccountDeleted,
     serialize,
+    noShowCounts,
+    noShowsFor,
+    hooks,
     /* SPEC-33 (panel del barbero) */
     professionals,
     availabilityFor,

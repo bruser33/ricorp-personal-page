@@ -38,6 +38,7 @@ export default function HomePage({ onUnread }: { onUnread: (n: number) => void }
               <li><a className="adm-card" href="/wstyle/admin/citas/?rango=hoy" data-card="today"><span className="adm-card__n">{o.cards.today}</span><span className="adm-card__l">Citas de hoy</span></a></li>
               <li><a className="adm-card" href="/wstyle/admin/citas/?estado=pendiente" data-card="pending-confirm"><span className="adm-card__n">{o.cards.pendingConfirm}</span><span className="adm-card__l">Pendientes de confirmar</span></a></li>
               <li><a className="adm-card" href="/wstyle/admin/citas/?pago=reembolso_pendiente" data-card="refunds"><span className="adm-card__n">{o.cards.refundsPending}</span><span className="adm-card__l">Reembolsos pendientes</span></a></li>
+              <li><a className="adm-card" href="/wstyle/admin/resenas/" data-card="reviews"><span className="adm-card__n">{o.cards.reviewsLast7d ?? 0}</span><span className="adm-card__l">Reseñas nuevas (7 días)</span></a></li>
               <li><a className="adm-card adm-card--wide" href="/wstyle/admin/estadisticas/" data-card="revenue"><span className="adm-card__n">{clp.format(o.cards.monthRevenueCLP)}</span><span className="adm-card__l">Ingresos del mes</span></a></li>
             </ul>
           </>

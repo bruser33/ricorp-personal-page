@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { SECTIONS, type AdminSection } from '../util';
+import { UndoHost } from '../../pro/components/UndoHost';
 
 // Marco del panel del super admin: marca, secciones (en móvil, una fila deslizable bajo el header) y salir.
 // /wstyle/admin/ no se enlaza desde la landing y lleva noindex (AC-12).
@@ -41,6 +42,7 @@ export default function AdminShell({ section, children, nav = true, unread = 0, 
       </div>
       <main id="ag-main" className="ag-main adm-main">{children}</main>
       <footer className="ag-footer"><a href="/wstyle/">← Ver la landing de WS Style</a></footer>
+      <UndoHost />
     </div>
   );
 }

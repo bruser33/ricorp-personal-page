@@ -97,6 +97,7 @@ export async function start({ now, geocoder, facebookFetch, googleFetch, env = {
     facebookFetch,
     googleFetch,
     bookingRateLimit: opts.bookingRateLimit || { max: 1000, windowMs: 10 * MIN },
+    reviewRateLimit: opts.reviewRateLimit || { max: 1000, windowMs: 10 * MIN },
     loginLimit: opts.loginLimit,
     onlinePayments: opts.onlinePayments,
     /* SPEC-35: borde HTTP de Mercado Pago (servicio externo) → doble en test/mp-fake.js. */

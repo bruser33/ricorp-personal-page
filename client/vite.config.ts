@@ -33,7 +33,7 @@ export default defineConfig({
         wstyle: resolve(import.meta.dirname, 'wstyle/index.html'),
         // Agenda (SPEC-32): cada ruta es una carpeta real con su index.html (Pages solo sirve carpetas que existen).
         ...Object.fromEntries(
-          ['reservar', 'cita', 'cuenta', 'cuenta/mis-citas', 'cuenta/recuperar', 'cuenta/confirmar'].map((r) => [
+          ['reservar', 'cita', 'cuenta', 'cuenta/mis-citas', 'cuenta/recuperar', 'cuenta/confirmar', 'cuenta/resena'].map((r) => [
             `wstyle-${r.replace('/', '-')}`,
             resolve(import.meta.dirname, `wstyle/${r}/index.html`),
           ]),
@@ -47,7 +47,7 @@ export default defineConfig({
         ...Object.fromEntries(['privacidad', 'terminos'].map((r) => [`wstyle-${r}`, resolve(import.meta.dirname, `wstyle/${r}/index.html`)])),
         // Panel del super admin (SPEC-34): /wstyle/admin/ y una carpeta por sección (recargar funciona). Sin enlace público, noindex.
         ...Object.fromEntries(
-          ['admin', ...['barberos', 'citas', 'pagos', 'rendicion', 'carta', 'estilos', 'horario', 'estadisticas', 'configuracion', 'auditoria'].map((s) => `admin/${s}`)].map((r) => [
+          ['admin', ...['barberos', 'citas', 'pagos', 'rendicion', 'carta', 'estilos', 'horario', 'estadisticas', 'difusion', 'configuracion', 'auditoria', 'resenas'].map((s) => `admin/${s}`)].map((r) => [
             `wstyle-${r.replace('/', '-')}`,
             resolve(import.meta.dirname, `wstyle/${r}/index.html`),
           ]),

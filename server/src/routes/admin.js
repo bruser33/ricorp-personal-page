@@ -50,9 +50,15 @@ export function createAdminRouter({ admin, logger, styles = null }) {
   r.patch('/barbers/:id/profile', h(async (req, res) => res.json({ professional: await admin.editBarber(u(req), req.params.id, 'profile', req.body || {}) })));
   r.put('/barbers/:id/services', h(async (req, res) => res.json(await admin.editBarber(u(req), req.params.id, 'services', req.body || {}))));
   r.put('/barbers/:id/availability', h(async (req, res) => res.json(await admin.editBarber(u(req), req.params.id, 'availability', req.body || {}))));
+  /* SPEC-55: agenda del barbero operada por el admin (horas libres y bloqueos). */
+  r.get('/barbers/:id/slots', h(async (req, res) => res.json(await admin.barberSlots(u(req), req.params.id, req.query))));
+  r.post('/barbers/:id/time-off', h(async (req, res) => res.status(201).json(await admin.addBarberTimeOff(u(req), req.params.id, req.body || {}))));
+  r.delete('/barbers/:id/time-off/:offId', h(async (req, res) => res.json(await admin.removeBarberTimeOff(u(req), req.params.id, req.params.offId))));
   r.put('/barbers/:id/home-service', h(async (req, res) => res.json(await admin.editBarber(u(req), req.params.id, 'home-service', req.body || {}))));
 
   /* Citas */
+  r.get('/agenda', h(async (req, res) => res.json(await admin.agendaDay(u(req), req.query))));
+  r.get('/customers', h(async (req, res) => res.json(await admin.customers(u(req), req.query.q))));
   r.get('/appointments', h(async (req, res) => res.json(await admin.listAppointments(u(req), req.query))));
   r.get('/appointments.csv', h(async (req, res) => {
     const csv = await admin.exportCsv(u(req), req.query);
@@ -66,6 +72,7 @@ export function createAdminRouter({ admin, logger, styles = null }) {
   r.post('/appointments/:id/reassign', h(async (req, res) => res.json(await admin.reassign(u(req), req.params.id, req.body || {}))));
   r.post('/appointments/:id/collect', h(async (req, res) => res.json(await admin.collect(u(req), req.params.id, req.body || {}))));
   /* SPEC-35 RN-09: reembolso total en Mercado Pago (body.paymentId = un pago duplicado). */
+  r.post('/appointments/:id/revert-no-show', h(async (req, res) => res.json(await admin.revertNoShow(u(req), req.params.id, req.body || {}))));
   r.post('/appointments/:id/refund', h(async (req, res) => res.json(await admin.refund(u(req), req.params.id, req.body || {}))));
   for (const [path, action] of [['confirm', 'confirm'], ['reject', 'reject'], ['cancel', 'cancel'], ['propose', 'propose'], ['start', 'start'], ['finish', 'finish'], ['no-show', 'no_show']]) {
     r.post(`/appointments/:id/${path}`, h(async (req, res) => res.json(await admin.actOnAppointment(u(req), req.params.id, action, req.body || {}))));
@@ -87,6 +94,11 @@ export function createAdminRouter({ admin, logger, styles = null }) {
   r.patch('/services/:id', h(async (req, res) => res.json(await admin.updateService(u(req), req.params.id, req.body || {}))));
   r.delete('/services/:id', h(async (req, res) => res.json(await admin.removeService(u(req), req.params.id))));
   r.get('/export', h(async (req, res) => res.json(await admin.exportContent(u(req)))));
+
+  /* Reseñas (SPEC-52): todas (incluye ocultas), ocultar y volver a mostrar. */
+  r.get('/reviews', h(async (req, res) => res.json(await admin.listReviews(u(req), req.query))));
+  r.post('/reviews/:id/hide', h(async (req, res) => res.json(await admin.hideReview(u(req), req.params.id, req.body || {}))));
+  r.post('/reviews/:id/show', h(async (req, res) => res.json(await admin.showReview(u(req), req.params.id))));
 
   /* Horario y cierres */
   r.get('/schedule', h(async (req, res) => res.json(await admin.schedule(u(req)))));

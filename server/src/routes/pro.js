@@ -171,6 +171,7 @@ export function createProRouter({ pro, env, clock, mailer, logger, frontUrl, log
   ]) {
     r.post(`/appointments/:id/${path}`, h(async (req, res) => res.json(await pro.act(u(req), req.params.id, action, req.body || {}))));
   }
+  r.get('/customers', h(async (req, res) => res.json(await pro.searchCustomers(u(req), req.query.q))));
   r.post('/invitations', h(async (req, res) => res.status(201).json(await pro.invite(u(req), req.body || {}))));
   /* SPEC-34 RN-07 / asunción 7: el barbero aprobado ve solo SUS estadísticas. */
   r.get('/stats', h(async (req, res) => {

@@ -3,7 +3,7 @@ import express from 'express';
 import { HttpError, handle } from '../lib/errors.js';
 import { imageUpload, notFoundPhoto, photoFile, streamPhoto } from '../lib/photos.js';
 
-export function createWstyleRouter({ agenda, payments, logger, bookingLimiter, styles = null }) {
+export function createWstyleRouter({ agenda, payments, reviews, logger, bookingLimiter, reviewLimiter = (_req, _res, next) => next(), styles = null }) {
   const r = express.Router();
   const h = (fn) => handle(fn, logger);
   const requireUser = (req) => {
@@ -80,6 +80,11 @@ export function createWstyleRouter({ agenda, payments, logger, bookingLimiter, s
     res.json(await payments.checkout(req.params.id, user));
   }));
   r.post('/appointments/:id/pay-local', h(async (req, res) => res.json(await agenda.payLocal(req.params.id, requireUser(req)))));
+
+  /* Reseñas (SPEC-52): resumen y visibles (público), formulario y creación (cliente dueño de la cita). */
+  r.get('/reviews', h(async (req, res) => res.json(await reviews.publicList(req.query))));
+  r.get('/reviews/eligibility', h(async (req, res) => res.json(await reviews.eligibility(requireUser(req), String(req.query.cita || '')))));
+  r.post('/reviews', reviewLimiter, h(async (req, res) => res.status(201).json(await reviews.create(requireUser(req), req.body || {}))));
 
   for (const [path, action] of [
     ['cancel', 'cancel'],
