@@ -95,7 +95,7 @@ export function qrLayout(m: QrMatrix, px: number, quiet = QR_QUIET) {
 }
 
 /* Rasteriza el QR a RGBA (sin canvas): la usa el test con un decodificador y sirve de fuente única de la geometría. */
-export function qrRgba(m: QrMatrix, px: number): Uint8ClampedArray {
+export function qrRgba(m: QrMatrix, px: number): Uint8ClampedArray<ArrayBuffer> {
   const { cell, offset } = qrLayout(m, px);
   const out = new Uint8ClampedArray(px * px * 4);
   const ink = [0x0e, 0x0d, 0x0c], bone = [0xed, 0xe6, 0xda];

@@ -1,7 +1,7 @@
 // Dibujo del kit de difusión en canvas (SPEC-58): QR suelto, placa de historia 1080×1920 y cartel A4/Carta a 300 dpi.
 // Todo en el navegador, con las fuentes de la marca ya cargadas (CB-03). Solo la paleta de la marca: negro (ink),
 // hueso (bone) y latón (brass); el QR siempre oscuro sobre hueso (RN-02).
-import { BONE, BRASS, INK, POSTER, POSTER_QR_RATIO, qrLayout, qrMatrix, STORY, type PosterSize } from './difusion';
+import { BONE, BRASS, INK, POSTER, POSTER_QR_RATIO, qrMatrix, qrRgba, STORY, type PosterSize } from './difusion';
 
 const FONT_SPECS = ['400 64px Anton', 'italic 500 64px "Cormorant Garamond"', '600 64px Inter', '400 64px Inter'];
 const FAMILIES = ['Anton', 'Cormorant Garamond', 'Inter'];
@@ -60,13 +60,9 @@ function grain(ctx: CanvasRenderingContext2D, w: number, h: number, color: [numb
 
 /* QR oscuro sobre hueso dentro de un cuadrado de `px` (la zona de silencio queda dentro del cuadrado). */
 export function drawQr(ctx: CanvasRenderingContext2D, url: string, x0: number, y0: number, px: number) {
-  const x = Math.round(x0), y = Math.round(y0);
-  const m = qrMatrix(url);
-  const { cell, offset } = qrLayout(m, px);
-  ctx.fillStyle = BONE;
-  ctx.fillRect(x, y, px, px);
-  ctx.fillStyle = INK;
-  for (let r = 0; r < m.size; r++) for (let c = 0; c < m.size; c++) if (m.dark(r, c)) ctx.fillRect(x + offset + c * cell, y + offset + r * cell, cell, cell);
+  // Mismo rasterizador que valida difusion.test.ts (qrRgba + jsQR): lo que se descarga es lo que se probó.
+  const size = Math.round(px);
+  ctx.putImageData(new ImageData(qrRgba(qrMatrix(url), size), size, size), Math.round(x0), Math.round(y0));
 }
 
 const canvasOf = (w: number, h: number) => {
