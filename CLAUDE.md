@@ -112,19 +112,20 @@ desde su cuenta, se registra con su identidad (su aprobación, comentario o merg
 **Approve** → *Merge pull request*. GitHub solo deja mergear si:
 1. pasó el check obligatorio **CI / pruebas** (`.github/workflows/ci.yml`), y
 2. hay 1 aprobación de alguien distinto del autor del PR (Joe aprueba los PRs que abre Claude), y
-3. si el PR toca **archivos compartidos** con el resto del sitio (lista en `.github/CODEOWNERS`:
-   dependencias, `vite.config.ts`, `server/src/index.js`, `server/src/models/`, `render.yaml`,
-   workflows, este archivo), también necesita el visto bueno de Pedro. Pedro lo da mergeándolo él.
+3. si el PR toca **infraestructura** (lista en `.github/CODEOWNERS`: `render.yaml`, `.github/`,
+   `.claude/`, este archivo), también necesita el visto bueno de Pedro. Pedro lo da mergeándolo él.
 
-**Alcance:** solo WS Style (`client/src/wstyle/`, `client/wstyle/`, `server/src/domain|routes`
-de WS Style, sus tests y `specs/` de WS Style). Un PR que mezcle WS Style con otros proyectos del
-repo (página personal, trayectoria, contacto, clips) lo publica Pedro.
+Joe publica solo los PRs de WS Style aunque toquen código compartido del sitio (modelos,
+dependencias, `vite.config.ts`, `server/src/index.js`): las pruebas obligatorias son el resguardo.
+
+**Alcance:** WS Style. Un PR que cambie otros proyectos del repo (página personal, trayectoria,
+contacto, clips) lo publica Pedro. Claude no mezcla otros proyectos en PRs de WS Style.
 
 **Reversión:** si Joe pide "revierte"/"vuelve atrás" en un PR ya mergeado, Claude (modo GitHub)
 abre un PR de revert (`git revert`) con el mismo flujo; Joe lo aprueba y mergea igual que arriba.
 
 **Claude en modo GitHub, cuando Joe pida publicar:** no mergea. Comenta en el PR: si las pruebas
-están en verde, si el PR toca solo WS Style o también archivos compartidos (entonces avisa que
-falta Pedro) y los pasos de arriba para que Joe apruebe y mergee.
+están en verde, si el PR toca solo WS Style o también infraestructura u otros proyectos (entonces
+avisa que falta Pedro) y los pasos de arriba para que Joe apruebe y mergee.
 
 **Ojo:** cada merge a `main` redespliega el sitio entero (Pages + Render), no solo WS Style.
