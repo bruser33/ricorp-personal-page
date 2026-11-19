@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState, type ChangeEvent } from 'react';
+import { createPortal } from 'react-dom';
 import { ApiError } from '../api';
 import { assetUrl, ACCEPT_ATTR, checkPhotoFile, styles, usePrivateImage, type Reference, type StyleChoice, type StyleItem } from '../styles';
 import { Notice } from './ui';
@@ -6,27 +7,36 @@ import { Notice } from './ui';
 // SPEC-59: "Tu estilo" en la reserva, miniaturas de la referencia y visor a pantalla completa.
 // Diseño "Noir de oficio": esquinas rectas, filete fino hueso, la elegida con borde --brass y "ELEGIDO" en versalitas.
 
-/* Visor a pantalla completa (fondo negro 92 %). Se cierra con Escape, con el botón o tocando fuera de la foto. */
+/* Visor a pantalla completa (fondo negro 92 %). Se cierra con Escape, con el botón o tocando fuera de la foto.
+   Es su propio <dialog> modal: queda en la capa superior del navegador, encima del header fijo de la reserva y
+   también encima de las fichas de cita del panel (que ya son <dialog> modales). */
 export function PhotoViewer({ src, alt, onClose }: { src: string; alt: string; onClose: () => void }) {
+  const ref = useRef<HTMLDialogElement>(null);
   const close = useRef<HTMLButtonElement>(null);
   useEffect(() => {
+    const d = ref.current;
     const prev = document.activeElement as HTMLElement | null;
+    if (d && !d.open) {
+      if (typeof d.showModal === 'function') d.showModal();
+      else d.setAttribute('open', '');
+    }
     close.current?.focus();
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.preventDefault(); onClose(); } };
-    document.addEventListener('keydown', onKey);
     const overflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => {
-      document.removeEventListener('keydown', onKey);
+      if (d?.open) d.close?.();
       document.body.style.overflow = overflow;
       prev?.focus?.();
     };
-  }, [onClose]);
-  return (
-    <div className="st-viewer" role="dialog" aria-modal="true" aria-label={alt} data-viewer="" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <img className="st-viewer__img" src={src} alt={alt} />
+  }, []);
+  return createPortal(
+    <dialog ref={ref} className="st-viewer" aria-label={alt} data-viewer=""
+      onCancel={(e) => { e.preventDefault(); e.stopPropagation(); onClose(); }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <img className="st-viewer__img" src={src} alt={alt} onClick={(e) => e.stopPropagation()} />
       <button type="button" ref={close} className="st-viewer__close" onClick={onClose}>Cerrar</button>
-    </div>
+    </dialog>,
+    document.body,
   );
 }
 
@@ -47,7 +57,7 @@ export function Thumb({ src, privatePath, alt, size = 64 }: { src?: string | nul
 }
 
 /* La referencia guardada en la cita: "Estilo: …" + miniaturas (RN-05: si el estilo ya no está, el nombre y un aviso). */
-export function ReferenceSummary({ reference, size = 64, title = 'Tu estilo' }: { reference: Reference | null | undefined; size?: number; title?: string }) {
+export function ReferenceSummary({ reference, size = 64, title = 'Tu estilo', staff = false }: { reference: Reference | null | undefined; size?: number; title?: string; staff?: boolean }) {
   if (!reference) return null;
   const { style, clientPhoto, clientPhotoNotice } = reference;
   return (
@@ -58,7 +68,7 @@ export function ReferenceSummary({ reference, size = 64, title = 'Tu estilo' }: 
         {style?.photoUrl && <Thumb src={style.photoUrl} alt={`Estilo ${style.name}`} size={size} />}
         {clientPhoto && <Thumb privatePath={clientPhoto.url} alt="Foto de referencia del cliente" size={size} />}
       </div>
-      {clientPhoto && <p className="ag-fine">{style ? 'Más la foto que subió el cliente.' : 'Foto que subió el cliente.'}</p>}
+      {clientPhoto && <p className="ag-fine">{staff ? (style ? 'Más la foto que subió el cliente.' : 'Foto que subió el cliente.') : (style ? 'Más tu foto.' : 'Tu foto.')}</p>}
       {clientPhotoNotice && <p className="ag-muted" data-photo-notice="">{clientPhotoNotice}</p>}
     </div>
   );

@@ -249,6 +249,14 @@ describe('SPEC-59 fotos de estilos', () => {
     assert.equal(r.status, 400);
     assert.equal(r.json.error, 'invalid_photo');
 
+    /* Dos reservas a la vez con la misma provisional: solo una se la queda. */
+    const shared = (await uploadClient(other.cookie, png, 'image/png', 'doble.png')).json;
+    const [x, y] = await Promise.all(['15:00', '16:00'].map((t) => req('POST', '/api/wstyle/appointments', { serviceId: 'corte', professionalId: String(proB._id), startsAt: at(t), mode: 'shop', acceptPolicies: true, clientPhotoId: shared.id }, other.cookie)));
+    const owners = [x, y].filter((r) => r.status === 201 && r.json.appointment.reference?.clientPhoto).length;
+    const linked = await Appointment.countDocuments({ 'reference.clientPhotoId': shared.id });
+    assert.ok(owners <= 1 && linked <= 1, `la foto quedó en ${linked} citas`);
+    await Appointment.deleteMany({ customerUserId: other.user._id });
+
     /* Sin foto → igual que hoy. */
     const plain = await book(other, {}, '14:00');
     assert.equal(plain.appointment.reference, null);
@@ -304,6 +312,9 @@ describe('SPEC-59 fotos de estilos', () => {
     assert.equal(view.reference.clientPhotoNotice, 'Foto quitada por el local');
     const log = await AuditLog.findOne({ action: 'appointment.photo_removed' }).lean();
     assert.equal(log.entityId, appt.id);
+    /* El cliente no puede borrar el aviso de moderación mandando "quitar" sin foto. */
+    await req('PUT', `/api/wstyle/appointments/${appt.id}/reference`, { clientPhotoId: null }, client.cookie);
+    assert.equal((await Appointment.findById(appt.id).lean()).reference.clientPhotoState, 'removed');
     assert.equal(String(log.actorUserId), String(admin._id));
 
     /* 90 días después de finalizada. */

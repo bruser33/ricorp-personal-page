@@ -417,7 +417,7 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
             throw err;
           }
         }, logger);
-        await attachPhoto(refPhoto, appt._id);
+        if (!(await attachPhoto(refPhoto, appt._id)) && appt.reference) appt.reference.clientPhotoId = undefined;
         if (!user.phoneE164 || user.phoneE164 !== phone) await User.updateOne({ _id: user._id }, { phoneE164: phone });
         await CustomerProfile.updateOne({ businessId: b._id, userId: user._id }, { $inc: { 'counters.appointments': 1 } }, { upsert: true }).catch(() => {});
         /* En línea: los correos de "reserva recibida" salen cuando se aprueba el pago (RN-04). */

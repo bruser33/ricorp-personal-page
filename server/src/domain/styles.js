@@ -76,8 +76,12 @@ export async function resolveReference(b, user, input = {}) {
 }
 
 export async function attachPhoto(photo, apptId) {
-  if (!photo) return;
-  await ClientPhoto.updateOne({ _id: photo._id, appointmentId: null }, { $set: { appointmentId: apptId } });
+  if (!photo) return true;
+  /* Atómico: si dos reservas usan la misma provisional a la vez, solo una se la queda. */
+  const claimed = await ClientPhoto.findOneAndUpdate({ _id: photo._id, appointmentId: null }, { $set: { appointmentId: apptId } });
+  if (claimed) return true;
+  await Appointment.updateOne({ _id: apptId, 'reference.clientPhotoId': photo.fileId }, { $unset: { 'reference.clientPhotoId': 1 } });
+  return false;
 }
 
 /* RN-04/RN-05: lo que ve cada rol de la referencia. */
@@ -363,7 +367,7 @@ export function createStyles({ agenda, pro, clock = Date.now, logger = console }
         Object.assign(set, { 'reference.styleId': reference.styleId, 'reference.styleName': reference.styleName, 'reference.stylePhotoId': reference.stylePhotoId });
       }
     }
-    if (body.clientPhotoId !== undefined && body.clientPhotoId !== cur.clientPhotoId) {
+    if (body.clientPhotoId !== undefined && (body.clientPhotoId || null) !== (cur.clientPhotoId || null)) {
       if (body.clientPhotoId === null || body.clientPhotoId === '') unset['reference.clientPhotoId'] = 1;
       else {
         const { photo } = await resolveReference(b, user, { clientPhotoId: body.clientPhotoId });
@@ -378,7 +382,7 @@ export function createStyles({ agenda, pro, clock = Date.now, logger = console }
     if (Object.keys(set).length) update.$set = set;
     if (Object.keys(unset).length) update.$unset = unset;
     if (Object.keys(update).length) await Appointment.updateOne({ _id: appt._id }, update);
-    await attachPhoto(attach, appt._id);
+    if (!(await attachPhoto(attach, appt._id))) throw new HttpError(409, 'photo_in_use', 'Esa foto ya está en otra cita. Súbela de nuevo.');
     /* RN-09: al quitar o reemplazar la foto propia, la anterior se borra de GridFS. */
     if (toDelete) await deleteClientPhoto(toDelete);
     return agenda.view(String(appt._id), user);

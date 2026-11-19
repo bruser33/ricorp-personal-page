@@ -119,7 +119,7 @@ export default function ApptSheet({ id, onClose, onChanged }: { id: string; onCl
           {appt.proposal && <><dt>Propuesta</dt><dd>{appt.proposal.when}</dd></>}
         </dl>
         {/* SPEC-59: referencia del cliente y moderación (solo el super admin quita la foto del cliente). */}
-        <ReferenceSummary reference={appt.reference} title="Referencia del cliente" />
+        <ReferenceSummary reference={appt.reference} title="Referencia del cliente" staff />
         {appt.reference?.clientPhoto && mode === null && (
           confirmRemove ? (
             <div className="ag-confirm" role="group" aria-label="Quitar foto del cliente">

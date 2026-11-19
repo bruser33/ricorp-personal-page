@@ -77,7 +77,7 @@ export default function ApptSheet({ appt: initial, mode: initialMode = 'detail',
             <PriceBreakdown pricing={appt.pricing} totalLabel="Total que paga el cliente" barberShare />
           </dl>
           {/* SPEC-59: lo que busca el cliente (miniatura de 64 px que se abre en grande). */}
-          <ReferenceSummary reference={appt.reference} title="Referencia del cliente" />
+          <ReferenceSummary reference={appt.reference} title="Referencia del cliente" staff />
           <div className="pro-card__contact">
             {home && appt.mapsUrl && <a className="pro-chip" href={appt.mapsUrl} target="_blank" rel="noopener">Cómo llegar</a>}
             {appt.telUrl && <a className="pro-chip" href={appt.telUrl}>Llamar</a>}

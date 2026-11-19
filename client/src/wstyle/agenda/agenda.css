@@ -227,7 +227,9 @@
 .st-ref__name { margin: 0 0 8px; }
 .st-ref__thumbs { display: flex; gap: 10px; flex-wrap: wrap; }
 .st-summary-thumbs { margin-top: 10px; }
-.st-viewer { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; padding: 48px 12px 12px; background: rgba(0, 0, 0, .92); }
+.st-viewer { position: fixed; inset: 0; z-index: 100; width: 100vw; height: 100dvh; max-width: none; max-height: none; margin: 0; border: 0; color: var(--bone); align-items: center; justify-content: center; padding: 56px 12px 12px; background: rgba(0, 0, 0, .92); box-sizing: border-box; }
+.st-viewer[open] { display: flex; }
+.st-viewer::backdrop { background: transparent; }
 .st-viewer__img { max-width: 100%; max-height: 100%; object-fit: contain; }
 .st-viewer__close { position: absolute; top: 10px; right: 12px; padding: 8px 12px; background: none; border: 1px solid rgba(237, 230, 218, .5); color: var(--bone); font: 600 12px/1 var(--font-body); letter-spacing: var(--tracking-caps-tight); text-transform: uppercase; cursor: pointer; }
 .st-viewer__close:focus-visible { outline: 2px solid var(--brass); }
