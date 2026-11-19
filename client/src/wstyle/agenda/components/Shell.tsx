@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import type { User } from '../api';
 
 // Marco de las páginas de la agenda: header con la marca (vuelve a la landing), Reservar, Mis citas y la cuenta.
-export default function Shell({ user, current, children }: { user: User | null; current: 'reservar' | 'cita' | 'cuenta' | 'mis-citas'; children: ReactNode }) {
+export default function Shell({ user, current, children }: { user: User | null; current: 'reservar' | 'cita' | 'cuenta' | 'mis-citas' | 'puntos'; children: ReactNode }) {
   const link = (href: string, label: string, key: string) => (
     <a href={href} aria-current={current === key ? 'page' : undefined}>{label}</a>
   );
@@ -14,6 +14,7 @@ export default function Shell({ user, current, children }: { user: User | null; 
         <nav aria-label="Agenda" className="ag-nav">
           {link('/wstyle/reservar/', 'Reservar', 'reservar')}
           {user && link('/wstyle/cuenta/mis-citas/', 'Mis citas', 'mis-citas')}
+          {user && link('/wstyle/cuenta/puntos/', 'Puntos', 'puntos')}
           {link('/wstyle/cuenta/', user ? user.name.split(' ')[0] || 'Mi cuenta' : 'Entrar', 'cuenta')}
         </nav>
       </header>

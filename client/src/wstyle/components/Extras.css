@@ -69,3 +69,9 @@
 /* P3 (ronda 4): en compacto el texto corto, en una línea (sin «EJEMPLO» huérfano). */
 .compact .demo-strip__long { display: none; }
 .compact .demo-strip__short { display: inline; }
+
+/* SPEC-57: Landing: bloque breve dentro del panel sólido de "Antes de venir" (asunción 11). */
+.points-teaser { margin: 34px 0 0; padding: 22px 0 0; border-top: 1px solid var(--brass); max-width: 640px; }
+.points-teaser__title { margin: 0 0 10px; font: 400 clamp(26px, 5vw, 38px)/1 var(--font-display); letter-spacing: .01em; color: var(--bone); }
+.points-teaser__copy { margin: 0 0 6px; font: italic 500 clamp(19px, 3.6vw, 23px)/1.3 var(--font-serif); color: var(--bone); }
+.points-teaser__link { display: inline-block; margin-top: 10px; color: var(--brass); font: 600 12px/1 var(--font-body); letter-spacing: var(--tracking-caps-tight, .12em); text-transform: uppercase; text-decoration: none; border-bottom: 1px solid var(--brass); padding-bottom: 4px; }

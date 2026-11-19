@@ -11,6 +11,7 @@ import AuditPage from './pages/AuditPage';
 import BarbersPage from './pages/BarbersPage';
 import HomePage from './pages/HomePage';
 import PaymentsPage from './pages/PaymentsPage';
+import PointsAdminPage from './pages/PointsAdminPage';
 import RendicionPage from './pages/RendicionPage';
 import SchedulePage from './pages/SchedulePage';
 import ServicesPage from './pages/ServicesPage';
@@ -109,6 +110,7 @@ export default function AdminApp({ fbReturn }: { fbReturn: FacebookReturn | null
     carta: <ServicesPage />,
     horario: <SchedulePage />,
     estadisticas: <StatsPage />,
+    puntos: <PointsAdminPage />,
     configuracion: <SettingsPage user={user} />,
     auditoria: <AuditPage />,
   }[section];

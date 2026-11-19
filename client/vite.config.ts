@@ -33,21 +33,21 @@ export default defineConfig({
         wstyle: resolve(import.meta.dirname, 'wstyle/index.html'),
         // Agenda (SPEC-32): cada ruta es una carpeta real con su index.html (Pages solo sirve carpetas que existen).
         ...Object.fromEntries(
-          ['reservar', 'cita', 'cuenta', 'cuenta/mis-citas', 'cuenta/recuperar', 'cuenta/confirmar'].map((r) => [
+          ['reservar', 'cita', 'cuenta', 'cuenta/mis-citas', 'cuenta/puntos', 'cuenta/recuperar', 'cuenta/confirmar'].map((r) => [
             `wstyle-${r.replace('/', '-')}`,
             resolve(import.meta.dirname, `wstyle/${r}/index.html`),
           ]),
         ),
         // Panel del barbero (SPEC-33): /wstyle/pro/, /pro/registro/, /pro/agenda/, /pro/pagos/ (SPEC-37) y /pro/perfil/.
         ...Object.fromEntries(
-          ['pro', 'pro/registro', 'pro/agenda', 'pro/pagos', 'pro/perfil'].map((r) => [`wstyle-${r.replace('/', '-')}`, resolve(import.meta.dirname, `wstyle/${r}/index.html`)]),
+          ['pro', 'pro/registro', 'pro/agenda', 'pro/pagos', 'pro/canjes', 'pro/perfil'].map((r) => [`wstyle-${r.replace('/', '-')}`, resolve(import.meta.dirname, `wstyle/${r}/index.html`)]),
         ),
         // Páginas legales (Política de privacidad y Términos, requeridas por Meta para el inicio con Facebook): HTML
         // prerenderizado en el build (scripts/prerender-wstyle.mjs).
         ...Object.fromEntries(['privacidad', 'terminos'].map((r) => [`wstyle-${r}`, resolve(import.meta.dirname, `wstyle/${r}/index.html`)])),
         // Panel del super admin (SPEC-34): /wstyle/admin/ y una carpeta por sección (recargar funciona). Sin enlace público, noindex.
         ...Object.fromEntries(
-          ['admin', ...['barberos', 'citas', 'pagos', 'rendicion', 'carta', 'horario', 'estadisticas', 'configuracion', 'auditoria'].map((s) => `admin/${s}`)].map((r) => [
+          ['admin', ...['barberos', 'citas', 'pagos', 'rendicion', 'carta', 'horario', 'estadisticas', 'puntos', 'configuracion', 'auditoria'].map((s) => `admin/${s}`)].map((r) => [
             `wstyle-${r.replace('/', '-')}`,
             resolve(import.meta.dirname, `wstyle/${r}/index.html`),
           ]),

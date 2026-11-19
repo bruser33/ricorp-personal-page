@@ -22,6 +22,7 @@ import HeroNav from './components/HeroNav';
 import { heroItems, nextIndex, normalizeSlides, prevIndex, resolveIndex, PORTRAIT_ID } from './heroSlides';
 import Embers from './components/Embers';
 import { Barbers, DemoStrip, Membership, Policies, Reviews } from './components/Extras';
+import PointsTeaser from './components/PointsTeaser';
 import Scene3D from './scene/Scene3D';
 import './wstyle.css';
 
@@ -145,7 +146,8 @@ export default function App({ initial }: { initial: Content | null }) {
         <Membership site={site} booking={booking} label={lab('membresia')} />
         <Barbers site={site} booking={booking} label={lab('barberos')} />
         <Reviews site={site} label={lab('resenas')} />
-        <Policies site={site} label={lab('politicas')} />
+        {/* SPEC-57: "Junta puntos con cada corte" dentro de Antes de venir (asunción 11); solo con el programa activo. */}
+        <Policies site={site} label={lab('politicas')} extra={<PointsTeaser />} />
         <Section id="llega" className="panel--last" label={lab('llega')} headline={h.llega} copy={copy.llega}
           after={<Footer name={name} poweredBy={poweredBy} />}>
           <Location site={site} links={links} />

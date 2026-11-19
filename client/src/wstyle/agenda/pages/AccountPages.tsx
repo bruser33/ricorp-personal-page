@@ -73,6 +73,7 @@ export function AccountPage({ ctx }: { ctx: AgendaCtx }) {
         <div className="ag-actions ag-actions--wrap">
           <a className="btn btn--primary" href="/wstyle/reservar/">Reservar</a>
           <a className="btn btn--ghost" href="/wstyle/cuenta/mis-citas/">Mis citas</a>
+          <a className="btn btn--ghost" href="/wstyle/cuenta/puntos/">Mis puntos</a>
           <button type="button" className="btn btn--ghost" onClick={() => session.logout()}>Cerrar sesión</button>
         </div>
         <p className="ag-fine">{user.roles.includes('barber') ? <a href="/wstyle/pro/">Ir a mi panel de barbero</a> : <a href="/wstyle/pro/registro/">¿Eres barbero? Trabaja con nosotros</a>}</p>

@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { toCLP } from '../lib';
 import { clp, ext } from '../links';
 import { str, type SiteContent } from '../content';
@@ -80,7 +81,7 @@ export function Membership({ site, booking, label }: { site: SiteContent; bookin
   );
 }
 
-export function Policies({ site, label }: { site: SiteContent; label: string }) {
+export function Policies({ site, label, extra }: { site: SiteContent; label: string; extra?: ReactNode }) {
   const list = (site.policies ?? []).filter((p) => p && str(p.title) && str(p.text));
   if (!list.length) return null;
   return (
@@ -88,6 +89,7 @@ export function Policies({ site, label }: { site: SiteContent; label: string }) 
       <dl className="policies reveal">
         {list.map((p, i) => <div key={i}><dt>{p.title}</dt><dd>{p.text}</dd></div>)}
       </dl>
+      {extra}
     </Extra>
   );
 }
