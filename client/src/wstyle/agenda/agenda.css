@@ -57,6 +57,11 @@
 .ag-options { margin: 0 0 8px; padding: 0; border: 0; display: grid; gap: 10px; }
 .ag-options legend { margin-bottom: 10px; font: 700 12px/1.3 var(--font-body); letter-spacing: var(--tracking-caps-tight); text-transform: uppercase; color: var(--brass); }
 .ag-options--pros { margin-top: 18px; }
+/* SPEC-51: título de cada categoría de la carta (y su nota) dentro del paso 1; ocupa toda la fila de la grilla. */
+.ag-svc-group { grid-column: 1 / -1; display: grid; gap: 2px; margin: 10px 0 0; }
+.ag-svc-group:first-of-type { margin-top: 0; }
+.ag-svc-group__title { font: italic 500 22px/1.15 var(--font-serif); color: var(--bone); overflow-wrap: break-word; }
+.ag-svc-group__note { font-size: 13px; line-height: 1.4; color: var(--muted); overflow-wrap: break-word; }
 .ag-option { display: flex; align-items: center; gap: 14px; width: 100%; min-height: 56px; padding: 12px 14px; text-align: left; cursor: pointer;
   background: rgba(14, 13, 12, .6); color: var(--bone); border: 1px solid rgba(237, 230, 218, .18); border-radius: 4px; font: 400 16px/1.3 var(--font-body);
   transition: border-color .15s ease, background-color .15s ease; }
@@ -219,3 +224,21 @@
   .ag-cal__full { font-size: 9px; }
   .ag-wait__pref { grid-template-columns: repeat(3, 1fr); }
 }
+
+/* SPEC-52: reseñas. "Dejar reseña" / "Tu reseña: ★★★★☆" bajo la cita pasada; formulario con estrellas como radio group. */
+.ag-item__review { display: inline-block; margin: 6px 0 0 14px; font-size: 14px; color: var(--muted); }
+.ag-item__review span { color: var(--brass); letter-spacing: .08em; }
+a.ag-item__review { color: var(--brass); font-weight: 600; }
+.ag-review__appt { margin: 0 0 18px; color: var(--muted); }
+.ag-review__appt strong { color: var(--bone); }
+.ag-review__mine { margin: 14px 0 0; color: var(--muted); }
+.ag-review__mine span { color: var(--brass); letter-spacing: .08em; }
+.ag-stars { margin: 0 0 18px; padding: 0; border: 0; }
+.ag-stars legend { padding: 0; margin-bottom: 8px; font: 600 13px/1.3 var(--font-body); letter-spacing: .04em; color: var(--bone); }
+.ag-stars__row { display: flex; gap: 4px; }
+.ag-stars__item { position: relative; }
+.ag-stars label { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 4px; cursor: pointer; font-size: 32px; line-height: 1; color: rgba(184, 135, 90, .3); transition: color .15s ease; }
+.ag-stars label.is-on, .ag-stars label:hover { color: var(--brass); }
+.ag-stars input:focus-visible + label { outline: 2px solid var(--brass); outline-offset: 2px; }
+.ag-review__count.is-over { color: #e0806b; }
+@media (prefers-reduced-motion: reduce) { .ag-stars label { transition: none; } }

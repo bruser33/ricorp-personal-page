@@ -101,6 +101,23 @@ const MembershipSchema = new Schema(
 MembershipSchema.index({ businessId: 1, professionalId: 1 }, { unique: true });
 export const Membership = model('Membership', MembershipSchema);
 
+/* SPEC-51: categoría de la carta (Barbería, Decoloración capilar…). `note` = texto bajo el título del grupo
+   (landing y reserva). `slug` = id de la categoría en services.json. */
+const ServiceCategorySchema = new Schema(
+  {
+    businessId: { type: ObjectId, required: true },
+    slug: { type: String, required: true },
+    name: { type: String, required: true },
+    note: { type: String, default: '' },
+    order: { type: Number, default: 0 },
+  },
+  { timestamps: true }
+);
+ServiceCategorySchema.index({ businessId: 1, slug: 1 }, { unique: true });
+export const ServiceCategory = model('ServiceCategory', ServiceCategorySchema);
+/* SPEC-51 RN-01: un servicio sin categoría se muestra en "Barbería". */
+export const DEFAULT_CATEGORY = { slug: 'barberia', name: 'Barbería' };
+
 /* professionalId null = carta del local. `slug` = id de services.json. */
 const ServiceSchema = new Schema(
   {
@@ -114,6 +131,8 @@ const ServiceSchema = new Schema(
     homeServiceAllowed: { type: Boolean, default: true },
     active: { type: Boolean, default: true },
     order: { type: Number, default: 0 },
+    /* SPEC-51: categoría (null = "Barbería", RN-01). */
+    categoryId: { type: ObjectId, default: null },
     /* SPEC-34 RN-04: un servicio con citas no se borra, se archiva (deja de ofrecerse). */
     archivedAt: { type: Date, default: null },
   },
@@ -324,7 +343,10 @@ const AppointmentSchema = new Schema(
         reason: String,
       },
     ],
-    source: { type: String, enum: ['web', 'pro_invite', 'admin'], default: 'web' },
+    source: { type: String, enum: ['web', 'pro_invite', 'pro_direct', 'admin'], default: 'web' },
+    /* SPEC-58 RN-04: canal de la reserva web (utm_source normalizado, "directo" sin UTM). Se fija al crear la cita
+       y no cambia. Las citas pro_invite/admin no lo llevan. Nunca se muestra al cliente. */
+    origin: { type: String, maxlength: 40 },
     idempotencyKey: String,
   },
   /* optimisticConcurrency: dos pestañas (o cliente y barbero) que cambian la misma
@@ -478,10 +500,34 @@ WaitlistEntrySchema.index({ businessId: 1, date: 1, active: 1, createdAt: 1 });
 WaitlistEntrySchema.index({ token: 1 }, { unique: true });
 export const WaitlistEntry = model('WaitlistEntry', WaitlistEntrySchema);
 
+/* SPEC-52: reseña de un cliente sobre una cita `terminada`. El índice único por cita es la garantía de "una por
+   cita" (RN-02, también con dos pestañas a la vez). Nombre, servicio y barbero se copian al crearla (RN-06, CB-12). */
+const ReviewSchema = new Schema(
+  {
+    businessId: { type: ObjectId, required: true },
+    appointmentId: { type: ObjectId, required: true },
+    userId: { type: ObjectId, required: true },
+    rating: { type: Number, required: true, min: 1, max: 5 },
+    comment: { type: String, required: true },
+    authorName: String,
+    serviceName: String,
+    professionalName: String,
+    status: { type: String, enum: ['visible', 'hidden'], default: 'visible' },
+    /* by: 'admin' (lo ocultó el super admin, con motivo interno opcional) | 'account_deleted' (RN-12). */
+    hidden: { at: Date, byUserId: ObjectId, by: { type: String, enum: ['admin', 'account_deleted'] }, reason: String },
+  },
+  { timestamps: true }
+);
+ReviewSchema.index({ appointmentId: 1 }, { unique: true });
+ReviewSchema.index({ businessId: 1, status: 1, createdAt: -1 });
+ReviewSchema.index({ userId: 1 });
+export const Review = model('Review', ReviewSchema);
+
 export const ALL_MODELS = [
   Business,
   Professional,
   Membership,
+  ServiceCategory,
   Service,
   ProfessionalService,
   AvailabilityRule,
@@ -497,4 +543,5 @@ export const ALL_MODELS = [
   AuditLog,
   PaymentEvent,
   WaitlistEntry,
+  Review,
 ];

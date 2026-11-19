@@ -10,12 +10,15 @@ import {
   AvailabilityRule,
   BLOCKING,
   Business,
+  CustomerProfile,
   Membership,
   PanelNotification,
   PlatformSettings,
   Professional,
   ProfessionalService,
   Service,
+  ServiceCategory,
+  DEFAULT_CATEGORY,
   SlotLock,
   User,
 } from '../models/index.js';
@@ -28,6 +31,7 @@ import { csvCell } from '../lib/csv.js';
 import { slotsFor } from './availability.js';
 import { entriesToWeek, fitsInRanges, parseWeek, weekToEntries, weekToSiteRows } from './hours.js';
 import { computeStats, monthRange, parseRange } from './stats.js';
+import { categoriesOf, categoryView } from './categories.js';
 import { addDays, formatLong, isDate, isoWeekday, wallClock, zonedToUtc } from './time.js';
 import { photoUrl, STATUS_LABEL } from './agenda.js';
 import { applyLocalCollection, boletaClash, parseCollectInput } from './tax.js';
@@ -88,7 +92,7 @@ export const CSV_COLUMNS = [
 ];
 
 
-export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = console, frontUrl = 'http://localhost:5173', env = {}, adminInbox, onlinePayments = { ready: false }, payments = null, billing = null }) {
+export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = console, frontUrl = 'http://localhost:5173', env = {}, adminInbox, onlinePayments = { ready: false }, payments = null, billing = null, reviews = null }) {
   /* ─── Acceso */
   function requireAdmin(user) {
     if (!user) throw new HttpError(401, 'unauthorized', 'Tu sesión venció. Inicia sesión para continuar.');
@@ -139,7 +143,7 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
     const dayStart = new Date(zonedToUtc(today, '00:00', tz));
     const dayEnd = new Date(zonedToUtc(addDays(today, 1), '00:00', tz));
     const month = monthRange(now, tz);
-    const [pendingBarbers, todayCount, pendingConfirm, refunds, monthStats, unread, alerts] = await Promise.all([
+    const [pendingBarbers, todayCount, pendingConfirm, refunds, monthStats, unread, alerts, reviewsLast7d] = await Promise.all([
       Membership.countDocuments({ businessId: b._id, status: 'pending', submittedAt: { $ne: null } }),
       Appointment.countDocuments({ businessId: b._id, startsAt: { $gte: dayStart, $lt: dayEnd }, status: { $nin: ['cancelada', 'expirada'] } }),
       Appointment.countDocuments({ businessId: b._id, status: 'pendiente' }),
@@ -147,10 +151,12 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
       computeStats(b, month),
       PanelNotification.countDocuments({ userId: user._id, readAt: null }),
       suspendedAlerts(b, now),
+      /* SPEC-52: reseñas nuevas de los últimos 7 días. */
+      reviews ? reviews.countSince(b, 7) : 0,
     ]);
     return {
       today,
-      cards: { pendingBarbers, today: todayCount, pendingConfirm, refundsPending: refunds, monthRevenueCLP: monthStats.revenue.totalCLP },
+      cards: { pendingBarbers, today: todayCount, pendingConfirm, refundsPending: refunds, monthRevenueCLP: monthStats.revenue.totalCLP, reviewsLast7d },
       alerts,
       unread,
       user: publicUser(user),
@@ -321,9 +327,108 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
     return out;
   }
 
+  /* ─── SPEC-55: avisos al barbero de lo que hizo WS Style en su agenda (RN-06). */
+  async function tellBarber(professionalId, kind, title, body = '', appointmentId = null) {
+    const p = await Professional.findById(professionalId, { userId: 1 }).lean();
+    if (!p?.userId) return;
+    await PanelNotification.create({ userId: p.userId, professionalId, appointmentId: appointmentId || undefined, kind, title, body }).catch((err) => logger.error('[admin] bandeja barbero:', err.message));
+  }
+
+  /* SPEC-55 RN-04 / AC-06: un "no vino" se corrige dentro de 48 h desde que se registró. */
+  const REVERT_WINDOW_MS = 48 * 60 * 60 * 1000;
+  function noShowAt(appt) {
+    const h = [...(appt.history || [])].reverse().find((x) => x.to === 'no_asistio');
+    return h?.at ? h.at.getTime() : null;
+  }
+  function canRevertNoShow(appt, now) {
+    const t = appt.status === 'no_asistio' ? noShowAt(appt) : null;
+    return t !== null && now - t <= REVERT_WINDOW_MS;
+  }
+
+  async function revertNoShow(user, id, body = {}) {
+    const b = await ctx(user);
+    const reason = String(body.reason ?? '').replace(/\s+/g, ' ').trim().slice(0, 300);
+    if (!reason) throw fieldError({ reason: 'required' }, 'Escribe el motivo');
+    const current = await loadAppt(b, id);
+    const now = clock();
+    if (current.status !== 'no_asistio') throw new HttpError(409, 'invalid_transition', 'Esta cita no está marcada como "no vino"', { reason: 'bad_state' });
+    if (!canRevertNoShow(current, now)) throw new HttpError(409, 'invalid_transition', 'Pasaron más de 48 horas: ya no se puede corregir', { reason: 'too_late' });
+    const appt = await agenda.mutate(b, current._id, async (a, session) => {
+      if (a.status !== 'no_asistio') throw new HttpError(409, 'invalid_transition', 'Recarga para ver el estado actual', { reason: 'stale' });
+      /* Si la cita aún no termina, el barbero vuelve a estar ocupado: se re-toman los bloques que el "no vino" liberó.
+         Si alguien ya reservó ese rato → 409 slot_taken (mutate) y no se corrige. */
+      const have = new Set((await SlotLock.find({ appointmentId: a._id }, { slotStart: 1 }).session(session || null).lean()).map((l) => l.slotStart.getTime()));
+      const missing = slotsFor(a.startsAt.getTime(), a.serviceSnapshot.durationMin, a.location?.travelBufferMin || 0).filter((t) => t + 15 * 60 * 1000 > now && !have.has(t));
+      if (missing.length) await SlotLock.insertMany(missing.map((t) => ({ businessId: b._id, professionalId: a.professionalId, slotStart: new Date(t), appointmentId: a._id, kind: 'main' })), { session, ordered: true });
+      a.status = 'terminada';
+      return { by: 'admin', byUserId: user._id, reason: `Sí vino: ${reason}` };
+    });
+    if (appt.customerUserId) {
+      await CustomerProfile.updateOne({ businessId: b._id, userId: appt.customerUserId, 'counters.noShows': { $gt: 0 } }, { $inc: { 'counters.noShows': -1 } }).catch(() => {});
+    }
+    await audit(user, b, 'appointment.revert_no_show', {
+      entity: 'appointment',
+      entityId: appt._id,
+      summary: `${appt.customerSnapshot?.name || 'Cliente'} · ${appt.serviceSnapshot?.name || ''} · ${formatLong(appt.startsAt.getTime(), b.timezone)} — ${reason}`,
+      before: { status: 'no_asistio' },
+      after: { status: 'terminada' },
+    });
+    return serializeAdmin(appt, b, now);
+  }
+
+  /* SPEC-55 AC-09: agenda de UN día con una columna por barbero aprobado (CB-08: nunca suspendidos). */
+  async function agendaDay(user, q = {}) {
+    const b = await ctx(user);
+    const date = q.date ? String(q.date) : wallClock(clock(), b.timezone).date;
+    if (!isDate(date)) throw new HttpError(400, 'invalid_range', 'Fecha inválida');
+    const ms = await Membership.find({ businessId: b._id, status: 'approved' }).sort({ order: 1 }).lean();
+    const pros = await Professional.find({ _id: { $in: ms.map((m) => m.professionalId) }, status: { $ne: 'suspended' } }).lean();
+    const ordered = ms.map((m) => pros.find((p) => String(p._id) === String(m.professionalId))).filter(Boolean);
+    const cols = await Promise.all(ordered.map((p) => pro.agendaRange(pro.forAdmin(String(p._id)), { from: date, to: date }, 'admin')));
+    return {
+      date,
+      timezone: b.timezone,
+      now: new Date(clock()).toISOString(),
+      today: wallClock(clock(), b.timezone).date,
+      barbers: cols.map((c) => ({ id: c.professional.id, name: c.professional.name, services: c.services, timeOffs: c.timeOffs, day: c.days[0] })),
+    };
+  }
+
+  async function barberSlots(user, id, q = {}) {
+    await ctx(user);
+    return pro.slots(pro.forAdmin(id), { service: String(q.service || ''), date: String(q.date || ''), mode: 'shop' });
+  }
+
+  async function customers(user, q) {
+    await ctx(user);
+    return pro.searchCustomers({ __all: true }, q);
+  }
+
+  const hhmm = (iso, tz) => wallClock(Date.parse(iso), tz).time;
+  async function addBarberTimeOff(user, id, body = {}) {
+    const b = await ctx(user);
+    const r = await pro.addTimeOff(pro.forAdmin(id), body);
+    const { pro: p } = await pro.resolve(pro.forAdmin(id), {});
+    const range = `${hhmm(r.timeOff.startsAt, b.timezone)}–${hhmm(r.timeOff.endsAt, b.timezone)}`;
+    const reason = r.timeOff.reason;
+    await tellBarber(p._id, 'admin_time_off', `WS Style bloqueó ${range}${reason ? `: ${reason}` : ''}`, formatLong(Date.parse(r.timeOff.startsAt), b.timezone));
+    await audit(user, b, 'barber.time_off_add', { entity: 'barber', entityId: p._id, summary: `${p.displayName} · ${formatLong(Date.parse(r.timeOff.startsAt), b.timezone)} – ${hhmm(r.timeOff.endsAt, b.timezone)}${reason ? ` · ${reason}` : ''}`, after: r.timeOff });
+    return r;
+  }
+
+  async function removeBarberTimeOff(user, id, offId) {
+    const b = await ctx(user);
+    const r = await pro.removeTimeOff(pro.forAdmin(id), offId);
+    const { pro: p } = await pro.resolve(pro.forAdmin(id), {});
+    const range = `${hhmm(r.timeOff.startsAt, b.timezone)}–${hhmm(r.timeOff.endsAt, b.timezone)}`;
+    await tellBarber(p._id, 'admin_time_off_removed', `WS Style quitó el bloqueo ${range}${r.timeOff.reason ? `: ${r.timeOff.reason}` : ''}`, formatLong(Date.parse(r.timeOff.startsAt), b.timezone));
+    await audit(user, b, 'barber.time_off_remove', { entity: 'barber', entityId: p._id, summary: `${p.displayName} · ${formatLong(Date.parse(r.timeOff.startsAt), b.timezone)}`, before: r.timeOff });
+    return { ok: true };
+  }
+
   /* ─── Citas (RN-03) */
-  async function serializeAdmin(appt, b, now) {
-    const out = await agenda.serialize(appt, 'admin', b, now);
+  async function serializeAdmin(appt, b, now, extra = {}) {
+    const out = await agenda.serialize(appt, 'admin', b, now, extra);
     out.customer = { name: appt.customerSnapshot?.name || '', phone: appt.customerSnapshot?.phoneE164 || null, email: appt.customerSnapshot?.email || null };
     /* SPEC-38 RN-13: en citas antiguas la comisión era interna (no se cobró): el admin la ve aparte. */
     out.pricing = { ...out.pricing, platformFeeRate: appt.pricing?.platformFeeRate ?? 0 };
@@ -342,6 +447,7 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
         duplicates: (p.duplicates || []).map((d) => ({ mpPaymentId: d.mpPaymentId, amountCLP: d.amountCLP, status: d.status, refundError: d.refundError || null })),
       };
     }
+    out.canRevertNoShow = canRevertNoShow(appt, now);
     out.canRefund = Boolean(payments?.ready) && p.method === 'online' && p.status === 'reembolso_pendiente' && Boolean(p.mpPaymentId) && !p.refundInFlight;
     return out;
   }
@@ -403,7 +509,9 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
     const filter = buildFilter(b, q);
     const LIMIT = 500;
     const list = await Appointment.find(filter).sort({ startsAt: 1 }).limit(LIMIT + 1);
-    const items = await Promise.all(list.slice(0, LIMIT).map((a) => serializeAdmin(a, b, now)));
+    const page = list.slice(0, LIMIT);
+    const noShows = await agenda.noShowsFor(b, page);
+    const items = await Promise.all(page.map((a) => serializeAdmin(a, b, now, { noShows })));
     return { items, truncated: list.length > LIMIT, timezone: b.timezone };
   }
 
@@ -464,6 +572,8 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
     const before = { status: appt.status, startsAt: appt.startsAt.toISOString(), payment: appt.payment?.status };
     await agenda.actAs(b, appt, 'admin', action, { ...payload, reason }, user);
     const fresh = await Appointment.findById(appt._id);
+    /* SPEC-55 RN-06: el barbero se entera en su bandeja. */
+    if (action === 'no_show') await tellBarber(appt.professionalId, 'admin_no_show', `WS Style marcó que ${appt.customerSnapshot?.name || 'el cliente'} no vino`, `${appt.serviceSnapshot?.name || ''} · ${formatLong(appt.startsAt.getTime(), b.timezone)}`, appt._id);
     await audit(user, b, `appointment.${action}`, {
       entity: 'appointment',
       entityId: appt._id,
@@ -581,9 +691,11 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
     const fields = {};
     const name = cleanName(body.name);
     if (name.length < 2) fields.name = 'required';
-    const phone = clMobile(body.phone);
+    /* SPEC-55: `customerRef` (resultado del buscador) trae el celular y el correo de esa cita. */
+    const fromRef = body.customerRef ? await pro.phoneFromRef(b, null, body.customerRef) : null;
+    const phone = body.customerRef ? fromRef?.phone ?? null : clMobile(body.phone);
     if (!phone) fields.phone = 'invalid_phone';
-    const email = body.email ? normEmail(body.email) : '';
+    const email = body.email ? normEmail(body.email) : fromRef?.email || '';
     if (email && !isEmail(email)) fields.email = 'invalid_email';
     const service = await agenda.findService(b, body.serviceId);
     if (!service) fields.serviceId = 'invalid_service';
@@ -654,6 +766,8 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
     active: Boolean(s.active),
     archived: Boolean(s.archivedAt),
     order: s.order ?? 0,
+    /* SPEC-51: categoría (null solo en datos anteriores a la migración = "Barbería"). */
+    categoryId: s.categoryId ? String(s.categoryId) : null,
     appointments: counts.get(String(s._id)) ?? 0,
     updatedAt: s.updatedAt.toISOString(),
   });
@@ -662,7 +776,127 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
     const b = await ctx(user);
     const services = await Service.find({ businessId: b._id }).sort({ archivedAt: 1, order: 1, createdAt: 1 }).lean();
     const counts = new Map((await Appointment.aggregate([{ $match: { businessId: b._id } }, { $group: { _id: '$serviceSnapshot.serviceId', n: { $sum: 1 } } }])).map((c) => [String(c._id), c.n]));
-    return { items: services.map((s) => serializeService(s, counts)) };
+    return { items: services.map((s) => serializeService(s, counts)), categories: await categoryList(b) };
+  }
+
+  /* ─── Categorías de la carta (SPEC-51) */
+  const serializeCategory = (c, counts = new Map()) => ({
+    _id: String(c._id),
+    id: c.slug,
+    name: c.name,
+    note: c.note || '',
+    order: c.order ?? 0,
+    services: counts.get(String(c._id)) ?? 0,
+    updatedAt: c.updatedAt.toISOString(),
+  });
+
+  /* "Barbería" siempre existe (RN-01): es la categoría por defecto de los servicios nuevos y de los huérfanos. */
+  async function defaultCategory(b) {
+    const last = await ServiceCategory.findOne({ businessId: b._id }).sort({ order: -1 }).lean();
+    return ServiceCategory.findOneAndUpdate(
+      { businessId: b._id, slug: DEFAULT_CATEGORY.slug },
+      { $setOnInsert: { businessId: b._id, slug: DEFAULT_CATEGORY.slug, name: DEFAULT_CATEGORY.name, note: '', order: last ? -1 : 0 } },
+      { upsert: true, new: true }
+    ).lean();
+  }
+
+  async function categoryList(b) {
+    await defaultCategory(b);
+    const [cats, counts] = await Promise.all([
+      ServiceCategory.find({ businessId: b._id }).sort({ order: 1, createdAt: 1 }).lean(),
+      Service.aggregate([{ $match: { businessId: b._id, archivedAt: null } }, { $group: { _id: '$categoryId', n: { $sum: 1 } } }]),
+    ]);
+    const def = cats.find((c) => c.slug === DEFAULT_CATEGORY.slug);
+    const map = new Map();
+    for (const c of counts) {
+      const key = c._id && cats.some((x) => String(x._id) === String(c._id)) ? String(c._id) : String(def?._id);
+      map.set(key, (map.get(key) ?? 0) + c.n);
+    }
+    return cats.map((c) => serializeCategory(c, map));
+  }
+
+  async function listCategories(user) {
+    const b = await ctx(user);
+    return { items: await categoryList(b) };
+  }
+
+  /* CB-08: acepta el _id o el slug de una categoría del negocio. */
+  async function resolveCategory(b, raw) {
+    const v = String(raw ?? '').trim();
+    const _id = oid(v);
+    const c = v ? await ServiceCategory.findOne({ businessId: b._id, ...(_id ? { _id } : { slug: v }) }).lean() : null;
+    if (!c) throw fieldError({ categoryId: 'invalid_category' }, 'Esa categoría no existe. Elige una de la lista.');
+    return c;
+  }
+
+  function validateCategory(body, { partial = false } = {}) {
+    const fields = {};
+    const out = {};
+    if (!partial || body.name !== undefined) {
+      const n = cleanName(body.name);
+      if (n.length < 2 || n.length > 40) fields.name = 'invalid_name';
+      else out.name = n;
+    }
+    if (body.note !== undefined) {
+      const t = String(body.note ?? '').trim();
+      if (t.length > 200) fields.note = 'too_long';
+      else out.note = t;
+    }
+    if (Object.keys(fields).length) throw fieldError(fields, fields.name ? 'El nombre de la categoría tiene que tener entre 2 y 40 letras' : 'La nota puede tener hasta 200 caracteres');
+    return out;
+  }
+
+  async function createCategory(user, body = {}) {
+    const b = await ctx(user);
+    const data = validateCategory(body);
+    await defaultCategory(b);
+    const base = slugify(data.name);
+    let slug = base;
+    for (let i = 2; await ServiceCategory.exists({ businessId: b._id, slug }); i++) slug = `${base}-${i}`;
+    const last = await ServiceCategory.findOne({ businessId: b._id }).sort({ order: -1 }).lean();
+    const c = await ServiceCategory.create({ businessId: b._id, slug, note: '', order: (last?.order ?? -1) + 1, ...data });
+    await audit(user, b, 'service.category.create', { entity: 'service_category', entityId: c._id, summary: c.name, after: { name: c.name, note: c.note } });
+    return { category: serializeCategory(c.toObject()) };
+  }
+
+  async function updateCategory(user, id, body = {}) {
+    const b = await ctx(user);
+    const _id = oid(id);
+    const current = _id ? await ServiceCategory.findOne({ _id, businessId: b._id }).lean() : null;
+    if (!current) throw new HttpError(404, 'not_found', 'No encontramos esa categoría');
+    const data = validateCategory(body, { partial: true });
+    const updated = await ServiceCategory.findByIdAndUpdate(current._id, { $set: data }, { new: true }).lean();
+    await audit(user, b, 'service.category.update', { entity: 'service_category', entityId: current._id, summary: updated.name, before: { name: current.name, note: current.note || '' }, after: { name: updated.name, note: updated.note || '' } });
+    return { category: serializeCategory(updated) };
+  }
+
+  /* body.ids = todos los _id de las categorías, en el orden nuevo. */
+  async function reorderCategories(user, body = {}) {
+    const b = await ctx(user);
+    const cats = await ServiceCategory.find({ businessId: b._id }).sort({ order: 1, createdAt: 1 }).lean();
+    const ids = Array.isArray(body.ids) ? body.ids.map(String) : [];
+    const known = new Set(cats.map((c) => String(c._id)));
+    if (ids.length !== cats.length || new Set(ids).size !== ids.length || ids.some((x) => !known.has(x))) throw fieldError({ ids: 'invalid' }, 'El orden tiene que incluir todas las categorías una vez');
+    for (const [i, x] of ids.entries()) await ServiceCategory.updateOne({ _id: new ObjectId(x) }, { $set: { order: i } });
+    const name = new Map(cats.map((c) => [String(c._id), c.name]));
+    await audit(user, b, 'service.category.reorder', { entity: 'service_category', summary: ids.map((x) => name.get(x)).join(' → '), before: { order: cats.map((c) => c.name) }, after: { order: ids.map((x) => name.get(x)) } });
+    return { items: await categoryList(b) };
+  }
+
+  /* CB-06: una categoría con servicios (activos o inactivos, no archivados) no se borra. "Barbería" tampoco: es la
+     categoría por defecto (RN-01). Los archivados que quedaban en ella pasan a "Barbería". */
+  async function removeCategory(user, id) {
+    const b = await ctx(user);
+    const _id = oid(id);
+    const current = _id ? await ServiceCategory.findOne({ _id, businessId: b._id }).lean() : null;
+    if (!current) throw new HttpError(404, 'not_found', 'No encontramos esa categoría');
+    if (current.slug === DEFAULT_CATEGORY.slug) throw new HttpError(409, 'default_category', `"${current.name}" es la categoría por defecto: no se puede borrar.`);
+    if (await Service.exists({ businessId: b._id, categoryId: current._id, archivedAt: null })) throw new HttpError(409, 'category_in_use', 'Mueve o archiva sus servicios antes de borrar la categoría');
+    const def = await defaultCategory(b);
+    await Service.updateMany({ businessId: b._id, categoryId: current._id }, { $set: { categoryId: def._id } });
+    await ServiceCategory.deleteOne({ _id: current._id });
+    await audit(user, b, 'service.category.delete', { entity: 'service_category', entityId: current._id, summary: current.name, before: { name: current.name, note: current.note || '' } });
+    return { result: 'deleted' };
   }
 
   /* CB-06: precio entero > 0; duración 5–240 múltiplo de 5. Devuelve los campos válidos. */
@@ -735,14 +969,16 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
     const base = body.id ? slugify(String(body.id)) : slugify(data.name);
     let slug = base;
     for (let i = 2; await Service.exists({ businessId: b._id, slug }); i++) slug = `${base}-${i}`;
+    /* SPEC-51 RN-01: sin categoría en el body → "Barbería". */
+    const cat = body.categoryId !== undefined && body.categoryId !== null && body.categoryId !== '' ? await resolveCategory(b, body.categoryId) : await defaultCategory(b);
     const last = await Service.findOne({ businessId: b._id }).sort({ order: -1 }).lean();
-    const s = await Service.create({ businessId: b._id, slug, description: '', homeServiceAllowed: true, active: true, order: (last?.order ?? -1) + 1, ...data });
+    const s = await Service.create({ businessId: b._id, slug, description: '', homeServiceAllowed: true, active: true, order: (last?.order ?? -1) + 1, ...data, categoryId: cat._id });
     await audit(user, b, 'service.create', { entity: 'service', entityId: s._id, summary: `${s.name} · $${s.priceCLP} · ${s.durationMin} min`, after: serializeService(s.toObject()) });
     return { service: serializeService(s.toObject()) };
   }
 
-  const AUDIT_FIELDS = ['name', 'description', 'priceCLP', 'durationMin', 'homeServiceAllowed', 'active', 'order', 'archived'];
-  const pick = (s) => Object.fromEntries(AUDIT_FIELDS.map((k) => [k, k === 'archived' ? Boolean(s.archivedAt) : s[k]]));
+  const AUDIT_FIELDS = ['name', 'description', 'priceCLP', 'durationMin', 'homeServiceAllowed', 'active', 'order', 'archived', 'categoryId'];
+  const pick = (s) => Object.fromEntries(AUDIT_FIELDS.map((k) => [k, k === 'archived' ? Boolean(s.archivedAt) : k === 'categoryId' ? (s.categoryId ? String(s.categoryId) : null) : s[k]]));
 
   async function updateService(user, id, body = {}) {
     const b = await ctx(user);
@@ -750,6 +986,7 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
     const current = _id ? await Service.findOne({ _id, businessId: b._id }).lean() : null;
     if (!current) throw new HttpError(404, 'not_found', 'No encontramos ese servicio');
     const data = validateService(body, { partial: true });
+    if (body.categoryId !== undefined) data.categoryId = (await resolveCategory(b, body.categoryId))._id;
     if (body.archived === false) Object.assign(data, { archivedAt: null, active: true });
     if (body.archived === true) Object.assign(data, { archivedAt: new Date(clock()), active: false });
     /* CB-09: control de versión con updatedAt; la otra pestaña recibe 409. */
@@ -761,7 +998,8 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
     const updated = await Service.findOneAndUpdate({ _id: current._id, updatedAt: current.updatedAt }, { $set: data }, { new: true }).lean();
     if (!updated) throw new HttpError(409, 'stale', 'Este servicio cambió mientras lo editabas. Recarga para ver la versión actual.');
     /* RN-04: un cambio de precio NO toca las citas existentes (llevan su precio congelado). */
-    await audit(user, b, current.priceCLP !== updated.priceCLP ? 'service.price' : 'service.update', { entity: 'service', entityId: current._id, summary: updated.name, before: pick(current), after: pick(updated) });
+    const action = current.priceCLP !== updated.priceCLP ? 'service.price' : String(current.categoryId ?? '') !== String(updated.categoryId ?? '') ? 'service.category' : 'service.update';
+    await audit(user, b, action, { entity: 'service', entityId: current._id, summary: updated.name, before: pick(current), after: pick(updated) });
     if (warnings.length) await adminInbox?.notify({ kind: 'barber_unbookable', title: `${warnings.join(', ')} ya no ${warnings.length === 1 ? 'es reservable' : 'son reservables'}`, body: `"${updated.name}" era su único servicio activo.`, path: 'barberos/', email: false });
     return { service: serializeService(updated), unbookableBarbers: warnings };
   }
@@ -790,9 +1028,13 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
   async function exportContent(user) {
     const b = await ctx(user);
     const services = await Service.find({ businessId: b._id, active: true }).sort({ order: 1 }).lean();
+    /* SPEC-51: services.json lleva las categorías y la de cada servicio (mismo formato que el archivo del repo). */
+    const cats = await categoriesOf(b._id);
+    const { slugOf } = categoryView(cats, services);
     await audit(user, b, 'content.export', { entity: 'business', summary: `${services.length} servicios` });
     return {
-      services: services.map((s) => ({ id: s.slug, name: s.name, description: s.description || '', priceCLP: s.priceCLP, durationMin: s.durationMin })),
+      categories: cats.map((c) => ({ id: c.slug, name: c.name, note: c.note || '' })),
+      services: services.map((s) => ({ id: s.slug, name: s.name, description: s.description || '', priceCLP: s.priceCLP, durationMin: s.durationMin, category: slugOf(s), ...(s.homeServiceAllowed === false ? { homeServiceAllowed: false } : {}) })),
       hours: weekToSiteRows(entriesToWeek(b.hours)),
     };
   }
@@ -963,6 +1205,27 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
   }
 
   /* ─── Mi cuenta */
+  /* ─── Reseñas (SPEC-52 RN-09): ocultar y mostrar quedan en la auditoría. */
+  async function listReviews(user, q = {}) {
+    const b = await ctx(user);
+    return reviews.adminList(b, q);
+  }
+
+  const reviewAudit = (r) => ({ status: r.status, reason: r.hidden?.reason || null });
+  async function hideReview(user, id, body = {}) {
+    const b = await ctx(user);
+    const { before, after } = await reviews.hide(b, user, id, body);
+    await audit(user, b, 'review.hide', { entity: 'review', entityId: after._id, summary: `Ocultó la reseña de ${after.authorName} (${after.rating}★)${after.hidden?.reason ? `: ${after.hidden.reason}` : ''}`, before: reviewAudit(before), after: reviewAudit(after) });
+    return { ok: true, status: after.status };
+  }
+
+  async function showReview(user, id) {
+    const b = await ctx(user);
+    const { before, after } = await reviews.show(b, user, id);
+    await audit(user, b, 'review.show', { entity: 'review', entityId: after._id, summary: `Volvió a mostrar la reseña de ${after.authorName} (${after.rating}★)`, before: reviewAudit(before), after: reviewAudit(after) });
+    return { ok: true, status: after.status };
+  }
+
   async function changePassword(user, body = {}) {
     requireAdmin(user);
     const identity = user.identities.find((i) => i.provider === 'email' && i.passwordHash);
@@ -998,10 +1261,21 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
     reassignOptions,
     reassign,
     createAppointment,
+    revertNoShow,
+    agendaDay,
+    barberSlots,
+    customers,
+    addBarberTimeOff,
+    removeBarberTimeOff,
     listServices,
     createService,
     updateService,
     removeService,
+    listCategories,
+    createCategory,
+    updateCategory,
+    reorderCategories,
+    removeCategory,
     exportContent,
     schedule,
     setHours,
@@ -1012,6 +1286,9 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
     setSettings,
     auditList,
     changePassword,
+    listReviews,
+    hideReview,
+    showReview,
   };
 }
 

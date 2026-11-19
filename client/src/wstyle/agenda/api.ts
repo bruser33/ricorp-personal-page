@@ -68,7 +68,9 @@ export async function wakeAndGet<T>(path: string, { windowMs = 30_000, onWaking 
 
 // ─── Tipos de la API
 export interface User { id: string; name: string; email: string | null; emailVerified: boolean; phone: string | null; roles: string[]; providers: string[] }
-export interface CatalogService { id: string; name: string; description: string; priceCLP: number; durationMin: number; homeServiceAllowed: boolean }
+export interface CatalogService { id: string; name: string; description: string; priceCLP: number; durationMin: number; homeServiceAllowed: boolean; category?: string }
+// SPEC-51: categorías con servicios activos, en orden y con su nota (una API anterior no las trae).
+export interface CatalogCategory { id: string; name: string; note: string }
 export interface CatalogPro { id: string; name: string; specialty: string; photo: string | null; homeService: { surchargeCLP: number; radiusKm: number } | null; serviceIds: string[] }
 export interface Catalog {
   business: {
@@ -81,6 +83,7 @@ export interface Catalog {
     // SPEC-38: tasas vigentes de la tarifa de servicio (el resumen usa la misma fórmula que el server).
     pricing?: Rates;
   };
+  categories?: CatalogCategory[];
   services: CatalogService[];
   professionals: CatalogPro[];
 }
@@ -119,6 +122,18 @@ export interface Appointment {
   actions: Action[];
   role: 'client' | 'barber' | 'admin';
   whatsapp: string | null; shopWhatsapp: string | null;
+  // SPEC-52 (solo en "Mis citas", citas terminadas): estrellas de su reseña o si todavía puede dejarla.
+  review?: { rating: number } | null;
+  canReview?: boolean;
+}
+
+// SPEC-52: formulario de reseña (/wstyle/cuenta/resena/?cita=…).
+export type ReviewState = 'open' | 'reviewed' | 'expired' | 'not_attended';
+export interface ReviewEligibility {
+  state: ReviewState;
+  appointment: { id: string; service: string; professional: string; startsAt: string; when: string; status: string };
+  review: { rating: number; comment: string; createdAt: string } | null;
+  deadline: string | null;
 }
 
 export const auth = {
@@ -155,6 +170,9 @@ export const agenda = {
   act: (id: string, action: Action, body: Record<string, unknown> = {}) =>
     api<Appointment>(`/api/wstyle/appointments/${encodeURIComponent(id)}/${action === 'no_show' ? 'no-show' : action === 'pay_local' ? 'pay-local' : action}`, { method: 'POST', body }),
   // SPEC-35: el server crea la preferencia de Checkout Pro y devuelve a dónde redirigir (el token nunca pasa por acá).
+  // SPEC-52: reseñas del cliente.
+  reviewEligibility: (cita: string) => api<ReviewEligibility>(`/api/wstyle/reviews/eligibility?cita=${encodeURIComponent(cita)}`),
+  createReview: (body: { appointmentId: string; rating: number; comment: string }) => api<{ ok: boolean; review: { id: string; rating: number } }>('/api/wstyle/reviews', { method: 'POST', body }),
   checkout: (id: string) => api<{ initPoint: string; preferenceId: string; holdUntil: string }>(`/api/wstyle/appointments/${encodeURIComponent(id)}/checkout`, { method: 'POST', body: {} }),
   // SPEC-54: lista de espera del cliente.
   joinWaitlist: (body: { date: string; serviceId: string; professionalId: string; pref: WaitPref }) =>

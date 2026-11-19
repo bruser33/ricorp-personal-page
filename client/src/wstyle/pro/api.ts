@@ -5,7 +5,9 @@ export interface ProPhoto { id: string; url: string }
 export interface HomeService { enabled: boolean; surchargeCLP: number; radiusKm: number; travelBufferMin: number }
 export interface Rule { weekday: number; start: string; end: string }
 export interface TimeOff { id: string; startsAt: string; endsAt: string; reason: string }
-export interface ProService { id: string; name: string; priceCLP: number; durationMin: number; homeServiceAllowed: boolean; selected?: boolean }
+export interface ProService { id: string; name: string; priceCLP: number; durationMin: number; homeServiceAllowed: boolean; selected?: boolean; category?: string }
+// SPEC-51: categorías de la carta (asunción 7: el barbero ve sus servicios agrupados).
+export interface ProCategory { id: string; name: string; note: string }
 export type MembershipStatus = 'pending' | 'approved' | 'rejected' | 'suspended';
 export interface ProMe {
   user: User;
@@ -14,6 +16,7 @@ export interface ProMe {
   professional: { id: string; displayName: string; phone: string | null; bio: string; photos: ProPhoto[]; homeService: HomeService };
   membership: { status: MembershipStatus; reason: string | null; submittedAt: string | null };
   business: { name: string; timezone: string; hours: { weekday: number; opens: string | null; closes: string | null }[] };
+  categories?: ProCategory[];
   services: ProService[];
   rules: Rule[];
   timeOffs: TimeOff[];
@@ -33,6 +36,10 @@ export interface ProAppointment extends Omit<Appointment, 'actions' | 'customer'
   source: string;
   invite: { url: string; text: string; whatsappUrl: string | null } | null;
   expiresAt: string | null;
+  // SPEC-55: inasistencias anteriores del cliente en WS Style (0 = no se muestra nada).
+  noShows?: number;
+  // Fin efectivo de un "no vino" en la grilla (el resto de la cita quedó libre).
+  heldUntil?: string | null;
 }
 export interface AgendaDay { date: string; shop: { opens: string; closes: string } | null; windows: { startsAt: string; endsAt: string }[]; appointments: ProAppointment[] }
 export interface AgendaRange {
@@ -42,7 +49,10 @@ export interface AgendaRange {
   timeOffs: TimeOff[];
   days: AgendaDay[];
 }
-export interface Invitation { appointment: ProAppointment; whatsappUrl: string | null; inviteUrl: string; message: string }
+export interface Invitation { appointment: ProAppointment; whatsappUrl: string | null; inviteUrl: string | null; message: string | null }
+// SPEC-55: resultado del buscador de clientes (sin email ni celular completo; `ref` agenda con su celular).
+export interface CustomerHit { ref: string; name: string; phoneMasked: string | null; lastVisit: string | null; noShows: number }
+export interface TimeOffInput { fromDate: string; fromTime?: string; toDate?: string; toTime?: string; restOfDay?: boolean; quick?: boolean; reason: string }
 // SPEC-54: lista de espera vista desde el panel (barbero y admin usan la misma forma).
 export interface ProWaitEntry {
   id: string; name: string; service: string; pref: 'all' | 'am' | 'pm'; professional: string; createdAt: string;
@@ -74,7 +84,7 @@ export const pro = {
   setServices: (serviceIds: string[]) => json<{ serviceIds: string[] }>('/api/pro/services', 'PUT', { serviceIds }),
   setAvailability: (rules: Rule[]) => json<{ rules: Rule[]; adjustments: string[] }>('/api/pro/availability', 'PUT', { rules }),
   setHomeService: (body: Partial<HomeService>) => json<{ homeService: HomeService }>('/api/pro/home-service', 'PUT', body),
-  addTimeOff: (body: { fromDate: string; fromTime?: string; toDate: string; toTime?: string; reason: string }) => json<{ timeOff: TimeOff }>('/api/pro/time-off', 'POST', body),
+  addTimeOff: (body: TimeOffInput) => json<{ timeOff: TimeOff }>('/api/pro/time-off', 'POST', body),
   removeTimeOff: (id: string) => api<{ ok: boolean }>(`/api/pro/time-off/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   removePhoto: (id: string) => api<{ photos: ProPhoto[] }>(`/api/pro/photos/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   mainPhoto: (id: string) => json<{ photos: ProPhoto[] }>(`/api/pro/photos/${encodeURIComponent(id)}/main`, 'POST'),
@@ -86,6 +96,7 @@ export const pro = {
   act: (id: string, action: ProAction, body: Record<string, unknown> = {}) =>
     json<ProAppointment & Partial<Invitation>>(`/api/pro/appointments/${encodeURIComponent(id)}/${action === 'no_show' ? 'no-show' : action}`, 'POST', body),
   invite: (body: Record<string, unknown>) => json<Invitation>('/api/pro/invitations', 'POST', body),
+  customers: (q: string) => api<{ items: CustomerHit[] }>('/api/pro/customers?q=' + encodeURIComponent(q)),
   notifications: () => api<{ unread: number; items: PanelNotification[] }>('/api/pro/notifications'),
   markRead: () => json<{ ok: boolean }>('/api/pro/notifications/read', 'POST'),
 };

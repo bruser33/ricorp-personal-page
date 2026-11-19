@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { groupByCategory } from '../../content';
 import { agenda, API_BASE, ApiError, auth, type Appointment, type Catalog, type Quote, type Slot } from '../api';
 import type { AgendaCtx } from '../ctx';
 import AuthPanel from '../components/AuthPanel';
@@ -11,7 +12,7 @@ import WaitlistCard from '../components/WaitlistCard';
 import WaitlistTake from './WaitlistTake';
 import {
   addDays, buildIcs, clMobile, clp, dayMonthTime, fieldMessage, loadSelection, localDate, longDay, MAX_NOTE, prettyPhone,
-  saveSelection, selectionFromQuery, selectionToQuery, type Selection,
+  mergeSelection, saveSelection, selectionFromQuery, selectionToQuery, type Selection,
 } from '../util';
 
 type Step = 1 | 2 | 3 | 4 | 5;
@@ -20,10 +21,7 @@ const newKey = () => (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math
 
 function initialSelection(): Selection {
   // La URL manda (vuelta de Facebook, link desde la landing ?servicio= / ?barbero=); lo demás sale del sessionStorage.
-  const fromUrl = selectionFromQuery(location.search);
-  const stored = loadSelection();
-  const fresh = Object.keys(fromUrl).length > 0 && (fromUrl.serviceId !== stored.serviceId || (fromUrl.startsAt && fromUrl.startsAt !== stored.startsAt));
-  return fresh ? { ...(fromUrl.serviceId === stored.serviceId ? stored : {}), ...fromUrl } : { ...stored, ...fromUrl };
+  return mergeSelection(selectionFromQuery(location.search), loadSelection());
 }
 
 // /wstyle/reservar/: el flujo de reserva (SPEC-32, 4 pasos + confirmación). SPEC-38: la sesión se pide ANTES del
@@ -210,6 +208,8 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
         serviceId: sel.serviceId, professionalId: sel.professionalId, startsAt: sel.startsAt, mode,
         address: mode === 'home' ? sel.address : undefined, phone: needPhone ? phone : undefined, note: sel.note ?? '',
         acceptPolicies: accept, paymentMethod: pay, idempotencyKey: idem.current, website,
+        // SPEC-58: canal del link (sin UTM → el server guarda "directo").
+        origin: sel.origin,
       });
       if (!r.appointment) { setSubmitError('No pudimos agendar. Inténtalo de nuevo.'); return; }
       // SPEC-35: "Pagar en línea" → la cita queda esperando el pago (15 min) y se va a Mercado Pago. Si no se puede
@@ -319,13 +319,22 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
               {welcome && <Notice tone="ok">{welcome}</Notice>}
               <fieldset className="ag-options">
                 <legend>¿Qué te hacemos?</legend>
-                {catalog.services.map((s) => (
-                  <button key={s.id} type="button" className={`ag-option${sel.serviceId === s.id ? ' is-selected' : ''}`} aria-pressed={sel.serviceId === s.id} onClick={() => pickService(s.id)}>
-                    <span>
-                      <span className="ag-option__name">{s.name}</span>
-                      <span className="ag-option__meta">{clp.format(s.priceCLP)} · dura ~{s.durationMin} min</span>
-                    </span>
-                  </button>
+                {/* SPEC-51: agrupados por categoría (mismo orden y nota que la carta de la landing). */}
+                {groupByCategory(catalog.services, catalog.categories).map((g) => (
+                  <Fragment key={g.id}>
+                    <p className="ag-svc-group" data-category={g.id}>
+                      <span className="ag-svc-group__title">{g.name}</span>
+                      {g.note && <span className="ag-svc-group__note">{g.note}</span>}
+                    </p>
+                    {g.items.map((s) => (
+                      <button key={s.id} type="button" className={`ag-option${sel.serviceId === s.id ? ' is-selected' : ''}`} aria-pressed={sel.serviceId === s.id} onClick={() => pickService(s.id)}>
+                        <span>
+                          <span className="ag-option__name">{s.name}</span>
+                          <span className="ag-option__meta">{clp.format(s.priceCLP)} · dura ~{s.durationMin} min</span>
+                        </span>
+                      </button>
+                    ))}
+                  </Fragment>
                 ))}
               </fieldset>
               {service && (
@@ -482,6 +491,8 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
           <dl>
             {!service && <div><dt>Servicio</dt><dd>—</dd></div>}
             <div><dt>Barbero</dt><dd>{proName || '—'}</dd></div>
+            {/* SPEC-51 AC-09: la duración del servicio elegido (bloquea la agenda completa). */}
+            {service && <div><dt>Duración</dt><dd data-summary="duration">{service.durationMin} min</dd></div>}
             <div><dt>Fecha y hora</dt><dd>{sel.startsAt ? `${longDay(localDate(sel.startsAt))}, ${dayMonthTime(sel.startsAt).split(', ')[1]}` : '—'}</dd></div>
             <div><dt>Dónde</dt><dd>{step >= 3 ? (mode === 'home' ? `A domicilio${where ? ` · ${where}` : ''}` : `En el local · ${where}`) : '—'}</dd></div>
           </dl>

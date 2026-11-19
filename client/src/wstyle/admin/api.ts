@@ -2,7 +2,7 @@ import type { PricingView } from '../agenda/pricing';
 // Cliente HTTP del panel del super admin (SPEC-34): /api/admin/… con la misma sesión (cookie httpOnly) de la agenda.
 // El server valida la sesión y el rol en cada ruta; el front solo oculta botones.
 import { api, API_BASE, ApiError, type Appointment, type User } from '../agenda/api';
-import type { WaitlistApi, WaitlistRange } from '../pro/api';
+import type { AgendaDay, CustomerHit, ProService, TimeOff, TimeOffInput, WaitlistApi, WaitlistRange } from '../pro/api';
 
 export type MembershipStatus = 'pending' | 'approved' | 'rejected' | 'suspended';
 export type Decision = 'approve' | 'reject' | 'suspend' | 'reactivate' | 'reopen';
@@ -22,16 +22,34 @@ export interface AdminAppointment extends Omit<Appointment, 'customer' | 'pricin
   source: string;
   canReassign: boolean;
   canCollect: boolean;
+  // SPEC-55: inasistencias anteriores del cliente y si aún se puede corregir un "no vino" (48 h).
+  noShows?: number;
+  canRevertNoShow?: boolean;
+}
+
+// SPEC-55: agenda de un día con una columna por barbero aprobado.
+export interface AdminAgenda {
+  date: string; now: string; today: string; timezone: string;
+  barbers: { id: string; name: string; services: ProService[]; timeOffs: TimeOff[]; day: AgendaDay }[];
 }
 
 export interface Alert { kind: string; professionalId: string; name: string; count: number; message: string }
 export interface Overview {
   today: string;
-  cards: { pendingBarbers: number; today: number; pendingConfirm: number; refundsPending: number; monthRevenueCLP: number };
+  cards: { pendingBarbers: number; today: number; pendingConfirm: number; refundsPending: number; monthRevenueCLP: number; reviewsLast7d?: number };
   alerts: Alert[];
   unread: number;
   user: User;
 }
+// SPEC-52: reseña vista por el super admin (incluye ocultas, el cliente y el motivo interno).
+export interface AdminReview {
+  id: string; rating: number; comment: string; author: string; service: string; professional: string; createdAt: string; appointmentId: string;
+  status: 'visible' | 'hidden';
+  customer: { name: string; email: string | null };
+  hidden: { at: string | null; by: 'admin' | 'account_deleted'; reason: string } | null;
+}
+export interface AdminReviewList { page: number; pages: number; total: number; counts: { visible: number; hidden: number }; items: AdminReview[] }
+
 export interface AdminNotification { id: string; kind: string; title: string; body: string; appointmentId: string | null; professionalId: string | null; createdAt: string; read: boolean }
 
 export interface BarberRow { id: string; name: string; email: string | null; phone: string | null; photo: string | null; status: MembershipStatus; reason: string | null; submittedAt: string | null; createdAt: string | null }
@@ -53,15 +71,21 @@ export interface BarberDetail {
 export interface AdminService {
   _id: string; id: string; name: string; description: string; priceCLP: number; durationMin: number;
   homeServiceAllowed: boolean; active: boolean; archived: boolean; order: number; appointments: number; updatedAt: string;
+  // SPEC-51: _id de su categoría (null = dato anterior a la migración → "Barbería").
+  categoryId: string | null;
 }
-export interface ServiceInput { name?: string; description?: string; priceCLP?: number; durationMin?: number; homeServiceAllowed?: boolean; active?: boolean; archived?: boolean; updatedAt?: string }
+export interface ServiceInput { name?: string; description?: string; priceCLP?: number; durationMin?: number; homeServiceAllowed?: boolean; active?: boolean; archived?: boolean; updatedAt?: string; categoryId?: string }
+// SPEC-51: categoría de la carta. `services` = cuántos servicios no archivados tiene (con alguno no se puede borrar).
+export interface AdminCategory { _id: string; id: string; name: string; note: string; order: number; services: number; updatedAt: string }
+export interface ExportCategory { id: string; name: string; note: string }
+export interface ExportService { id: string; name: string; description: string; priceCLP: number; durationMin: number; category?: string; homeServiceAllowed?: boolean }
 
 export interface Range { opens: string; closes: string }
 export interface WeekDay { weekday: number; ranges: Range[] }
 export interface Closure { id: string; date: string; reason: string; groupId: string | null }
 export interface Schedule { timezone: string; week: WeekDay[]; closures: Closure[] }
 export interface SiteHoursRow { days: string; dayCodes: string; opens: string | null; closes: string | null }
-export interface ExportContent { services: { id: string; name: string; description: string; priceCLP: number; durationMin: number }[]; hours: SiteHoursRow[] }
+export interface ExportContent { categories?: ExportCategory[]; services: ExportService[]; hours: SiteHoursRow[] }
 
 export interface Stats {
   from: string; to: string; timezone: string; total: number;
@@ -74,6 +98,8 @@ export interface Stats {
   // SPEC-38 RN-19: costo de pagos cobrado y parte de los barberos (servicio + domicilio).
   paymentFeeCLP?: number; barbersCLP?: number;
   days: { date: string; appointments: number; revenueCLP: number }[];
+  // SPEC-58: reservas web por origen (utm_source normalizado; "directo" sin UTM). Solo en el panel del admin.
+  byOrigin?: { origin: string; created: number; finished: number }[];
 }
 
 export type RuleKey = 'minLeadMinutes' | 'horizonDays' | 'cancelUntilMinutes' | 'confirmWithinMinutes' | 'inviteTtlHours' | 'maxActivePerCustomer';
@@ -118,8 +144,18 @@ export const admin = {
   reassignOptions: (aid: string) => api<{ options: { id: string; name: string }[] }>(`/api/admin/appointments/${id(aid)}/reassign-options`),
   reassign: (aid: string, professionalId: string) => send<AdminAppointment>(`/api/admin/appointments/${id(aid)}/reassign`, 'POST', { professionalId }),
   createAppointment: (body: Record<string, unknown>) => send<AdminAppointment>('/api/admin/appointments', 'POST', body),
+  revertNoShow: (aid: string, reason: string) => send<AdminAppointment>(`/api/admin/appointments/${id(aid)}/revert-no-show`, 'POST', { reason }),
+  agenda: (date: string) => api<AdminAgenda>(`/api/admin/agenda?${qs({ date })}`),
+  customers: (q: string) => api<{ items: CustomerHit[] }>(`/api/admin/customers?${qs({ q })}`),
+  barberSlots: (pid: string, q: { service?: string; date: string }) => api<{ date: string; slots: { startsAt: string; label: string }[] }>(`/api/admin/barbers/${id(pid)}/slots?${qs(q)}`),
+  addBarberTimeOff: (pid: string, body: TimeOffInput) => send<{ timeOff: TimeOff }>(`/api/admin/barbers/${id(pid)}/time-off`, 'POST', body),
+  removeBarberTimeOff: (pid: string, oid: string) => api<{ ok: boolean }>(`/api/admin/barbers/${id(pid)}/time-off/${id(oid)}`, { method: 'DELETE' }),
 
-  services: () => api<{ items: AdminService[] }>('/api/admin/services'),
+  services: () => api<{ items: AdminService[]; categories: AdminCategory[] }>('/api/admin/services'),
+  createCategory: (body: { name: string; note?: string }) => send<{ category: AdminCategory }>('/api/admin/service-categories', 'POST', body),
+  updateCategory: (cid: string, body: { name?: string; note?: string }) => send<{ category: AdminCategory }>(`/api/admin/service-categories/${id(cid)}`, 'PATCH', body),
+  reorderCategories: (ids: string[]) => send<{ items: AdminCategory[] }>('/api/admin/service-categories/order', 'PUT', { ids }),
+  removeCategory: (cid: string) => api<{ result: 'deleted' }>(`/api/admin/service-categories/${id(cid)}`, { method: 'DELETE' }),
   createService: (body: ServiceInput) => send<{ service: AdminService }>('/api/admin/services', 'POST', body),
   updateService: (sid: string, body: ServiceInput) => send<{ service: AdminService; unbookableBarbers: string[] }>(`/api/admin/services/${id(sid)}`, 'PATCH', body),
   removeService: (sid: string) => api<{ result: 'archived' | 'deleted'; unbookableBarbers: string[] }>(`/api/admin/services/${id(sid)}`, { method: 'DELETE' }),
@@ -133,6 +169,10 @@ export const admin = {
   stats: (from: string, to: string) => api<Stats>(`/api/admin/stats?${qs({ from, to })}`),
   settings: () => api<Settings>('/api/admin/settings'),
   saveSettings: (body: Partial<Pick<Settings, 'payments' | 'platformFeePercent' | 'paymentFeePercent' | 'paymentFeeVat' | 'waitlist'>> & { rules?: Partial<Record<RuleKey, number>> }) => send<Settings>('/api/admin/settings', 'PUT', body),
+  // SPEC-52: reseñas (filtros: visibles/ocultas, estrellas, búsqueda por cliente o texto), ocultar y mostrar.
+  reviews: (q: { status?: string; rating?: string; q?: string; page?: number }) => api<AdminReviewList>(`/api/admin/reviews?${qs({ status: q.status ?? '', rating: q.rating ?? '', q: q.q ?? '', page: String(q.page ?? 1) })}`),
+  hideReview: (rid: string, reason = '') => send<{ ok: boolean; status: string }>(`/api/admin/reviews/${id(rid)}/hide`, 'POST', { reason }),
+  showReview: (rid: string) => send<{ ok: boolean; status: string }>(`/api/admin/reviews/${id(rid)}/show`, 'POST'),
   audit: (page = 1, action = '') => api<{ page: number; pages: number; total: number; items: AuditItem[] }>(`/api/admin/audit?${qs({ page: String(page), action })}`),
 };
 

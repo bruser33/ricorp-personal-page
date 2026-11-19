@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { headTexts, jsonLd, str, type Content } from './content';
+import { buildChapters, headTexts, jsonLd, str, type Content } from './content';
 import { bookingLabel, bookingLink, clp, ctaLinks, ext, fromPrice, isDemo, isWhatsAppUrl } from './links';
 import { useContent } from './hooks/useContent';
 import { useScrollCamera } from './hooks/useScrollCamera';
 import { useReveal } from './hooks/useReveal';
 import { useMotion } from './hooks/useMotion';
 import { useFilmDim } from './hooks/useFilmDim';
+import { useReviews } from './hooks/useReviews';
+import { hasVisibleReviews } from './reviews';
 import Nav from './components/Nav';
 import ProgressDots from './components/ProgressDots';
 import Section from './components/Section';
@@ -42,9 +44,13 @@ export default function App({ initial }: { initial: Content | null }) {
   const [minShown, setMinShown] = useState(false);
   useEffect(() => { const t = setTimeout(() => setMinShown(true), 700); return () => clearTimeout(t); }, []);
   const loaderDone = ready && minShown;
-  useReveal([content]);
-  useMotion(loaderDone, content);
-  useFilmDim([content]);
+  // SPEC-52: las reseñas llegan de la API después de montar; su capítulo se suma (o no) sin dejar huecos.
+  const reviews = useReviews();
+  const hasReviews = hasVisibleReviews(reviews.data);
+  const layoutKey = useMemo(() => ({ content, hasReviews }), [content, hasReviews]);
+  useReveal([layoutKey]);
+  useMotion(loaderDone, layoutKey);
+  useFilmDim([layoutKey]);
   // SPEC-27: con la URL cargada con #ancla el navegador salta antes de tener el contenido final (sin prerender, o con
   // alturas que cambian al leer los JSON): al salir el loader se vuelve a anclar (respeta el scroll-margin-top).
   useEffect(() => {
@@ -72,19 +78,8 @@ export default function App({ initial }: { initial: Content | null }) {
   const arm = useCallback(() => setArmed(true), []);
   const onBroken = useCallback((id: string) => setBroken((b) => new Set(b).add(id)), []);
 
-  // Capítulos numerados sin huecos (D4): 01… en el orden en que se publican (barberos/reseñas solo con enabled).
-  const chapters = useMemo(() => {
-    const site = content?.site ?? {};
-    const showBarbers = !!site.barbers?.enabled && (site.barbers.items ?? []).some((b) => str(b?.name));
-    const showReviews = !!site.reviews?.enabled && (site.reviews.items ?? []).some((r) => str(r?.text));
-    const list: [string, string, boolean][] = [
-      ['hero', 'Inicio', true], ['reyes', 'El local', true], ['linea', 'El oficio', true], ['afilado', 'El espejo', true], ['trono', 'Tu trono', true],
-      ['servicios', 'La carta', true], ['membresia', 'Membresía', !!str(site.membership?.name)], ['barberos', 'Los barberos', showBarbers],
-      ['resenas', 'Lo que dicen', showReviews], ['politicas', 'Antes de venir', (site.policies ?? []).some((p) => str(p?.title))], ['llega', 'Llega', true],
-    ];
-    let n = 0;
-    return list.filter(([, , on]) => on).map(([id, label]) => ({ id, label, num: id === 'hero' ? '' : `${String(++n).padStart(2, '0')} — ${label}` }));
-  }, [content]);
+  // Capítulos numerados sin huecos (D4): 01… en el orden en que se publican (content.ts → buildChapters).
+  const chapters = useMemo(() => buildChapters(content?.site ?? {}, hasReviews), [content, hasReviews]);
   const lab = (id: string) => chapters.find((c) => c.id === id)?.num ?? '';
 
   // <title>, description y og:title siguen al nombre del JSON (el HTML prerenderizado ya los trae).
@@ -140,11 +135,11 @@ export default function App({ initial }: { initial: Content | null }) {
         </Section>
         <Marquee words={(site.marquee ?? []).filter((w): w is string => !!str(w))} />
         <Section id="servicios" className="panel--wide" label={lab('servicios')} headline={h.servicios} copy={copy.servicios}>
-          <Services services={services} />
+          <Services services={services} categories={content?.categories} />
         </Section>
         <Membership site={site} booking={booking} label={lab('membresia')} />
         <Barbers site={site} booking={booking} label={lab('barberos')} />
-        <Reviews site={site} label={lab('resenas')} />
+        <Reviews data={hasReviews ? reviews.data : null} label={lab('resenas')} onMore={reviews.more} loadingMore={reviews.loadingMore} />
         <Policies site={site} label={lab('politicas')} />
         <Section id="llega" className="panel--last" label={lab('llega')} headline={h.llega} copy={copy.llega}
           after={<Footer name={name} poweredBy={poweredBy} />}>
