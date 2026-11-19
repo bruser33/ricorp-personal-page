@@ -78,8 +78,8 @@ export const SHOP = [-70.6506, -33.4378];
 export const LEGACY_FEES = { platformFeeRate: 0, paymentFeeRate: 0, paymentFeeVat: true };
 export const DEFAULT_FEES = { platformFeeRate: 0.1, paymentFeeRate: 0.0319, paymentFeeVat: true };
 
-export function seed({ site = SITE, services = SERVICES, pros = [PRO_A], fees = LEGACY_FEES } = {}) {
-  return seedBusiness({ site, services, pros, location: SHOP, fees });
+export function seed({ site = SITE, services = SERVICES, categories = [], pros = [PRO_A], fees = LEGACY_FEES } = {}) {
+  return seedBusiness({ site, services, categories, pros, location: SHOP, fees });
 }
 
 /* Punto a `km` al este del local (1° de longitud a -33.44 ≈ 92.8 km). */
