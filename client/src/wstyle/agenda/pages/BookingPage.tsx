@@ -9,7 +9,7 @@ import Shell from '../components/Shell';
 import { Field, MotoIcon, Notice, Spinner, Unavailable } from '../components/ui';
 import {
   addDays, buildIcs, clMobile, clp, dayMonthTime, fieldMessage, loadSelection, localDate, longDay, MAX_NOTE, prettyPhone,
-  saveSelection, selectionFromQuery, selectionToQuery, type Selection,
+  mergeSelection, saveSelection, selectionFromQuery, selectionToQuery, type Selection,
 } from '../util';
 
 type Step = 1 | 2 | 3 | 4 | 5;
@@ -18,10 +18,7 @@ const newKey = () => (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math
 
 function initialSelection(): Selection {
   // La URL manda (vuelta de Facebook, link desde la landing ?servicio= / ?barbero=); lo demás sale del sessionStorage.
-  const fromUrl = selectionFromQuery(location.search);
-  const stored = loadSelection();
-  const fresh = Object.keys(fromUrl).length > 0 && (fromUrl.serviceId !== stored.serviceId || (fromUrl.startsAt && fromUrl.startsAt !== stored.startsAt));
-  return fresh ? { ...(fromUrl.serviceId === stored.serviceId ? stored : {}), ...fromUrl } : { ...stored, ...fromUrl };
+  return mergeSelection(selectionFromQuery(location.search), loadSelection());
 }
 
 // /wstyle/reservar/: el flujo de reserva (SPEC-32, 4 pasos + confirmación). SPEC-38: la sesión se pide ANTES del
@@ -207,6 +204,8 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
         address: mode === 'home' ? sel.address : undefined, phone: needPhone ? phone : undefined, note: sel.note ?? '',
         acceptPolicies: accept, paymentMethod: pay, idempotencyKey: idem.current, website,
         whatsappOptIn: waPhone ? waChecked : undefined,
+        // SPEC-58: canal del link (sin UTM → el server guarda "directo").
+        origin: sel.origin,
       });
       if (!r.appointment) { setSubmitError('No pudimos agendar. Inténtalo de nuevo.'); return; }
       // SPEC-35: "Pagar en línea" → la cita queda esperando el pago (15 min) y se va a Mercado Pago. Si no se puede

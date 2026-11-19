@@ -9,10 +9,12 @@ import { LoadError } from './components/common';
 import AppointmentsPage from './pages/AppointmentsPage';
 import AuditPage from './pages/AuditPage';
 import BarbersPage from './pages/BarbersPage';
+import DifusionPage from './pages/DifusionPage';
 import HomePage from './pages/HomePage';
 import MessagesPage from './pages/MessagesPage';
 import PaymentsPage from './pages/PaymentsPage';
 import RendicionPage from './pages/RendicionPage';
+import ReviewsPage from './pages/ReviewsPage';
 import SchedulePage from './pages/SchedulePage';
 import ServicesPage from './pages/ServicesPage';
 import SettingsPage from './pages/SettingsPage';
@@ -109,8 +111,10 @@ export default function AdminApp({ fbReturn }: { fbReturn: FacebookReturn | null
     rendicion: <RendicionPage />,
     mensajes: <MessagesPage />,
     carta: <ServicesPage />,
+    resenas: <ReviewsPage />,
     horario: <SchedulePage />,
     estadisticas: <StatsPage />,
+    difusion: <DifusionPage />,
     configuracion: <SettingsPage user={user} />,
     auditoria: <AuditPage />,
   }[section];

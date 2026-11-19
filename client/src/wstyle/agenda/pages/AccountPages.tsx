@@ -5,6 +5,7 @@ import AuthPanel from '../components/AuthPanel';
 import Shell from '../components/Shell';
 import { Field, Notice, PasswordField, Spinner, StatusPill, Unavailable } from '../components/ui';
 import { clMobile, clp, fieldMessage, prettyPhone, weakPassword } from '../util';
+import { starsLabel, starsText } from '../../reviews';
 
 // /wstyle/cuenta/: entrar / crear cuenta (sin sesión) o "Mi cuenta" (con sesión).
 export function AccountPage({ ctx }: { ctx: AgendaCtx }) {
@@ -145,6 +146,12 @@ export function MyAppointmentsPage({ ctx }: { ctx: AgendaCtx }) {
               <span className="ag-item__main"><strong>{a.service.name}</strong> con {a.professional.name}<span className="ag-item__when">{a.when}</span></span>
               <span className="ag-item__side"><StatusPill status={a.status} label={a.statusLabel} /><span>{clp.format(a.pricing.totalCLP)}{a.pricing.feesIncluded && (a.pricing.serviceFeeCLP ?? 0) > 0 && <small className="ag-muted"> · incl. tarifa de servicio {clp.format(a.pricing.serviceFeeCLP ?? 0)}</small>}</span>{a.payment.backing && <span className="ag-item__receipt" data-backing={a.payment.backing.kind}>{a.payment.backing.kind === 'voucher_mp' ? 'Voucher MP' : `Boleta N° ${a.payment.backing.number}`}</span>}</span>
             </a>
+            {/* SPEC-52: cita atendida → invitar a reseñar, o sus estrellas si ya lo hizo. */}
+            {a.review ? (
+              <p className="ag-item__review" aria-label={`Tu reseña: ${starsLabel(a.review.rating)}`}>Tu reseña: <span aria-hidden="true">{starsText(a.review.rating)}</span></p>
+            ) : a.canReview ? (
+              <a className="ag-item__review ag-link" data-cta="review" href={`/wstyle/cuenta/resena/?cita=${a.id}`}>Dejar reseña</a>
+            ) : null}
           </li>
         ))}
       </ul>

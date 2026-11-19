@@ -237,6 +237,18 @@ describe('SPEC-53 · programación (AC-01, AC-02)', () => {
     assert.deepEqual((await t.msgs(id)).map((m) => m.kind), ['confirmation', 'reminder']);
   });
 
+  test('cita "Ya está confirmada" del barbero (SPEC-55) usa el opt-in guardado; sin opt-in no se envía', async () => {
+    const c = await makeClient({ name: 'Olga', phone: '+56987653333' });
+    await User.updateOne({ _id: c.user._id }, { $set: { whatsappOptIn: { accepted: true, at: new Date(), source: 'cuenta' } } });
+    const r = await t.post('/api/pro/invitations', { name: 'Olga', phone: '+56987653333', serviceId: 'corte', startsAt: at('15:00'), confirmed: true }, t.barber);
+    assert.equal(r.status, 201, JSON.stringify(r.json));
+    assert.equal(r.json.appointment.status, 'confirmada');
+    assert.deepEqual((await t.msgs(r.json.appointment.id)).map((m) => m.kind), ['confirmation', 'reminder']);
+    const r2 = await t.post('/api/pro/invitations', { name: 'Sin Optin', phone: '+56987654444', serviceId: 'corte', startsAt: at('16:30'), confirmed: true }, t.barber);
+    assert.equal(r2.status, 201, JSON.stringify(r2.json));
+    assert.equal((await t.msgs(r2.json.appointment.id)).length, 0);
+  });
+
   test('RN-02 "Mi cuenta" desactiva el opt-in y frena todo lo "Por salir"; sin celular válido no se puede activar', async () => {
     const { id, client } = await t.bookAndConfirm();
     const r = await api(t.ctx.base, 'PATCH', '/api/auth/me', { body: { whatsappOptIn: false }, cookie: client.cookie });

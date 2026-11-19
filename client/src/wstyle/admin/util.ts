@@ -1,7 +1,7 @@
 // Funciones puras del panel del super admin (probadas en util.test.ts).
 import type { AdminService, ExportContent, MembershipStatus, WeekDay } from './api';
 
-export type AdminSection = 'inicio' | 'barberos' | 'citas' | 'pagos' | 'rendicion' | 'mensajes' | 'carta' | 'horario' | 'estadisticas' | 'configuracion' | 'auditoria';
+export type AdminSection = 'inicio' | 'barberos' | 'citas' | 'pagos' | 'rendicion' | 'mensajes' | 'carta' | 'resenas' | 'horario' | 'estadisticas' | 'difusion' | 'configuracion' | 'auditoria';
 export const SECTIONS: { key: AdminSection; label: string; path: string }[] = [
   { key: 'inicio', label: 'Inicio', path: '/wstyle/admin/' },
   { key: 'barberos', label: 'Barberos', path: '/wstyle/admin/barberos/' },
@@ -12,8 +12,12 @@ export const SECTIONS: { key: AdminSection; label: string; path: string }[] = [
   // SPEC-53: WhatsApp a los clientes (por salir, enviados y fallidos).
   { key: 'mensajes', label: 'Mensajes', path: '/wstyle/admin/mensajes/' },
   { key: 'carta', label: 'Carta', path: '/wstyle/admin/carta/' },
+  // SPEC-52: reseñas de clientes (ocultar / mostrar).
+  { key: 'resenas', label: 'Reseñas', path: '/wstyle/admin/resenas/' },
   { key: 'horario', label: 'Horario', path: '/wstyle/admin/horario/' },
   { key: 'estadisticas', label: 'Estadísticas', path: '/wstyle/admin/estadisticas/' },
+  // SPEC-58: kit para compartir el link de reservas (QR, cartel, placa de Instagram y textos).
+  { key: 'difusion', label: 'Difusión', path: '/wstyle/admin/difusion/' },
   { key: 'configuracion', label: 'Configuración', path: '/wstyle/admin/configuracion/' },
   { key: 'auditoria', label: 'Auditoría', path: '/wstyle/admin/auditoria/' },
 ];
@@ -114,5 +118,12 @@ export const AUDIT_LABEL: Record<string, string> = {
   'appointments.export': 'Exportó CSV', 'service.create': 'Creó servicio', 'service.update': 'Editó servicio', 'service.price': 'Cambió precio', 'service.archive': 'Archivó servicio', 'service.delete': 'Borró servicio',
   'content.export': 'Exportó JSON', 'schedule.hours': 'Cambió horario', 'schedule.closure_add': 'Agregó cierre', 'schedule.closure_remove': 'Quitó cierre', 'settings.update': 'Cambió configuración', 'account.password': 'Cambió su contraseña',
   'whatsapp.stop': 'Frenó un WhatsApp', 'whatsapp.retry': 'Reintentó un WhatsApp', 'settings.whatsapp': 'Cambió avisos por WhatsApp',
+  'review.hide': 'Ocultó reseña', 'review.show': 'Mostró reseña',
   'payment.boleta': 'Registró N° de boleta', 'rendicion.export': 'Exportó rendición', 'appointment.refund': 'Reembolsó pago', 'appointment.refund_failed': 'Reembolso fallido',
 };
+
+/* Nombre legible de un origen en Estadísticas. Los desconocidos (p. ej. "tiktok") se muestran tal cual (texto). */
+export const ORIGIN_LABEL: Record<string, string> = {
+  cartel: 'Cartel y QR', instagram_historia: 'Instagram (historia)', instagram_bio: 'Instagram (bio)', whatsapp: 'WhatsApp', directo: 'Directo (sin link del kit)', sin_dato: 'Sin dato (reservas anteriores al kit)',
+};
+export const originLabel = (o: string) => ORIGIN_LABEL[o] ?? o;

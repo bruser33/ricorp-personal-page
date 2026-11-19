@@ -5,7 +5,7 @@ import { Loaded } from '../components/common';
 import { useLoad } from '../hooks';
 import { AUDIT_LABEL } from '../util';
 
-const FILTERS: [string, string][] = [['', 'Todo'], ['barber.', 'Barberos'], ['appointment', 'Citas'], ['service.', 'Carta'], ['schedule.', 'Horario'], ['settings.', 'Configuración'], ['whatsapp.', 'WhatsApp']];
+const FILTERS: [string, string][] = [['', 'Todo'], ['barber.', 'Barberos'], ['appointment', 'Citas'], ['service.', 'Carta'], ['review.', 'Reseñas'], ['schedule.', 'Horario'], ['settings.', 'Configuración'], ['whatsapp.', 'WhatsApp']];
 
 // Registro de auditoría (RN-09): solo lectura. Quién, cuándo, qué y antes/después.
 export default function AuditPage() {
