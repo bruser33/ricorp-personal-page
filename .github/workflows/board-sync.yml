@@ -12,7 +12,7 @@ on:
 
 permissions:
   contents: read
-  issues: read
+  issues: write
   pull-requests: read
 
 jobs:
@@ -40,6 +40,17 @@ jobs:
             closed)   bash .github/claude/board.sh "$ISSUE" "Done" --solo-si-esta ;;
             reopened) bash .github/claude/board.sh "$ISSUE" "Todo" --solo-si-esta ;;
           esac
+
+      # Las tareas que ChatGPT crea con la cuenta de Pedro desde el celular de Joe traen
+      # "Solicitado por: Joe" en el cuerpo: se asignan a Joe y llevan la etiqueta "pedido: Joe".
+      - name: Pedido de Joe → asignar a Joe
+        if: github.event_name == 'issues' && github.event.action == 'opened'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if printf '%s' "$ISSUE_BODY" | grep -qiE 'solicitad[oa] por:? *(joe|@?jhoncamacho017-ai)'; then
+            gh issue edit "$ISSUE" -R "$GITHUB_REPOSITORY" --add-assignee jhoncamacho017-ai --add-label "pedido: Joe"
+          fi
 
       - name: PR abierto → sus issues a In Progress
         if: github.event_name == 'pull_request'
