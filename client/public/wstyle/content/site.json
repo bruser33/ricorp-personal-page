@@ -21,6 +21,32 @@
   "name": "WS Style",
   "slogan": "Cortes clásicos y barba con oficio, en un local hecho para quedarse.",
   "concept": "El estilo se hace a mano",
+  "hero": {
+    "_nota": "SPEC-61: pantallas que se recorren con las flechas del inicio. La primera siempre es el barbero con el fuego. src = computador, srcSm = celular (rutas desde la raíz del sitio). Para quitar una pantalla, borrarla de la lista; con la lista vacía no se muestran flechas.",
+    "slides": [
+      {
+        "id": "local",
+        "src": "wstyle/seq/desktop-hd/0026.webp",
+        "srcSm": "wstyle/seq/mobile-hd/0026.webp",
+        "alt": "El local de WS Style: el sillón de barbero frente al espejo largo",
+        "caption": "El local"
+      },
+      {
+        "id": "espejo",
+        "src": "wstyle/seq/desktop-hd/0076.webp",
+        "srcSm": "wstyle/seq/mobile-hd/0076.webp",
+        "alt": "El espejo y el mesón con productos de WS Style",
+        "caption": "El espejo"
+      },
+      {
+        "id": "trono",
+        "src": "wstyle/seq/desktop-hd/0100.webp",
+        "srcSm": "wstyle/seq/mobile-hd/0100.webp",
+        "alt": "El sillón de barbero y el lavacabezas de WS Style",
+        "caption": "Tu trono"
+      }
+    ]
+  },
   "stat": {
     "value": "1",
     "label": "silla.",
