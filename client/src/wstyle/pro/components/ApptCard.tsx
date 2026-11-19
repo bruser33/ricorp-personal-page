@@ -4,6 +4,7 @@ import { useCollect } from '../../agenda/useCollect';
 import { MotoIcon, Notice, StatusPill } from '../../agenda/components/ui';
 import { clp, localTime } from '../../agenda/util';
 import type { ProAppointment } from '../api';
+import { scheduleNoShow, usePendingNoShow } from '../undo';
 import { useProActions } from '../useActions';
 import CopyLink from './CopyLink';
 
@@ -24,7 +25,8 @@ export default function ApptCard({ appt, now, onChange, onOpen, reload }: {
   onOpen: (a: ProAppointment, mode?: SheetMode) => void;
   reload: () => void;
 }) {
-  const { busy, msg, run } = useProActions(onChange, reload);
+  const { busy, msg, setMsg, run } = useProActions(onChange, reload);
+  const pending = usePendingNoShow()?.id === appt.id;
   // SPEC-37: "¿Cobraste?" → Sí pide cómo pagó y (opcional) el N° de la boleta SII.
   const [askPaid, setAskPaid] = useState<false | 'ask' | 'how'>(false);
   const col = useCollect();
@@ -54,6 +56,7 @@ export default function ApptCard({ appt, now, onChange, onOpen, reload }: {
           <p className="pro-card__where pro-card__where--shop">En el local</p>
         )}
         {appt.note && <p className="pro-card__note">“{appt.note}”</p>}
+        {(appt.noShows ?? 0) > 0 && <p className="pro-card__noshows" data-noshows={appt.noShows}>Inasistencias anteriores: {appt.noShows}</p>}
         {msg && <Notice tone={msg.tone}>{msg.text}</Notice>}
 
         {!final && (
@@ -95,7 +98,12 @@ export default function ApptCard({ appt, now, onChange, onOpen, reload }: {
                 onClick={() => run(appt.id, 'start')}>Iniciar</button>
             )}
             {s === 'confirmada' && !can('start') && now < startOpens && <span className="pro-card__hint" id={`start-${appt.id}`}>Desde las {localTime(appt.startOpensAt)}</span>}
-            {can('no_show') && <button type="button" className="btn btn--ghost" disabled={busy} onClick={() => run(appt.id, 'no_show')}>No asistió</button>}
+            {/* SPEC-55: un toque + [Deshacer] 8 s (la petición sale después). */}
+            {can('no_show') && <button type="button" className="btn btn--ghost" disabled={busy || pending} data-noshow-btn="" onClick={() => {
+              setMsg(null);
+              scheduleNoShow<ProAppointment>({ id: appt.id, name: appt.customer.name, path: `/api/pro/appointments/${encodeURIComponent(appt.id)}/no-show`,
+                onDone: (a) => { onChange(a); reload(); }, onError: (text) => { setMsg({ tone: 'error', text }); reload(); } });
+            }}>{pending ? 'Marcando que no vino…' : 'El cliente no vino'}</button>}
             {can('finish') && <button type="button" className="btn btn--primary" disabled={busy} onClick={() => (appt.payment?.method === 'online' ? run(appt.id, 'finish') : setAskPaid('ask'))}>Terminar</button>}
             {s === 'invitacion_enviada' && appt.invite?.whatsappUrl && <a className="btn btn--ghost" href={appt.invite.whatsappUrl} target="_blank" rel="noopener">Reenviar por WhatsApp</a>}
             {s === 'invitacion_enviada' && appt.invite && <CopyLink url={appt.invite.url} label="Copiar link" />}

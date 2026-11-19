@@ -33,6 +33,8 @@ export interface ProAppointment extends Omit<Appointment, 'actions' | 'customer'
   source: string;
   invite: { url: string; text: string; whatsappUrl: string | null } | null;
   expiresAt: string | null;
+  // SPEC-55: inasistencias anteriores del cliente en WS Style (0 = no se muestra nada).
+  noShows?: number;
 }
 export interface AgendaDay { date: string; shop: { opens: string; closes: string } | null; windows: { startsAt: string; endsAt: string }[]; appointments: ProAppointment[] }
 export interface AgendaRange {
@@ -42,7 +44,10 @@ export interface AgendaRange {
   timeOffs: TimeOff[];
   days: AgendaDay[];
 }
-export interface Invitation { appointment: ProAppointment; whatsappUrl: string | null; inviteUrl: string; message: string }
+export interface Invitation { appointment: ProAppointment; whatsappUrl: string | null; inviteUrl: string | null; message: string | null }
+// SPEC-55: resultado del buscador de clientes (sin email ni celular completo; `ref` agenda con su celular).
+export interface CustomerHit { ref: string; name: string; phoneMasked: string | null; lastVisit: string | null; noShows: number }
+export interface TimeOffInput { fromDate: string; fromTime?: string; toDate?: string; toTime?: string; restOfDay?: boolean; quick?: boolean; reason: string }
 export interface PanelNotification { id: string; kind: string; title: string; body: string; appointmentId: string | null; createdAt: string; read: boolean }
 
 const json = <T,>(path: string, method: string, body: unknown = {}) => api<T>(path, { method, body });
@@ -62,7 +67,7 @@ export const pro = {
   setServices: (serviceIds: string[]) => json<{ serviceIds: string[] }>('/api/pro/services', 'PUT', { serviceIds }),
   setAvailability: (rules: Rule[]) => json<{ rules: Rule[]; adjustments: string[] }>('/api/pro/availability', 'PUT', { rules }),
   setHomeService: (body: Partial<HomeService>) => json<{ homeService: HomeService }>('/api/pro/home-service', 'PUT', body),
-  addTimeOff: (body: { fromDate: string; fromTime?: string; toDate: string; toTime?: string; reason: string }) => json<{ timeOff: TimeOff }>('/api/pro/time-off', 'POST', body),
+  addTimeOff: (body: TimeOffInput) => json<{ timeOff: TimeOff }>('/api/pro/time-off', 'POST', body),
   removeTimeOff: (id: string) => api<{ ok: boolean }>(`/api/pro/time-off/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   removePhoto: (id: string) => api<{ photos: ProPhoto[] }>(`/api/pro/photos/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   mainPhoto: (id: string) => json<{ photos: ProPhoto[] }>(`/api/pro/photos/${encodeURIComponent(id)}/main`, 'POST'),
@@ -74,6 +79,7 @@ export const pro = {
   act: (id: string, action: ProAction, body: Record<string, unknown> = {}) =>
     json<ProAppointment & Partial<Invitation>>(`/api/pro/appointments/${encodeURIComponent(id)}/${action === 'no_show' ? 'no-show' : action}`, 'POST', body),
   invite: (body: Record<string, unknown>) => json<Invitation>('/api/pro/invitations', 'POST', body),
+  customers: (q: string) => api<{ items: CustomerHit[] }>('/api/pro/customers?q=' + encodeURIComponent(q)),
   notifications: () => api<{ unread: number; items: PanelNotification[] }>('/api/pro/notifications'),
   markRead: () => json<{ ok: boolean }>('/api/pro/notifications/read', 'POST'),
 };

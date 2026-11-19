@@ -1,5 +1,5 @@
 // Funciones puras del panel del barbero (probadas en util.test.ts). Fechas siempre en la zona del local.
-import { addDays, localTime } from '../agenda/util';
+import { addDays, localDate, localTime } from '../agenda/util';
 
 export const WEEKDAYS = [
   { n: 1, short: 'Lun', long: 'lunes' },
@@ -107,3 +107,60 @@ export const HOME_ERRORS: Record<string, string> = {
   radiusKm: 'El radio va de 1 a 30 km.',
   travelBufferMin: 'El margen va de 0 a 90 minutos.',
 };
+
+// SPEC-55: huecos libres consecutivos agrupados en un solo bloque ("Libre 15:00–17:00"). Cada grupo conserva sus
+// celdas de 30 min para que tocar dentro elija la media hora tocada.
+export interface FreeCell { startsAt: string; label: string }
+export interface FreeGroup { startsAt: string; endsAt: string; label: string; cells: FreeCell[] }
+export function groupFree(cells: FreeCell[], stepMin = 30): FreeGroup[] {
+  const step = stepMin * 60000;
+  const out: FreeGroup[] = [];
+  for (const c of [...cells].sort((a, b) => Date.parse(a.startsAt) - Date.parse(b.startsAt))) {
+    const last = out.at(-1);
+    if (last && Date.parse(last.endsAt) === Date.parse(c.startsAt)) {
+      last.cells.push(c);
+      last.endsAt = new Date(Date.parse(c.startsAt) + step).toISOString();
+    } else {
+      out.push({ startsAt: c.startsAt, endsAt: new Date(Date.parse(c.startsAt) + step).toISOString(), label: '', cells: [c] });
+    }
+  }
+  for (const g of out) g.label = `Libre ${localTime(g.startsAt)}–${localTime(g.endsAt)}`;
+  return out;
+}
+
+// Minutos libres desde `startsAt` hasta el fin de su grupo (para "No alcanza: este hueco es de 30 min…").
+export function gapFrom(groups: FreeGroup[], startsAt: string) {
+  const t = Date.parse(startsAt);
+  const g = groups.find((x) => Date.parse(x.startsAt) <= t && t < Date.parse(x.endsAt));
+  return g ? (Date.parse(g.endsAt) - t) / 60000 : 0;
+}
+
+// Ausencias recortadas a un día de la grilla (las de varios días se dibujan por partes).
+export function offsInDay<T extends { startsAt: string; endsAt: string }>(offs: T[], date: string) {
+  const out: (T & { from: string; to: string })[] = [];
+  for (const o of offs) {
+    const s = Date.parse(o.startsAt);
+    const e = Date.parse(o.endsAt);
+    // Recorte por fecha local: desde el inicio (o 00:00 local) hasta el fin (o 24:00 local) de `date`.
+    const from = localDate(s) < date ? startOfLocalDay(date) : s;
+    const to = localDate(e - 1) > date ? startOfLocalDay(addDays(date, 1)) : e;
+    if (localDate(from) !== date || to <= from) continue;
+    out.push({ ...o, from: new Date(from).toISOString(), to: new Date(to).toISOString() });
+  }
+  return out;
+}
+
+// Inicio de un día local (America/Santiago) en ms, buscando el offset real de ese día.
+function startOfLocalDay(date: string) {
+  for (const off of [3, 4, 2]) {
+    const t = Date.parse(`${date}T00:00:00Z`) + off * 3600000;
+    if (localDate(t) === date && localTime(t) === '00:00') return t;
+  }
+  return Date.parse(`${date}T03:00:00Z`);
+}
+
+// Próxima media hora en punto (para "Bloquear" desde la cabecera).
+export function nextHalfHour(now: number) {
+  const step = 30 * 60000;
+  return new Date(Math.ceil(now / step) * step).toISOString();
+}
