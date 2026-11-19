@@ -22,6 +22,8 @@ import { createAdminRouter } from './routes/admin.js';
 import { createPayments, WEBHOOK_PATH } from './domain/payments.js';
 import { createBilling } from './domain/billing.js';
 import { createTaxDocumentProvider } from './lib/taxDocuments.js';
+import { createWhatsAppClient } from './lib/whatsapp.js';
+import { createMessaging } from './domain/messaging.js';
 import { handle } from './lib/errors.js';
 
 /* La app SIN listen ni connect: index.js conecta Mongo y escucha, y los tests
@@ -119,6 +121,8 @@ export function createApp({
   onlinePayments = null,
   /* Borde HTTP de Mercado Pago (servicio externo): los tests lo simulan; la BD siempre es real. */
   mercadoPagoFetch = fetch,
+  /* SPEC-53: borde HTTP de la WhatsApp Cloud API de Meta (servicio externo): los tests lo simulan. */
+  whatsappFetch = fetch,
 } = {}) {
   onlinePayments = onlinePayments ?? { ready: Boolean(env.MP_ACCESS_TOKEN) };
   const app = express();
@@ -142,7 +146,8 @@ export function createApp({
       },
     })
   );
-  app.use(express.json());
+  /* `rawBody`: el webhook de WhatsApp (SPEC-53) firma el cuerpo crudo (X-Hub-Signature-256). */
+  app.use(express.json({ verify: (req, _res, buf) => { req.rawBody = buf; } }));
 
   const CONTACT_TO = env.CONTACT_TO || 'pedro.luis.rico43@gmail.com';
   /* Resend solo deja enviar desde un dominio verificado; `onboarding@resend.dev` es
@@ -206,6 +211,9 @@ export function createApp({
   const adminInbox = createAdminInbox({ mailer: agendaMailer, logger, env, frontUrl });
   /* SPEC-37: respaldo tributario de cada venta (SII_TAX_PROVIDER = voucher | manual). */
   const taxProvider = createTaxDocumentProvider(env, logger);
+  /* SPEC-53: avisos por WhatsApp (Meta Cloud API). Sin credenciales → modo simulación. */
+  const whatsapp = createWhatsAppClient({ env, fetchImpl: whatsappFetch });
+  const messaging = createMessaging({ clock, logger, whatsapp, adminInbox, frontUrl, businessSlug: env.BUSINESS_SLUG || 'ws-style', env });
   const agenda = createAgenda({
     clock,
     mailer: agendaMailer,
@@ -216,6 +224,7 @@ export function createApp({
     adminInbox,
     onlinePayments,
     taxProvider,
+    messaging,
   });
   /* Pago en línea (SPEC-35). */
   const payments = createPayments({ agenda, env, clock, logger, adminInbox, frontUrl, fetchImpl: mercadoPagoFetch, taxProvider });
@@ -225,8 +234,8 @@ export function createApp({
   /* Barbero (SPEC-33): registro, perfil y panel. */
   const pro = createPro({ agenda, clock, mailer: agendaMailer, logger, frontUrl, env, adminInbox });
   /* Super admin (SPEC-34). */
-  const admin = createAdmin({ agenda, pro, clock, mailer: agendaMailer, logger, frontUrl, env, adminInbox, onlinePayments, payments, billing });
-  const authRouter = createAuthRouter({ env, clock, mailer: agendaMailer, logger, facebook, google, frontUrl, secret, loginLimit, onAccountDeleted: agenda.onAccountDeleted, onBarberFacebook: pro.ensureBarber });
+  const admin = createAdmin({ agenda, pro, clock, mailer: agendaMailer, logger, frontUrl, env, adminInbox, onlinePayments, payments, billing, messaging });
+  const authRouter = createAuthRouter({ env, clock, mailer: agendaMailer, logger, facebook, google, frontUrl, secret, loginLimit, onAccountDeleted: agenda.onAccountDeleted, onBarberFacebook: pro.ensureBarber, onWhatsappOptOut: messaging.stopPendingFor });
   const withSession = sessionMiddleware({ clock });
   const needsDb = (_req, res, next) =>
     mongoose.connection.readyState === 1 ? next() : res.status(503).json({ ok: false, error: 'db_unavailable' });
@@ -244,9 +253,20 @@ export function createApp({
     const [status, body] = await payments.webhook(req);
     res.status(status).json(body);
   }, logger));
+  /* Webhook de WhatsApp (SPEC-53): público (lo llama Meta). GET = alta (challenge con
+     WHATSAPP_VERIFY_TOKEN); POST = estados y mensajes entrantes, autenticados por la firma. */
+  app.get('/api/whatsapp/webhook', (req, res) => {
+    const [status, body] = messaging.webhookVerify(req.query);
+    if (typeof body === 'string') res.status(status).type('text/plain').send(body);
+    else res.status(status).json(body);
+  });
+  app.post('/api/whatsapp/webhook', needsDb, handle(async (req, res) => {
+    const [status, body] = await messaging.webhookReceive(req.rawBody, req.get('x-hub-signature-256'), req.body);
+    res.status(status).json(body);
+  }, logger));
   app.use('/api/pro', needsDb, withSession, createProRouter({ pro, env, clock, mailer: agendaMailer, logger, frontUrl, loginLimiter: authRouter.loginLimiter, billing }));
   app.use('/api/admin', needsDb, withSession, createAdminRouter({ admin, logger }));
-  Object.assign(app.locals, { agenda, pro, admin, payments, billing, agendaMailer, bookingLimiter, loginLimiter: authRouter.loginLimiter });
+  Object.assign(app.locals, { agenda, pro, admin, payments, billing, messaging, agendaMailer, bookingLimiter, loginLimiter: authRouter.loginLimiter });
 
   app.get('/api/health', (_req, res) => {
     /* 'unconfigured' y no 'dry-run' en Render: ahí sin mailer el envío es un 503,

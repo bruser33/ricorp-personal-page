@@ -87,5 +87,7 @@ export function publicUser(u) {
     phone: u.phoneE164 || null,
     roles: [...(u.roles || [])],
     providers: (u.identities || []).map((i) => i.provider),
+    /* SPEC-53: última elección del cliente sobre los avisos por WhatsApp (null = nunca eligió). */
+    whatsappOptIn: typeof u.whatsappOptIn?.accepted === 'boolean' ? u.whatsappOptIn.accepted : null,
   };
 }
