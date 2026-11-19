@@ -417,8 +417,8 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
   }
 
   /* ─── Citas (RN-03) */
-  async function serializeAdmin(appt, b, now) {
-    const out = await agenda.serialize(appt, 'admin', b, now);
+  async function serializeAdmin(appt, b, now, extra = {}) {
+    const out = await agenda.serialize(appt, 'admin', b, now, extra);
     out.customer = { name: appt.customerSnapshot?.name || '', phone: appt.customerSnapshot?.phoneE164 || null, email: appt.customerSnapshot?.email || null };
     /* SPEC-38 RN-13: en citas antiguas la comisión era interna (no se cobró): el admin la ve aparte. */
     out.pricing = { ...out.pricing, platformFeeRate: appt.pricing?.platformFeeRate ?? 0 };
@@ -499,7 +499,9 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
     const filter = buildFilter(b, q);
     const LIMIT = 500;
     const list = await Appointment.find(filter).sort({ startsAt: 1 }).limit(LIMIT + 1);
-    const items = await Promise.all(list.slice(0, LIMIT).map((a) => serializeAdmin(a, b, now)));
+    const page = list.slice(0, LIMIT);
+    const noShows = await agenda.noShowsFor(b, page);
+    const items = await Promise.all(page.map((a) => serializeAdmin(a, b, now, { noShows })));
     return { items, truncated: list.length > LIMIT, timezone: b.timezone };
   }
 

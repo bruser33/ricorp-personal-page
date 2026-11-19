@@ -84,7 +84,7 @@ export default function AgendaBoard() {
           );
         }}
       </Loaded>
-      {free && (
+      {free && adapters.get(free.barber.id) && (
         <InviteSheet services={free.barber.services} homeService={NO_HOME} date={date} startsAt={free.startsAt} today={today} gapMin={free.gap}
           adapter={adapters.get(free.barber.id)!} onClose={() => { setFree(null); state.reload(); }} onCreated={() => {}} onBlocked={() => state.reload()} />
       )}
