@@ -10,6 +10,7 @@ import {
   AvailabilityRule,
   BLOCKING,
   Business,
+  CustomerProfile,
   Membership,
   PanelNotification,
   PlatformSettings,
@@ -88,7 +89,7 @@ export const CSV_COLUMNS = [
 ];
 
 
-export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = console, frontUrl = 'http://localhost:5173', env = {}, adminInbox, onlinePayments = { ready: false }, payments = null, billing = null, giftCards = null }) {
+export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = console, frontUrl = 'http://localhost:5173', env = {}, adminInbox, onlinePayments = { ready: false }, payments = null, billing = null, reviews = null, giftCards = null }) {
   /* ─── Acceso */
   function requireAdmin(user) {
     if (!user) throw new HttpError(401, 'unauthorized', 'Tu sesión venció. Inicia sesión para continuar.');
@@ -139,7 +140,7 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
     const dayStart = new Date(zonedToUtc(today, '00:00', tz));
     const dayEnd = new Date(zonedToUtc(addDays(today, 1), '00:00', tz));
     const month = monthRange(now, tz);
-    const [pendingBarbers, todayCount, pendingConfirm, refunds, monthStats, unread, alerts] = await Promise.all([
+    const [pendingBarbers, todayCount, pendingConfirm, refunds, monthStats, unread, alerts, reviewsLast7d] = await Promise.all([
       Membership.countDocuments({ businessId: b._id, status: 'pending', submittedAt: { $ne: null } }),
       Appointment.countDocuments({ businessId: b._id, startsAt: { $gte: dayStart, $lt: dayEnd }, status: { $nin: ['cancelada', 'expirada'] } }),
       Appointment.countDocuments({ businessId: b._id, status: 'pendiente' }),
@@ -147,10 +148,12 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
       computeStats(b, month),
       PanelNotification.countDocuments({ userId: user._id, readAt: null }),
       suspendedAlerts(b, now),
+      /* SPEC-52: reseñas nuevas de los últimos 7 días. */
+      reviews ? reviews.countSince(b, 7) : 0,
     ]);
     return {
       today,
-      cards: { pendingBarbers, today: todayCount, pendingConfirm, refundsPending: refunds, monthRevenueCLP: monthStats.revenue.totalCLP },
+      cards: { pendingBarbers, today: todayCount, pendingConfirm, refundsPending: refunds, monthRevenueCLP: monthStats.revenue.totalCLP, reviewsLast7d },
       alerts,
       unread,
       user: publicUser(user),
@@ -321,9 +324,108 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
     return out;
   }
 
+  /* ─── SPEC-55: avisos al barbero de lo que hizo WS Style en su agenda (RN-06). */
+  async function tellBarber(professionalId, kind, title, body = '', appointmentId = null) {
+    const p = await Professional.findById(professionalId, { userId: 1 }).lean();
+    if (!p?.userId) return;
+    await PanelNotification.create({ userId: p.userId, professionalId, appointmentId: appointmentId || undefined, kind, title, body }).catch((err) => logger.error('[admin] bandeja barbero:', err.message));
+  }
+
+  /* SPEC-55 RN-04 / AC-06: un "no vino" se corrige dentro de 48 h desde que se registró. */
+  const REVERT_WINDOW_MS = 48 * 60 * 60 * 1000;
+  function noShowAt(appt) {
+    const h = [...(appt.history || [])].reverse().find((x) => x.to === 'no_asistio');
+    return h?.at ? h.at.getTime() : null;
+  }
+  function canRevertNoShow(appt, now) {
+    const t = appt.status === 'no_asistio' ? noShowAt(appt) : null;
+    return t !== null && now - t <= REVERT_WINDOW_MS;
+  }
+
+  async function revertNoShow(user, id, body = {}) {
+    const b = await ctx(user);
+    const reason = String(body.reason ?? '').replace(/\s+/g, ' ').trim().slice(0, 300);
+    if (!reason) throw fieldError({ reason: 'required' }, 'Escribe el motivo');
+    const current = await loadAppt(b, id);
+    const now = clock();
+    if (current.status !== 'no_asistio') throw new HttpError(409, 'invalid_transition', 'Esta cita no está marcada como "no vino"', { reason: 'bad_state' });
+    if (!canRevertNoShow(current, now)) throw new HttpError(409, 'invalid_transition', 'Pasaron más de 48 horas: ya no se puede corregir', { reason: 'too_late' });
+    const appt = await agenda.mutate(b, current._id, async (a, session) => {
+      if (a.status !== 'no_asistio') throw new HttpError(409, 'invalid_transition', 'Recarga para ver el estado actual', { reason: 'stale' });
+      /* Si la cita aún no termina, el barbero vuelve a estar ocupado: se re-toman los bloques que el "no vino" liberó.
+         Si alguien ya reservó ese rato → 409 slot_taken (mutate) y no se corrige. */
+      const have = new Set((await SlotLock.find({ appointmentId: a._id }, { slotStart: 1 }).session(session || null).lean()).map((l) => l.slotStart.getTime()));
+      const missing = slotsFor(a.startsAt.getTime(), a.serviceSnapshot.durationMin, a.location?.travelBufferMin || 0).filter((t) => t + 15 * 60 * 1000 > now && !have.has(t));
+      if (missing.length) await SlotLock.insertMany(missing.map((t) => ({ businessId: b._id, professionalId: a.professionalId, slotStart: new Date(t), appointmentId: a._id, kind: 'main' })), { session, ordered: true });
+      a.status = 'terminada';
+      return { by: 'admin', byUserId: user._id, reason: `Sí vino: ${reason}` };
+    });
+    if (appt.customerUserId) {
+      await CustomerProfile.updateOne({ businessId: b._id, userId: appt.customerUserId, 'counters.noShows': { $gt: 0 } }, { $inc: { 'counters.noShows': -1 } }).catch(() => {});
+    }
+    await audit(user, b, 'appointment.revert_no_show', {
+      entity: 'appointment',
+      entityId: appt._id,
+      summary: `${appt.customerSnapshot?.name || 'Cliente'} · ${appt.serviceSnapshot?.name || ''} · ${formatLong(appt.startsAt.getTime(), b.timezone)} — ${reason}`,
+      before: { status: 'no_asistio' },
+      after: { status: 'terminada' },
+    });
+    return serializeAdmin(appt, b, now);
+  }
+
+  /* SPEC-55 AC-09: agenda de UN día con una columna por barbero aprobado (CB-08: nunca suspendidos). */
+  async function agendaDay(user, q = {}) {
+    const b = await ctx(user);
+    const date = q.date ? String(q.date) : wallClock(clock(), b.timezone).date;
+    if (!isDate(date)) throw new HttpError(400, 'invalid_range', 'Fecha inválida');
+    const ms = await Membership.find({ businessId: b._id, status: 'approved' }).sort({ order: 1 }).lean();
+    const pros = await Professional.find({ _id: { $in: ms.map((m) => m.professionalId) }, status: { $ne: 'suspended' } }).lean();
+    const ordered = ms.map((m) => pros.find((p) => String(p._id) === String(m.professionalId))).filter(Boolean);
+    const cols = await Promise.all(ordered.map((p) => pro.agendaRange(pro.forAdmin(String(p._id)), { from: date, to: date }, 'admin')));
+    return {
+      date,
+      timezone: b.timezone,
+      now: new Date(clock()).toISOString(),
+      today: wallClock(clock(), b.timezone).date,
+      barbers: cols.map((c) => ({ id: c.professional.id, name: c.professional.name, services: c.services, timeOffs: c.timeOffs, day: c.days[0] })),
+    };
+  }
+
+  async function barberSlots(user, id, q = {}) {
+    await ctx(user);
+    return pro.slots(pro.forAdmin(id), { service: String(q.service || ''), date: String(q.date || ''), mode: 'shop' });
+  }
+
+  async function customers(user, q) {
+    await ctx(user);
+    return pro.searchCustomers({ __all: true }, q);
+  }
+
+  const hhmm = (iso, tz) => wallClock(Date.parse(iso), tz).time;
+  async function addBarberTimeOff(user, id, body = {}) {
+    const b = await ctx(user);
+    const r = await pro.addTimeOff(pro.forAdmin(id), body);
+    const { pro: p } = await pro.resolve(pro.forAdmin(id), {});
+    const range = `${hhmm(r.timeOff.startsAt, b.timezone)}–${hhmm(r.timeOff.endsAt, b.timezone)}`;
+    const reason = r.timeOff.reason;
+    await tellBarber(p._id, 'admin_time_off', `WS Style bloqueó ${range}${reason ? `: ${reason}` : ''}`, formatLong(Date.parse(r.timeOff.startsAt), b.timezone));
+    await audit(user, b, 'barber.time_off_add', { entity: 'barber', entityId: p._id, summary: `${p.displayName} · ${formatLong(Date.parse(r.timeOff.startsAt), b.timezone)} – ${hhmm(r.timeOff.endsAt, b.timezone)}${reason ? ` · ${reason}` : ''}`, after: r.timeOff });
+    return r;
+  }
+
+  async function removeBarberTimeOff(user, id, offId) {
+    const b = await ctx(user);
+    const r = await pro.removeTimeOff(pro.forAdmin(id), offId);
+    const { pro: p } = await pro.resolve(pro.forAdmin(id), {});
+    const range = `${hhmm(r.timeOff.startsAt, b.timezone)}–${hhmm(r.timeOff.endsAt, b.timezone)}`;
+    await tellBarber(p._id, 'admin_time_off_removed', `WS Style quitó el bloqueo ${range}${r.timeOff.reason ? `: ${r.timeOff.reason}` : ''}`, formatLong(Date.parse(r.timeOff.startsAt), b.timezone));
+    await audit(user, b, 'barber.time_off_remove', { entity: 'barber', entityId: p._id, summary: `${p.displayName} · ${formatLong(Date.parse(r.timeOff.startsAt), b.timezone)}`, before: r.timeOff });
+    return { ok: true };
+  }
+
   /* ─── Citas (RN-03) */
-  async function serializeAdmin(appt, b, now) {
-    const out = await agenda.serialize(appt, 'admin', b, now);
+  async function serializeAdmin(appt, b, now, extra = {}) {
+    const out = await agenda.serialize(appt, 'admin', b, now, extra);
     out.customer = { name: appt.customerSnapshot?.name || '', phone: appt.customerSnapshot?.phoneE164 || null, email: appt.customerSnapshot?.email || null };
     /* SPEC-38 RN-13: en citas antiguas la comisión era interna (no se cobró): el admin la ve aparte. */
     out.pricing = { ...out.pricing, platformFeeRate: appt.pricing?.platformFeeRate ?? 0 };
@@ -342,6 +444,7 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
         duplicates: (p.duplicates || []).map((d) => ({ mpPaymentId: d.mpPaymentId, amountCLP: d.amountCLP, status: d.status, refundError: d.refundError || null })),
       };
     }
+    out.canRevertNoShow = canRevertNoShow(appt, now);
     out.canRefund = Boolean(payments?.ready) && p.method === 'online' && p.status === 'reembolso_pendiente' && Boolean(p.mpPaymentId) && !p.refundInFlight;
     return out;
   }
@@ -403,7 +506,9 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
     const filter = buildFilter(b, q);
     const LIMIT = 500;
     const list = await Appointment.find(filter).sort({ startsAt: 1 }).limit(LIMIT + 1);
-    const items = await Promise.all(list.slice(0, LIMIT).map((a) => serializeAdmin(a, b, now)));
+    const page = list.slice(0, LIMIT);
+    const noShows = await agenda.noShowsFor(b, page);
+    const items = await Promise.all(page.map((a) => serializeAdmin(a, b, now, { noShows })));
     return { items, truncated: list.length > LIMIT, timezone: b.timezone };
   }
 
@@ -464,6 +569,8 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
     const before = { status: appt.status, startsAt: appt.startsAt.toISOString(), payment: appt.payment?.status };
     await agenda.actAs(b, appt, 'admin', action, { ...payload, reason }, user);
     const fresh = await Appointment.findById(appt._id);
+    /* SPEC-55 RN-06: el barbero se entera en su bandeja. */
+    if (action === 'no_show') await tellBarber(appt.professionalId, 'admin_no_show', `WS Style marcó que ${appt.customerSnapshot?.name || 'el cliente'} no vino`, `${appt.serviceSnapshot?.name || ''} · ${formatLong(appt.startsAt.getTime(), b.timezone)}`, appt._id);
     await audit(user, b, `appointment.${action}`, {
       entity: 'appointment',
       entityId: appt._id,
@@ -581,9 +688,11 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
     const fields = {};
     const name = cleanName(body.name);
     if (name.length < 2) fields.name = 'required';
-    const phone = clMobile(body.phone);
+    /* SPEC-55: `customerRef` (resultado del buscador) trae el celular y el correo de esa cita. */
+    const fromRef = body.customerRef ? await pro.phoneFromRef(b, null, body.customerRef) : null;
+    const phone = body.customerRef ? fromRef?.phone ?? null : clMobile(body.phone);
     if (!phone) fields.phone = 'invalid_phone';
-    const email = body.email ? normEmail(body.email) : '';
+    const email = body.email ? normEmail(body.email) : fromRef?.email || '';
     if (email && !isEmail(email)) fields.email = 'invalid_email';
     const service = await agenda.findService(b, body.serviceId);
     if (!service) fields.serviceId = 'invalid_service';
@@ -967,6 +1076,27 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
   }
 
   /* ─── Mi cuenta */
+  /* ─── Reseñas (SPEC-52 RN-09): ocultar y mostrar quedan en la auditoría. */
+  async function listReviews(user, q = {}) {
+    const b = await ctx(user);
+    return reviews.adminList(b, q);
+  }
+
+  const reviewAudit = (r) => ({ status: r.status, reason: r.hidden?.reason || null });
+  async function hideReview(user, id, body = {}) {
+    const b = await ctx(user);
+    const { before, after } = await reviews.hide(b, user, id, body);
+    await audit(user, b, 'review.hide', { entity: 'review', entityId: after._id, summary: `Ocultó la reseña de ${after.authorName} (${after.rating}★)${after.hidden?.reason ? `: ${after.hidden.reason}` : ''}`, before: reviewAudit(before), after: reviewAudit(after) });
+    return { ok: true, status: after.status };
+  }
+
+  async function showReview(user, id) {
+    const b = await ctx(user);
+    const { before, after } = await reviews.show(b, user, id);
+    await audit(user, b, 'review.show', { entity: 'review', entityId: after._id, summary: `Volvió a mostrar la reseña de ${after.authorName} (${after.rating}★)`, before: reviewAudit(before), after: reviewAudit(after) });
+    return { ok: true, status: after.status };
+  }
+
   async function changePassword(user, body = {}) {
     requireAdmin(user);
     const identity = user.identities.find((i) => i.provider === 'email' && i.passwordHash);
@@ -1002,6 +1132,12 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
     reassignOptions,
     reassign,
     createAppointment,
+    revertNoShow,
+    agendaDay,
+    barberSlots,
+    customers,
+    addBarberTimeOff,
+    removeBarberTimeOff,
     listServices,
     createService,
     updateService,
@@ -1016,6 +1152,9 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
     setSettings,
     auditList,
     changePassword,
+    listReviews,
+    hideReview,
+    showReview,
   };
 }
 

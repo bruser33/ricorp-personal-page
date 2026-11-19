@@ -111,6 +111,18 @@ export interface Appointment {
   whatsapp: string | null; shopWhatsapp: string | null;
   // SPEC-60: gift card aplicada (código, de quién, monto cubierto).
   giftCard?: { code: string; from: string; amountCLP: number; status: string } | null;
+  // SPEC-52 (solo en "Mis citas", citas terminadas): estrellas de su reseña o si todavía puede dejarla.
+  review?: { rating: number } | null;
+  canReview?: boolean;
+}
+
+// SPEC-52: formulario de reseña (/wstyle/cuenta/resena/?cita=…).
+export type ReviewState = 'open' | 'reviewed' | 'expired' | 'not_attended';
+export interface ReviewEligibility {
+  state: ReviewState;
+  appointment: { id: string; service: string; professional: string; startsAt: string; when: string; status: string };
+  review: { rating: number; comment: string; createdAt: string } | null;
+  deadline: string | null;
 }
 
 // ─── SPEC-60: gift cards
@@ -162,5 +174,8 @@ export const agenda = {
   act: (id: string, action: Action, body: Record<string, unknown> = {}) =>
     api<Appointment>(`/api/wstyle/appointments/${encodeURIComponent(id)}/${action === 'no_show' ? 'no-show' : action === 'pay_local' ? 'pay-local' : action}`, { method: 'POST', body }),
   // SPEC-35: el server crea la preferencia de Checkout Pro y devuelve a dónde redirigir (el token nunca pasa por acá).
+  // SPEC-52: reseñas del cliente.
+  reviewEligibility: (cita: string) => api<ReviewEligibility>(`/api/wstyle/reviews/eligibility?cita=${encodeURIComponent(cita)}`),
+  createReview: (body: { appointmentId: string; rating: number; comment: string }) => api<{ ok: boolean; review: { id: string; rating: number } }>('/api/wstyle/reviews', { method: 'POST', body }),
   checkout: (id: string) => api<{ initPoint: string; preferenceId: string; holdUntil: string }>(`/api/wstyle/appointments/${encodeURIComponent(id)}/checkout`, { method: 'POST', body: {} }),
 };

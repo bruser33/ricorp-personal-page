@@ -80,6 +80,21 @@ describe('citas', () => {
     assert.equal(await Appointment.countDocuments({}), 1);
   });
 
+  test('SPEC-58 AC-06 la cita web guarda su origen normalizado (utm_source) y el cliente no lo ve', async () => {
+    const cases = [['Instagram_Bio', 'instagram_bio', '12:00'], [undefined, 'directo', '13:00'], ['<script>', 'directo', '14:00'], ['tiktok', 'tiktok', '15:00']];
+    for (const [i, [origin, want, time]] of cases.entries()) {
+      const c = await makeClient({ phone: `+5697000000${i}` });
+      const res = await post('/api/wstyle/appointments', booking(pro._id, at(time), origin === undefined ? {} : { origin }), c.cookie);
+      assert.equal(res.status, 201, JSON.stringify(res.json));
+      assert.equal((await Appointment.findById(res.json.id)).origin, want, `origin=${origin}`);
+      /* RN-07: el origen no viaja en la vista de la cita del cliente. */
+      assert.ok(!JSON.stringify(res.json).includes('"origin"'));
+      const view = await api(ctx.base, 'GET', `/api/wstyle/appointments/${res.json.id}`, { cookie: c.cookie });
+      assert.equal(view.status, 200);
+      assert.equal(view.json.origin, undefined);
+    }
+  });
+
   test('RN-06 "sin preferencia" asigna al libre con menos citas ese día (empate: el primero)', async () => {
     const c1 = await makeClient({ phone: '+56911111111' });
     const r1 = await post('/api/wstyle/appointments', booking('any', at('12:00')), c1.cookie);

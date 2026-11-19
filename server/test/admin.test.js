@@ -322,6 +322,8 @@ describe('AC-04 citas del admin', () => {
     assert.equal(n.json.status, 'confirmada');
     const appt = await Appointment.findById(n.json.id);
     assert.equal(appt.source, 'admin');
+    /* SPEC-58 RN-04: las citas del admin no guardan origen. */
+    assert.equal(appt.origin, undefined);
     assert.equal(appt.customerSnapshot.phoneE164, '+56988887777');
     assert.equal(await SlotLock.countDocuments({ appointmentId: appt._id }), 3);
     /* Hora ocupada → 409. */
@@ -644,6 +646,52 @@ describe('AC-08 estadísticas', () => {
     assert.equal((await t.get('/api/admin/stats?from=2026-09-07&to=2026-09-05')).status, 400);
   });
 
+  test('SPEC-58 AC-07 reservas por origen: solo citas web del rango, creadas y terminadas', async () => {
+    await seedKnown();
+    /* Del seed: 7 citas en noviembre sin origen guardado (anteriores al kit → "sin_dato"). Se reparten orígenes mixtos. */
+    const nov = (await Appointment.find({ startsAt: { $gte: new Date('2026-11-01T03:00:00Z'), $lt: new Date('2026-12-01T03:00:00Z') } }).sort({ startsAt: 1, _id: 1 })).map((a) => a._id);
+    assert.equal(nov.length, 7);
+    await Appointment.updateMany({ _id: { $in: nov.slice(0, 3) } }, { origin: 'cartel' });
+    await Appointment.updateMany({ _id: { $in: nov.slice(3, 4) } }, { origin: 'instagram_bio' });
+    await Appointment.updateOne({ _id: nov[4] }, { origin: 'directo' });
+    /* Una cita del admin y una del barbero: no cuentan aunque tengan origen. */
+    await Appointment.updateOne({ _id: nov[5] }, { source: 'admin' });
+    await Appointment.updateOne({ _id: nov[6] }, { source: 'pro_invite', origin: 'whatsapp' });
+    /* Fuera del rango: no cuenta. */
+    await Appointment.updateMany({ startsAt: { $gte: new Date('2026-12-01T00:00:00Z') } }, { origin: 'whatsapp' });
+    const all = await Appointment.find({ _id: { $in: nov } }).lean();
+    const want = new Map();
+    for (const a of all) {
+      if ((a.source || 'web') !== 'web') continue;
+      const k = a.origin || 'sin_dato';
+      const o = want.get(k) || { origin: k, created: 0, finished: 0 };
+      o.created++;
+      if (a.status === 'terminada') o.finished++;
+      want.set(k, o);
+    }
+    const r = await t.get('/api/admin/stats');
+    assert.equal(r.status, 200);
+    assert.deepEqual([...r.json.byOrigin].sort((x, y) => x.origin.localeCompare(y.origin)), [...want.values()].sort((x, y) => x.origin.localeCompare(y.origin)));
+    assert.equal(r.json.byOrigin.reduce((n, o) => n + o.created, 0), 5);
+    assert.ok(!r.json.byOrigin.some((o) => o.origin === 'whatsapp'));
+    assert.equal(r.json.byOrigin.find((o) => o.origin === 'directo').created, 1);
+    assert.equal(r.json.byOrigin.some((o) => o.origin === 'sin_dato'), false);
+    assert.equal(r.json.byOrigin.find((o) => o.origin === 'cartel').created, 3);
+    /* RN-07: el barbero no ve el detalle de orígenes en sus estadísticas. */
+    const cookie = await t.barberCookie(t.pro(1));
+    /* Una cita web vieja (sin el campo) cae en "sin_dato", no en "directo". */
+    await Appointment.updateOne({ _id: nov[0] }, { $unset: { origin: 1 } });
+    const r2 = await t.get('/api/admin/stats');
+    assert.equal(r2.json.byOrigin.find((o) => o.origin === 'sin_dato').created, 1);
+    assert.equal(r2.json.byOrigin.find((o) => o.origin === 'directo').created, 1);
+    const pro = await t.get('/api/pro/stats', cookie);
+    assert.equal(pro.status, 200);
+    assert.equal(pro.json.byOrigin, undefined);
+    assert.equal((await t.get('/api/admin/stats', cookie)).status, 403);
+    const client = await makeClient({ phone: '+56955554444' });
+    assert.equal((await t.get('/api/admin/stats', client.cookie)).status, 403);
+  });
+
   test('el barbero aprobado ve solo SUS estadísticas', async () => {
     await seedKnown();
     const cookie = await t.barberCookie(t.pro(1));
@@ -861,6 +909,9 @@ describe('AC-02 matriz de autorización', () => {
       /* Catálogo público y horas libres */
       ['GET /api/wstyle/catalog', pub], ['GET /api/wstyle/availability', pub, { path: `/api/wstyle/availability?service=corte&from=${MONDAY}&to=${MONDAY}` }], ['POST /api/wstyle/quote', pub],
       /* Citas propias (cliente); el barbero aprobado ve las suyas; el admin todas; ajenas → 404 */
+      /* SPEC-52: reseñas. Resumen público; formulario y creación solo con sesión (sin cita propia → 404). */
+      ['GET /api/wstyle/reviews', pub], ['GET /api/wstyle/reviews/eligibility', { anon: 401, client: 404, approved: 404, pending: 404, admin: 404 }, { path: `/api/wstyle/reviews/eligibility?cita=${appt}` }],
+      ['POST /api/wstyle/reviews', { anon: 401, client: 404, approved: 404, pending: 404, admin: 404 }, { body: { appointmentId: appt, rating: 5, comment: 'Excelente atención del barbero.' } }],
       ['POST /api/wstyle/appointments', { anon: 401, client: OK, approved: 403, pending: 403, admin: 403 }, { body: { serviceId: 'corte', professionalId: String(A._id), startsAt: at('16:00'), acceptPolicies: true } }],
       ['GET /api/wstyle/appointments/mine', logged],
       ['GET /api/wstyle/appointments/:id', ownAppt, { path: `/api/wstyle/appointments/${appt}` }],
@@ -879,6 +930,8 @@ describe('AC-02 matriz de autorización', () => {
       ['GET /api/pro/appointments/:id', barberOperate, { path: `/api/pro/appointments/${appt}` }],
       ...['confirm', 'reject', 'propose', 'reschedule', 'cancel', 'start', 'finish', 'no-show'].map((a) => [`POST /api/pro/appointments/:id/${a}`, barberOperate, { path: `/api/pro/appointments/${appt}/${a}` }]),
       ['POST /api/pro/invitations', barberOperate],
+      /* SPEC-55: buscador de clientes del barbero (solo aprobado). */
+      ['GET /api/pro/customers', barberOperate, { path: '/api/pro/customers?q=cliente' }],
       /* SPEC-37: pagos del barbero (solo los suyos); sin sesión también 403. */
       ['GET /api/pro/payments', { ...barberOperate, anon: 403 }], ['POST /api/pro/payments/:id/boleta', { ...barberOperate, anon: 403 }, { path: `/api/pro/payments/${appt}/boleta` }],
       /* Super admin */
@@ -888,6 +941,12 @@ describe('AC-02 matriz de autorización', () => {
       ...['approve', 'reject', 'suspend', 'reactivate', 'reopen'].map((a) => [`POST /api/admin/barbers/:id/${a}`, adminOnly, { path: `/api/admin/barbers/${C._id}/${a}` }]),
       ['PATCH /api/admin/barbers/:id/profile', adminOnly, { path: `/api/admin/barbers/${C._id}/profile` }], ['PUT /api/admin/barbers/:id/services', adminOnly, { path: `/api/admin/barbers/${C._id}/services` }],
       ['PUT /api/admin/barbers/:id/availability', adminOnly, { path: `/api/admin/barbers/${C._id}/availability` }], ['PUT /api/admin/barbers/:id/home-service', adminOnly, { path: `/api/admin/barbers/${C._id}/home-service` }],
+      /* SPEC-55: agenda del admin, buscador, horas libres y bloqueos de un barbero, corrección de "no vino". */
+      ['GET /api/admin/agenda', adminOnly, { path: `/api/admin/agenda?date=${MONDAY}` }], ['GET /api/admin/customers', adminOnly, { path: '/api/admin/customers?q=cliente' }],
+      ['GET /api/admin/barbers/:id/slots', adminOnly, { path: `/api/admin/barbers/${A._id}/slots?service=corte&date=${MONDAY}` }],
+      ['POST /api/admin/barbers/:id/time-off', adminOnly, { path: `/api/admin/barbers/${A._id}/time-off` }],
+      ['DELETE /api/admin/barbers/:id/time-off/:offId', adminOnly, { path: `/api/admin/barbers/${A._id}/time-off/${fake}` }],
+      ['POST /api/admin/appointments/:id/revert-no-show', adminOnly, { path: `/api/admin/appointments/${appt}/revert-no-show` }],
       ['GET /api/admin/appointments', adminOnly], ['GET /api/admin/appointments.csv', adminOnly], ['POST /api/admin/appointments', adminOnly],
       ['GET /api/admin/appointments/:id', adminOnly, { path: `/api/admin/appointments/${appt}` }],
       ['GET /api/admin/appointments/:id/reassign-options', adminOnly, { path: `/api/admin/appointments/${appt}/reassign-options` }],
@@ -900,6 +959,8 @@ describe('AC-02 matriz de autorización', () => {
       ['GET /api/admin/export', adminOnly],
       ['GET /api/admin/schedule', adminOnly], ['PUT /api/admin/schedule/hours', adminOnly], ['POST /api/admin/schedule/closures', adminOnly],
       ['DELETE /api/admin/schedule/closures/:id', adminOnly, { path: `/api/admin/schedule/closures/${fake}` }],
+      ['GET /api/admin/reviews', adminOnly],
+      ['POST /api/admin/reviews/:id/hide', { ...adminOnly, admin: 404 }, { path: `/api/admin/reviews/${fake}/hide` }], ['POST /api/admin/reviews/:id/show', { ...adminOnly, admin: 404 }, { path: `/api/admin/reviews/${fake}/show` }],
       ['GET /api/admin/stats', adminOnly], ['GET /api/admin/settings', adminOnly], ['PUT /api/admin/settings', adminOnly], ['GET /api/admin/audit', adminOnly],
       /* SPEC-37 regla 1: pagos y rendición solo para el super admin; el resto (también el visitante) → 403. */
       ['GET /api/admin/payments', { ...adminOnly, anon: 403 }], ['POST /api/admin/payments/:id/boleta', { ...adminOnly, anon: 403 }, { path: `/api/admin/payments/${appt}/boleta` }],

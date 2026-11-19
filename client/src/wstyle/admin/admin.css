@@ -257,3 +257,51 @@ button.adm-row:hover { border-color: var(--brass-soft); }
 @media (min-width: 700px) {
   .pay-table td[data-label="Fecha"], .pay-table th[data-label="Cliente"], .pay-table td[data-label="Respaldo"] .ag-pill { white-space: nowrap; }
 }
+
+/* SPEC-52: reseñas (lista con estrellas latón; las ocultas atenuadas). */
+.adm-reviews { list-style: none; margin: 16px 0 0; padding: 0; display: grid; gap: 10px; }
+.adm-review { padding: 16px; border: 1px solid rgba(237, 230, 218, .16); border-radius: 4px; }
+.adm-review.is-focus { border-color: var(--brass); }
+.adm-review.is-hidden .adm-review__text { opacity: .55; }
+.adm-review__head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.adm-review__stars { color: var(--brass); letter-spacing: .08em; font-size: 18px; }
+.adm-review__text { margin: 10px 0; font: italic 500 20px/1.3 var(--font-serif); color: var(--bone); white-space: pre-line; overflow-wrap: anywhere; }
+.adm-review__meta, .adm-review__hidden { margin: 0 0 6px; font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+.adm-search select { width: 100%; min-height: 48px; padding: 0 12px; border: 1px solid rgba(237, 230, 218, .3); border-radius: 4px; background: var(--ink); color: var(--bone); font: inherit; }
+
+/* ─── Difusión (SPEC-58): kit del link de reservas. Vistas previas escaladas (CB-07: sin scroll horizontal a 390 px). */
+.kit-lead { max-width: 70ch; }
+.kit-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 18px; }
+.kit-url { min-width: 0; overflow-wrap: anywhere; font-size: 15px; color: var(--bone); }
+.kit-utm { margin-top: 14px; }
+.kit-grid { display: grid; gap: 18px; margin-top: 10px; grid-template-columns: minmax(0, 1fr); }
+.kit-grid .adm-section { margin: 0; }
+.kit-piece { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.kit-piece .ag-actions { margin-top: auto; }
+.kit-hint { margin: 0; font-size: 14px; }
+.kit-qr { display: block; width: min(240px, 100%); height: auto; aspect-ratio: 1; image-rendering: pixelated; }
+.kit-preview { position: relative; width: 100%; max-width: 300px; }
+.kit-preview--story { aspect-ratio: 1080 / 1920; max-width: 240px; }
+.kit-preview canvas { display: block; width: 100%; height: 100%; border: 1px solid var(--brass-line); background: var(--ink); }
+.kit-preview__wait { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); font-size: 14px; }
+.kit-size { margin: 0; }
+.kit-size__opt { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border: 1px solid var(--brass-line); border-radius: 999px; cursor: pointer; font-size: 14px; }
+.kit-size__opt.is-on { border-color: var(--brass); color: var(--brass); }
+.kit-size__opt input { accent-color: var(--brass); margin: 0; }
+.kit-texts { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; grid-template-columns: minmax(0, 1fr); }
+.kit-text { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.kit-text__title { margin: 0; }
+.kit-text__body { margin: 0; overflow-wrap: anywhere; font-size: 15px; color: var(--bone); }
+@media (min-width: 1000px) {
+  .kit-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .kit-texts { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+/* Hoja de impresión del cartel (CB-06): solo el cartel, del tamaño de la hoja (@page lo pone la página). */
+.kit-print { display: none; }
+@media print {
+  body:has(> .kit-print) { margin: 0; background: #fff; }
+  body:has(> .kit-print) > :not(.kit-print) { display: none !important; }
+  .kit-print { display: block; }
+  .kit-print img { display: block; object-fit: contain; break-inside: avoid; }
+}

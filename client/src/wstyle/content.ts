@@ -17,8 +17,8 @@ export interface SiteContent {
   marquee?: string[];
   booking?: { provider?: string; url?: string };
   membership?: { name?: string; priceCLP?: unknown; period?: string; perks?: string[]; note?: string };
-  // Bloques que solo se publican con datos reales (enabled:true); mientras tanto no se muestra relleno.
-  reviews?: { enabled?: boolean; source?: string; items?: { author?: string; rating?: number; text?: string }[] };
+  // Bloque que solo se publica con datos reales (enabled:true); mientras tanto no se muestra relleno. Las reseñas ya no
+  // viven acá: salen de la BD (SPEC-52, reviews.ts).
   barbers?: { enabled?: boolean; items?: { name?: string; role?: string; instagram?: string; bookingUrl?: string }[] };
   demo?: boolean | string;   // true o "true" (editado a mano) ⇒ modo demostración
   policies?: { title?: string; text?: string }[];
@@ -48,6 +48,20 @@ export function jsonLd(site: SiteContent, url: string) {
   };
   for (const k of Object.keys(ld)) if (ld[k] == null) delete ld[k];
   return ld;
+}
+
+// Capítulos numerados sin huecos (D4): 01… en el orden en que se publican. Barberos con enabled y datos; "Lo que dicen"
+// solo si la API trae reseñas visibles (SPEC-52 RN-11); los apagados no dejan hueco en la numeración.
+export interface Chapter { id: string; label: string; num: string }
+export function buildChapters(site: SiteContent, hasReviews: boolean): Chapter[] {
+  const showBarbers = !!site.barbers?.enabled && (site.barbers.items ?? []).some((b) => str(b?.name));
+  const list: [string, string, boolean][] = [
+    ['hero', 'Inicio', true], ['reyes', 'El local', true], ['linea', 'El oficio', true], ['afilado', 'El espejo', true], ['trono', 'Tu trono', true],
+    ['servicios', 'La carta', true], ['membresia', 'Membresía', !!str(site.membership?.name)], ['barberos', 'Los barberos', showBarbers],
+    ['resenas', 'Lo que dicen', hasReviews], ['politicas', 'Antes de venir', (site.policies ?? []).some((p) => str(p?.title))], ['llega', 'Llega', true],
+  ];
+  let n = 0;
+  return list.filter(([, , on]) => on).map(([id, label]) => ({ id, label, num: id === 'hero' ? '' : `${String(++n).padStart(2, '0')} — ${label}` }));
 }
 
 // Textos de <head> que siguen al nombre del JSON.

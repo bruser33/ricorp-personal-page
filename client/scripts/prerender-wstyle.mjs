@@ -53,7 +53,7 @@ const waDigits = (() => {
 })();
 const waText = content.site?.contact?.whatsappText;
 const wa = waDigits ? `https://wa.me/${waDigits}${waText ? `?text=${encodeURIComponent(waText)}` : ''}` : null;
-for (const r of ['reservar', 'cita', 'cuenta', 'cuenta/mis-citas', 'cuenta/recuperar', 'cuenta/confirmar', 'regalar', 'regalo']) {
+for (const r of ['reservar', 'cita', 'cuenta', 'cuenta/mis-citas', 'cuenta/recuperar', 'cuenta/confirmar', 'cuenta/resena', 'regalar', 'regalo']) {
   const file = resolve(ROOT, `dist/wstyle/${r}/index.html`);
   const html = readFileSync(file, 'utf8');
   if (!html.includes('data-wa href="/wstyle/#llega"')) throw new Error(`prerender: falta el link data-wa en dist/wstyle/${r}/index.html`);
