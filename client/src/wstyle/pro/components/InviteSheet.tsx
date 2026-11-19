@@ -142,7 +142,7 @@ export default function InviteSheet({ services, homeService, date: initialDate, 
     );
   }
 
-  const title = fromGrid ? (admin && adapter.barberName ? `Agenda de ${adapter.barberName}` : 'Reservar en este hueco') : 'Invitar cita';
+  const title = admin && adapter.barberName ? `Agenda de ${adapter.barberName}` : initialStart ? 'Reservar en este hueco' : fromGrid ? 'Bloquear un rato' : 'Invitar cita';
   return (
     <Sheet title={title} onClose={onClose}>
       {fromGrid && (

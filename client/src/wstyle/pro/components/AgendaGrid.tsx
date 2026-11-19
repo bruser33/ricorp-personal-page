@@ -110,7 +110,7 @@ export default function AgendaGrid<A extends ProAppointment>({ cols, now, wide, 
                   <div key={a.id} className="pro-block-wrap" style={{ top: b.top, height: b.height }}>
                     <button type="button" className={`pro-block pro-block--${pending ? 'no_asistio' : a.status}${a.location.kind === 'home' ? ' is-home' : ''}${b.height < 40 ? ' is-short' : ''}`}
                       data-appt={a.id} aria-label={`${localTime(a.startsAt)} ${a.customer.name}, ${a.service.name}, ${pending ? 'marcando que no vino' : a.statusLabel}${ns ? `, ${ns} ${ns === 1 ? 'inasistencia anterior' : 'inasistencias anteriores'}` : ''}`}
-                      onClick={() => onAppt(c, a)}>
+                      onClick={() => onAppt(c, cols.find((x) => x.key === c.key)?.day.appointments.find((x) => x.id === a.id) ?? a)}>
                       <strong>{a.customer.name}{ns > 0 && <em className="pro-ns" data-noshows={ns}>{ns} no vino</em>}</strong>
                       <span>{localTime(a.startsAt)} · {pending ? 'Marcando que no vino…' : a.status === 'no_asistio' ? 'No asistió' : a.service.name}</span>
                     </button>

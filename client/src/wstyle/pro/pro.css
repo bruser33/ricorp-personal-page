@@ -267,3 +267,4 @@
 .ag-times { flex-wrap: wrap; }
 .adm-viewpick { margin: 4px 0 16px; }
 .adm-agenda__chips { margin: 0 0 12px; flex-wrap: wrap; }
+.ag-breakdown .pro-card__noshows { display: block; margin-top: 4px; }
