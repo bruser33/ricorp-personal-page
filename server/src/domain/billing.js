@@ -131,14 +131,19 @@ export function createBilling({ agenda, env = {}, clock = Date.now, logger = con
         reference: d.reference || null,
         _fee: 0,
         _net: 0,
-      }, {}, 'local');
-      rows.push({ ...r, methodLabel: 'Seña · transferencia', canRegisterBoleta: false });
+        /* Asunción 7: la boleta va por la venta completa; cuando se registra, también respalda la seña. */
+      }, p.taxDoc?.kind ? p : {}, 'local');
+      rows.push({ ...r, methodLabel: 'Seña · transferencia', canRegisterBoleta: false, depositBacking: true });
     }
     if (p.mpPaymentId) online(p, false);
     for (const d of p.duplicates || []) if (d?.mpPaymentId) online(d, true);
     if ((p.method || 'local') === 'local') {
       const status = p.status === 'cobrado' ? 'aprobado' : ['pendiente', 'pago_pendiente'].includes(p.status || 'pendiente') && a.status === 'terminada' ? 'por_cobrar' : null;
       if (status) {
+        const localAmount = Number.isFinite(p.collectedCLP) && status === 'aprobado' ? p.collectedCLP : Math.max(0, (a.pricing?.totalCLP || 0) - depositPaid);
+        const localLines = saleLines(a.pricing, a.serviceSnapshot?.name);
+        const credited = (a.pricing?.totalCLP || 0) - localAmount;
+        if (credited > 0) localLines.push({ kind: 'deposit', label: 'Seña ya pagada por transferencia', amountCLP: -credited });
         rows.push(finish({
           id: `${a._id}:local`,
           kind: 'local',
@@ -146,8 +151,8 @@ export function createBilling({ agenda, env = {}, clock = Date.now, logger = con
           date: iso(status === 'aprobado' ? p.collectedAt || a.updatedAt : a.startsAt),
           method: p.localMethod || 'local',
           /* SPEC-56: con seña confirmada, en el local se cobra solo el resto. */
-          amountCLP: Math.max(0, (a.pricing?.totalCLP || 0) - (d?.status === 'confirmada' ? depositPaid : 0)),
-          lines: saleLines(a.pricing, a.serviceSnapshot?.name),
+          amountCLP: localAmount,
+          lines: localLines,
           status,
           refundedAt: null,
           mp: null,

@@ -849,6 +849,8 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
         markRefundDue(a);
         /* SPEC-56 RN-07: si cancela el local, la seña confirmada se devuelve; si cancela el cliente, no. */
         if (role !== 'client') markDepositRefundDue(a, now);
+        /* Seña aún sin comprobante: queda anulada (sin datos bancarios ni referencia tomada). */
+        if (a.deposit?.status === 'por_pagar') a.deposit.status = 'anulada';
         return { by, byUserId, reason };
       });
       const who = { client: 'el cliente', barber: appt.professionalSnapshot?.displayName || 'el barbero', admin: 'WS Style' }[role];
@@ -917,17 +919,23 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
       if (current.payment?.status === 'en_proceso') throw invalid('payment_in_process', 'Tu pago está en proceso. Espera la respuesta de Mercado Pago.');
       throw invalid('bad_state');
     }
+    /* SPEC-56 RN-01: pasar a pagar en el local no salta la seña (si la regla aplica a este cliente). */
+    const depositReq = depositRule ? await depositRule.check(b, user, { startsAt: current.startsAt.getTime(), now }) : null;
+    if (depositReq?.tooSoon) throw invalid('deposit_too_soon', 'Esta hora es muy pronto para pagar la seña. Paga en línea o elige otra hora.');
+    const deposit = depositReq ? await depositRule.initial(b, depositReq, current.pricing) : null;
     const appt = await mutate(b, current._id, (a) => {
       if (!ok(a)) throw invalid('stale');
-      a.status = 'pendiente';
+      a.status = deposit ? 'pendiente_sena' : 'pendiente';
       a.payment.method = 'local';
       a.payment.status = 'pendiente';
-      a.expiresAt = new Date(confirmDeadline(b, a.startsAt.getTime(), now));
+      if (deposit) a.deposit = deposit;
+      a.expiresAt = new Date(deposit ? deposit.deadlineAt.getTime() : confirmDeadline(b, a.startsAt.getTime(), now));
       /* SPEC-38: la tarifa de servicio no depende de la forma de pago: el total no cambia. */
       a.pricing.paymentMethod = 'local';
       return { by: 'client', byUserId: user._id, reason: 'Cambió a pagar en el local' };
     });
-    await Promise.all([notify(b, appt, 'client', 'received'), notify(b, appt, 'barber', 'new')]);
+    if (deposit) await hooks.depositCreated?.(b, appt);
+    else await Promise.all([notify(b, appt, 'client', 'received'), notify(b, appt, 'barber', 'new')]);
     return serialize(appt, role, b, now);
   }
 
@@ -1007,6 +1015,7 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
         await SlotLock.deleteMany({ appointmentId: x._id }, { session });
         x.status = 'cancelada';
         x.proposal = undefined;
+        if (x.deposit?.status === 'por_pagar') x.deposit.status = 'anulada';
         if (markRefundDue(x)) alertRefundDue(b, x, 'El cliente eliminó su cuenta').catch(() => {});
         return { by: 'client', byUserId: user._id, reason: 'Cuenta eliminada' };
       }).catch((err) => logger.error('[agenda] cancelar por cuenta eliminada:', err.message));

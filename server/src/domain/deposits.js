@@ -121,7 +121,7 @@ export function bankView(bank = {}) {
 const last4 = (s) => String(s || '').replace(/\D/g, '').slice(-4);
 
 /* ─── Regla de aplicación (RN-01). La usa la agenda al crear la cita, sin depender de este módulo. */
-export function createDepositRule({ clock = Date.now } = {}) {
+export function createDepositRule({ clock = Date.now, storeReady = () => true } = {}) {
   /* ¿Este cliente debe dejar seña? (CB-11: la regla es excluyente, no acumulativa). */
   async function appliesTo(b, cfg, user) {
     if (cfg.appliesTo === 'all') return true;
@@ -136,7 +136,8 @@ export function createDepositRule({ clock = Date.now } = {}) {
   /* null = no se pide seña. Si se pide: config + plazo (o tooSoon). */
   async function check(b, user, { startsAt, now = clock() }) {
     const cfg = depositConfig(b);
-    if (!cfg.enabled || !bankComplete(cfg.bank)) return null;
+    /* RN-10: sin almacenamiento real de comprobantes (p.ej. faltan las variables S3 en Render) no se pide seña. */
+    if (!cfg.enabled || !bankComplete(cfg.bank) || !storeReady()) return null;
     if (!(await appliesTo(b, cfg, user))) return null;
     return { cfg, ...depositDeadline(now, startsAt, cfg.minutes) };
   }
@@ -252,6 +253,7 @@ export function createDeposits({ agenda, rule, store, clock = Date.now, logger =
     const replacing = d.status === 'en_revision' && !['cancelada', 'expirada'].includes(current.status);
     if (awaiting && !(d.deadlineAt?.getTime() > t)) throw lateOrGone();
     if (!awaiting && !replacing) throw new HttpError(409, 'deposit_closed', 'Esta seña ya fue revisada. Si necesitas ayuda, escríbenos por WhatsApp.');
+    if (!store.configured) throw new HttpError(503, 'storage_failed', 'No pudimos guardar tu comprobante, intenta de nuevo. Tu hora sigue guardada hasta el plazo.');
     if (!file?.buffer) throw new HttpError(400, 'file_required', 'Elige la captura, foto o PDF de la transferencia.');
 
     const hash = crypto.createHash('sha256').update(file.buffer).digest('hex');
@@ -273,10 +275,16 @@ export function createDeposits({ agenda, rule, store, clock = Date.now, logger =
     }
     const oldKey = d.receipt?.key;
     let appt;
+    let duplicate = false;
+    let previousKey = oldKey;
     try {
       appt = await agenda.mutate(b, current._id, (a) => {
         const dd = a.deposit;
-        if (dd.receipt?.hash === hash && dd.status === 'en_revision') return { by: 'client', byUserId: user._id, reason: 'Comprobante repetido' };
+        if (dd.receipt?.hash === hash && dd.status === 'en_revision') {
+          duplicate = true;
+          return { by: 'client', byUserId: user._id, reason: 'Comprobante repetido' };
+        }
+        previousKey = dd.receipt?.key;
         const stillAwaiting = a.status === 'pendiente_sena' && dd.status === 'por_pagar' && dd.deadlineAt?.getTime() > t;
         const stillReplacing = dd.status === 'en_revision' && !['cancelada', 'expirada'].includes(a.status);
         if (!stillAwaiting && !stillReplacing) throw stale();
@@ -298,7 +306,11 @@ export function createDeposits({ agenda, rule, store, clock = Date.now, logger =
       }
       throw err;
     }
-    if (oldKey && oldKey !== key) await store.del(oldKey).catch((err) => logger.error('[seña] borrar comprobante anterior:', err.message));
+    if (duplicate) {
+      await store.del(key).catch(() => {});
+      return { appt, replay: true };
+    }
+    if (previousKey && previousKey !== key) await store.del(previousKey).catch((err) => logger.error('[seña] borrar comprobante anterior:', err.message));
     if (awaiting) {
       await Promise.all([agenda.notify(b, appt, 'client', 'received'), agenda.notify(b, appt, 'barber', 'new')]);
     }
@@ -463,7 +475,8 @@ export function createDeposits({ agenda, rule, store, clock = Date.now, logger =
         a.deposit.status = 'rechazada';
       }
       /* RN-06 / asunción 5: rechazar cancela la cita (si sigue viva) y libera la hora. */
-      if (!['cancelada', 'expirada', 'terminada', 'no_asistio'].includes(a.status)) {
+      /* RN-06: una cita que ya empezó (o terminó) no se cancela; solo cambia la seña. */
+      if (!['cancelada', 'expirada', 'terminada', 'no_asistio', 'en_curso'].includes(a.status)) {
         await SlotLock.deleteMany({ appointmentId: a._id }, { session });
         a.status = 'cancelada';
         a.proposal = undefined;

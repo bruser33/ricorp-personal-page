@@ -214,7 +214,7 @@ export function createApp({
   const taxProvider = createTaxDocumentProvider(env, logger);
   /* SPEC-56: seña por transferencia. Comprobantes fuera de Mongo (disco local o S3/R2). */
   const receipts = receiptStore || createReceiptStore(env);
-  const depositRule = createDepositRule({ clock });
+  const depositRule = createDepositRule({ clock, storeReady: () => Boolean(receipts.configured) });
   const agenda = createAgenda({
     clock,
     mailer: agendaMailer,

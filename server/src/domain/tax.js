@@ -77,6 +77,8 @@ export function parseCollectInput(body = {}, { methodKey = 'method' } = {}) {
 export function applyLocalCollection(a, { method, number, provider, now }) {
   a.payment.status = 'cobrado';
   a.payment.collectedAt = new Date(now);
+  /* SPEC-56: lo que se cobró en el local (con la seña confirmada, solo el resto). */
+  a.payment.collectedCLP = Math.max(0, (a.pricing?.totalCLP ?? 0) - (a.deposit?.status === 'confirmada' ? a.deposit.amountCLP || 0 : 0));
   if (method) a.payment.localMethod = method;
   a.payment.taxModel = provider.id;
   const auto = provider.automaticFor({ channel: 'local', amountCLP: a.pricing?.totalCLP ?? 0, at: new Date(now) });

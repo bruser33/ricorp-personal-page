@@ -73,7 +73,7 @@ export default function AppointmentPage({ ctx }: { ctx: AgendaCtx }) {
     }
   }
 
-  async function act(action: Action, body: Record<string, unknown> = {}, okText?: string) {
+  async function act(action: Action, body: Record<string, unknown> = {}, okText?: string | ((next: Appointment) => string | undefined)) {
     setBusy(true);
     setMsg(null);
     try {
@@ -81,7 +81,8 @@ export default function AppointmentPage({ ctx }: { ctx: AgendaCtx }) {
       setAppt(next);   // el estado cambia sin recargar (AC-16)
       setCounter(false);
       setConfirmCancel(false);
-      if (okText) setMsg({ tone: 'ok', text: okText });
+      const text = typeof okText === 'function' ? okText(next) : okText;
+      if (text) setMsg({ tone: 'ok', text });
     } catch (e) {
       // CB-14: otra pestaña cambió la cita o la propuesta caducó → estado real + aviso.
       const text = e instanceof ApiError && e.status ? e.message : 'No pudimos conectar con la agenda. Inténtalo de nuevo.';
@@ -136,7 +137,7 @@ export default function AppointmentPage({ ctx }: { ctx: AgendaCtx }) {
 
         {isClient && view !== 'none' && (
           <PayBox appt={appt} view={view} busy={busy || paying} canPay={can('pay')} canLocal={can('pay_local')}
-            onPay={payOnline} onLocal={() => act('pay_local', {}, `Listo: pagas en el local. ${appt.professional.name} tiene que confirmar tu cita.`)} />
+            onPay={payOnline} onLocal={() => act('pay_local', {}, (next) => (next.status === 'pendiente_sena' ? undefined : `Listo: pagas en el local. ${appt.professional.name} tiene que confirmar tu cita.`))} />
         )}
 
         {/* SPEC-56: "Deja tu seña" (cuenta regresiva, referencia, datos bancarios y comprobante). */}

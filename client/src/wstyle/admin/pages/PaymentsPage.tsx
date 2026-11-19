@@ -175,6 +175,7 @@ export function PaymentSheet({ row, onClose, onChanged }: { row: PaymentRow; onC
           <dd data-backing={p.backing ?? ''}>
             {p.backing === 'voucher_mp' ? `Voucher de Mercado Pago N° ${p.mp?.paymentId ?? ''} (vale como boleta)`
               : p.backing === 'boleta_sii' ? `Boleta SII N° ${p.boletaNumber}`
+              : p.backing === 'sin_respaldo' && p.kind === 'deposit' ? 'Se respalda con la boleta de la venta completa (regístrala al cobrar el resto)'
               : p.backing === 'sin_respaldo' ? 'Sin respaldo: falta registrar la boleta'
               : 'No aplica (el pago no está aprobado)'}
           </dd>

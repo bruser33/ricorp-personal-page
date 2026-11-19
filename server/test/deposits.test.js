@@ -463,6 +463,73 @@ describe('SPEC-56 seña por transferencia', () => {
       assert.equal(sw.json.deposit.bank, undefined);
     });
 
+    test('RN-01 "Pagar en línea" → "Cambiar a pagar en el local" no salta la seña', async () => {
+      await t.boot({ mp: true });
+      const c = await t.client();
+      const r = await t.book(c, { method: 'online', accept: false });
+      assert.equal(r.json.appointment.status, 'pendiente_pago');
+      const loc = await t.post(`/api/wstyle/appointments/${r.json.id}/pay-local`, {}, c.cookie);
+      assert.equal(loc.status, 200, JSON.stringify(loc.json));
+      assert.equal(loc.json.status, 'pendiente_sena');
+      assert.equal(loc.json.deposit.status, 'por_pagar');
+      assert.equal(loc.json.deposit.amountCLP, 5000);
+      assert.equal(t.mails(/client_deposit_requested/).length, 1);
+      /* CB-08 de ida y vuelta: anular y volver a pedirla. */
+      const sw = await t.post(`/api/wstyle/appointments/${r.json.id}/deposit/pay-online`, {}, c.cookie);
+      assert.equal(sw.json.deposit.status, 'anulada');
+      const back = await t.post(`/api/wstyle/appointments/${r.json.id}/pay-local`, {}, c.cookie);
+      assert.equal(back.json.status, 'pendiente_sena');
+      assert.equal(back.json.deposit.status, 'por_pagar');
+    });
+
+    test('cancelar una cita esperando la seña la anula: sin datos bancarios ni referencia tomada', async () => {
+      const c = await t.client();
+      const id = (await t.book(c)).json.id;
+      const r = await t.post(`/api/wstyle/appointments/${id}/cancel`, { reason: 'No puedo' }, c.cookie);
+      assert.equal(r.status, 200, JSON.stringify(r.json));
+      assert.equal(r.json.deposit.status, 'anulada');
+      assert.equal(r.json.deposit.bank, undefined);
+      assert.ok(!r.json.actions.includes('deposit_upload'));
+    });
+
+    test('rechazar por error una seña confirmada de una cita ya terminada: la cita no se cancela y el cuadre usa lo cobrado', async () => {
+      const c = await t.client();
+      const id = (await t.book(c, { service: 'corte-barba' })).json.id;
+      await t.upload(id, await jpeg(), c.cookie);
+      await t.post(`/api/admin/deposits/${id}/confirm`, {}, t.admin.cookie);
+      const barber = await t.barberCookie();
+      await t.post(`/api/wstyle/appointments/${id}/confirm`, {}, barber);
+      t.ctx.clock.now = Date.parse(at('12:00'));
+      await t.post(`/api/wstyle/appointments/${id}/start`, {}, barber);
+      await t.post(`/api/wstyle/appointments/${id}/finish`, { collected: true, localMethod: 'efectivo' }, barber);
+      const rej = await t.post(`/api/admin/deposits/${id}/reject`, { reasonCode: 'no_llego' }, t.admin.cookie);
+      assert.equal(rej.status, 200, JSON.stringify(rej.json));
+      const a = await Appointment.findById(id).lean();
+      assert.deepEqual([a.status, a.deposit.status], ['terminada', 'por_devolver']);
+      await t.post(`/api/admin/deposits/${id}/refunded`, {}, t.admin.cookie);
+      const ren = await t.get('/api/admin/rendicion?month=2026-11', t.admin.cookie);
+      /* Entraron $13.000 en el local y la seña de $5.000 se devolvió: ventas netas $13.000. */
+      assert.equal(ren.json.totals.netSalesCLP, 13000);
+      assert.equal(ren.json.cuadre.ok, true, JSON.stringify(ren.json.cuadre));
+    });
+
+    test('RN-10 sin almacenamiento configurado: no se pide seña y la subida responde 503', async () => {
+      const c = await t.client();
+      const id = (await t.book(c)).json.id;
+      const store = t.ctx.app.locals.receipts;
+      store.configured = false;
+      try {
+        const up = await t.upload(id, await jpeg(), c.cookie);
+        assert.equal(up.status, 503);
+        assert.equal(t.files().length, 0);
+        const c2 = await t.client('Sin');
+        const r = await t.book(c2, { time: '15:00', accept: false });
+        assert.equal(r.json.appointment.status, 'pendiente');
+      } finally {
+        store.configured = true;
+      }
+    });
+
     test('CB-06 reasignar una cita esperando la seña conserva la seña y el plazo', async () => {
       const c = await t.client();
       const id = (await t.book(c)).json.id;

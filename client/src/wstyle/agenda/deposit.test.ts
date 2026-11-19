@@ -26,6 +26,7 @@ describe('SPEC-56 seña', () => {
     expect(depositChips(dep({ status: 'en_revision' }), 'pendiente')).toEqual({ hora: { tone: 'ok', text: 'Guardada' }, sena: { tone: 'wait', text: 'En revisión' } });
     expect(depositTag(dep(), 'pendiente_sena')).toBe('Esperando seña · vence 12:42');
     expect(depositTag(dep({ status: 'en_revision' }), 'pendiente')).toBe('Seña en revisión');
+    expect(depositTag(dep({ status: 'en_revision' }), 'en_curso')).toBe('Seña sin revisar');
     expect(depositTag(dep({ status: 'confirmada' }), 'confirmada')).toMatch(/^✓ Seña \$\s?5\.000$/);
     expect(restLine(dep({ status: 'confirmada', restCLP: 13000 }))).toMatch(/^Resta por cobrar \$\s?13\.000 \(seña de \$\s?5\.000 ya pagada\)$/);
     expect(restLine(null)).toBeNull();

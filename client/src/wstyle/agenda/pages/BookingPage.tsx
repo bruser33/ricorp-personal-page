@@ -193,6 +193,8 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
   useEffect(() => {
     if (step !== 4 || !depositOn || pay !== 'local' || !user || !sel.startsAt) return;
     let alive = true;
+    // Otra hora / servicio / barbero → otra seña: la casilla se vuelve a marcar.
+    Promise.resolve().then(() => { if (alive) { setDepositInfo(null); setAcceptDeposit(false); } });
     agenda.depositPreview({ serviceId: sel.serviceId, professionalId: sel.professionalId, startsAt: sel.startsAt, mode })
       .then((r) => alive && setDepositInfo(r))
       .catch(() => alive && setDepositInfo(null));
@@ -258,6 +260,12 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
         return;
       }
       if (err.code === 'out_of_range' || err.code === 'address_not_found') { setQuote(null); setQuoteErr(err.message); setStep(3); return; }
+      // La seña se pide pero el aviso no está en pantalla (falló la vista previa): se muestra el motivo y se reintenta.
+      if (err.fields.acceptDeposit && !needsDeposit) {
+        setSubmitError(err.message);
+        agenda.depositPreview({ serviceId: sel.serviceId, professionalId: sel.professionalId, startsAt: sel.startsAt, mode }).then(setDepositInfo, () => {});
+        return;
+      }
       if (Object.keys(err.fields).length) { setErrors(Object.fromEntries(Object.entries(err.fields).map(([k, v]) => [k, k === 'acceptPolicies' ? 'Debes aceptar las políticas para agendar.' : k === 'acceptDeposit' ? 'Marca que entiendes las condiciones de la seña.' : fieldMessage(v)]))); return; }
       setSubmitError(err.message);
     } finally {

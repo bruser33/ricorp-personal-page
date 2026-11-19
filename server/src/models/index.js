@@ -294,6 +294,8 @@ const AppointmentSchema = new Schema(
       method: { type: String, default: 'local' },
       status: { type: String, default: 'pendiente' },
       collectedAt: Date,
+      /* SPEC-56: monto cobrado en el local (total − seña confirmada al momento de cobrar). */
+      collectedCLP: Number,
       /* SPEC-35: inicio de la retención (RN-03) y datos del pago en línea. */
       holdStartedAt: Date,
       preferenceId: String,

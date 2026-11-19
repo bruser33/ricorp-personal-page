@@ -106,6 +106,8 @@ export function createWstyleRouter({ agenda, payments, deposits, logger, booking
       'Content-Length': String(f.body.length),
       'Content-Disposition': `inline; filename="${f.filename}"`,
       'X-Content-Type-Options': 'nosniff',
+      /* Un PDF abierto en línea no puede ejecutar nada en el origen de la API. */
+      'Content-Security-Policy': "sandbox; default-src 'none'; img-src 'self'; style-src 'unsafe-inline'",
       'Cache-Control': 'private, no-store',
     });
     res.end(f.body);

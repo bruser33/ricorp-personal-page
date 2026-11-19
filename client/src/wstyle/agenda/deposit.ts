@@ -59,7 +59,8 @@ export function receiptProblem(file: { size: number; type: string; name: string 
 export function depositTag(d: Deposit | null | undefined, apptStatus: string): string | null {
   if (!d) return null;
   if (apptStatus === 'pendiente_sena' && d.status === 'por_pagar') return `Esperando seña${d.deadlineLabel ? ` · vence ${d.deadlineLabel}` : ''}`;
-  if (d.status === 'en_revision') return 'Seña en revisión';
+  /* RN-06: si la cita ya empezó y nadie revisó la seña, el barbero lo ve. */
+  if (d.status === 'en_revision') return ['en_curso', 'terminada', 'no_asistio'].includes(apptStatus) ? 'Seña sin revisar' : 'Seña en revisión';
   if (d.status === 'confirmada') return `✓ Seña ${clp.format(d.amountCLP)}`;
   if (d.status === 'por_devolver') return `Seña por devolver ${clp.format(d.amountCLP)}`;
   return null;
