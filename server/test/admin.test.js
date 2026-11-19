@@ -879,6 +879,8 @@ describe('AC-02 matriz de autorización', () => {
       ['GET /api/pro/appointments/:id', barberOperate, { path: `/api/pro/appointments/${appt}` }],
       ...['confirm', 'reject', 'propose', 'reschedule', 'cancel', 'start', 'finish', 'no-show'].map((a) => [`POST /api/pro/appointments/:id/${a}`, barberOperate, { path: `/api/pro/appointments/${appt}/${a}` }]),
       ['POST /api/pro/invitations', barberOperate],
+      /* SPEC-55: buscador de clientes del barbero (solo aprobado). */
+      ['GET /api/pro/customers', barberOperate, { path: '/api/pro/customers?q=cliente' }],
       /* SPEC-37: pagos del barbero (solo los suyos); sin sesión también 403. */
       ['GET /api/pro/payments', { ...barberOperate, anon: 403 }], ['POST /api/pro/payments/:id/boleta', { ...barberOperate, anon: 403 }, { path: `/api/pro/payments/${appt}/boleta` }],
       /* Super admin */
@@ -888,6 +890,12 @@ describe('AC-02 matriz de autorización', () => {
       ...['approve', 'reject', 'suspend', 'reactivate', 'reopen'].map((a) => [`POST /api/admin/barbers/:id/${a}`, adminOnly, { path: `/api/admin/barbers/${C._id}/${a}` }]),
       ['PATCH /api/admin/barbers/:id/profile', adminOnly, { path: `/api/admin/barbers/${C._id}/profile` }], ['PUT /api/admin/barbers/:id/services', adminOnly, { path: `/api/admin/barbers/${C._id}/services` }],
       ['PUT /api/admin/barbers/:id/availability', adminOnly, { path: `/api/admin/barbers/${C._id}/availability` }], ['PUT /api/admin/barbers/:id/home-service', adminOnly, { path: `/api/admin/barbers/${C._id}/home-service` }],
+      /* SPEC-55: agenda del admin, buscador, horas libres y bloqueos de un barbero, corrección de "no vino". */
+      ['GET /api/admin/agenda', adminOnly, { path: `/api/admin/agenda?date=${MONDAY}` }], ['GET /api/admin/customers', adminOnly, { path: '/api/admin/customers?q=cliente' }],
+      ['GET /api/admin/barbers/:id/slots', adminOnly, { path: `/api/admin/barbers/${A._id}/slots?service=corte&date=${MONDAY}` }],
+      ['POST /api/admin/barbers/:id/time-off', adminOnly, { path: `/api/admin/barbers/${A._id}/time-off` }],
+      ['DELETE /api/admin/barbers/:id/time-off/:offId', adminOnly, { path: `/api/admin/barbers/${A._id}/time-off/${fake}` }],
+      ['POST /api/admin/appointments/:id/revert-no-show', adminOnly, { path: `/api/admin/appointments/${appt}/revert-no-show` }],
       ['GET /api/admin/appointments', adminOnly], ['GET /api/admin/appointments.csv', adminOnly], ['POST /api/admin/appointments', adminOnly],
       ['GET /api/admin/appointments/:id', adminOnly, { path: `/api/admin/appointments/${appt}` }],
       ['GET /api/admin/appointments/:id/reassign-options', adminOnly, { path: `/api/admin/appointments/${appt}/reassign-options` }],

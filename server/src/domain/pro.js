@@ -56,6 +56,16 @@ const toMin = (t) => {
 };
 const toTime = (m) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
 
+/* SPEC-55 RN-02: "+56 9 ••• 45 678" (el buscador nunca devuelve el celular completo). */
+export function maskPhone(phone) {
+  const d = String(phone || '').replace(/\D/g, '');
+  if (d.length < 5) return null;
+  return `${d.startsWith('569') ? '+56 9' : '+' + d.slice(0, Math.max(0, d.length - 8))} ••• ${d.slice(-5, -3)} ${d.slice(-3)}`;
+}
+const escapeRe = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const fold = (x) => String(x || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+export const SEARCH_LIMIT = 8;
+
 export function validName(raw) {
   const name = cleanName(raw);
   return name.length >= NAME_MIN && name.length <= NAME_MAX ? name : null;
@@ -203,6 +213,8 @@ export function createPro({ agenda, clock = Date.now, mailer, logger = console, 
     const pro = _id ? await Professional.findById(_id) : null;
     const m = pro ? await Membership.findOne({ businessId: b._id, professionalId: pro._id }) : null;
     if (!pro || !m) throw new HttpError(404, 'not_found', 'No encontramos ese barbero');
+    /* SPEC-55 CB-08: el admin opera solo la agenda de barberos aprobados. */
+    if (opts?.operate && (m.status !== 'approved' || pro.status === 'suspended')) throw new HttpError(409, 'not_approved', 'Ese barbero no está aprobado');
     return { b, pro, m };
   }
 
@@ -333,13 +345,29 @@ export function createPro({ agenda, clock = Date.now, mailer, logger = console, 
   }
 
   /* ─── Ausencias (RN-05, CB-04) */
-  async function addTimeOff(user, body) {
-    const { b, pro } = await context(user, { edit: true });
+  /* SPEC-55 RN-05: "Resto del día" = cierre de la última ventana de trabajo de ese día (sin contar ausencias). */
+  async function dayClose(b, pro, date) {
+    const wd = isoWeekday(date);
+    const rules = await AvailabilityRule.find({ businessId: b._id, professionalId: pro._id, weekday: wd }).lean();
+    const windows = workWindows({ date, tz: b.timezone, shopHours: (b.hours || []).filter((h) => h.weekday === wd), closures: (b.closures || []).map((c) => c.date), rules });
+    return windows.length ? Math.max(...windows.map((w) => w[1])) : null;
+  }
+
+  async function addTimeOff(actor, body) {
+    const { b, pro } = await resolve(actor, actor?.__admin ? { operate: true } : { edit: true });
     const fromDate = String(body.fromDate ?? '');
-    const toDate = String(body.toDate ?? fromDate);
+    let toDate = String(body.toDate ?? fromDate);
     const fromTime = String(body.fromTime || '00:00');
-    const toTime = String(body.toTime || '24:00');
+    let toTime = String(body.toTime || '24:00');
+    const quick = body.quick === true;
     const fields = {};
+    if (body.restOfDay === true && isDate(fromDate) && isTime(fromTime)) {
+      const close = await dayClose(b, pro, fromDate);
+      if (!close || close <= zonedToUtc(fromDate, fromTime, b.timezone)) throw fieldError({ toTime: 'no_window' }, 'Ese día ya no trabajas después de esa hora');
+      const w = wallClock(close, b.timezone);
+      toDate = fromDate;
+      toTime = w.date === fromDate ? w.time : '24:00';
+    }
     if (!isDate(fromDate)) fields.fromDate = 'invalid_date';
     if (!isDate(toDate)) fields.toDate = 'invalid_date';
     if (!isTime(fromTime) || fromTime === '24:00') fields.fromTime = 'invalid_time';
@@ -348,25 +376,27 @@ export function createPro({ agenda, clock = Date.now, mailer, logger = console, 
     const startsAt = zonedToUtc(fromDate, fromTime, b.timezone);
     const endsAt = zonedToUtc(toDate, toTime, b.timezone);
     if (endsAt <= startsAt) throw fieldError({ toDate: 'before_start' }, 'El término tiene que ser posterior al inicio');
+    /* SPEC-55 RN-05: el bloqueo rápido es solo hacia adelante (se tolera el bloque de 15 min en curso). */
+    if (quick && startsAt < clock() - 15 * MIN) throw fieldError({ fromTime: 'past' }, 'Esa hora ya pasó. Elige otra.');
     if (endsAt <= clock()) throw fieldError({ toDate: 'past' }, 'Esa ausencia ya pasó');
     if (endsAt - startsAt > 120 * 24 * HOUR) throw fieldError({ toDate: 'too_long' }, 'Máximo 120 días');
-    const reason = String(body.reason ?? '').trim().slice(0, 80);
+    const reason = String(body.reason ?? '').replace(/\s+/g, ' ').trim().slice(0, 80);
     const clash = await Appointment.find({ businessId: b._id, professionalId: pro._id, status: { $in: BLOCKING }, startsAt: { $lt: new Date(endsAt) }, endsAt: { $gt: new Date(startsAt) } }).sort({ startsAt: 1 });
     if (clash.length) {
       const now = clock();
-      const appointments = await Promise.all(clash.map((a) => agenda.serialize(a, 'barber', b, now)));
+      const appointments = await Promise.all(clash.map((a) => agenda.serialize(a, actor?.__admin ? 'admin' : 'barber', b, now)));
       throw new HttpError(409, 'time_off_conflict', `Tienes ${clash.length} ${clash.length === 1 ? 'cita' : 'citas'} en esas fechas. Muévelas o cancélalas antes de guardar la ausencia.`, { appointments });
     }
     const off = await TimeOff.create({ businessId: b._id, professionalId: pro._id, startsAt: new Date(startsAt), endsAt: new Date(endsAt), reason });
     return { timeOff: serializeOff(off) };
   }
 
-  async function removeTimeOff(user, id) {
-    const { b, pro } = await context(user, { edit: true });
+  async function removeTimeOff(actor, id) {
+    const { b, pro } = await resolve(actor, actor?.__admin ? {} : { edit: true });
     const _id = oid(id);
-    const r = _id ? await TimeOff.deleteOne({ _id, businessId: b._id, professionalId: pro._id }) : { deletedCount: 0 };
-    if (!r.deletedCount) throw new HttpError(404, 'not_found', 'No encontramos esa ausencia');
-    return { ok: true };
+    const off = _id ? await TimeOff.findOneAndDelete({ _id, businessId: b._id, professionalId: pro._id }).lean() : null;
+    if (!off) throw new HttpError(404, 'not_found', 'No encontramos esa ausencia');
+    return { ok: true, timeOff: serializeOff(off) };
   }
 
   /* ─── Fotos (RN-17, CB-10) */
@@ -455,8 +485,9 @@ export function createPro({ agenda, clock = Date.now, mailer, logger = console, 
   }
 
   /* ─── Agenda (flujo principal) */
-  async function agendaRange(user, { from, to }) {
-    const { b, pro } = await context(user, { operate: true });
+  /* `role` = 'admin' cuando el super admin mira la agenda de un barbero (SPEC-55): sus acciones son las del admin. */
+  async function agendaRange(actor, { from, to }, role = 'barber') {
+    const { b, pro } = await resolve(actor, { operate: true });
     const now = clock();
     const today = wallClock(now, b.timezone).date;
     if (!isDate(from)) from = today;
@@ -471,7 +502,8 @@ export function createPro({ agenda, clock = Date.now, mailer, logger = console, 
       ProfessionalService.find({ businessId: b._id, professionalId: pro._id }).lean(),
       Service.find({ businessId: b._id, active: true }).sort({ order: 1 }).lean(),
     ]);
-    const serialized = await Promise.all(appts.map((a) => agenda.serialize(a, 'barber', b, now)));
+    const noShows = await agenda.noShowsFor(b, appts);
+    const serialized = await Promise.all(appts.map((a) => agenda.serialize(a, role, b, now, { noShows })));
     const closures = (b.closures || []).map((c) => c.date);
     const days = [];
     for (let date = from; date <= to; date = addDays(date, 1)) {
@@ -503,8 +535,8 @@ export function createPro({ agenda, clock = Date.now, mailer, logger = console, 
   }
 
   /* Horas libres del propio barbero (invitar, agendar en un hueco, mover). */
-  async function slots(user, { service: serviceId, date, mode = 'shop', appointment = null }) {
-    const { b, pro } = await context(user, { operate: true });
+  async function slots(actor, { service: serviceId, date, mode = 'shop', appointment = null }) {
+    const { b, pro } = await resolve(actor, { operate: true });
     if (!isDate(date)) throw new HttpError(400, 'invalid_range', 'Fecha inválida');
     let exclude = null;
     let svc = await agenda.findService(b, serviceId);
@@ -542,7 +574,62 @@ export function createPro({ agenda, clock = Date.now, mailer, logger = console, 
     return agenda.actAs(b, appt, 'barber', action, payload, user);
   }
 
-  /* ─── Invitar cita (RN-12, RN-13, CB-07, CB-08) */
+  /* ─── Buscador de clientes (SPEC-55 RN-02): el barbero, solo los que tuvieron cita con él; el admin, todos.
+     Mínimo 3 caracteres o 4 dígitos. Nunca email ni celular completo: `ref` = id de su última cita, con la
+     que se agenda (el server saca el celular de ahí). */
+  async function searchCustomers(actor, rawQ) {
+    const { b, pro } = actor?.__all ? { b: await agenda.business(), pro: null } : await resolve(actor, { operate: true });
+    const q = String(rawQ ?? '').trim().slice(0, 60);
+    const digits = q.replace(/\D/g, '');
+    const numeric = digits.length > 0 && digits.length === q.replace(/[\s+()-]/g, '').length;
+    const byPhone = numeric && digits.length >= 4;
+    if (numeric ? !byPhone : fold(q).replace(/[^a-z0-9ñ]/g, '').length < 3) throw new HttpError(400, 'query_too_short', 'Escribe al menos 3 letras o 4 dígitos');
+    const filter = { businessId: b._id, 'customerSnapshot.phoneE164': { $type: 'string' } };
+    if (pro) filter.professionalId = pro._id;
+    if (byPhone) filter['customerSnapshot.phoneE164'] = { $regex: escapeRe(digits) };
+    const appts = await Appointment.find(filter, { customerSnapshot: 1, customerUserId: 1, startsAt: 1, status: 1 }).sort({ startsAt: -1 }).limit(2000).lean();
+    const needle = fold(q);
+    const now = clock();
+    const groups = new Map();
+    for (const a of appts) {
+      const phone = a.customerSnapshot.phoneE164;
+      if (!groups.has(phone)) groups.set(phone, { latest: a, userId: null, lastVisit: null, names: new Set() });
+      const g = groups.get(phone);
+      if (!g.userId && a.customerUserId) g.userId = a.customerUserId;
+      if (!g.lastVisit && a.startsAt.getTime() <= now && !['cancelada', 'expirada'].includes(a.status)) g.lastVisit = a.startsAt;
+      g.names.add(a.customerSnapshot.name || '');
+    }
+    const users = await User.find({ _id: { $in: [...groups.values()].map((g) => g.userId).filter(Boolean) }, status: 'active' }, { name: 1 }).lean();
+    const nameOf = new Map(users.map((u) => [String(u._id), u.name]));
+    const hits = [];
+    for (const [phone, g] of groups) {
+      const name = g.latest.customerSnapshot.name || nameOf.get(String(g.userId)) || 'Cliente';
+      if (!byPhone && ![...g.names, nameOf.get(String(g.userId))].some((n) => fold(n).includes(needle))) continue;
+      hits.push({ phone, g, name });
+      if (hits.length >= SEARCH_LIMIT) break;
+    }
+    const counts = await agenda.noShowCounts(b, { userIds: hits.map((h) => h.g.userId), phones: hits.filter((h) => !h.g.userId).map((h) => h.phone) });
+    return {
+      items: hits.map(({ phone, g, name }) => ({
+        ref: String(g.latest._id),
+        name,
+        phoneMasked: maskPhone(phone),
+        lastVisit: g.lastVisit ? g.lastVisit.toISOString() : null,
+        noShows: g.userId ? counts.user.get(String(g.userId)) ?? 0 : counts.phone.get(phone) ?? 0,
+      })),
+    };
+  }
+
+  /* Celular de una cita (`ref` del buscador). El barbero solo puede usar citas suyas; el admin, cualquiera. */
+  async function phoneFromRef(b, pro, ref) {
+    const _id = oid(ref);
+    const filter = { _id, businessId: b._id };
+    if (pro) filter.professionalId = pro._id;
+    const a = _id ? await Appointment.findOne(filter, { customerSnapshot: 1 }).lean() : null;
+    return a?.customerSnapshot?.phoneE164 ? { phone: a.customerSnapshot.phoneE164, email: a.customerSnapshot.email || null } : null;
+  }
+
+  /* ─── Invitar cita (RN-12, RN-13, CB-07, CB-08). SPEC-55: `confirmed` = "Ya está confirmada" (sin link). */
   /* SPEC-34 RN-08: la vigencia la configura el admin (por defecto 24 h). */
   function inviteExpiry(now, startMs, b) {
     const cutoff = startMs - INVITE_CUTOFF_H * HOUR;
@@ -554,7 +641,8 @@ export function createPro({ agenda, clock = Date.now, mailer, logger = console, 
     const { b, pro } = await context(user, { operate: true });
     const now = clock();
     const fields = {};
-    const phone = clMobile(body.phone);
+    const confirmed = body.confirmed === true;
+    const phone = body.customerRef ? (await phoneFromRef(b, pro, body.customerRef))?.phone ?? null : clMobile(body.phone);
     if (!phone) fields.phone = 'invalid_phone';
     const name = validName(body.name);
     if (!name) fields.name = 'required';
@@ -605,11 +693,19 @@ export function createPro({ agenda, clock = Date.now, mailer, logger = console, 
       /* RN-12: forma de pago por defecto, en el local (efectivo). */
       payment: { method: 'local', status: 'pendiente' },
       note: note || undefined,
-      status: 'invitacion_enviada',
-      expiresAt: inviteExpiry(now, startMs, b),
-      invite: { token: crypto.randomBytes(18).toString('base64url'), sentAt: new Date(now) },
-      history: [{ at: new Date(now), from: null, to: 'invitacion_enviada', by: 'barber', byUserId: user._id }],
-      source: 'pro_invite',
+      ...(confirmed
+        ? {
+            status: 'confirmada',
+            history: [{ at: new Date(now), from: null, to: 'confirmada', by: 'barber', byUserId: user._id, reason: 'Confirmada por el barbero (cliente presente o por teléfono)' }],
+            source: 'pro_direct',
+          }
+        : {
+            status: 'invitacion_enviada',
+            expiresAt: inviteExpiry(now, startMs, b),
+            invite: { token: crypto.randomBytes(18).toString('base64url'), sentAt: new Date(now) },
+            history: [{ at: new Date(now), from: null, to: 'invitacion_enviada', by: 'barber', byUserId: user._id }],
+            source: 'pro_invite',
+          }),
     };
     let appt;
     try {
@@ -629,6 +725,11 @@ export function createPro({ agenda, clock = Date.now, mailer, logger = console, 
     } catch (err) {
       if (isDuplicateKey(err)) throw new HttpError(409, 'slot_taken', 'Esa hora se acaba de ocupar. Elige otra.');
       throw err;
+    }
+    if (confirmed) {
+      /* Correo `confirmed` si tiene correo (cuenta). La confirmación por WhatsApp llegará con SPEC-53. */
+      if (customer?.email) await agenda.notify(b, appt, 'client', 'confirmed');
+      return { appointment: await agenda.serialize(appt, 'barber', b, now), whatsappUrl: null, inviteUrl: null, message: null };
     }
     if (customer) await agenda.notify(b, appt, 'client', 'invited');
     return invitationResponse(b, appt, now);
@@ -710,6 +811,8 @@ export function createPro({ agenda, clock = Date.now, mailer, logger = console, 
     setMembershipStatus,
     agendaRange,
     slots,
+    searchCustomers,
+    phoneFromRef,
     viewAppointment,
     act,
     invite,
