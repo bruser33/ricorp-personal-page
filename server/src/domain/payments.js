@@ -459,6 +459,8 @@ export function createPayments({ agenda, env = {}, clock = Date.now, logger = co
         if (r) {
           cancelled++;
           await agenda.notify(b, r.appt, 'client', 'payment_incomplete');
+          /* SPEC-54: la hora retenida se liberó → la lista de espera de ese día. */
+          await agenda.emitRelease?.(b, { professionalId: r.appt.professionalId, startsAt: r.appt.startsAt, endsAt: r.appt.endsAt, appointmentId: r.appt._id }, 'payment_hold');
         }
       } catch (err) {
         logger.error(`[mp] retención: cita ${_id}: ${err.message}`);

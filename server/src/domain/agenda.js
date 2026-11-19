@@ -18,13 +18,14 @@ import {
   SlotLock,
   TimeOff,
   User,
+  WaitlistEntry,
 } from '../models/index.js';
 import { HttpError } from '../lib/errors.js';
 import { isDuplicateKey, withTransaction } from '../lib/db.js';
 import { clMobile, MAX_NOTE } from '../lib/validate.js';
 import { appointmentMail, BARBER_EVENT_TITLE, waLink } from '../lib/emails.js';
-import { daySlots, distanceKm, slotsFor } from './availability.js';
-import { addDays, formatLong, isDate, isoWeekday, wallClock, zonedToUtc } from './time.js';
+import { daySlots, distanceKm, slotsFor, workWindows } from './availability.js';
+import { addDays, ceilSlot, formatLong, isDate, isoWeekday, wallClock, zonedToUtc } from './time.js';
 import { entriesToWeek, weekToSiteRows } from './hours.js';
 import { applyLocalCollection, boletaClash, isBoletaClash, parseCollectInput } from './tax.js';
 import { TAX_DOCUMENT_PROVIDERS } from '../lib/taxDocuments.js';
@@ -71,6 +72,20 @@ export const PAY_OPEN = ['pendiente', 'en_proceso', 'rechazado'];
 /* `onlinePayments.ready`: hay credenciales de Mercado Pago (SPEC-35). Sin ellas "Pagar en
    línea" no se ofrece aunque el admin lo habilite (CB-09). */
 export function createAgenda({ clock = Date.now, mailer, logger = console, frontUrl = 'http://localhost:5173', geocoder, businessSlug = 'ws-style', adminInbox = null, onlinePayments = { ready: false }, taxProvider = TAX_DOCUMENT_PROVIDERS.voucher }) {
+  /* SPEC-54: enganches de la lista de espera (domain/waitlist.js los registra).
+     released: una cita futura dejó de ocupar su hora · booked: el cliente reservó (ese día sale de la lista)
+     · waitlistBooking: valida el token "Tomar esta hora" al crear la cita. */
+  const hooks = { released: [], booked: [], waitlistBooking: null };
+  async function emitRelease(b, freed, reason) {
+    for (const fn of hooks.released) {
+      try {
+        await fn(b, freed, reason);
+      } catch (err) {
+        logger.error('[agenda] lista de espera (liberación):', err.message);
+      }
+    }
+  }
+  const waitlistOn = (b) => b.settings?.waitlistEnabled !== false;
   async function business() {
     const b = await Business.findOne({ slug: businessSlug }).lean();
     if (!b) throw new HttpError(503, 'agenda_unavailable', 'La agenda aún no está configurada');
@@ -182,7 +197,14 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
       const wd = isoWeekday(date);
       const shopHours = (b.hours || []).filter((h) => h.weekday === wd);
       const merged = new Map();
+      /* SPEC-54: ¿hay horario de atención (alguna ventana donde todavía quepa el servicio)? */
+      let open = false;
+      const earliest = ceilSlot(now + minLeadMin * MIN);
       for (const p of pros) {
+        if (!open) {
+          const ws = workWindows({ date, tz, shopHours, closures, rules: p.rules.filter((r) => r.weekday === wd), timeOffs: offs.filter((o) => String(o.professionalId) === String(p._id)) });
+          open = ws.some(([s, e]) => e - Math.max(s, earliest) >= service.durationMin * MIN);
+        }
         const slots = daySlots({
           date,
           tz,
@@ -202,7 +224,10 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
           merged.get(s.startsAt).professionalIds.push(String(p._id));
         }
       }
-      days.push({ date, slots: [...merged.values()].sort((a, c) => a.startsAt - c.startsAt).map((s) => ({ ...s, startsAt: new Date(s.startsAt).toISOString() })) });
+      const day = { date, slots: [...merged.values()].sort((a, c) => a.startsAt - c.startsAt).map((s) => ({ ...s, startsAt: new Date(s.startsAt).toISOString() })) };
+      /* Lleno = hay horario para ese servicio y barbero, pero no quedan horas (un día cerrado no lo es). */
+      if (open && !day.slots.length) day.full = true;
+      days.push(day);
     }
     return days;
   }
@@ -216,7 +241,7 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
     let pros = await professionals(b, { service, mode });
     if (userId) pros = pros.filter((p) => String(p.userId || '') !== String(userId));
     if (professionalId && professionalId !== 'any') pros = pros.filter((p) => String(p._id) === String(professionalId));
-    return { timezone: b.timezone, days: await availabilityFor(b, { service, pros, from, to, mode, now: clock(), exclude }) };
+    return { timezone: b.timezone, waitlist: waitlistOn(b), days: await availabilityFor(b, { service, pros, from, to, mode, now: clock(), exclude }) };
   }
 
   /* Dirección → punto, distancia al local y recargo por profesional (RN-07). */
@@ -353,9 +378,16 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
 
     /* Revalida la hora contra la disponibilidad real de ese día (CB-02). */
     const date = wallClock(startsAt, b.timezone).date;
-    const [day] = await availabilityFor(b, { service, pros, from: date, to: date, mode, now });
+    /* SPEC-54: "Tomar esta hora" desde un aviso de la lista de espera. RN-06: anticipación de 30 min. */
+    const wait = typeof input.waitlistToken === 'string' && input.waitlistToken && hooks.waitlistBooking ? await hooks.waitlistBooking(b, user, input.waitlistToken) : null;
+    const takenMsg = wait ? 'Alguien tomó esta hora antes. Sigues en la lista de espera.' : null;
+    if (wait && (wait.date !== date || String(wait.serviceId) !== String(service._id) || mode !== 'shop')) throw new HttpError(409, 'slot_unavailable', 'Esa hora no corresponde a tu aviso de la lista de espera.');
+    const [day] = await availabilityFor(b, { service, pros, from: date, to: date, mode, now, ...(wait ? { minLeadMin: wait.minLeadMin } : {}) });
     const slot = day?.slots.find((s) => Date.parse(s.startsAt) === startsAt);
-    if (!slot) throw new HttpError(409, 'slot_unavailable', 'Esa hora ya no está disponible. Elige otra.');
+    if (!slot) {
+      await wait?.lost();
+      throw new HttpError(409, wait ? 'slot_taken' : 'slot_unavailable', takenMsg || 'Esa hora ya no está disponible. Elige otra.');
+    }
     let candidates = pros.filter((p) => slot.professionalIds.includes(String(p._id)));
     if (wanted === 'any' && candidates.length > 1) {
       /* RN-06: el que tenga menos citas ese día; empate: orden de la lista. */
@@ -394,7 +426,8 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
         payment: online ? { method: 'online', status: 'pendiente', holdStartedAt: new Date(now) } : { method: 'local', status: 'pendiente' },
         note: note || undefined,
         status: firstStatus,
-        expiresAt: new Date(online ? now + PAYMENT_HOLD_MIN * MIN : confirmDeadline(b, startsAt, now)),
+        /* SPEC-54: una hora tomada de la lista puede empezar en 30 min: el barbero tiene hasta 15 min antes. */
+        expiresAt: new Date(online ? now + PAYMENT_HOLD_MIN * MIN : wait ? Math.max(confirmDeadline(b, startsAt, now), Math.min(now + b.settings.confirmWithinMinutes * MIN, startsAt - START_WINDOW_MIN * MIN)) : confirmDeadline(b, startsAt, now)),
         history: [{ at: new Date(now), from: null, to: firstStatus, by: 'client', byUserId: user._id }],
         source: 'web',
         idempotencyKey,
@@ -415,6 +448,8 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
         }, logger);
         if (!user.phoneE164 || user.phoneE164 !== phone) await User.updateOne({ _id: user._id }, { phoneE164: phone });
         await CustomerProfile.updateOne({ businessId: b._id, userId: user._id }, { $inc: { 'counters.appointments': 1 } }, { upsert: true }).catch(() => {});
+        /* SPEC-54 (8, CB-05): reservó ese día → su entrada de la lista pasa a "Tomaste la hora". */
+        for (const fn of hooks.booked) await fn(b, user, appt).catch((err) => logger.error('[agenda] lista de espera (reserva):', err.message));
         /* En línea: los correos de "reserva recibida" salen cuando se aprueba el pago (RN-04). */
         if (online) return { appt, mailOk: true };
         const mail = await Promise.all([notify(b, appt, 'client', 'received'), notify(b, appt, 'barber', 'new')]);
@@ -428,7 +463,8 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
         /* Con "Sin preferencia" se prueba el siguiente libre. */
       }
     }
-    throw new HttpError(409, 'slot_taken', 'Esa hora se acaba de ocupar. Elige otra.');
+    await wait?.lost();
+    throw new HttpError(409, 'slot_taken', takenMsg || 'Esa hora se acaba de ocupar. Elige otra.');
   }
 
   /* ─── Notificaciones (RN-17). No transaccionales: si fallan, la cita sigue. */
@@ -658,16 +694,26 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
 
   /* Aplica `fn` a la cita dentro de una transacción y registra el historial. */
   async function mutate(b, apptId, fn) {
+    let before = null;
     try {
-      return await withTransaction(async (session) => {
+      const saved = await withTransaction(async (session) => {
         const appt = await Appointment.findById(apptId).session(session);
         if (!appt) throw notFound();
         const from = appt.status;
+        before = { status: from, professionalId: appt.professionalId, startsAt: appt.startsAt, endsAt: appt.endsAt };
         const entry = await fn(appt, session);
         appt.history.push({ at: new Date(clock()), from, to: appt.status, ...entry });
         await appt.save({ session });
         return appt;
       }, logger);
+      /* SPEC-54: la cita dejó de ocupar su hora (cancelación, expiración, rechazo, reasignación, cambio de
+         hora, inasistencia que libera sus bloques…) → la lista de espera de ese día puede llenar el hueco. */
+      if (before && BLOCKING.includes(before.status)) {
+        const left = !BLOCKING.includes(saved.status);
+        const moved = String(saved.professionalId) !== String(before.professionalId) || saved.startsAt.getTime() !== before.startsAt.getTime();
+        if (left || moved) await emitRelease(b, { professionalId: before.professionalId, startsAt: before.startsAt, endsAt: before.endsAt, appointmentId: saved._id }, left ? saved.status : 'moved');
+      }
+      return saved;
     } catch (err) {
       if (err?.name === 'VersionError') throw invalid('stale');
       if (isBoletaClash(err)) throw boletaClash();
@@ -972,6 +1018,8 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
         return { by: 'client', byUserId: user._id, reason: 'Cuenta eliminada' };
       }).catch((err) => logger.error('[agenda] cancelar por cuenta eliminada:', err.message));
     }
+    /* SPEC-54 CB-09: sus entradas de la lista de espera se borran. */
+    await WaitlistEntry.deleteMany({ customerUserId: user._id }).catch(() => {});
     await Appointment.updateMany({ customerUserId: user._id }, { $set: { 'customerSnapshot.name': 'Cliente eliminado', 'customerSnapshot.phoneE164': null, 'customerSnapshot.email': null } });
   }
 
@@ -1002,5 +1050,9 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
     notify,
     mutate,
     inviteLinks,
+    /* SPEC-54 */
+    hooks,
+    emitRelease,
+    waitlistOn,
   };
 }

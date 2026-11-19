@@ -40,6 +40,8 @@ const BusinessSchema = new Schema(
       maxActivePerCustomer: { type: Number, default: 2 },
       /* SPEC-33 RN-12 / SPEC-34 RN-08: vigencia de una invitación del barbero. */
       inviteTtlHours: { type: Number, default: 24 },
+      /* SPEC-54: lista de espera de días llenos (encendida por defecto; ausente = encendida). */
+      waitlistEnabled: { type: Boolean, default: true },
     },
     /* SPEC-34 RN-08: formas de pago habilitadas. Las credenciales NUNCA viven acá (server/.env). */
     payments: {
@@ -445,6 +447,37 @@ PaymentEventSchema.index({ mpPaymentId: 1, status: 1 }, { unique: true });
 PaymentEventSchema.index({ appointmentId: 1, createdAt: 1 });
 export const PaymentEvent = model('PaymentEvent', PaymentEventSchema);
 
+/* SPEC-54: lista de espera de un día lleno. Una entrada por cliente y día (activa). `active`
+   duplica "status ∈ {waiting, notified}" para el índice único parcial. El `token` va en el link
+   del aviso ("Tomar esta hora"); sirve solo para ese cliente y ese día (RN-05). */
+export const WAIT_ACTIVE = ['waiting', 'notified'];
+const WaitlistEntrySchema = new Schema(
+  {
+    businessId: { type: ObjectId, required: true },
+    customerUserId: { type: ObjectId, required: true },
+    customerSnapshot: { name: String, phoneE164: String, email: String },
+    date: { type: String, required: true },
+    serviceId: { type: ObjectId, required: true },
+    /* null = "Cualquiera". */
+    professionalId: { type: ObjectId, default: null },
+    pref: { type: String, enum: ['all', 'am', 'pm'], default: 'all' },
+    status: { type: String, enum: ['waiting', 'notified', 'booked', 'ended', 'removed'], default: 'waiting' },
+    active: { type: Boolean, default: true },
+    token: { type: String, required: true },
+    lastNotifiedAt: Date,
+    autoNotices: { type: Number, default: 0 },
+    notices: [{ _id: false, at: Date, kind: { type: String, enum: ['auto', 'manual'] }, startsAt: Date, byUserId: ObjectId }],
+    appointmentId: ObjectId,
+    endedReason: String,
+    endedAt: Date,
+  },
+  { timestamps: true }
+);
+WaitlistEntrySchema.index({ businessId: 1, customerUserId: 1, date: 1 }, { unique: true, name: 'una_por_dia', partialFilterExpression: { active: true } });
+WaitlistEntrySchema.index({ businessId: 1, date: 1, active: 1, createdAt: 1 });
+WaitlistEntrySchema.index({ token: 1 }, { unique: true });
+export const WaitlistEntry = model('WaitlistEntry', WaitlistEntrySchema);
+
 export const ALL_MODELS = [
   Business,
   Professional,
@@ -463,4 +496,5 @@ export const ALL_MODELS = [
   PlatformSettings,
   AuditLog,
   PaymentEvent,
+  WaitlistEntry,
 ];
