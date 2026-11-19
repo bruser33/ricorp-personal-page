@@ -6,6 +6,7 @@ describe('rutas del panel', () => {
     expect(sectionFromPath('/wstyle/admin/')).toBe('inicio');
     expect(sectionFromPath('/wstyle/admin/carta/')).toBe('carta');
     expect(sectionFromPath('/wstyle/admin/estadisticas')).toBe('estadisticas');
+    expect(sectionFromPath('/wstyle/admin/difusion/')).toBe('difusion');
     expect(sectionFromPath('/wstyle/admin/cualquiera/')).toBe('inicio');
   });
 });

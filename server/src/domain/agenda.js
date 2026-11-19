@@ -29,6 +29,7 @@ import { entriesToWeek, weekToSiteRows } from './hours.js';
 import { applyLocalCollection, boletaClash, isBoletaClash, parseCollectInput } from './tax.js';
 import { TAX_DOCUMENT_PROVIDERS } from '../lib/taxDocuments.js';
 import { currentRates, pricingView, quote, ratesView } from './pricing.js';
+import { normalizeOrigin } from './origin.js';
 
 const MIN = 60 * 1000;
 const HOUR = 60 * MIN;
@@ -397,6 +398,7 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
         expiresAt: new Date(online ? now + PAYMENT_HOLD_MIN * MIN : confirmDeadline(b, startsAt, now)),
         history: [{ at: new Date(now), from: null, to: firstStatus, by: 'client', byUserId: user._id }],
         source: 'web',
+        origin: normalizeOrigin(input.origin),
         idempotencyKey,
       };
       try {

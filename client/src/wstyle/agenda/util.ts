@@ -105,8 +105,18 @@ export interface Selection {
   mode?: 'shop' | 'home';
   address?: { street: string; commune: string; details: string };
   note?: string;
+  origin?: string;           // SPEC-58: canal del link (utm_source normalizado); se manda al crear la cita
 }
 const KEY = 'wstyle-reserva';
+
+/* SPEC-58 RN-03: utm_source → origen. Minúsculas, solo [a-z0-9_-], máx. 40; inválido o vacío → "directo".
+   Mismo algoritmo que server/src/domain/origin.js (el server revalida). Nunca se renderiza como HTML. */
+export const DIRECT_ORIGIN = 'directo';
+export function normalizeOrigin(value: unknown): string {
+  if (typeof value !== 'string') return DIRECT_ORIGIN;
+  const s = value.trim().toLowerCase();
+  return /^[a-z0-9_-]+$/.test(s) ? s.slice(0, 40) : DIRECT_ORIGIN;
+}
 export function loadSelection(): Selection {
   try {
     return JSON.parse(sessionStorage.getItem(KEY) || '{}') as Selection;
@@ -136,6 +146,8 @@ export function selectionToQuery(s: Selection) {
   if (s.professionalId) q.set('barbero', s.professionalId);
   if (s.startsAt) q.set('inicio', s.startsAt);
   if (s.mode === 'home') q.set('modo', 'domicilio');
+  // SPEC-58 CB-01: el origen viaja en la vuelta de Facebook/Google igual que la selección.
+  if (s.origin) q.set('utm_source', s.origin);
   return q.toString();
 }
 export function selectionFromQuery(search: string): Selection {
@@ -149,7 +161,19 @@ export function selectionFromQuery(search: string): Selection {
     s.date = localDate(inicio);
   }
   if (q.get('modo') === 'domicilio') s.mode = 'home';
+  if (q.has('utm_source')) s.origin = normalizeOrigin(q.get('utm_source'));
   return s;
+}
+
+/* Selección inicial de /wstyle/reservar/: la de la URL manda; si cambia el servicio o la hora, se descarta la guardada.
+   SPEC-58: el origen (utm_source) no cuenta como "selección nueva": el de la URL pisa al guardado y, si la URL no
+   trae, se conserva el guardado (sobrevive a la puerta de sesión y al ida y vuelta de Facebook/Google). */
+export function mergeSelection(url: Selection, stored: Selection): Selection {
+  const { origin: urlOrigin, ...fromUrl } = url;
+  const fresh = Object.keys(fromUrl).length > 0 && (fromUrl.serviceId !== stored.serviceId || (fromUrl.startsAt && fromUrl.startsAt !== stored.startsAt));
+  const base: Selection = fresh ? { ...(fromUrl.serviceId === stored.serviceId ? stored : {}), ...fromUrl } : { ...stored, ...fromUrl };
+  const origin = urlOrigin ?? stored.origin;
+  return origin ? { ...base, origin } : base;
 }
 
 export const STATUS_TONE: Record<string, 'wait' | 'ok' | 'warn' | 'off'> = {

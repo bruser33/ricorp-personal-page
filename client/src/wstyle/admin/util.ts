@@ -1,7 +1,7 @@
 // Funciones puras del panel del super admin (probadas en util.test.ts).
 import type { AdminService, ExportContent, MembershipStatus, WeekDay } from './api';
 
-export type AdminSection = 'inicio' | 'barberos' | 'citas' | 'pagos' | 'rendicion' | 'carta' | 'horario' | 'estadisticas' | 'configuracion' | 'auditoria';
+export type AdminSection = 'inicio' | 'barberos' | 'citas' | 'pagos' | 'rendicion' | 'carta' | 'horario' | 'estadisticas' | 'difusion' | 'configuracion' | 'auditoria';
 export const SECTIONS: { key: AdminSection; label: string; path: string }[] = [
   { key: 'inicio', label: 'Inicio', path: '/wstyle/admin/' },
   { key: 'barberos', label: 'Barberos', path: '/wstyle/admin/barberos/' },
@@ -12,6 +12,8 @@ export const SECTIONS: { key: AdminSection; label: string; path: string }[] = [
   { key: 'carta', label: 'Carta', path: '/wstyle/admin/carta/' },
   { key: 'horario', label: 'Horario', path: '/wstyle/admin/horario/' },
   { key: 'estadisticas', label: 'Estadísticas', path: '/wstyle/admin/estadisticas/' },
+  // SPEC-58: kit para compartir el link de reservas (QR, cartel, placa de Instagram y textos).
+  { key: 'difusion', label: 'Difusión', path: '/wstyle/admin/difusion/' },
   { key: 'configuracion', label: 'Configuración', path: '/wstyle/admin/configuracion/' },
   { key: 'auditoria', label: 'Auditoría', path: '/wstyle/admin/auditoria/' },
 ];

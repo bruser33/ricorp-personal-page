@@ -73,6 +73,8 @@ export interface Stats {
   // SPEC-38 RN-19: costo de pagos cobrado y parte de los barberos (servicio + domicilio).
   paymentFeeCLP?: number; barbersCLP?: number;
   days: { date: string; appointments: number; revenueCLP: number }[];
+  // SPEC-58: reservas web por origen (utm_source normalizado; "directo" sin UTM). Solo en el panel del admin.
+  byOrigin?: { origin: string; created: number; finished: number }[];
 }
 
 export type RuleKey = 'minLeadMinutes' | 'horizonDays' | 'cancelUntilMinutes' | 'confirmWithinMinutes' | 'inviteTtlHours' | 'maxActivePerCustomer';

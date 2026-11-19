@@ -3,6 +3,7 @@ import { clp } from '../../agenda/util';
 import { admin, type Stats } from '../api';
 import { Loaded } from '../components/common';
 import { useLoad, useToday } from '../hooks';
+import { originLabel } from '../difusion';
 import { monthLabel, monthOf, shiftMonth, STATUS_OPTIONS } from '../util';
 
 const pct = (n: number) => `${n.toLocaleString('es-CL', { maximumFractionDigits: 1 })} %`;
@@ -39,7 +40,7 @@ export default function StatsPage() {
   );
 }
 
-function StatsView({ s }: { s: Stats }) {
+export function StatsView({ s }: { s: Stats }) {
   const maxDay = Math.max(1, ...s.days.map((d) => d.revenueCLP));
   const maxSvc = Math.max(1, ...s.topServices.map((x) => x.count));
   const statusRows = STATUS_OPTIONS.filter(([k]) => s.byStatus[k]);
@@ -91,6 +92,29 @@ function StatsView({ s }: { s: Stats }) {
           )}
         </section>
       </div>
+
+      {s.byOrigin && (
+        <section className="adm-section" aria-labelledby="st-origin">
+          <h2 className="ag-h3" id="st-origin">Reservas por origen</h2>
+          <p className="ag-muted">Reservas hechas en la web, según el link por el que llegó el cliente (ver Difusión). No cuenta las citas que agendan los barberos o el panel.</p>
+          {s.byOrigin.length === 0 ? <p className="ag-muted">Sin reservas web en el rango.</p> : (
+            <div className="adm-table-wrap">
+              <table className="adm-table" data-table="origins">
+                <thead><tr><th scope="col">Origen</th><th scope="col">Reservas creadas</th><th scope="col">Terminadas</th></tr></thead>
+                <tbody>
+                  {s.byOrigin.map((o) => (
+                    <tr key={o.origin} data-origin={o.origin}>
+                      <th scope="row">{originLabel(o.origin)}{originLabel(o.origin) !== o.origin && <span className="adm-table__sub">{o.origin}</span>}</th>
+                      <td>{o.created}</td>
+                      <td>{o.finished}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      )}
 
       <section className="adm-section" aria-labelledby="st-barbers">
         <h2 className="ag-h3" id="st-barbers">Por barbero</h2>
