@@ -4,6 +4,7 @@ import { Notice, PasswordField } from '../../agenda/components/ui';
 import { weakPassword } from '../../agenda/util';
 import { admin, type RuleKey, type Settings } from '../api';
 import { Loaded } from '../components/common';
+import WaitlistSetting from '../components/WaitlistSetting';
 import { useLoad } from '../hooks';
 
 const RULES: { key: RuleKey; label: string; unit: string; hint: string }[] = [
@@ -22,7 +23,7 @@ export default function SettingsPage({ user }: { user: User }) {
   return (
     <>
       <h1 className="ag-h1">Configuración</h1>
-      <Loaded state={st} label="Cargando la configuración…">{(s) => <SettingsForm settings={s} onSaved={(n) => st.setData(n)} />}</Loaded>
+      <Loaded state={st} label="Cargando la configuración…">{(s) => <><SettingsForm settings={s} onSaved={(n) => st.setData(n)} /><WaitlistSetting settings={s} onSaved={(n) => st.setData(n)} /></>}</Loaded>
       <Account user={user} />
     </>
   );

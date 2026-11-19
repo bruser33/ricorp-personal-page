@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Notice, Spinner } from '../../agenda/components/ui';
 import { addDays, localDate, localTime, longDay } from '../../agenda/util';
-import type { AgendaDay, ProAppointment } from '../api';
+import { proWaitlist, type AgendaDay, type ProAppointment } from '../api';
 import type { SheetMode } from '../components/ApptCard';
 import ApptSheet from '../components/ApptSheet';
 import InviteSheet from '../components/InviteSheet';
 import ProShell from '../components/ProShell';
+import WaitlistSheet, { WaitlistChip } from '../components/WaitlistSheet';
+import { useWaitlist } from '../useWaitlist';
 import type { ProCtx } from '../ctx';
 import { useAgendaRange } from '../useAgenda';
 import { blockBox, freeCells, gridRange, minutesOfDay, shortDay, visibleDays, type AgendaView } from '../util';
@@ -40,6 +42,10 @@ export default function AgendaPage({ ctx }: { ctx: ProCtx }) {
   const [invite, setInvite] = useState<{ date: string; startsAt: string | null } | null>(null);
   const [openId, setOpenId] = useState(() => new URLSearchParams(location.search).get('cita'));
   const touch = useRef<number | null>(null);
+  // SPEC-54: lista de espera del rango visible (chip por día) y la hoja abierta.
+  const wait = useWaitlist(proWaitlist, dates[0], dates.at(-1)!);
+  const [waitDay, setWaitDay] = useState<string | null>(null);
+  const waitDays = wait.data?.enabled ? wait.data.days.filter((d) => d.count > 0) : [];
 
   const days: AgendaDay[] = useMemo(() => (data?.days ?? []).map((d) => ({ ...d, appointments: d.appointments.filter((a) => !HIDDEN.includes(a.status)) })), [data]);
   const range = gridRange(days.length ? days : [{ date: anchor, shop: null, windows: [], appointments: [] }]);
@@ -89,7 +95,8 @@ export default function AgendaPage({ ctx }: { ctx: ProCtx }) {
           <div className="pro-grid__head">
             <span />
             {days.map((d) => (
-              <span key={d.date} className={`pro-grid__day${d.date === today ? ' is-today' : ''}`}>{shortDay(d.date)}{!d.shop && <small>Cerrado</small>}</span>
+              <span key={d.date} className={`pro-grid__day${d.date === today ? ' is-today' : ''}`}>{shortDay(d.date)}{!d.shop && <small>Cerrado</small>}
+                {(() => { const w = waitDays.find((x) => x.date === d.date); return w ? <WaitlistChip date={d.date} count={w.count} onOpen={() => setWaitDay(d.date)} /> : null; })()}</span>
             ))}
           </div>
           <div className="pro-grid__body" style={{ height }}>
@@ -152,6 +159,10 @@ export default function AgendaPage({ ctx }: { ctx: ProCtx }) {
       </ul>
 
       {sheet && <ApptSheet appt={sheet.appt} mode={sheet.mode} today={today} onChange={replace} reload={reload} onClose={() => { setSheet(null); reload(); }} />}
+      {waitDay && wait.data && (
+        <WaitlistSheet source={proWaitlist} days={wait.data.days.filter((d) => d.date === waitDay)} initialDate={waitDay}
+          onChanged={wait.reload} onClose={() => setWaitDay(null)} />
+      )}
       {invite && data && (
         <InviteSheet services={data.services} homeService={data.professional.homeService} date={invite.date} startsAt={invite.startsAt} today={today}
           onClose={() => { setInvite(null); reload(); }} onCreated={() => {}} />

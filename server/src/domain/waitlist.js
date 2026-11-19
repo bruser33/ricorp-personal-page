@@ -366,7 +366,9 @@ export function createWaitlist({ agenda, pro: proDomain, admin: adminDomain, clo
     const text = `Hola ${first}, te escribo de WS Style: estás en la lista de espera del ${dayLabel(e.date)}. Se liberó una hora; si la quieres, tómala aquí: ${linkFor(e.token)}`;
     const waUrl = waLink(e.customerSnapshot?.phoneE164, text);
     if (!waUrl) throw new HttpError(409, 'no_phone', 'Esta persona no tiene celular registrado.');
-    await WaitlistEntry.updateOne({ _id: e._id }, { $push: { notices: { at: new Date(clock()), kind: 'manual', byUserId: user._id } } });
+    /* Queda "Te avisamos · avisado hh:mm" en la hoja; no suma a los 3 avisos automáticos (RN-07). */
+    const at = new Date(clock());
+    await WaitlistEntry.updateOne({ _id: e._id }, { $set: { status: 'notified', lastNotifiedAt: at }, $push: { notices: { at, kind: 'manual', byUserId: user._id } } });
     return { waUrl };
   }
 

@@ -309,6 +309,9 @@ describe('lista de espera (SPEC-54)', () => {
     assert.match(wa.json.waUrl, /^https:\/\/wa\.me\/56987654321\?text=/);
     assert.ok(decodeURIComponent(wa.json.waUrl).includes(`/wstyle/reservar/?espera=${list[0].entry.token}`));
     assert.equal((await WaitlistEntry.findById(list[0].entry._id)).notices[0].kind, 'manual');
+    const after = await call('GET', '/api/pro/waitlist?from=2026-11-02&to=2026-11-08', cookie);
+    assert.equal(after.json.days[0].entries[0].statusLabel, 'Te avisamos');
+    assert.ok(after.json.days[0].entries[0].notifiedAt);
     assert.equal((await call('DELETE', `/api/pro/waitlist/${list[1].entry._id}`, cookie)).status, 200);
     const r2 = await call('GET', '/api/pro/waitlist?from=2026-11-02&to=2026-11-08', cookie);
     assert.equal(r2.json.days[0].count, 2);

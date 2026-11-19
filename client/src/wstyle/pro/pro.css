@@ -211,3 +211,18 @@
 .pro-pay__amount { font-variant-numeric: tabular-nums; white-space: nowrap; font-weight: 600; }
 .pro-pay__meta { margin: 6px 0 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; color: #b3ab9f; font-size: 14px; }
 .pro-pay .ag-link { margin-top: 8px; }
+
+/* SPEC-54: lista de espera (chip del día + hoja). Compartido con el admin. */
+.pro-wait-chip { display: inline-flex; align-items: center; gap: 3px; min-height: 26px; margin-top: 3px; padding: 2px 8px; border: 1px solid rgba(184, 135, 90, .6); border-radius: 999px;
+  background: rgba(14, 13, 12, .7); color: #e2bf98; font: 700 11px/1 var(--font-body); letter-spacing: .02em; cursor: pointer; }
+.pro-wait-chip:hover, .pro-wait-chip:focus-visible { border-color: var(--brass); color: var(--bone); }
+.pro-grid__day.is-today .pro-wait-chip { background: var(--ink); color: var(--brass); }
+.pro-wait li > div:first-child { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.pro-wait time { font-size: 13px; color: #b3ab9f; }
+.pro-wait__actions { display: flex; flex-direction: column; gap: 6px; flex: 0 0 auto; }
+.pro-wait__actions .btn { min-height: 40px; padding: 0 14px; font-size: 13px; }
+.pro-wait-days { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+@media (max-width: 420px) {
+  .pro-wait li { flex-direction: column; }
+  .pro-wait__actions { flex-direction: row; }
+}

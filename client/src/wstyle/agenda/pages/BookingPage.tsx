@@ -7,6 +7,8 @@ import { NO_FEES, pct, quote as priceQuote } from '../pricing';
 import Calendar, { TimeChips } from '../components/Calendar';
 import Shell from '../components/Shell';
 import { Field, MotoIcon, Notice, Spinner, Unavailable } from '../components/ui';
+import WaitlistCard from '../components/WaitlistCard';
+import WaitlistTake from './WaitlistTake';
 import {
   addDays, buildIcs, clMobile, clp, dayMonthTime, fieldMessage, loadSelection, localDate, longDay, MAX_NOTE, prettyPhone,
   saveSelection, selectionFromQuery, selectionToQuery, type Selection,
@@ -39,6 +41,9 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
     return { y: Number(d.slice(0, 4)), m: Number(d.slice(5, 7)) };
   });
   const [avail, setAvail] = useState<Map<string, Slot[]> | null>(null);
+  // SPEC-54: días llenos (solo si la lista de espera está encendida) y el link "Tomar esta hora" (?espera=<token>).
+  const [fullDays, setFullDays] = useState<Set<string>>(() => new Set());
+  const [espera] = useState(() => new URLSearchParams(location.search).get('espera'));
   const [slotPros, setSlotPros] = useState<string[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
   const [quote, setQuote] = useState<Quote | null>(null);
@@ -108,7 +113,11 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
     Promise.resolve().then(() => alive && setAvail(null));
     if (from > to) { Promise.resolve().then(() => alive && setAvail(new Map())); return () => { alive = false; }; }
     agenda.availability({ service: sel.serviceId, professional: sel.professionalId, from, to, mode })
-      .then((r) => { if (alive) setAvail(new Map(r.days.map((d) => [d.date, d.slots]))); })
+      .then((r) => {
+        if (!alive) return;
+        setAvail(new Map(r.days.map((d) => [d.date, d.slots])));
+        setFullDays(new Set(r.waitlist ? r.days.filter((d) => d.full).map((d) => d.date) : []));
+      })
       .catch(() => { if (alive) { setAvail(new Map()); setNotice('No pudimos cargar las horas. Revisa tu conexión y vuelve a intentarlo.'); } });
     return () => { alive = false; };
   }, [catalog, sel.serviceId, sel.professionalId, mode, month, today, lastDay, step]);
@@ -245,7 +254,7 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
   if (session.status === 'loading') return <Shell user={null} current="reservar"><h1 className="ag-h1">Reserva tu hora</h1><Spinner label="Cargando…" /></Shell>;
   if (session.status === 'offline') return <Shell user={null} current="reservar"><h1 className="ag-h1">Reserva tu hora</h1><Unavailable whatsapp={whatsapp} onRetry={() => session.refresh()} /></Shell>;
   if (!user || !user.roles.includes('client')) {
-    const gateReturn = `/wstyle/reservar/?${selectionToQuery(sel)}`.replace(/\?$/, '');
+    const gateReturn = espera ? `/wstyle/reservar/?espera=${encodeURIComponent(espera)}` : `/wstyle/reservar/?${selectionToQuery(sel)}`.replace(/\?$/, '');
     return (
       <Shell user={user} current="reservar">
         <h1 className="ag-h1">Reserva tu hora</h1>
@@ -283,6 +292,8 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
       </Shell>
     );
   }
+
+  if (espera) return <WaitlistTake ctx={ctx} token={espera} catalog={catalog} />;
 
   if (step === 5 && done) return <Shell user={user} current="reservar"><Success appt={done.appt} mailOk={done.mailOk} /></Shell>;
 
@@ -348,9 +359,17 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
             <>
               <h2 className="ag-h2" id="ag-step-title" tabIndex={-1} ref={heading}>Día y hora</h2>
               {notice && <Notice tone="error">{notice}</Notice>}
-              <Calendar year={month.y} month={month.m} today={today} lastDay={lastDay} slotsByDay={avail} selected={sel.date}
+              <Calendar year={month.y} month={month.m} today={today} lastDay={lastDay} slotsByDay={avail} selected={sel.date} fullDays={fullDays}
                 onSelect={pickDay} onMonth={(y, m) => setMonth({ y, m })} />
-              {sel.date && avail && (
+              {sel.date && avail && service && fullDays.has(sel.date) && !avail.get(sel.date)?.length ? (
+                <div className="ag-daytimes">
+                  <h3 className="ag-h3">Día lleno · {longDay(sel.date)}</h3>
+                  <WaitlistCard key={`${sel.date}|${sel.professionalId}`} date={sel.date} service={service}
+                    professional={{ id: sel.professionalId ?? 'any', name: sel.professionalId === 'any' ? 'Cualquiera' : pro?.name ?? '' }} canAny={pros.length > 1}
+                    onPickSlot={(s, proId) => { if (proId !== sel.professionalId) update({ professionalId: proId }); pickSlot(s); }}
+                    onSessionExpired={() => { saveSelection(sel); session.setUser(null); setGateNotice('Tu sesión venció. Entra de nuevo; tu selección sigue aquí.'); }} />
+                </div>
+              ) : sel.date && avail && (
                 <div className="ag-daytimes">
                   <h3 className="ag-h3">Selecciona la hora · {longDay(sel.date)}</h3>
                   <TimeChips slots={avail.get(sel.date) ?? []} selected={sel.startsAt} onSelect={pickSlot} label={`Horas libres del ${longDay(sel.date)}`} />
