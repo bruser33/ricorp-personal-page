@@ -13,6 +13,7 @@ import {
   Notification,
   PanelNotification,
   Professional,
+  Review,
   ProfessionalService,
   Service,
   SlotLock,
@@ -29,6 +30,7 @@ import { entriesToWeek, weekToSiteRows } from './hours.js';
 import { applyLocalCollection, boletaClash, isBoletaClash, parseCollectInput } from './tax.js';
 import { TAX_DOCUMENT_PROVIDERS } from '../lib/taxDocuments.js';
 import { currentRates, pricingView, quote, ratesView } from './pricing.js';
+import { canReview } from './reviews.js';
 
 const MIN = 60 * 1000;
 const HOUR = 60 * MIN;
@@ -629,7 +631,20 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
     const b = await business();
     const now = clock();
     const list = await Appointment.find({ businessId: b._id, customerUserId: user._id }).sort({ startsAt: -1 }).limit(100);
-    const items = await Promise.all(list.map((a) => serialize(a, 'client', b, now)));
+    /* SPEC-52: en "Pasadas", la reseña de cada cita terminada (sus estrellas) o si todavía se puede dejar. */
+    const done = list.filter((a) => a.status === 'terminada');
+    const reviews = done.length ? await Review.find({ appointmentId: { $in: done.map((a) => a._id) } }, { appointmentId: 1, rating: 1 }).lean() : [];
+    const byAppt = new Map(reviews.map((r) => [String(r.appointmentId), { rating: r.rating }]));
+    const items = await Promise.all(
+      list.map(async (a) => {
+        const out = await serialize(a, 'client', b, now);
+        if (a.status === 'terminada') {
+          out.review = byAppt.get(String(a._id)) ?? null;
+          out.canReview = canReview(a, Boolean(out.review), now);
+        }
+        return out;
+      })
+    );
     const upcoming = items.filter((a) => Date.parse(a.endsAt) > now && !FINAL.includes(a.status)).reverse();
     const past = items.filter((a) => !upcoming.includes(a));
     return { upcoming, past };
@@ -856,7 +871,8 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
         }
         return { by, byUserId, reason: reason ?? (action === 'finish' && typeof payload.collected === 'boolean' ? (payload.collected ? 'Cobrado' : 'Sin cobrar') : undefined) };
       });
-      if (to === 'terminada') await notify(b, appt, 'client', 'finished');
+      /* SPEC-52: el "Gracias por venir" invita a dejar la reseña (solo si la cita tiene cuenta: RN-01). */
+      if (to === 'terminada') await notify(b, appt, 'client', 'finished', appt.customerUserId ? { reviewUrl: `${frontUrl}/wstyle/cuenta/resena/?cita=${appt._id}` } : {});
       if (to === 'no_asistio') await notify(b, appt, 'client', 'no_show');
       if (to === 'no_asistio' && appt.customerUserId) {
         await CustomerProfile.updateOne({ businessId: b._id, userId: appt.customerUserId }, { $inc: { 'counters.noShows': 1 } }, { upsert: true }).catch(() => {});

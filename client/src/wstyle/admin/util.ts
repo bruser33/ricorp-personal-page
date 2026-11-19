@@ -1,7 +1,7 @@
 // Funciones puras del panel del super admin (probadas en util.test.ts).
 import type { AdminService, ExportContent, MembershipStatus, WeekDay } from './api';
 
-export type AdminSection = 'inicio' | 'barberos' | 'citas' | 'pagos' | 'rendicion' | 'carta' | 'horario' | 'estadisticas' | 'configuracion' | 'auditoria';
+export type AdminSection = 'inicio' | 'barberos' | 'citas' | 'pagos' | 'rendicion' | 'carta' | 'resenas' | 'horario' | 'estadisticas' | 'configuracion' | 'auditoria';
 export const SECTIONS: { key: AdminSection; label: string; path: string }[] = [
   { key: 'inicio', label: 'Inicio', path: '/wstyle/admin/' },
   { key: 'barberos', label: 'Barberos', path: '/wstyle/admin/barberos/' },
@@ -10,6 +10,8 @@ export const SECTIONS: { key: AdminSection; label: string; path: string }[] = [
   { key: 'pagos', label: 'Pagos', path: '/wstyle/admin/pagos/' },
   { key: 'rendicion', label: 'Rendición', path: '/wstyle/admin/rendicion/' },
   { key: 'carta', label: 'Carta', path: '/wstyle/admin/carta/' },
+  // SPEC-52: reseñas de clientes (ocultar / mostrar).
+  { key: 'resenas', label: 'Reseñas', path: '/wstyle/admin/resenas/' },
   { key: 'horario', label: 'Horario', path: '/wstyle/admin/horario/' },
   { key: 'estadisticas', label: 'Estadísticas', path: '/wstyle/admin/estadisticas/' },
   { key: 'configuracion', label: 'Configuración', path: '/wstyle/admin/configuracion/' },
@@ -111,5 +113,6 @@ export const AUDIT_LABEL: Record<string, string> = {
   'appointment.finish': 'Terminó cita', 'appointment.no_show': 'Marcó inasistencia', 'appointment.collect': 'Marcó cobrado', 'appointment.reassign': 'Reasignó cita', 'appointment.create': 'Agendó cita',
   'appointments.export': 'Exportó CSV', 'service.create': 'Creó servicio', 'service.update': 'Editó servicio', 'service.price': 'Cambió precio', 'service.archive': 'Archivó servicio', 'service.delete': 'Borró servicio',
   'content.export': 'Exportó JSON', 'schedule.hours': 'Cambió horario', 'schedule.closure_add': 'Agregó cierre', 'schedule.closure_remove': 'Quitó cierre', 'settings.update': 'Cambió configuración', 'account.password': 'Cambió su contraseña',
+  'review.hide': 'Ocultó reseña', 'review.show': 'Mostró reseña',
   'payment.boleta': 'Registró N° de boleta', 'rendicion.export': 'Exportó rendición', 'appointment.refund': 'Reembolsó pago', 'appointment.refund_failed': 'Reembolso fallido',
 };

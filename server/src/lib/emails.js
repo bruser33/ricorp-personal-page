@@ -69,7 +69,7 @@ const BARBER_SUBJECTS = {
 };
 export const BARBER_EVENT_TITLE = BARBER_SUBJECTS;
 
-export function appointmentMail({ kind, to, appt, when, proposalWhen, url, waUrl, cancelledBy, reason }) {
+export function appointmentMail({ kind, to, appt, when, proposalWhen, url, waUrl, cancelledBy, reason, reviewUrl }) {
   const barber = appt.professionalSnapshot?.displayName || 'tu barbero';
   const client = appt.customerSnapshot?.name || 'Cliente';
   const service = appt.serviceSnapshot?.name || 'Servicio';
@@ -88,6 +88,8 @@ export function appointmentMail({ kind, to, appt, when, proposalWhen, url, waUrl
     if (kind === 'expired') lines.push(`${barber} no alcanzó a confirmar a tiempo, así que la hora se liberó. Puedes reservar otra.`);
     if (kind === 'invited') lines.push(`${barber} te agendó una cita. Confírmala desde el link (el pago es en el local, en efectivo).`);
     if (kind === 'finished') lines.push(`Gracias por atenderte con ${barber}. ¡Te esperamos de vuelta!`);
+    /* SPEC-52: invitación a reseñar (toma un minuto y ayuda a otros a decidirse). */
+    if (kind === 'finished' && reviewUrl) lines.push('¿Cómo te fue? Cuéntalo en una reseña: toma un minuto y ayuda a otros a decidirse.');
     if (kind === 'no_show') lines.push(`${barber} registró que no llegaste a tu cita. Si fue un error, escríbenos por WhatsApp.`);
     if (kind === 'payment_incomplete') lines.push('No recibimos el pago a tiempo, así que la hora se liberó. Puedes reservar de nuevo cuando quieras.');
     if (kind === 'refunded') lines.push(`Te devolvimos ${money(appt.pricing?.totalCLP)} en el mismo medio con que pagaste en Mercado Pago. Según tu banco, puede tardar unos días en verse.`);
@@ -104,7 +106,7 @@ export function appointmentMail({ kind, to, appt, when, proposalWhen, url, waUrl
   if (bd.lines.length > 1) for (const l of bd.lines) lines.push(`${l.label}: ${money(l.amountCLP)}${l.hint ? ` (${l.hint})` : ''}`);
   lines.push(total);
   if (to === 'barber' && feesIncluded(appt.pricing)) lines.push(`Tu parte (servicio${appt.pricing?.surchargeCLP ? ' + domicilio' : ''}): ${money(appt.pricing.barberCLP ?? bd.lines[0].amountCLP)}`);
-  const links = [['Ver la cita', url]];
+  const links = kind === 'finished' && to === 'client' && reviewUrl ? [['Deja tu reseña', reviewUrl], ['Ver la cita', url]] : [['Ver la cita', url]];
   if (waUrl) links.push([to === 'client' ? `Escribir a ${barber} por WhatsApp` : `Escribir a ${client} por WhatsApp`, waUrl]);
   return { subject, template: `${to}_${kind}`, ...layout(subject.replace(' · WS Style', ''), lines, links) };
 }

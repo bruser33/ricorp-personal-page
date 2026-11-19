@@ -26,11 +26,20 @@ export interface AdminAppointment extends Omit<Appointment, 'customer' | 'pricin
 export interface Alert { kind: string; professionalId: string; name: string; count: number; message: string }
 export interface Overview {
   today: string;
-  cards: { pendingBarbers: number; today: number; pendingConfirm: number; refundsPending: number; monthRevenueCLP: number };
+  cards: { pendingBarbers: number; today: number; pendingConfirm: number; refundsPending: number; monthRevenueCLP: number; reviewsLast7d?: number };
   alerts: Alert[];
   unread: number;
   user: User;
 }
+// SPEC-52: reseña vista por el super admin (incluye ocultas, el cliente y el motivo interno).
+export interface AdminReview {
+  id: string; rating: number; comment: string; author: string; service: string; professional: string; createdAt: string; appointmentId: string;
+  status: 'visible' | 'hidden';
+  customer: { name: string; email: string | null };
+  hidden: { at: string | null; by: 'admin' | 'account_deleted'; reason: string } | null;
+}
+export interface AdminReviewList { page: number; pages: number; total: number; counts: { visible: number; hidden: number }; items: AdminReview[] }
+
 export interface AdminNotification { id: string; kind: string; title: string; body: string; appointmentId: string | null; professionalId: string | null; createdAt: string; read: boolean }
 
 export interface BarberRow { id: string; name: string; email: string | null; phone: string | null; photo: string | null; status: MembershipStatus; reason: string | null; submittedAt: string | null; createdAt: string | null }
@@ -130,6 +139,10 @@ export const admin = {
   stats: (from: string, to: string) => api<Stats>(`/api/admin/stats?${qs({ from, to })}`),
   settings: () => api<Settings>('/api/admin/settings'),
   saveSettings: (body: Partial<Pick<Settings, 'payments' | 'platformFeePercent' | 'paymentFeePercent' | 'paymentFeeVat'>> & { rules?: Partial<Record<RuleKey, number>> }) => send<Settings>('/api/admin/settings', 'PUT', body),
+  // SPEC-52: reseñas (filtros: visibles/ocultas, estrellas, búsqueda por cliente o texto), ocultar y mostrar.
+  reviews: (q: { status?: string; rating?: string; q?: string; page?: number }) => api<AdminReviewList>(`/api/admin/reviews?${qs({ status: q.status ?? '', rating: q.rating ?? '', q: q.q ?? '', page: String(q.page ?? 1) })}`),
+  hideReview: (rid: string, reason = '') => send<{ ok: boolean; status: string }>(`/api/admin/reviews/${id(rid)}/hide`, 'POST', { reason }),
+  showReview: (rid: string) => send<{ ok: boolean; status: string }>(`/api/admin/reviews/${id(rid)}/show`, 'POST'),
   audit: (page = 1, action = '') => api<{ page: number; pages: number; total: number; items: AuditItem[] }>(`/api/admin/audit?${qs({ page: String(page), action })}`),
 };
 

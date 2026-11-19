@@ -2,25 +2,53 @@ import { toCLP } from '../lib';
 import { clp, ext } from '../links';
 import { str, type SiteContent } from '../content';
 import { Extra } from './Section';
+import { countLabel, formatAverage, hasVisibleReviews, reviewDate, roundHalf, starsLabel, type ReviewsPage } from '../reviews';
 import './Extras.css';
 
-// Paneles de venta (SPEC-15 AC-08, PR #9 D1/D5). Todo sale de site.json. Barberos y reseñas solo se publican con
-// enabled:true (no se muestra relleno); la carta y la membresía quedan cubiertas por la franja de demostración.
+// Paneles de venta (SPEC-15 AC-08, PR #9 D1/D5). Salen de site.json; los barberos solo se publican con enabled:true
+// (no se muestra relleno). Las reseñas salen de la BD (SPEC-52); la carta y la membresía quedan cubiertas por la franja
+// de demostración.
 
-export function Reviews({ site, label }: { site: SiteContent; label: string }) {
-  const r = site.reviews, items = (r?.items ?? []).filter((x) => x && str(x.text));
-  if (!r?.enabled || !items.length) return null;
+// Cinco estrellas latón (únicas del acento). `value` puede ser medio punto (promedio); el texto lo lee el lector de
+// pantalla, las estrellas son decorativas.
+export function Stars({ value, label, className = '' }: { value: number; label: string; className?: string }) {
   return (
-    <Extra id="resenas" label={label} title="LO QUE DICEN.">
-      <div className="reviews reveal">
-        {items.map((x, i) => (
-          <figure className="review" key={i}>
-            <div className="review__stars" aria-label={`${x.rating ?? 5} de 5`}>{'★'.repeat(Math.max(0, Math.min(5, x.rating ?? 5)))}</div>
-            <blockquote>{x.text}</blockquote>
-            {str(x.author) && <figcaption>{x.author}{str(r.source) && <span> · {r.source}</span>}</figcaption>}
+    <span className={`stars ${className}`.trim()} role="img" aria-label={label}>
+      {[1, 2, 3, 4, 5].map((i) => <span key={i} aria-hidden="true" className={value >= i ? 'stars__s is-on' : value >= i - .5 ? 'stars__s is-half' : 'stars__s'}>★</span>)}
+    </span>
+  );
+}
+
+// "Lo que dicen" (SPEC-52): promedio, cantidad y las reseñas visibles más recientes (6 + "Ver más"). Sin reseñas no se
+// renderiza nada (RN-11). El comentario es SIEMPRE texto (nunca HTML); las URL se ven como texto, sin enlace.
+export function Reviews({ data, label, onMore, loadingMore = false }: { data: ReviewsPage | null; label: string; onMore?: () => void; loadingMore?: boolean }) {
+  if (!hasVisibleReviews(data)) return null;
+  const { average, count } = data.summary;
+  return (
+    <Extra id="resenas" label={label} title="LO QUE DICEN." className="panel--reviews">
+      <div className="reviews-summary reveal" data-reviews-summary="">
+        <p className="reviews-summary__avg">{formatAverage(average)}</p>
+        <div>
+          <Stars value={roundHalf(average)} label={`Promedio: ${starsLabel(Number(formatAverage(average).replace(',', '.')))}`} className="stars--lg" />
+          <p className="reviews-summary__count">{countLabel(count)}</p>
+        </div>
+      </div>
+      <div className="reviews reveal" data-list="reviews">
+        {data.items.map((x) => (
+          <figure className="review" key={x.id}>
+            <Stars value={x.rating} label={starsLabel(x.rating)} className="review__stars" />
+            <blockquote>“{x.comment}”</blockquote>
+            <figcaption>{[x.author, x.service, reviewDate(x.createdAt)].filter(Boolean).join(' · ')}</figcaption>
           </figure>
         ))}
       </div>
+      {data.hasMore && onMore && (
+        <div className="reviews-more">
+          <button type="button" className="btn btn--ghost" data-cta="more-reviews" onClick={onMore} disabled={loadingMore} aria-busy={loadingMore || undefined}>
+            {loadingMore ? 'Cargando…' : 'Ver más reseñas'}
+          </button>
+        </div>
+      )}
     </Extra>
   );
 }
