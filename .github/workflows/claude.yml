@@ -1,0 +1,97 @@
+# Claude en GitHub: las tareas se piden y se responden desde issues y PRs (sirve desde el celular).
+# Se activa cuando alguien con permiso de escritura en el repo (bruser33 o jhoncamacho017-ai)
+# escribe "@claude" en una issue, un comentario o una revisión de PR. Ver "Modo GitHub" en CLAUDE.md.
+#
+# Secretos (Settings → Secrets and variables → Actions). Basta UNO de los dos primeros:
+#   CLAUDE_CODE_OAUTH_TOKEN  → token de tu suscripción de Claude (`claude setup-token`).
+#   ANTHROPIC_API_KEY        → clave de la API de Anthropic (se cobra por uso).
+#   PROJECT_TOKEN (opcional) → PAT clásico de bruser33 con scope `project`, para mover tarjetas
+#                              del board #2. Sin él, Claude no toca el board (el GITHUB_TOKEN
+#                              no tiene acceso a proyectos de usuario).
+name: Claude (tareas desde GitHub)
+
+on:
+  issues:
+    types: [opened, assigned]
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+  pull_request_review:
+    types: [submitted]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  id-token: write
+  actions: read
+
+# Una sola corrida a la vez por issue/PR; las siguientes esperan su turno (no se cancelan).
+concurrency:
+  group: claude-${{ github.event.issue.number || github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  claude:
+    if: >-
+      (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude'))) ||
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    env:
+      # Solo para el runner: BD efímera en el contenedor, sin correos reales ni credenciales de prod.
+      MONGO_URI: mongodb://localhost:27017/pagina_personal?replicaSet=rs0
+      MONGO_TEST_URI: mongodb://localhost:27017/wstyle_test?replicaSet=rs0
+      PORT: "4000"
+      FRONT_URL: http://localhost:5173
+      ALLOWED_ORIGINS: http://localhost:5173,http://127.0.0.1:5173
+      AUTH_SECRET: solo-ci-no-es-un-secreto-real-0123456789
+      MAIL_DRY_RUN: "1"
+      OWORK_CI: "1"
+      GH_PROJECT_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            client/package-lock.json
+            server/package-lock.json
+
+      - name: MongoDB como replica set (las reservas usan transacciones)
+        run: |
+          docker run -d --name mongo -p 27017:27017 mongo:8 --replSet rs0 --bind_ip_all
+          for i in $(seq 1 30); do
+            docker exec mongo mongosh --quiet --eval 'db.runCommand({ping:1}).ok' >/dev/null 2>&1 && break
+            sleep 2
+          done
+          docker exec mongo mongosh --quiet --eval 'rs.initiate({_id:"rs0",members:[{_id:0,host:"localhost:27017"}]})'
+
+      - name: Dependencias y navegador para la verificación
+        run: |
+          npm ci --prefix client
+          npm ci --prefix server
+          # Misma versión de Playwright que trae @playwright/mcp@0.0.84 (.github/claude/mcp.json),
+          # para que el MCP encuentre el Chromium instalado. Si se sube el MCP, subir esto igual.
+          npx -y playwright@1.65.0-alpha-2026-10-30 install --with-deps chromium
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          trigger_phrase: "@claude"
+          branch_prefix: "claude/"
+          claude_args: |
+            --model claude-opus-5-5
+            --max-turns 400
+            --mcp-config .github/claude/mcp.json
+            --allowedTools "Bash,Read,Edit,Write,Glob,Grep,Task,TodoWrite,WebFetch,WebSearch,Skill,mcp__playwright__*"
+            --append-system-prompt "Estás corriendo en GitHub Actions, no en el computador de Pedro. Antes de hacer nada lee la sección 'Modo GitHub' de CLAUDE.md y síguela al pie de la letra: ahí está cómo escribir specs, cómo hacer preguntas por comentario y cómo ejecutar /owork aquí."
