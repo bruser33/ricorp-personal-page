@@ -300,6 +300,17 @@ const AppointmentSchema = new Schema(
     /* Invitación del barbero (SPEC-33 RN-12): el token va en el link que se manda por WhatsApp. */
     invite: { token: String, sentAt: Date },
     note: String,
+    /* SPEC-59: referencia de estilo. Del catálogo se congela el nombre (RN-05); la foto propia
+       del cliente es un id de GridFS (nunca el binario). `clientPhotoState` explica por qué ya
+       no está: quitada por el local, expirada (90 días) o borrada con la cuenta. */
+    reference: {
+      styleId: ObjectId,
+      styleName: String,
+      stylePhotoId: String,
+      clientPhotoId: String,
+      clientPhotoState: { type: String, enum: ['removed', 'expired', 'deleted'] },
+      clientPhotoChangedAt: Date,
+    },
     status: { type: String, enum: STATUSES, required: true },
     /* Pendiente: hasta cuándo puede confirmar el barbero (RN-11). */
     expiresAt: Date,
@@ -448,6 +459,43 @@ PaymentEventSchema.index({ mpPaymentId: 1, status: 1 }, { unique: true });
 PaymentEventSchema.index({ appointmentId: 1, createdAt: 1 });
 export const PaymentEvent = model('PaymentEvent', PaymentEventSchema);
 
+/* ─── SPEC-59: catálogo de estilos (fotos de trabajos) y fotos de referencia de clientes. */
+const StyleSchema = new Schema(
+  {
+    businessId: { type: ObjectId, required: true },
+    photoId: { type: String, required: true },
+    name: { type: String, required: true },
+    /* Slug de la categoría de servicio (SPEC-51): barberia | decoloracion | ondulacion | tratamientos. */
+    category: { type: String, required: true },
+    /* Vacío = todos los servicios de su categoría (RN-06). */
+    serviceIds: { type: [ObjectId], default: [] },
+    uploadedByUserId: { type: ObjectId, required: true },
+    /* null = lo subió el super admin; si no, el barbero dueño (RN-08). */
+    professionalId: { type: ObjectId, default: null },
+    order: { type: Number, default: 0 },
+    active: { type: Boolean, default: true },
+  },
+  { timestamps: true }
+);
+StyleSchema.index({ businessId: 1, active: 1, order: 1, createdAt: -1 });
+StyleSchema.index({ photoId: 1 });
+export const Style = model('Style', StyleSchema);
+
+/* Foto propia del cliente. Sin `appointmentId` = provisional (RN-03: se borra a las 24 h). */
+const ClientPhotoSchema = new Schema(
+  {
+    businessId: { type: ObjectId, required: true },
+    userId: { type: ObjectId, required: true },
+    fileId: { type: String, required: true },
+    appointmentId: { type: ObjectId, default: null },
+    uploadedAt: { type: Date, required: true },
+  },
+  { versionKey: false }
+);
+ClientPhotoSchema.index({ userId: 1, appointmentId: 1 });
+ClientPhotoSchema.index({ fileId: 1 }, { unique: true });
+ClientPhotoSchema.index({ appointmentId: 1, uploadedAt: 1 });
+export const ClientPhoto = model('ClientPhoto', ClientPhotoSchema);
 /* SPEC-52: reseña de un cliente sobre una cita `terminada`. El índice único por cita es la garantía de "una por
    cita" (RN-02, también con dos pestañas a la vez). Nombre, servicio y barbero se copian al crearla (RN-06, CB-12). */
 const ReviewSchema = new Schema(
@@ -489,5 +537,7 @@ export const ALL_MODELS = [
   PlatformSettings,
   AuditLog,
   PaymentEvent,
+  Style,
+  ClientPhoto,
   Review,
 ];

@@ -7,6 +7,8 @@ import { NO_FEES, pct, quote as priceQuote } from '../pricing';
 import Calendar, { TimeChips } from '../components/Calendar';
 import Shell from '../components/Shell';
 import { Field, MotoIcon, Notice, Spinner, Unavailable } from '../components/ui';
+import { ReferenceSummary, StylePicker, Thumb } from '../components/StylePhotos';
+import { NO_CHOICE, type StyleChoice } from '../styles';
 import {
   addDays, buildIcs, clMobile, clp, dayMonthTime, fieldMessage, loadSelection, localDate, longDay, MAX_NOTE, prettyPhone,
   mergeSelection, saveSelection, selectionFromQuery, selectionToQuery, type Selection,
@@ -53,6 +55,8 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
   const [gateNotice, setGateNotice] = useState<string | null>(null);
   const [done, setDone] = useState<{ appt: Appointment; mailOk?: boolean } | null>(null);
   const [redirecting, setRedirecting] = useState(false);
+  // SPEC-59: "Tu estilo" (opcional). La foto propia ya está subida (provisional) cuando se elige.
+  const [styleChoice, setStyleChoice] = useState<StyleChoice>(NO_CHOICE);
   const idem = useRef(newKey());
   const authedInFlow = useRef(false);
   const restored = useRef(false);
@@ -127,7 +131,7 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
   useEffect(() => { heading.current?.focus(); }, [step]);
 
   // ─── Acciones de cada paso
-  const pickService = (id: string) => { update({ serviceId: id, startsAt: undefined }); setQuote(null); };
+  const pickService = (id: string) => { if (id !== sel.serviceId) setStyleChoice((c) => ({ ...c, style: null })); update({ serviceId: id, startsAt: undefined }); setQuote(null); };
   const pickPro = (id: string) => { update({ professionalId: id, startsAt: undefined }); setQuote(null); };
   const pickDay = (date: string) => update({ date, startsAt: undefined });
   const pickSlot = (s: Slot) => { update({ startsAt: s.startsAt }); setSlotPros(s.professionalIds); setNotice(null); };
@@ -198,6 +202,7 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
         serviceId: sel.serviceId, professionalId: sel.professionalId, startsAt: sel.startsAt, mode,
         address: mode === 'home' ? sel.address : undefined, phone: needPhone ? phone : undefined, note: sel.note ?? '',
         acceptPolicies: accept, paymentMethod: pay, idempotencyKey: idem.current, website,
+        styleId: styleChoice.style?.id, clientPhotoId: styleChoice.photo?.id,
         // SPEC-58: canal del link (sin UTM → el server guarda "directo").
         origin: sel.origin,
       });
@@ -216,6 +221,7 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
         return;
       }
       setDone({ appt: r.appointment, mailOk: r.mailOk });
+      setStyleChoice(NO_CHOICE);
       setSel({});
       setStep(5);
     } catch (err) {
@@ -232,6 +238,12 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
         return;
       }
       if (err.code === 'out_of_range' || err.code === 'address_not_found') { setQuote(null); setQuoteErr(err.message); setStep(3); return; }
+      // SPEC-59 CB-08: el estilo o la foto ya no están → se quita la referencia y se puede confirmar sin ella.
+      if (err.fields.styleId || err.fields.clientPhotoId) {
+        setStyleChoice((c) => ({ style: err.fields.styleId ? null : c.style, photo: err.fields.clientPhotoId ? null : c.photo }));
+        setSubmitError(err.message);
+        return;
+      }
       if (Object.keys(err.fields).length) { setErrors(Object.fromEntries(Object.entries(err.fields).map(([k, v]) => [k, k === 'acceptPolicies' ? 'Debes aceptar las políticas para agendar.' : fieldMessage(v)]))); return; }
       setSubmitError(err.message);
     } finally {
@@ -336,6 +348,9 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
                     </button>
                   )}
                 </fieldset>
+              )}
+              {service && sel.professionalId && (sel.professionalId === 'any' || pro) && (
+                <StylePicker serviceId={service.id} serviceName={service.name} value={styleChoice} onChange={setStyleChoice} />
               )}
               <div className="ag-actions">
                 <button type="button" className="btn btn--primary" disabled={!service || !sel.professionalId || !(sel.professionalId === 'any' || pro)} onClick={() => { setNotice(null); setStep(2); }}>Continuar</button>
@@ -464,7 +479,16 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
             <div><dt>Barbero</dt><dd>{proName || '—'}</dd></div>
             <div><dt>Fecha y hora</dt><dd>{sel.startsAt ? `${longDay(localDate(sel.startsAt))}, ${dayMonthTime(sel.startsAt).split(', ')[1]}` : '—'}</dd></div>
             <div><dt>Dónde</dt><dd>{step >= 3 ? (mode === 'home' ? `A domicilio${where ? ` · ${where}` : ''}` : `En el local · ${where}`) : '—'}</dd></div>
+            {(styleChoice.style || styleChoice.photo) && (
+              <div data-summary-style=""><dt>Estilo</dt><dd>{styleChoice.style?.name ?? 'Tu foto'}</dd></div>
+            )}
           </dl>
+          {(styleChoice.style || styleChoice.photo) && (
+            <div className="st-ref__thumbs st-summary-thumbs">
+              {styleChoice.style && <Thumb src={styleChoice.style.photoUrl} alt={`Estilo ${styleChoice.style.name}`} size={56} />}
+              {styleChoice.photo && (styleChoice.photo.preview ? <Thumb src={styleChoice.photo.preview} alt="Tu foto" size={56} /> : <Thumb privatePath={styleChoice.photo.url} alt="Tu foto" size={56} />)}
+            </div>
+          )}
           {service && (
             <>
               <dl className="ag-breakdown ag-summary__breakdown" data-breakdown="summary" aria-live="polite">
@@ -494,6 +518,7 @@ function Success({ appt, mailOk }: { appt: Appointment; mailOk?: boolean }) {
     <section className="ag-card ag-success" aria-labelledby="ag-ok">
       <h1 className="ag-h1" id="ag-ok" data-success="">NUEVA CITA — esperando confirmación de {appt.professional.name} — {dayMonthTime(appt.startsAt)}</h1>
       <p className="ag-muted">{appt.service.name} · {appt.location.kind === 'home' ? `A domicilio · ${appt.location.address}` : 'En el local'} · Total {clp.format(appt.pricing.totalCLP)}</p>
+      <ReferenceSummary reference={appt.reference} />
       <p>Te avisaremos por correo cuando {appt.professional.name} la confirme.</p>
       {mailOk === false && <Notice>No pudimos enviarte el correo. Guarda este link de tu cita: <a href={url}>{url}</a></Notice>}
       <div className="ag-actions ag-actions--wrap">

@@ -1,4 +1,5 @@
 import type { PricingView, Rates } from './pricing';
+import type { Reference } from './styles';
 // Cliente HTTP de la agenda (SPEC-32). Misma base que Contacto (VITE_API_URL). La sesión viaja en una cookie
 // httpOnly: front y API tienen que estar en el MISMO host (localhost ↔ localhost; 127.0.0.1 es otro sitio y la
 // cookie no viaja). Todo error vuelve como ApiError con el código estable del server.
@@ -103,6 +104,9 @@ export interface Appointment {
   pricing: PricingView;
   payment: Payment;
   note: string;
+  // SPEC-59: estilo del catálogo y/o foto propia del cliente (privada).
+  reference?: Reference | null;
+  canChangeReference?: boolean;
   proposal: { startsAt: string; when: string; expiresAt?: string } | null;
   actions: Action[];
   role: 'client' | 'barber' | 'admin';

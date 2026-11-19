@@ -30,6 +30,7 @@ import { entriesToWeek, weekToSiteRows } from './hours.js';
 import { applyLocalCollection, boletaClash, isBoletaClash, parseCollectInput } from './tax.js';
 import { TAX_DOCUMENT_PROVIDERS } from '../lib/taxDocuments.js';
 import { currentRates, pricingView, quote, ratesView } from './pricing.js';
+import { attachPhoto, referenceView, resolveReference } from './styles.js';
 import { canReview } from './reviews.js';
 import { normalizeOrigin } from './origin.js';
 
@@ -324,6 +325,8 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
     else if (payMethod === 'local' && !payOpts.local) fields.paymentMethod = 'payment_unavailable';
     else if (payMethod === 'online' && !payOpts.online) fields.paymentMethod = 'payment_unavailable';
     if (Object.keys(fields).length) throw new HttpError(400, Object.values(fields)[0], 'Revisa los datos', { fields });
+    /* SPEC-59: estilo del catálogo y/o foto propia provisional (opcionales, RN-01). */
+    const { reference, photo: refPhoto } = await resolveReference(b, user, input);
 
     let pros = await professionals(b, { service, mode });
     const wanted = input.professionalId && input.professionalId !== 'any' ? String(input.professionalId) : 'any';
@@ -399,6 +402,7 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
         pricing,
         payment: online ? { method: 'online', status: 'pendiente', holdStartedAt: new Date(now) } : { method: 'local', status: 'pendiente' },
         note: note || undefined,
+        reference,
         status: firstStatus,
         expiresAt: new Date(online ? now + PAYMENT_HOLD_MIN * MIN : confirmDeadline(b, startsAt, now)),
         history: [{ at: new Date(now), from: null, to: firstStatus, by: 'client', byUserId: user._id }],
@@ -420,6 +424,7 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
             throw err;
           }
         }, logger);
+        if (!(await attachPhoto(refPhoto, appt._id)) && appt.reference) appt.reference.clientPhotoId = undefined;
         if (!user.phoneE164 || user.phoneE164 !== phone) await User.updateOne({ _id: user._id }, { phoneE164: phone });
         await CustomerProfile.updateOne({ businessId: b._id, userId: user._id }, { $inc: { 'counters.appointments': 1 } }, { upsert: true }).catch(() => {});
         /* En línea: los correos de "reserva recibida" salen cuando se aprueba el pago (RN-04). */
@@ -596,6 +601,9 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
       pricing: pricingView(appt.pricing),
       payment: paymentView(appt),
       note: appt.note || '',
+      /* SPEC-59: estilo elegido y foto propia (privada: la URL exige sesión). */
+      reference: await referenceView(appt),
+      canChangeReference: role === 'client' && !FINAL.includes(appt.status),
       proposal: p ? { startsAt: p.startsAt.toISOString(), when: formatLong(p.startsAt.getTime(), tz), expiresAt: p.expiresAt?.toISOString() } : null,
       actions: actionsFor(appt, role, b, now),
       role,

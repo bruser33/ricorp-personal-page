@@ -15,6 +15,7 @@ import PaymentsPage from './pages/PaymentsPage';
 import RendicionPage from './pages/RendicionPage';
 import ReviewsPage from './pages/ReviewsPage';
 import SchedulePage from './pages/SchedulePage';
+import StylesPage from './pages/StylesPage';
 import ServicesPage from './pages/ServicesPage';
 import SettingsPage from './pages/SettingsPage';
 import StatsPage from './pages/StatsPage';
@@ -109,6 +110,7 @@ export default function AdminApp({ fbReturn }: { fbReturn: FacebookReturn | null
     pagos: <PaymentsPage />,
     rendicion: <RendicionPage />,
     carta: <ServicesPage />,
+    estilos: <StylesPage />,
     resenas: <ReviewsPage />,
     horario: <SchedulePage />,
     estadisticas: <StatsPage />,

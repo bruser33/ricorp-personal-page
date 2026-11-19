@@ -1,8 +1,9 @@
 /* API de la agenda de WS Style: /api/wstyle/... (SPEC-32). */
 import express from 'express';
 import { HttpError, handle } from '../lib/errors.js';
+import { imageUpload, notFoundPhoto, photoFile, streamPhoto } from '../lib/photos.js';
 
-export function createWstyleRouter({ agenda, payments, reviews, logger, bookingLimiter, reviewLimiter = (_req, _res, next) => next() }) {
+export function createWstyleRouter({ agenda, payments, reviews, logger, bookingLimiter, reviewLimiter = (_req, _res, next) => next(), styles = null }) {
   const r = express.Router();
   const h = (fn) => handle(fn, logger);
   const requireUser = (req) => {
@@ -11,6 +12,22 @@ export function createWstyleRouter({ agenda, payments, reviews, logger, bookingL
   };
 
   r.get('/catalog', h(async (_req, res) => res.json(await agenda.catalog())));
+
+  /* SPEC-59: catálogo de estilos (público, solo activos) y foto de referencia del cliente. */
+  if (styles) {
+    r.get('/styles', h(async (req, res) => res.json(await styles.publicList({ service: String(req.query.service || '') }))));
+    /* La sesión se revisa ANTES de recibir el archivo (no se bufferean fotos de anónimos). */
+    r.post('/reference-photo', h(async (req, _res, next) => { requireUser(req); next(); }), imageUpload({ field: 'photo' }), h(async (req, res) => res.status(201).json(await styles.uploadClientPhoto(req.user, req.file))));
+    r.delete('/reference-photo/:id', h(async (req, res) => res.json(await styles.discardClientPhoto(requireUser(req), req.params.id))));
+    /* RN-04: privada. Sin sesión → 401; con sesión y sin permiso → 404 (no revela si existe). */
+    r.get('/reference-photos/:id', h(async (req, res) => {
+      requireUser(req);
+      const file = await photoFile(req.params.id);
+      if (!file || file.metadata?.kind !== 'client' || !(await styles.canSeeClientPhoto(req.user, req.params.id))) return notFoundPhoto(res);
+      streamPhoto(file, res, { restricted: true });
+    }));
+    r.put('/appointments/:id/reference', h(async (req, res) => res.json(await styles.changeReference(requireUser(req), req.params.id, req.body || {}))));
+  }
 
   r.get('/availability', h(async (req, res) => {
     const q = req.query;

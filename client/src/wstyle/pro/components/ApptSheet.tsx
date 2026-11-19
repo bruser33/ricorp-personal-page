@@ -1,6 +1,7 @@
 import PriceBreakdown from '../../agenda/components/PriceBreakdown';
 import { useState, type FormEvent } from 'react';
 import { MotoIcon, Notice, StatusPill } from '../../agenda/components/ui';
+import { ReferenceSummary } from '../../agenda/components/StylePhotos';
 import { localDate, localTime, longDay, prettyPhone } from '../../agenda/util';
 import type { ProAppointment } from '../api';
 import { useProActions } from '../useActions';
@@ -75,6 +76,8 @@ export default function ApptSheet({ appt: initial, mode: initialMode = 'detail',
             {/* SPEC-38: lo que paga el cliente (con la tarifa de servicio) y la parte del barbero. */}
             <PriceBreakdown pricing={appt.pricing} totalLabel="Total que paga el cliente" barberShare />
           </dl>
+          {/* SPEC-59: lo que busca el cliente (miniatura de 64 px que se abre en grande). */}
+          <ReferenceSummary reference={appt.reference} title="Referencia del cliente" staff />
           <div className="pro-card__contact">
             {home && appt.mapsUrl && <a className="pro-chip" href={appt.mapsUrl} target="_blank" rel="noopener">Cómo llegar</a>}
             {appt.telUrl && <a className="pro-chip" href={appt.telUrl}>Llamar</a>}
