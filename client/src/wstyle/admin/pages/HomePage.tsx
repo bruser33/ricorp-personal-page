@@ -37,6 +37,9 @@ export default function HomePage({ onUnread }: { onUnread: (n: number) => void }
               <li><a className="adm-card" href="/wstyle/admin/barberos/" data-card="pending-barbers"><span className="adm-card__n">{o.cards.pendingBarbers}</span><span className="adm-card__l">Barberos por aprobar</span></a></li>
               <li><a className="adm-card" href="/wstyle/admin/citas/?rango=hoy" data-card="today"><span className="adm-card__n">{o.cards.today}</span><span className="adm-card__l">Citas de hoy</span></a></li>
               <li><a className="adm-card" href="/wstyle/admin/citas/?estado=pendiente" data-card="pending-confirm"><span className="adm-card__n">{o.cards.pendingConfirm}</span><span className="adm-card__l">Pendientes de confirmar</span></a></li>
+              {/* SPEC-56: "3 señas por revisar". */}
+              {(o.cards.depositsToReview ?? 0) > 0 && <li><a className="adm-card pay-card--warn" href="/wstyle/admin/pagos/?vista=senas" data-card="deposits"><span className="adm-card__n">{o.cards.depositsToReview}</span><span className="adm-card__l">{o.cards.depositsToReview === 1 ? 'Seña por revisar' : 'Señas por revisar'}</span></a></li>}
+              {(o.cards.depositsToRefund ?? 0) > 0 && <li><a className="adm-card" href="/wstyle/admin/pagos/?vista=senas" data-card="deposits-refund"><span className="adm-card__n">{o.cards.depositsToRefund}</span><span className="adm-card__l">Señas por devolver</span></a></li>}
               <li><a className="adm-card" href="/wstyle/admin/citas/?pago=reembolso_pendiente" data-card="refunds"><span className="adm-card__n">{o.cards.refundsPending}</span><span className="adm-card__l">Reembolsos pendientes</span></a></li>
               <li><a className="adm-card adm-card--wide" href="/wstyle/admin/estadisticas/" data-card="revenue"><span className="adm-card__n">{clp.format(o.cards.monthRevenueCLP)}</span><span className="adm-card__l">Ingresos del mes</span></a></li>
             </ul>

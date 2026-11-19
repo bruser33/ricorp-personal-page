@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
-import { agenda, API_BASE, ApiError, auth, type Appointment, type Catalog, type Quote, type Slot } from '../api';
+import { agenda, API_BASE, ApiError, auth, type Appointment, type Catalog, type DepositPreview, type Quote, type Slot } from '../api';
+import { DepositNotice } from '../components/DepositBox';
 import type { AgendaCtx } from '../ctx';
 import AuthPanel from '../components/AuthPanel';
 import PriceBreakdown from '../components/PriceBreakdown';
@@ -47,6 +48,9 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
   const [busy, setBusy] = useState(false);
   const [phone, setPhone] = useState('');
   const [accept, setAccept] = useState(false);
+  // SPEC-56: seña por transferencia (solo si el local la pide a este cliente y paga en el local).
+  const [depositInfo, setDepositInfo] = useState<DepositPreview | null>(null);
+  const [acceptDeposit, setAcceptDeposit] = useState(false);
   const [website, setWebsite] = useState('');
   // SPEC-34 RN-08: formas de pago que habilitó el admin (sin datos del catálogo: solo en el local).
   const [payPick, setPayPick] = useState<'local' | 'online' | null>(null);
@@ -184,6 +188,18 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
   const price = priceQuote(service?.priceCLP ?? 0, surcharge, rates);
   const total = price.totalCLP;
 
+  // SPEC-56: en el paso 4, ¿esta hora pide seña? (el server decide según la regla del local y el historial del cliente).
+  const depositOn = Boolean(catalog?.business.deposit?.enabled);
+  useEffect(() => {
+    if (step !== 4 || !depositOn || pay !== 'local' || !user || !sel.startsAt) return;
+    let alive = true;
+    agenda.depositPreview({ serviceId: sel.serviceId, professionalId: sel.professionalId, startsAt: sel.startsAt, mode })
+      .then((r) => alive && setDepositInfo(r))
+      .catch(() => alive && setDepositInfo(null));
+    return () => { alive = false; };
+  }, [step, depositOn, pay, user, sel.serviceId, sel.professionalId, sel.startsAt, mode]);
+  const needsDeposit = pay === 'local' && depositOn && Boolean(depositInfo?.required);
+
   async function submit(e: FormEvent) {
     e.preventDefault();
     if (!user || busy) return;
@@ -192,6 +208,7 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
     if (needPhone && !clMobile(phone)) errs.phone = fieldMessage('invalid_phone');
     if ((sel.note ?? '').length > MAX_NOTE) errs.note = fieldMessage('too_long');
     if (!accept) errs.acceptPolicies = 'Debes aceptar las políticas para agendar.';
+    if (needsDeposit && !acceptDeposit) errs.acceptDeposit = 'Marca que entiendes las condiciones de la seña.';
     setErrors(errs);
     if (Object.values(errs).some(Boolean)) return;
     setBusy(true);
@@ -201,6 +218,7 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
         serviceId: sel.serviceId, professionalId: sel.professionalId, startsAt: sel.startsAt, mode,
         address: mode === 'home' ? sel.address : undefined, phone: needPhone ? phone : undefined, note: sel.note ?? '',
         acceptPolicies: accept, paymentMethod: pay, idempotencyKey: idem.current, website,
+        ...(needsDeposit ? { acceptDeposit } : {}),
       });
       if (!r.appointment) { setSubmitError('No pudimos agendar. Inténtalo de nuevo.'); return; }
       // SPEC-35: "Pagar en línea" → la cita queda esperando el pago (15 min) y se va a Mercado Pago. Si no se puede
@@ -214,6 +232,13 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
         } catch {
           location.assign(`/wstyle/cita/?id=${encodeURIComponent(r.id)}&pago=error`);
         }
+        return;
+      }
+      // SPEC-56: con seña, directo a la página de la cita ("Deja tu seña", con la cuenta regresiva).
+      if (r.appointment.status === 'pendiente_sena') {
+        setRedirecting(true);
+        saveSelection({});
+        location.assign(`/wstyle/cita/?id=${encodeURIComponent(r.id)}`);
         return;
       }
       setDone({ appt: r.appointment, mailOk: r.mailOk });
@@ -233,7 +258,7 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
         return;
       }
       if (err.code === 'out_of_range' || err.code === 'address_not_found') { setQuote(null); setQuoteErr(err.message); setStep(3); return; }
-      if (Object.keys(err.fields).length) { setErrors(Object.fromEntries(Object.entries(err.fields).map(([k, v]) => [k, k === 'acceptPolicies' ? 'Debes aceptar las políticas para agendar.' : fieldMessage(v)]))); return; }
+      if (Object.keys(err.fields).length) { setErrors(Object.fromEntries(Object.entries(err.fields).map(([k, v]) => [k, k === 'acceptPolicies' ? 'Debes aceptar las políticas para agendar.' : k === 'acceptDeposit' ? 'Marca que entiendes las condiciones de la seña.' : fieldMessage(v)]))); return; }
       setSubmitError(err.message);
     } finally {
       setBusy(false);
@@ -437,6 +462,12 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
                       </label>
                     )}
                   </fieldset>
+                  {needsDeposit && depositInfo && (
+                    depositInfo.tooSoon
+                      ? <Notice tone="error">Esta hora es muy pronto para pagar la seña. Elige otra{payments.online ? ' o paga en línea' : ''}.</Notice>
+                      : <DepositNotice amountCLP={depositInfo.amountCLP ?? 0} restCLP={depositInfo.restCLP ?? 0} minutes={depositInfo.minutes ?? 30} accepted={acceptDeposit} error={errors.acceptDeposit}
+                          onAccept={(v) => { setAcceptDeposit(v); setErrors((x) => ({ ...x, acceptDeposit: undefined })); }} />
+                  )}
                   <div className={`ag-field ag-check${errors.acceptPolicies ? ' has-error' : ''}`}>
                     <label>
                       <input type="checkbox" checked={accept} onChange={(e) => { setAccept(e.target.checked); setErrors((x) => ({ ...x, acceptPolicies: undefined })); }} aria-invalid={errors.acceptPolicies ? true : undefined} aria-describedby={errors.acceptPolicies ? 'ag-pol-err' : undefined} />
@@ -449,8 +480,8 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
                   {submitError && <Notice tone="error">{submitError}</Notice>}
                   <div className="ag-actions">
                     <button type="button" className="btn btn--ghost" onClick={() => setStep(3)}>Volver</button>
-                    <button className="btn btn--primary" disabled={busy || redirecting} aria-busy={busy || redirecting} data-pay={pay}>
-                      {redirecting ? 'Abriendo Mercado Pago…' : busy ? 'Agendando…' : pay === 'online' ? `Ir a pagar ${clp.format(total)}` : 'Agendar cita'}
+                    <button className="btn btn--primary" disabled={busy || redirecting || Boolean(needsDeposit && depositInfo?.tooSoon)} aria-busy={busy || redirecting} data-pay={pay}>
+                      {redirecting ? (needsDeposit ? 'Abriendo tu cita…' : 'Abriendo Mercado Pago…') : busy ? 'Agendando…' : pay === 'online' ? `Ir a pagar ${clp.format(total)}` : 'Agendar cita'}
                     </button>
                   </div>
                 </form>

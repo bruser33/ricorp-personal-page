@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Notice, Spinner } from '../../agenda/components/ui';
 import { addDays, localDate, localTime, longDay } from '../../agenda/util';
+import { depositTag } from '../../agenda/deposit';
 import type { AgendaDay, ProAppointment } from '../api';
 import type { SheetMode } from '../components/ApptCard';
 import ApptSheet from '../components/ApptSheet';
@@ -124,10 +125,11 @@ export default function AgendaPage({ ctx }: { ctx: ProCtx }) {
                     const b = blockBox(a, range.startMin, PX);
                     return (
                       <button key={a.id} type="button" className={`pro-block pro-block--${a.status}${a.location.kind === 'home' ? ' is-home' : ''}${b.height < 40 ? ' is-short' : ''}`} style={{ top: b.top, height: b.height }}
-                        data-appt={a.id} aria-label={`${localTime(a.startsAt)} ${a.customer.name}, ${a.service.name}, ${a.statusLabel}`}
+                        data-appt={a.id} aria-label={`${localTime(a.startsAt)} ${a.customer.name}, ${a.service.name}, ${a.statusLabel}${depositTag(a.deposit, a.status) ? `, ${depositTag(a.deposit, a.status)}` : ''}`}
                         onClick={() => setSheet({ appt: a, mode: 'detail' })}>
                         <strong>{a.customer.name}</strong>
                         <span>{localTime(a.startsAt)} · {a.service.name}</span>
+                        {depositTag(a.deposit, a.status) && <span className="pro-block__dep" data-deposit-tag="">{depositTag(a.deposit, a.status)}</span>}
                       </button>
                     );
                   })}

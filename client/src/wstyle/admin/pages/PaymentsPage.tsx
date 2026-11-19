@@ -8,6 +8,7 @@ import { BACKING_LABEL, BACKING_TONE, METHOD_FILTERS, payments, STATUS_FILTERS, 
 import { admin } from '../api';
 import { Loaded, Pill } from '../components/common';
 import TaxNotice from '../components/TaxNotice';
+import DepositsReview from '../components/DepositsReview';
 import { useLoad, useToday } from '../hooks';
 import { monthLabel, monthOf, shiftMonth } from '../util';
 
@@ -15,8 +16,23 @@ const shortDate = (d: string) => `${d.slice(8, 10)}-${d.slice(5, 7)}`;
 
 // Pagos (SPEC-37): todos los pagos de las citas con su respaldo tributario. Filtros por fecha, barbero, método,
 // estado y "sin respaldo"; totales del período arriba; detalle con "registrar N° de boleta" para los cobros del local.
-export default function PaymentsPage() {
+// SPEC-56: pestaña "Pagos por confirmar" (señas por transferencia). /wstyle/admin/pagos/?vista=senas abre directo ahí.
+export default function PaymentsPage({ onDepositCounts }: { onDepositCounts?: (c: { review: number; refund: number }) => void } = {}) {
   const init = useMemo(() => new URLSearchParams(location.search), []);
+  const [tab, setTab] = useState<'pagos' | 'senas'>(() => (init.get('vista') === 'senas' ? 'senas' : 'pagos'));
+  return (
+    <>
+      <h1 className="ag-h1">Pagos</h1>
+      <div className="adm-tabs" role="tablist" aria-label="Pagos">
+        <button type="button" role="tab" aria-selected={tab === 'pagos'} className={`ag-chip${tab === 'pagos' ? ' is-selected' : ''}`} onClick={() => setTab('pagos')}>Movimientos</button>
+        <button type="button" role="tab" aria-selected={tab === 'senas'} className={`ag-chip${tab === 'senas' ? ' is-selected' : ''}`} onClick={() => setTab('senas')} data-tab="senas">Pagos por confirmar</button>
+      </div>
+      {tab === 'pagos' ? <Movements init={init} /> : <DepositsReview onCounts={onDepositCounts} />}
+    </>
+  );
+}
+
+function Movements({ init }: { init: URLSearchParams }) {
   const today = useToday();
   const [range, setRange] = useState(() => (init.get('mes') ? monthOf(`${init.get('mes')}-01`) : monthOf(today)));
   const [pro, setPro] = useState('');
@@ -37,7 +53,6 @@ export default function PaymentsPage() {
 
   return (
     <>
-      <h1 className="ag-h1">Pagos</h1>
       <TaxNotice warning={list.data?.warning} emitter={list.data?.emitter} />
       <form className="adm-filters" onSubmit={(e) => e.preventDefault()} aria-label="Filtros de pagos">
         <div className="adm-toolbar adm-range-bar">

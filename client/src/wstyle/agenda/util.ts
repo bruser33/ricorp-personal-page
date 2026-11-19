@@ -153,6 +153,6 @@ export function selectionFromQuery(search: string): Selection {
 }
 
 export const STATUS_TONE: Record<string, 'wait' | 'ok' | 'warn' | 'off'> = {
-  pendiente_pago: 'wait', pendiente: 'wait', invitacion_enviada: 'wait', propuesta_cambio: 'warn',
+  pendiente_pago: 'wait', pendiente_sena: 'wait', pendiente: 'wait', invitacion_enviada: 'wait', propuesta_cambio: 'warn',
   confirmada: 'ok', en_curso: 'ok', terminada: 'off', cancelada: 'off', expirada: 'off', no_asistio: 'off',
 };

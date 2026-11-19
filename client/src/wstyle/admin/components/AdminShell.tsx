@@ -3,11 +3,13 @@ import { SECTIONS, type AdminSection } from '../util';
 
 // Marco del panel del super admin: marca, secciones (en móvil, una fila deslizable bajo el header) y salir.
 // /wstyle/admin/ no se enlaza desde la landing y lleva noindex (AC-12).
-export default function AdminShell({ section, children, nav = true, unread = 0, userLabel, onLogout }: {
+export default function AdminShell({ section, children, nav = true, unread = 0, depositsDue = 0, userLabel, onLogout }: {
   section: AdminSection | 'entrar';
   children: ReactNode;
   nav?: boolean;
   unread?: number;
+  // SPEC-56: señas por revisar (contador junto a "Pagos").
+  depositsDue?: number;
   userLabel?: string;
   onLogout?: () => void;
 }) {
@@ -31,6 +33,7 @@ export default function AdminShell({ section, children, nav = true, unread = 0, 
               <li key={s.key}>
                 <a href={s.path} aria-current={section === s.key ? 'page' : undefined}>
                   {s.label}
+                  {s.key === 'pagos' && depositsDue > 0 && <span className="adm-nav__n" data-nav-deposits="" aria-label={`${depositsDue} señas por revisar`}>{depositsDue > 9 ? '9+' : depositsDue}</span>}
                   {s.key === 'inicio' && unread > 0 && <span className="adm-nav__n" aria-label={`${unread} avisos sin leer`}>{unread > 9 ? '9+' : unread}</span>}
                 </a>
               </li>
