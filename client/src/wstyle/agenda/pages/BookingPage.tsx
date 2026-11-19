@@ -447,7 +447,7 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
                     <div className="ag-field ag-check" data-wa-optin="">
                       <label>
                         <input type="checkbox" checked={waChecked} onChange={(e) => setWaOptIn(e.target.checked)} />
-                        <span>Quiero recibir la confirmación y el recordatorio por WhatsApp al {prettyPhone(waPhone)}</span>
+                        <span>Quiero recibir la confirmación y el recordatorio por WhatsApp al <span className="ag-nowrap">{prettyPhone(waPhone)}</span></span>
                       </label>
                       <p className="ag-field__hint">Solo avisos de tu hora, con un link para verla o cancelarla. Puedes darte de baja cuando quieras.</p>
                     </div>

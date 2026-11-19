@@ -202,3 +202,4 @@
 .pay-boleta input, .pay-collect input[inputmode] { max-width: 220px; }
 .ag-wa-pref { display: grid; gap: 10px; margin: 16px 0; }
 .ag-wa-pref p { margin: 0; }
+.ag-nowrap { white-space: nowrap; }
