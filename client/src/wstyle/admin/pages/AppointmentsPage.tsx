@@ -4,6 +4,7 @@ import { Field, Notice, StatusPill } from '../../agenda/components/ui';
 import { addDays, clMobile, clp, isEmail, localDate, localTime, longDay, prettyPhone } from '../../agenda/util';
 import Sheet from '../../pro/components/Sheet';
 import { admin, downloadCsv, type AdminAppointment, type ApptFilters } from '../api';
+import AgendaBoard from '../components/AgendaBoard';
 import ApptSheet from '../components/ApptSheet';
 import { Loaded } from '../components/common';
 import { useLoad, useToday } from '../hooks';
@@ -42,6 +43,15 @@ export default function AppointmentsPage() {
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  // SPEC-55: [Lista] [Agenda]. La vista queda en la URL (?vista=agenda) para volver al mismo lugar.
+  const [view, setView] = useState<'list' | 'agenda'>(() => (new URLSearchParams(location.search).get('vista') === 'agenda' ? 'agenda' : 'list'));
+  const pickView = (v: 'list' | 'agenda') => {
+    setView(v);
+    const u = new URL(location.href);
+    if (v === 'agenda') u.searchParams.set('vista', 'agenda');
+    else u.searchParams.delete('vista');
+    history.replaceState(null, '', u);
+  };
   const [csvErr, setCsvErr] = useState<string | null>(null);
   const [catalog, setCatalog] = useState<Catalog | null>(null);
   const barbers = useLoad(() => admin.barbers(''), 'barbers');
@@ -86,6 +96,11 @@ export default function AppointmentsPage() {
           <button type="button" className="btn btn--ghost" onClick={exportCsv}>Exportar CSV</button>
         </div>
       </div>
+      <div className="pro-views adm-viewpick" role="group" aria-label="Vista de citas">
+        <button type="button" aria-pressed={view === 'list'} onClick={() => pickView('list')}>Lista</button>
+        <button type="button" aria-pressed={view === 'agenda'} onClick={() => pickView('agenda')}>Agenda</button>
+      </div>
+      {view === 'agenda' ? <AgendaBoard /> : <>
       {csvErr && <Notice tone="error">{csvErr}</Notice>}
       <form className="adm-filters" onSubmit={(e) => e.preventDefault()} aria-label="Filtros de citas">
         <div className="adm-tabs">
@@ -148,6 +163,7 @@ export default function AppointmentsPage() {
           </>
         )}
       </Loaded>
+      </>}
       {open && <ApptSheet id={open} onClose={() => setOpen(null)} onChanged={update} />}
       {creating && <NewAppointment catalog={catalog} onClose={() => setCreating(false)} onCreated={(a) => { setCreating(false); setOpen(a.id); list.reload(); }} />}
     </>
