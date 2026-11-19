@@ -1,6 +1,7 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createFire, heroFadeEnd, heroOut } from '../fx/fire';
 import { isCompact } from '../experience';
+import type { HeroSlide } from '../heroSlides';
 import './HeroFire.css';
 
 const SRC = `${import.meta.env.BASE_URL}wstyle/hero/`;
@@ -9,7 +10,16 @@ const SRC = `${import.meta.env.BASE_URL}wstyle/hero/`;
 // la mezcla): el canvas del fuego (screen sobre la película) y el retrato encima; el grano, la viñeta y el sombreado
 // del texto van por encima de ambas. En el primer ~15 % del scroll (antes de "El local") el retrato baja y se funde y
 // el fuego se apaga (--hero-out 0 → 1); las brasas (Embers) siguen el resto del recorrido.
-export default function HeroFire({ name }: { name: string }) {
+// SPEC-61: las otras pantallas del inicio (tomas del recorrido) van en una capa fija bajo el fuego; al elegir una, el
+// retrato se funde y entra la toma. El fuego no se toca (sigue igual en todas). Las imágenes solo se montan cuando
+// se "arman" las flechas (primer hover/foco/toque), así no pesan en la carga inicial.
+interface Props { name: string; slides?: HeroSlide[]; active?: string; armed?: boolean; onBroken?: (id: string) => void }
+const PORTRAIT_MQ = '(max-width: 768px), (orientation: portrait)';
+
+export default function HeroFire({ name, slides = [], active = 'barbero', armed = false, onBroken }: Props) {
+  // El retrato no se funde hasta que la toma elegida terminó de cargar: nunca queda solo el fuego sobre negro.
+  const [loaded, setLoaded] = useState<ReadonlySet<string>>(() => new Set());
+  const shown = loaded.has(active) ? active : 'barbero';
   const wrap = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const portrait = useRef<HTMLDivElement>(null);
@@ -60,11 +70,24 @@ export default function HeroFire({ name }: { name: string }) {
   }, []);
 
   return (
-    <div className="hero-fx" ref={wrap}>
+    <div className={`hero-fx${shown !== 'barbero' ? ' is-away' : ''}`} ref={wrap}>
+      {armed && slides.length > 0 && (
+        <div className="hero-slides" aria-hidden={shown === 'barbero' ? 'true' : undefined}>
+          {slides.map((s) => (
+            <picture key={s.id} className={`hero-slide${s.id === shown ? ' is-active' : ''}`} data-slide={s.id}>
+              <source media={PORTRAIT_MQ} srcSet={`${import.meta.env.BASE_URL}${s.srcSm}`} />
+              <img className="hero-slide__img" src={`${import.meta.env.BASE_URL}${s.src}`} alt={s.id === shown ? s.alt : ''}
+                decoding="async" onLoad={() => setLoaded((l) => new Set(l).add(s.id))} onError={() => onBroken?.(s.id)} />
+            </picture>
+          ))}
+        </div>
+      )}
       <canvas className="hero-fire" ref={canvas} aria-hidden="true" />
       <div className="hero-portrait" ref={portrait}>
-        <img className="hero-portrait__img" src={`${SRC}barbero.webp`} srcSet={`${SRC}barbero-sm.webp 640w, ${SRC}barbero.webp 1100w`}
-          sizes="(max-width: 768px) 86vw, 37vw" width={1100} height={1354} decoding="async" alt={name ? `El barbero de ${name}` : 'El barbero'} />
+        <div className="hero-portrait__fade" aria-hidden={shown !== 'barbero' ? 'true' : undefined}>
+          <img className="hero-portrait__img" src={`${SRC}barbero.webp`} srcSet={`${SRC}barbero-sm.webp 640w, ${SRC}barbero.webp 1100w`}
+            sizes="(max-width: 768px) 86vw, 37vw" width={1100} height={1354} decoding="async" alt={name ? `El barbero de ${name}` : 'El barbero'} />
+        </div>
       </div>
     </div>
   );

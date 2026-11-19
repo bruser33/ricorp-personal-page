@@ -322,7 +322,7 @@ const AppointmentSchema = new Schema(
         reason: String,
       },
     ],
-    source: { type: String, enum: ['web', 'pro_invite', 'admin'], default: 'web' },
+    source: { type: String, enum: ['web', 'pro_invite', 'pro_direct', 'admin'], default: 'web' },
     /* SPEC-58 RN-04: canal de la reserva web (utm_source normalizado, "directo" sin UTM). Se fija al crear la cita
        y no cambia. Las citas pro_invite/admin no lo llevan. Nunca se muestra al cliente. */
     origin: { type: String, maxlength: 40 },

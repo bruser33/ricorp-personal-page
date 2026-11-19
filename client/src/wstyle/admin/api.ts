@@ -2,6 +2,7 @@ import type { PricingView } from '../agenda/pricing';
 // Cliente HTTP del panel del super admin (SPEC-34): /api/admin/… con la misma sesión (cookie httpOnly) de la agenda.
 // El server valida la sesión y el rol en cada ruta; el front solo oculta botones.
 import { api, API_BASE, ApiError, type Appointment, type User } from '../agenda/api';
+import type { AgendaDay, CustomerHit, ProService, TimeOff, TimeOffInput } from '../pro/api';
 
 export type MembershipStatus = 'pending' | 'approved' | 'rejected' | 'suspended';
 export type Decision = 'approve' | 'reject' | 'suspend' | 'reactivate' | 'reopen';
@@ -21,6 +22,15 @@ export interface AdminAppointment extends Omit<Appointment, 'customer' | 'pricin
   source: string;
   canReassign: boolean;
   canCollect: boolean;
+  // SPEC-55: inasistencias anteriores del cliente y si aún se puede corregir un "no vino" (48 h).
+  noShows?: number;
+  canRevertNoShow?: boolean;
+}
+
+// SPEC-55: agenda de un día con una columna por barbero aprobado.
+export interface AdminAgenda {
+  date: string; now: string; today: string; timezone: string;
+  barbers: { id: string; name: string; services: ProService[]; timeOffs: TimeOff[]; day: AgendaDay }[];
 }
 
 export interface Alert { kind: string; professionalId: string; name: string; count: number; message: string }
@@ -117,6 +127,12 @@ export const admin = {
   reassignOptions: (aid: string) => api<{ options: { id: string; name: string }[] }>(`/api/admin/appointments/${id(aid)}/reassign-options`),
   reassign: (aid: string, professionalId: string) => send<AdminAppointment>(`/api/admin/appointments/${id(aid)}/reassign`, 'POST', { professionalId }),
   createAppointment: (body: Record<string, unknown>) => send<AdminAppointment>('/api/admin/appointments', 'POST', body),
+  revertNoShow: (aid: string, reason: string) => send<AdminAppointment>(`/api/admin/appointments/${id(aid)}/revert-no-show`, 'POST', { reason }),
+  agenda: (date: string) => api<AdminAgenda>(`/api/admin/agenda?${qs({ date })}`),
+  customers: (q: string) => api<{ items: CustomerHit[] }>(`/api/admin/customers?${qs({ q })}`),
+  barberSlots: (pid: string, q: { service?: string; date: string }) => api<{ date: string; slots: { startsAt: string; label: string }[] }>(`/api/admin/barbers/${id(pid)}/slots?${qs(q)}`),
+  addBarberTimeOff: (pid: string, body: TimeOffInput) => send<{ timeOff: TimeOff }>(`/api/admin/barbers/${id(pid)}/time-off`, 'POST', body),
+  removeBarberTimeOff: (pid: string, oid: string) => api<{ ok: boolean }>(`/api/admin/barbers/${id(pid)}/time-off/${id(oid)}`, { method: 'DELETE' }),
 
   services: () => api<{ items: AdminService[] }>('/api/admin/services'),
   createService: (body: ServiceInput) => send<{ service: AdminService }>('/api/admin/services', 'POST', body),
