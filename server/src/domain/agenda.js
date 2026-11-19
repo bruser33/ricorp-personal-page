@@ -27,6 +27,7 @@ import { appointmentMail, BARBER_EVENT_TITLE, waLink } from '../lib/emails.js';
 import { daySlots, distanceKm, slotsFor } from './availability.js';
 import { addDays, ceilSlot, formatLong, isDate, isoWeekday, wallClock, zonedToUtc } from './time.js';
 import { entriesToWeek, weekToSiteRows } from './hours.js';
+import { categoriesOf, categoryView } from './categories.js';
 import { applyLocalCollection, boletaClash, isBoletaClash, parseCollectInput } from './tax.js';
 import { TAX_DOCUMENT_PROVIDERS } from '../lib/taxDocuments.js';
 import { currentRates, pricingView, quote, ratesView } from './pricing.js';
@@ -132,7 +133,9 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
 
   async function catalog() {
     const b = await business();
-    const [services, pros, rates] = await Promise.all([Service.find({ businessId: b._id, active: true }).sort({ order: 1 }).lean(), professionals(b), currentRates()]);
+    const [services, pros, rates, cats] = await Promise.all([Service.find({ businessId: b._id, active: true }).sort({ order: 1 }).lean(), professionals(b), currentRates(), categoriesOf(b._id)]);
+    /* SPEC-51: categorías con servicios activos (en orden, con su nota) y la categoría de cada servicio. */
+    const { categories, slugOf } = categoryView(cats, services);
     return {
       business: {
         name: b.name,
@@ -152,7 +155,8 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
         /* SPEC-38 RN-20: tasas vigentes; el resumen de la reserva usa la misma fórmula que el server. */
         pricing: ratesView(rates),
       },
-      services: services.map((s) => ({ id: s.slug, name: s.name, description: s.description || '', priceCLP: s.priceCLP, durationMin: s.durationMin, homeServiceAllowed: s.homeServiceAllowed !== false })),
+      categories,
+      services: services.map((s) => ({ id: s.slug, name: s.name, description: s.description || '', priceCLP: s.priceCLP, durationMin: s.durationMin, homeServiceAllowed: s.homeServiceAllowed !== false, category: slugOf(s) })),
       professionals: pros.map((p) => {
         const slugs = new Map(services.map((x) => [String(x._id), x.slug]));
         return { ...publicPro(p), serviceIds: p.serviceIds.map((id) => slugs.get(id)).filter(Boolean) };

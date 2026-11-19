@@ -81,6 +81,12 @@ export function createAdminRouter({ admin, logger, giftCards = null }) {
   r.post('/services', h(async (req, res) => res.status(201).json(await admin.createService(u(req), req.body || {}))));
   r.patch('/services/:id', h(async (req, res) => res.json(await admin.updateService(u(req), req.params.id, req.body || {}))));
   r.delete('/services/:id', h(async (req, res) => res.json(await admin.removeService(u(req), req.params.id))));
+  /* SPEC-51: categorías de la carta */
+  r.get('/service-categories', h(async (req, res) => res.json(await admin.listCategories(u(req)))));
+  r.post('/service-categories', h(async (req, res) => res.status(201).json(await admin.createCategory(u(req), req.body || {}))));
+  r.put('/service-categories/order', h(async (req, res) => res.json(await admin.reorderCategories(u(req), req.body || {}))));
+  r.patch('/service-categories/:id', h(async (req, res) => res.json(await admin.updateCategory(u(req), req.params.id, req.body || {}))));
+  r.delete('/service-categories/:id', h(async (req, res) => res.json(await admin.removeCategory(u(req), req.params.id))));
   r.get('/export', h(async (req, res) => res.json(await admin.exportContent(u(req)))));
 
   /* Reseñas (SPEC-52): todas (incluye ocultas), ocultar y volver a mostrar. */

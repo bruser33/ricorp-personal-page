@@ -68,7 +68,9 @@ export async function wakeAndGet<T>(path: string, { windowMs = 30_000, onWaking 
 
 // ─── Tipos de la API
 export interface User { id: string; name: string; email: string | null; emailVerified: boolean; phone: string | null; roles: string[]; providers: string[] }
-export interface CatalogService { id: string; name: string; description: string; priceCLP: number; durationMin: number; homeServiceAllowed: boolean }
+export interface CatalogService { id: string; name: string; description: string; priceCLP: number; durationMin: number; homeServiceAllowed: boolean; category?: string }
+// SPEC-51: categorías con servicios activos, en orden y con su nota (una API anterior no las trae).
+export interface CatalogCategory { id: string; name: string; note: string }
 export interface CatalogPro { id: string; name: string; specialty: string; photo: string | null; homeService: { surchargeCLP: number; radiusKm: number } | null; serviceIds: string[] }
 export interface Catalog {
   business: {
@@ -83,6 +85,7 @@ export interface Catalog {
     // SPEC-60: venta de gift cards en línea (la landing y /wstyle/regalar/ la usan).
     giftCards?: GiftCardsPublic;
   };
+  categories?: CatalogCategory[];
   services: CatalogService[];
   professionals: CatalogPro[];
 }
