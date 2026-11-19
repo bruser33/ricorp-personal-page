@@ -80,7 +80,7 @@ export default function AppointmentPage({ ctx }: { ctx: AgendaCtx }) {
     setBusy(true);
     setMsg(null);
     try {
-      const next = await agenda.act(id, action, asGuest ? { ...body, t: token } : body);
+      const next = await agenda.act(id, action, asGuest || appt?.guest ? { ...body, t: token } : body);
       setAppt(next);   // el estado cambia sin recargar (AC-16)
       setCounter(false);
       setConfirmCancel(false);

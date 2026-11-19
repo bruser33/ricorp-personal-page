@@ -76,9 +76,10 @@ export function createWstyleRouter({ agenda, payments, logger, bookingLimiter })
     ['no-show', 'no_show'],
   ]) {
     r.post(`/appointments/:id/${path}`, h(async (req, res) => {
-      /* SPEC-53: sin sesión pero con el token del WhatsApp → solo cancelar (lo demás, 403). */
-      const t = !req.user && req.body?.t ? String(req.body.t) : null;
-      res.json(await agenda.act(req.params.id, t ? null : requireUser(req), action, req.body || {}, { t }));
+      /* SPEC-53: con el token del WhatsApp (sin sesión, o con la sesión de otra persona) → solo
+         cancelar (lo demás, 403). El dueño con sesión actúa normal. */
+      const t = req.body?.t ? String(req.body.t) : null;
+      res.json(await agenda.act(req.params.id, t && !req.user ? null : requireUser(req), action, req.body || {}, { t }));
     }));
   }
 

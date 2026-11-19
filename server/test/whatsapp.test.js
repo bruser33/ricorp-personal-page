@@ -524,6 +524,20 @@ describe('SPEC-53 · modo sin credenciales y link con token (AC-06, AC-07)', () 
     assert.equal((await t.get(`/api/wstyle/appointments/${id}?t=${tok}`)).status, 404);
   });
 
+  test('AC-07 con la sesión de OTRA persona + token: se ve como invitado y solo cancela', async () => {
+    const { id } = await t.bookAndConfirm();
+    const tok = await linkOf(id);
+    const other = await makeClient({ name: 'Otra Sesión', phone: '+56987650009' });
+    const view = await t.get(`/api/wstyle/appointments/${id}?t=${tok}`, other.cookie);
+    assert.equal(view.status, 200);
+    assert.equal(view.json.guest, true);
+    assert.equal((await t.post(`/api/wstyle/appointments/${id}/confirm`, { t: tok }, other.cookie)).status, 403);
+    assert.equal((await t.post(`/api/wstyle/appointments/${id}/cancel`, {}, other.cookie)).status, 404);
+    const c = await t.post(`/api/wstyle/appointments/${id}/cancel`, { t: tok }, other.cookie);
+    assert.equal(c.status, 200);
+    assert.equal(c.json.status, 'cancelada');
+  });
+
   test('AC-07 con el token se respeta el plazo de cancelación (cancelUntilMinutes)', async () => {
     const { id } = await t.bookAndConfirm();
     const tok = await linkOf(id);
