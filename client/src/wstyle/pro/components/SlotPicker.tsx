@@ -3,8 +3,10 @@ import { ApiError } from '../../agenda/api';
 import { Spinner } from '../../agenda/components/ui';
 import { pro } from '../api';
 
+export type SlotLoader = (q: { service?: string; date: string; mode?: string; appointment?: string }) => Promise<{ slots: { startsAt: string; label: string }[] }>;
+
 // Fecha + horas libres del propio barbero. `appointment` = mover esa cita (sus bloques no cuentan como ocupados).
-export default function SlotPicker({ date, onDate, value, onPick, service, mode, appointment, minDate, reloadKey = 0, onLoaded }: {
+export default function SlotPicker({ date, onDate, value, onPick, service, mode, appointment, minDate, reloadKey = 0, onLoaded, load = pro.slots }: {
   date: string;
   onDate: (d: string) => void;
   value: string | null;
@@ -15,6 +17,8 @@ export default function SlotPicker({ date, onDate, value, onPick, service, mode,
   minDate: string;
   reloadKey?: number;
   onLoaded?: (slots: { startsAt: string; label: string }[]) => void;
+  // SPEC-55: el admin carga las horas del barbero elegido con su propio endpoint.
+  load?: SlotLoader;
 }) {
   const loaded = useRef(onLoaded);
   useEffect(() => { loaded.current = onLoaded; }, [onLoaded]);
@@ -24,12 +28,12 @@ export default function SlotPicker({ date, onDate, value, onPick, service, mode,
     let alive = true;
     if (!service && !appointment) return;
     Promise.resolve().then(() => { if (alive) { setSlots(null); setError(null); } });
-    pro.slots({ service, date, mode, appointment }).then(
+    load({ service, date, mode, appointment }).then(
       (r) => { if (alive) { setSlots(r.slots); loaded.current?.(r.slots); } },
       (e) => { if (alive) setError(e instanceof ApiError && e.status ? e.message : 'No pudimos cargar las horas.'); },
     );
     return () => { alive = false; };
-  }, [date, service, mode, appointment, reloadKey]);
+  }, [date, service, mode, appointment, reloadKey, load]);
   return (
     <div className="pro-slots">
       <div className="ag-field">
