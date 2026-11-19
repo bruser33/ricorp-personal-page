@@ -70,7 +70,7 @@ export const PAY_OPEN = ['pendiente', 'en_proceso', 'rechazado'];
 
 /* `onlinePayments.ready`: hay credenciales de Mercado Pago (SPEC-35). Sin ellas "Pagar en
    línea" no se ofrece aunque el admin lo habilite (CB-09). */
-export function createAgenda({ clock = Date.now, mailer, logger = console, frontUrl = 'http://localhost:5173', geocoder, businessSlug = 'ws-style', adminInbox = null, onlinePayments = { ready: false }, taxProvider = TAX_DOCUMENT_PROVIDERS.voucher }) {
+export function createAgenda({ clock = Date.now, mailer, logger = console, frontUrl = 'http://localhost:5173', geocoder, businessSlug = 'ws-style', adminInbox = null, onlinePayments = { ready: false }, taxProvider = TAX_DOCUMENT_PROVIDERS.voucher, loyalty = null }) {
   async function business() {
     const b = await Business.findOne({ slug: businessSlug }).lean();
     if (!b) throw new HttpError(503, 'agenda_unavailable', 'La agenda aún no está configurada');
@@ -847,16 +847,22 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
       const collect = action === 'finish' && localPay && payload.collected === true ? parseCollectInput(payload, { methodKey: 'localMethod' }) : null;
       if (collect?.number && (await Appointment.exists({ businessId: b._id, 'payment.taxDoc.kind': 'boleta_sii', 'payment.taxDoc.number': collect.number }))) throw boletaClash();
       const to = { start: 'en_curso', finish: 'terminada', no_show: 'no_asistio' }[action];
-      const appt = await mutate(b, current._id, (a) => {
+      /* SPEC-57 RN-01: los puntos se acreditan en la MISMA transacción que termina la cita. */
+      let earned = null;
+      const appt = await mutate(b, current._id, async (a, session) => {
         if (a.status !== need) throw invalid('stale');
         a.status = to;
+        earned = to === 'terminada' && loyalty ? await loyalty.earnForAppointment(b, a, session) : null;
         if (action === 'finish' && localPay && typeof payload.collected === 'boolean') {
           if (payload.collected) applyLocalCollection(a, { ...collect, provider: taxProvider, now });
           else a.payment.status = 'pago_pendiente';
         }
         return { by, byUserId, reason: reason ?? (action === 'finish' && typeof payload.collected === 'boolean' ? (payload.collected ? 'Cobrado' : 'Sin cobrar') : undefined) };
       });
-      if (to === 'terminada') await notify(b, appt, 'client', 'finished');
+      if (to === 'terminada') {
+        const points = earned ? { earned: earned.points, balance: await loyalty.balanceOf(b._id, appt.customerUserId).catch(() => earned.points) } : null;
+        await notify(b, appt, 'client', 'finished', { points });
+      }
       if (to === 'no_asistio') await notify(b, appt, 'client', 'no_show');
       if (to === 'no_asistio' && appt.customerUserId) {
         await CustomerProfile.updateOne({ businessId: b._id, userId: appt.customerUserId }, { $inc: { 'counters.noShows': 1 } }, { upsert: true }).catch(() => {});
@@ -1002,5 +1008,7 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
     notify,
     mutate,
     inviteLinks,
+    /* SPEC-57: la app inyecta el programa de puntos después de crearlo. */
+    setLoyalty: (l) => { loyalty = l; },
   };
 }

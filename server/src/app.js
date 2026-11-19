@@ -19,6 +19,8 @@ import { sendPhoto } from './lib/photos.js';
 import { createAdminInbox } from './lib/adminInbox.js';
 import { createAdmin } from './domain/admin.js';
 import { createAdminRouter } from './routes/admin.js';
+import { createLoyalty } from './domain/loyalty.js';
+import { createLoyaltyRouter } from './routes/loyalty.js';
 import { createPayments, WEBHOOK_PATH } from './domain/payments.js';
 import { createBilling } from './domain/billing.js';
 import { createTaxDocumentProvider } from './lib/taxDocuments.js';
@@ -218,7 +220,10 @@ export function createApp({
     taxProvider,
   });
   /* Pago en línea (SPEC-35). */
-  const payments = createPayments({ agenda, env, clock, logger, adminInbox, frontUrl, fetchImpl: mercadoPagoFetch, taxProvider });
+  /* Puntos por cita y canje de productos (SPEC-57): la agenda acredita al terminar y los pagos revierten. */
+  const loyalty = createLoyalty({ agenda, clock, mailer: agendaMailer, logger, frontUrl });
+  agenda.setLoyalty(loyalty);
+  const payments = createPayments({ agenda, env, clock, logger, adminInbox, frontUrl, fetchImpl: mercadoPagoFetch, taxProvider, loyalty });
   /* Pagos en el panel y rendición mensual (SPEC-37). */
   const billing = createBilling({ agenda, env, clock, logger, taxProvider });
   const bookingLimiter = createRateLimiter(bookingRateLimit);
@@ -237,6 +242,7 @@ export function createApp({
       if (!res.headersSent) res.status(500).json({ ok: false, error: 'server_error' });
     });
   });
+  app.use('/api/wstyle/points', needsDb, withSession, createLoyaltyRouter({ loyalty, logger }));
   app.use('/api/wstyle', needsDb, withSession, createWstyleRouter({ agenda, payments, logger, bookingLimiter }));
   /* Webhook de Mercado Pago: público (lo llama Mercado Pago, sin Origin ni cookie); la
      autenticidad la da la firma x-signature. */
@@ -246,7 +252,7 @@ export function createApp({
   }, logger));
   app.use('/api/pro', needsDb, withSession, createProRouter({ pro, env, clock, mailer: agendaMailer, logger, frontUrl, loginLimiter: authRouter.loginLimiter, billing }));
   app.use('/api/admin', needsDb, withSession, createAdminRouter({ admin, logger }));
-  Object.assign(app.locals, { agenda, pro, admin, payments, billing, agendaMailer, bookingLimiter, loginLimiter: authRouter.loginLimiter });
+  Object.assign(app.locals, { agenda, pro, admin, payments, billing, loyalty, agendaMailer, bookingLimiter, loginLimiter: authRouter.loginLimiter });
 
   app.get('/api/health', (_req, res) => {
     /* 'unconfigured' y no 'dry-run' en Render: ahí sin mailer el envío es un 503,

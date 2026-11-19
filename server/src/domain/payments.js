@@ -17,6 +17,7 @@ import { createTaxDocumentProvider } from '../lib/taxDocuments.js';
 import { slotsFor } from './availability.js';
 import { formatLong, wallClock } from './time.js';
 import { PAY_OPEN, PAYMENT_HOLD_MIN } from './agenda.js';
+import { REVERT_ON_PAYMENT } from './loyalty.js';
 
 const MIN = 60 * 1000;
 const HOUR = 60 * MIN;
@@ -45,7 +46,7 @@ export function mpFees(p) {
   return { feeCLP: fee, netCLP: net };
 }
 
-export function createPayments({ agenda, env = {}, clock = Date.now, logger = console, adminInbox = null, frontUrl = 'http://localhost:5173', fetchImpl = fetch, taxProvider = null }) {
+export function createPayments({ agenda, env = {}, clock = Date.now, logger = console, adminInbox = null, frontUrl = 'http://localhost:5173', fetchImpl = fetch, taxProvider = null, loyalty = null }) {
   /* SPEC-37: quién respalda la venta (voucher MP o boleta manual), según SII_TAX_PROVIDER. */
   const tax = taxProvider || createTaxDocumentProvider(env, logger);
   const token = String(env.MP_ACCESS_TOKEN || '');
@@ -126,8 +127,13 @@ export function createPayments({ agenda, env = {}, clock = Date.now, logger = co
           const a = await Appointment.findById(apptId).session(session);
           if (!a) return null;
           const from = a.status;
+          const payBefore = a.payment?.status;
           const r = await fn(a, session);
           if (!r) return null;
+          /* SPEC-57 RN-06: pago reembolsado o contracargo → se revierten los puntos de la cita (una vez). */
+          if (loyalty && payBefore !== a.payment?.status && REVERT_ON_PAYMENT.includes(a.payment?.status)) {
+            await loyalty.revertForAppointment(a, { session, reason: a.payment.status === 'contracargo' ? 'Contracargo del pago en línea' : 'Pago reembolsado' });
+          }
           a.history.push({ at: new Date(clock()), from, to: a.status, by: r.by || 'system', byUserId: r.byUserId, reason: r.reason });
           await a.save({ session });
           return { ...r, appt: a };
