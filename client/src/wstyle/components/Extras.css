@@ -1,9 +1,19 @@
 /* Paneles de venta (SPEC-15 AC-08). Sólidos sobre la película, sin tarjetas con sombra. */
+/* Reseñas (SPEC-52): promedio grande en Cormorant, estrellas en latón (único acento), tarjetas en 3 columnas. */
+.reviews-summary { display: flex; align-items: center; gap: 22px; margin-top: 30px; }
+.reviews-summary__avg { margin: 0; font: italic 500 clamp(64px, 7vw, 104px)/.9 var(--font-serif); font-variant-numeric: lining-nums; color: var(--bone); }
+.reviews-summary__count { margin: 8px 0 0; font: 600 12px/1 var(--font-body); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--muted); }
+.stars { display: inline-flex; gap: 2px; color: var(--brass); line-height: 1; }
+.stars__s { color: var(--brass-line); }
+.stars__s.is-on { color: var(--brass); }
+.stars__s.is-half { background: linear-gradient(90deg, var(--brass) 50%, var(--brass-line) 50%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.stars--lg { font-size: 22px; letter-spacing: .08em; }
 .reviews { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 28px; margin-top: 34px; }
-.review { margin: 0; padding: 22px 0 0; border-top: 1px solid var(--brass); }
-.review__stars { color: var(--brass); letter-spacing: var(--tracking-caps-tight); font-size: 13px; }
-.review blockquote { margin: 14px 0 18px; font: italic 500 24px/1.25 var(--font-serif); color: var(--bone); }
-.review figcaption { font-size: 12px; letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--muted); }
+.review { min-width: 0; margin: 0 0 30px; padding: 22px 0 0; border-top: 1px solid var(--brass); }
+.review__stars { letter-spacing: var(--tracking-caps-tight); font-size: 13px; }
+.review blockquote { margin: 14px 0 18px; font: italic 500 24px/1.25 var(--font-serif); color: var(--bone); white-space: pre-line; overflow-wrap: anywhere; }
+.review figcaption { font-size: 12px; letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--muted); overflow-wrap: anywhere; }
+.reviews-more { margin-top: 4px; }
 
 .barbers { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 28px; margin-top: 34px; }
 .barber { display: flex; gap: 20px; align-items: flex-start; padding: 22px 0; border-top: 1px solid var(--brass-line); }
@@ -65,6 +75,8 @@
 .compact .member__foot { padding-top: 20px; }
 .compact .member__foot .btn { margin-left: 0; width: 100%; }
 .compact .review blockquote { font-size: 21px; }
+.compact .reviews-summary { gap: 16px; }
+.compact .reviews-more .btn { width: 100%; }
 .compact .demo-strip { letter-spacing: var(--tracking-caps-tight); font-size: 9px; }
 /* P3 (ronda 4): en compacto el texto corto, en una línea (sin «EJEMPLO» huérfano). */
 .compact .demo-strip__long { display: none; }

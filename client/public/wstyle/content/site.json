@@ -10,7 +10,6 @@
     "concept",
     "booking",
     "membership",
-    "reviews",
     "barbers",
     "policies",
     "stat"
@@ -125,28 +124,6 @@
       "10 % en productos"
     ],
     "note": "Sin matrícula. Se renueva cada mes; cancelas cuando quieras."
-  },
-  "reviews": {
-    "_nota": "Se publica solo con enabled:true y reseñas reales (Google).",
-    "enabled": false,
-    "source": "Google",
-    "items": [
-      {
-        "author": "Cliente de ejemplo",
-        "rating": 5,
-        "text": "Texto de ejemplo: aquí irá una reseña real de Google cuando tengamos la ficha del local."
-      },
-      {
-        "author": "Cliente de ejemplo",
-        "rating": 5,
-        "text": "Texto de ejemplo: el degradado, la atención y el local, contados por un cliente real."
-      },
-      {
-        "author": "Cliente de ejemplo",
-        "rating": 5,
-        "text": "Texto de ejemplo: reemplazar por reseñas verificadas antes de publicar con datos reales."
-      }
-    ]
   },
   "barbers": {
     "_nota": "Se publica solo con enabled:true y datos reales (foto/Instagram/agenda por barbero).",
