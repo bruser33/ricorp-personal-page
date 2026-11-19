@@ -382,6 +382,50 @@ describe('SPEC-53 · despachador con Meta (AC-03, AC-04)', () => {
     assert.equal(t.wa.calls.length, 1);
   });
 
+  test('horario de silencio también al enviar: un recordatorio que despierta a las 06:30 espera a las 08:00', async () => {
+    await Business.updateOne({}, { $set: { 'whatsapp.reminder': '2h' } });
+    const { id } = await t.bookAndConfirm({ time: '12:00' });
+    await t.messaging.runDispatch();
+    const rem = await OutboundMessage.findOne({ appointmentId: id, kind: 'reminder' });
+    await OutboundMessage.updateOne({ _id: rem._id }, { $set: { sendAt: new Date(local('06:00')) } });
+    t.ctx.clock.now = local('06:30');
+    await t.messaging.runDispatch();
+    const r1 = await OutboundMessage.findById(rem._id).lean();
+    assert.equal(r1.status, 'por_salir');
+    assert.equal(r1.sendAt.getTime(), local('08:00'));
+    assert.equal(t.wa.calls.length, 1);
+    t.ctx.clock.now = local('08:00');
+    await t.messaging.runDispatch();
+    assert.equal((await OutboundMessage.findById(rem._id).lean()).status, 'enviado');
+  });
+
+  test('la cita se mueve ANTES de que salga la confirmación: la confirmación sale igual (una sola)', async () => {
+    const { id, client } = await t.bookAndConfirm();
+    assert.equal((await t.post(`/api/wstyle/appointments/${id}/propose`, { startsAt: at('15:00', WEDNESDAY) }, t.barber)).status, 200);
+    assert.equal((await t.post(`/api/wstyle/appointments/${id}/accept`, {}, client.cookie)).status, 200);
+    await t.messaging.runDispatch();
+    const confs = (await t.msgs(id)).filter((m) => m.kind === 'confirmation');
+    assert.equal(confs.length, 1);
+    assert.equal(confs[0].status, 'enviado');
+    assert.equal(t.wa.calls[0].body.template.components[0].parameters[3].text, 'miércoles 4 de noviembre');
+  });
+
+  test('la cita se mueve y vuelve a su hora original: el recordatorio de esa hora revive', async () => {
+    const { id, client } = await t.bookAndConfirm();
+    const move = async (time, date) => {
+      assert.equal((await t.post(`/api/wstyle/appointments/${id}/propose`, { startsAt: at(time, date) }, t.barber)).status, 200);
+      assert.equal((await t.post(`/api/wstyle/appointments/${id}/accept`, {}, client.cookie)).status, 200);
+    };
+    await move('15:00', WEDNESDAY);
+    await move('12:00', MONDAY);
+    const rems = (await t.msgs(id)).filter((m) => m.kind === 'reminder');
+    const monday = rems.find((m) => m.apptStartsAt.getTime() === local('12:00'));
+    assert.equal(monday.status, 'por_salir');
+    assert.equal(monday.sendAt.getTime(), local('18:00', '2026-11-01'));
+    assert.equal(rems.find((m) => m.apptStartsAt.getTime() === local('15:00', WEDNESDAY)).status, 'no_aplica');
+    assert.equal((await t.msgs(id)).filter((m) => m.kind === 'confirmation').length, 1);
+  });
+
   test('CB-12 el cliente cambia su teléfono: sale al teléfono vigente', async () => {
     const { client } = await t.bookAndConfirm();
     await api(t.ctx.base, 'PATCH', '/api/auth/me', { body: { phone: '+56 9 1111 2222' }, cookie: client.cookie });

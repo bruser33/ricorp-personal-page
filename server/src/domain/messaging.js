@@ -145,9 +145,14 @@ export function createMessaging({ clock = Date.now, logger = console, whatsapp, 
       if (!b || String(appt.businessId) !== String(b._id)) return;
       const now = clock();
       if (appt.status === 'confirmada') {
+        /* Se movió antes de que saliera la confirmación: la confirmación sigue, con la hora nueva. */
+        await OutboundMessage.updateMany(
+          { appointmentId: appt._id, kind: 'confirmation', status: 'por_salir', apptStartsAt: { $ne: appt.startsAt } },
+          { $set: { apptStartsAt: appt.startsAt } }
+        );
         /* Se movió (propuesta aceptada, reprogramación): el recordatorio de la hora vieja ya no aplica. */
         await OutboundMessage.updateMany(
-          { appointmentId: appt._id, status: 'por_salir', apptStartsAt: { $ne: appt.startsAt } },
+          { appointmentId: appt._id, kind: 'reminder', status: 'por_salir', apptStartsAt: { $ne: appt.startsAt } },
           { $set: { status: 'no_aplica', reason: 'La cita cambió de hora' }, $unset: { leaseUntil: 1 } }
         );
         if (appt.startsAt.getTime() <= now || !appt.customerUserId) return;
@@ -160,9 +165,13 @@ export function createMessaging({ clock = Date.now, logger = console, whatsapp, 
         if (cfg.confirmEnabled && firstTime && !(await OutboundMessage.exists({ appointmentId: appt._id, kind: 'confirmation' }))) {
           await insertOnce({ ...base, kind: 'confirmation', template: TEMPLATES.confirmation, sendAt: new Date(now) });
         }
-        if (!(await OutboundMessage.exists({ appointmentId: appt._id, kind: 'reminder', apptStartsAt: appt.startsAt }))) {
-          const at = reminderSendAt({ startsMs: appt.startsAt.getTime(), option: cfg.reminder, now, tz: b.timezone });
+        const at = reminderSendAt({ startsMs: appt.startsAt.getTime(), option: cfg.reminder, now, tz: b.timezone });
+        const existing = await OutboundMessage.findOne({ appointmentId: appt._id, kind: 'reminder', apptStartsAt: appt.startsAt }).lean();
+        if (!existing) {
           if (at != null) await insertOnce({ ...base, kind: 'reminder', template: TEMPLATES.reminder, sendAt: new Date(at) });
+        } else if (existing.status === 'no_aplica' && at != null) {
+          /* Volvió a la misma hora (propuesta caducada, ida y vuelta): el recordatorio revive. "Frenado" por Joe no. */
+          await OutboundMessage.updateOne({ _id: existing._id, status: 'no_aplica' }, { $set: { status: 'por_salir', sendAt: new Date(at), userId: user._id, phoneE164: user.phoneE164 }, $unset: { reason: 1 } });
         }
         return;
       }
@@ -241,6 +250,18 @@ export function createMessaging({ clock = Date.now, logger = console, whatsapp, 
       await finish(msg, { status: 'no_aplica', reason: 'Llegó tarde' });
       return 'skipped';
     }
+    /* Horario de silencio también al ENVIAR (servidor que despertó de noche, reintentos): el recordatorio
+       espera hasta las 08:00 si aún alcanza (cita − 60 min); si no, llegó tarde. */
+    if (msg.kind === 'reminder') {
+      const w = wallClock(now, b.timezone);
+      const m = w.hour * 60 + w.minute;
+      if (m >= 22 * 60 || m < 8 * 60) {
+        const morning = zonedToUtc(m >= 22 * 60 ? addDays(w.date, 1) : w.date, '08:00', b.timezone);
+        if (morning <= appt.startsAt.getTime() - LATE_LIMIT_MIN * MIN) await finish(msg, { status: 'por_salir', sendAt: new Date(morning) });
+        else await finish(msg, { status: 'no_aplica', reason: 'Llegó tarde' });
+        return 'skipped';
+      }
+    }
     const user = await User.findById(msg.userId || appt.customerUserId).lean();
     if (!optedIn(user)) {
       await finish(msg, { status: 'no_aplica', reason: user?.status === 'deleted' ? 'Cuenta eliminada' : !clMobile(user?.phoneE164) ? 'Sin celular válido' : 'El cliente se dio de baja' });
@@ -261,14 +282,22 @@ export function createMessaging({ clock = Date.now, logger = console, whatsapp, 
       logger.log(`[wa] dry-run → ${maskPhone(phone)} · ${msg.template}`);
       return 'simulated';
     }
+    let r;
     try {
-      const r = await wa.sendTemplate({ to: phone, template: msg.template, params, buttonSuffix: suffix });
-      await addToken();
-      await finish(msg, { status: 'enviado', waMessageId: r.id, params, renderedText, phoneE164: phone, sentAt: new Date(now), attempts: msg.attempts + 1 }, { lastError: 1, errorKind: 1, errorCode: 1 });
-      if (b.whatsapp?.authFailedAt) await Business.updateOne({ _id: b._id }, { $unset: { 'whatsapp.authFailedAt': 1 } });
-      logger.log(`[wa] enviado → ${maskPhone(phone)} · ${msg.template}`);
-      return 'sent';
+      r = await wa.sendTemplate({ to: phone, template: msg.template, params, buttonSuffix: suffix });
     } catch (err) {
+      return failed(b, msg, err, { params, renderedText, phone, now });
+    }
+    /* Ya salió: desde acá un error de la BD no puede marcarlo "No salió" (se reintenta guardar el token). */
+    await addToken().catch(() => addToken());
+    await finish(msg, { status: 'enviado', waMessageId: r.id, params, renderedText, phoneE164: phone, sentAt: new Date(now), attempts: msg.attempts + 1 }, { lastError: 1, errorKind: 1, errorCode: 1 });
+      if (b.whatsapp?.authFailedAt) await Business.updateOne({ _id: b._id }, { $unset: { 'whatsapp.authFailedAt': 1 } });
+    logger.log(`[wa] enviado → ${maskPhone(phone)} · ${msg.template}`);
+    return 'sent';
+  }
+
+  async function failed(b, msg, err, { params, renderedText, phone, now }) {
+    {
       const e = err?.kind ? err : classify(0, {});
       const attempts = msg.attempts + 1;
       const common = { params, renderedText, phoneE164: phone, attempts, lastError: e.message, errorKind: e.kind, ...(e.code != null && Number.isFinite(e.code) ? { errorCode: e.code } : {}) };
