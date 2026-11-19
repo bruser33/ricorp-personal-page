@@ -322,7 +322,7 @@ const AppointmentSchema = new Schema(
         reason: String,
       },
     ],
-    source: { type: String, enum: ['web', 'pro_invite', 'admin'], default: 'web' },
+    source: { type: String, enum: ['web', 'pro_invite', 'pro_direct', 'admin'], default: 'web' },
     idempotencyKey: String,
   },
   /* optimisticConcurrency: dos pestañas (o cliente y barbero) que cambian la misma
