@@ -13,6 +13,7 @@ import HomePage from './pages/HomePage';
 import PaymentsPage from './pages/PaymentsPage';
 import RendicionPage from './pages/RendicionPage';
 import SchedulePage from './pages/SchedulePage';
+import StylesPage from './pages/StylesPage';
 import ServicesPage from './pages/ServicesPage';
 import SettingsPage from './pages/SettingsPage';
 import StatsPage from './pages/StatsPage';
@@ -107,6 +108,7 @@ export default function AdminApp({ fbReturn }: { fbReturn: FacebookReturn | null
     pagos: <PaymentsPage />,
     rendicion: <RendicionPage />,
     carta: <ServicesPage />,
+    estilos: <StylesPage />,
     horario: <SchedulePage />,
     estadisticas: <StatsPage />,
     configuracion: <SettingsPage user={user} />,

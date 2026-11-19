@@ -1,7 +1,7 @@
 // Funciones puras del panel del super admin (probadas en util.test.ts).
 import type { AdminService, ExportContent, MembershipStatus, WeekDay } from './api';
 
-export type AdminSection = 'inicio' | 'barberos' | 'citas' | 'pagos' | 'rendicion' | 'carta' | 'horario' | 'estadisticas' | 'configuracion' | 'auditoria';
+export type AdminSection = 'inicio' | 'barberos' | 'citas' | 'pagos' | 'rendicion' | 'carta' | 'estilos' | 'horario' | 'estadisticas' | 'configuracion' | 'auditoria';
 export const SECTIONS: { key: AdminSection; label: string; path: string }[] = [
   { key: 'inicio', label: 'Inicio', path: '/wstyle/admin/' },
   { key: 'barberos', label: 'Barberos', path: '/wstyle/admin/barberos/' },
@@ -10,6 +10,8 @@ export const SECTIONS: { key: AdminSection; label: string; path: string }[] = [
   { key: 'pagos', label: 'Pagos', path: '/wstyle/admin/pagos/' },
   { key: 'rendicion', label: 'Rendición', path: '/wstyle/admin/rendicion/' },
   { key: 'carta', label: 'Carta', path: '/wstyle/admin/carta/' },
+  // SPEC-59: catálogo de fotos de estilos que el cliente ve al reservar.
+  { key: 'estilos', label: 'Estilos', path: '/wstyle/admin/estilos/' },
   { key: 'horario', label: 'Horario', path: '/wstyle/admin/horario/' },
   { key: 'estadisticas', label: 'Estadísticas', path: '/wstyle/admin/estadisticas/' },
   { key: 'configuracion', label: 'Configuración', path: '/wstyle/admin/configuracion/' },

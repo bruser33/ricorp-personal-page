@@ -4,6 +4,7 @@ import { ApiError } from '../../agenda/api';
 import { CollectFields } from '../../agenda/components/CollectFields';
 import { useCollect } from '../../agenda/useCollect';
 import { Notice, StatusPill } from '../../agenda/components/ui';
+import { ReferenceSummary } from '../../agenda/components/StylePhotos';
 import { clp, dayMonthTime, localDate, localTime, prettyPhone } from '../../agenda/util';
 import Sheet from '../../pro/components/Sheet';
 import { admin, type AdminAppointment } from '../api';
@@ -23,6 +24,7 @@ export default function ApptSheet({ id, onClose, onChanged }: { id: string; onCl
   const [err, setErr] = useState<string | null>(null);
   const [mode, setMode] = useState<Mode>(null);
   const [busy, setBusy] = useState(false);
+  const [confirmRemove, setConfirmRemove] = useState(false);
   const [options, setOptions] = useState<{ id: string; name: string }[] | null>(null);
   const [target, setTarget] = useState('');
   const [when, setWhen] = useState('');
@@ -116,6 +118,19 @@ export default function ApptSheet({ id, onClose, onChanged }: { id: string; onCl
           {appt.note && <><dt>Nota</dt><dd>{appt.note}</dd></>}
           {appt.proposal && <><dt>Propuesta</dt><dd>{appt.proposal.when}</dd></>}
         </dl>
+        {/* SPEC-59: referencia del cliente y moderación (solo el super admin quita la foto del cliente). */}
+        <ReferenceSummary reference={appt.reference} title="Referencia del cliente" />
+        {appt.reference?.clientPhoto && mode === null && (
+          confirmRemove ? (
+            <div className="ag-confirm" role="group" aria-label="Quitar foto del cliente">
+              <p>¿Quitar la foto que subió el cliente? Se borra y la cita mostrará "Foto quitada por el local".</p>
+              <div className="ag-actions">
+                <button type="button" className="btn btn--ghost" onClick={() => setConfirmRemove(false)}>Volver</button>
+                <button type="button" className="btn btn--primary" disabled={busy} onClick={() => run(async () => { await admin.removeClientPhoto(id); setConfirmRemove(false); return admin.appointment(id); })}>Quitar foto</button>
+              </div>
+            </div>
+          ) : <p><button type="button" className="ag-link" onClick={() => setConfirmRemove(true)} data-remove-photo="">Quitar foto del cliente</button></p>
+        )}
 
         {err && <Notice tone="error">{err}</Notice>}
 
