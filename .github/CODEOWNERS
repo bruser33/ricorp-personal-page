@@ -1,0 +1,15 @@
+# Archivos compartidos con todo el sitio: un PR que los toque necesita además el visto bueno
+# de Pedro (bruser33). El resto de WS Style lo publica Joe (ver "Publicación de WS Style" en CLAUDE.md).
+/CLAUDE.md                  @bruser33
+/render.yaml                @bruser33
+/.github/                   @bruser33
+/.claude/                   @bruser33
+/client/package.json        @bruser33
+/client/package-lock.json   @bruser33
+/client/vite.config.ts      @bruser33
+/client/scripts/            @bruser33
+/client/index.html          @bruser33
+/server/package.json        @bruser33
+/server/package-lock.json   @bruser33
+/server/src/index.js        @bruser33
+/server/src/models/         @bruser33
