@@ -65,6 +65,11 @@ export function maskPhone(phone) {
 const escapeRe = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const fold = (x) => String(x || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 export const SEARCH_LIMIT = 8;
+const ACCENTS = { a: 'aáàäâ', e: 'eéèëê', i: 'iíìïî', o: 'oóòöô', u: 'uúùüû', n: 'nñ', c: 'cç' };
+/* "jose" → j[oóòöô]s[eéèëê]: el nombre en la BD puede venir con o sin tildes. */
+function accentRe(q) {
+  return [...fold(q)].map((ch) => (ACCENTS[ch] ? `[${ACCENTS[ch]}]` : escapeRe(ch))).join('');
+}
 
 export function validName(raw) {
   const name = cleanName(raw);
@@ -587,6 +592,8 @@ export function createPro({ agenda, clock = Date.now, mailer, logger = console, 
     const filter = { businessId: b._id, 'customerSnapshot.phoneE164': { $type: 'string' } };
     if (pro) filter.professionalId = pro._id;
     if (byPhone) filter['customerSnapshot.phoneE164'] = { $regex: escapeRe(digits) };
+    /* Por nombre, se filtra en la BD (sin importar tildes ni mayúsculas) antes de agrupar. */
+    else filter['customerSnapshot.name'] = { $regex: accentRe(q), $options: 'i' };
     const needle = fold(q);
     const now = new Date(clock());
     /* Agrupado en la BD (un registro por celular): no depende de cuántas citas haya. */

@@ -151,12 +151,15 @@ export function offsInDay<T extends { startsAt: string; endsAt: string }>(offs: 
 }
 
 // Inicio de un día local (America/Santiago) en ms, buscando el offset real de ese día.
+// El día que empieza el horario de verano la medianoche local no existe (24:00 → 01:00): se toma el primer
+// instante (en pasos de 15 min) cuya fecha local ya es `date`.
 function startOfLocalDay(date: string) {
-  for (const off of [3, 4, 2]) {
-    const t = Date.parse(`${date}T00:00:00Z`) + off * 3600000;
-    if (localDate(t) === date && localTime(t) === '00:00') return t;
+  const base = Date.parse(`${date}T00:00:00Z`);
+  for (let m = 60; m <= 6 * 60; m += 15) {
+    const t = base + m * 60000;
+    if (localDate(t) === date) return t;
   }
-  return Date.parse(`${date}T03:00:00Z`);
+  return base + 3 * 3600000;
 }
 
 // Próxima media hora en punto (para "Bloquear" desde la cabecera).

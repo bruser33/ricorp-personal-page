@@ -122,7 +122,8 @@ export default function ApptSheet({ id, onClose, onChanged }: { id: string; onCl
 
         {err && <Notice tone="error">{err}</Notice>}
 
-        {mode === null && (
+        {mode === null && pending && <p className="ag-muted" role="status">Marcando que {appt.customer.name} no vino… puedes deshacerlo en el aviso de abajo.</p>}
+        {mode === null && !pending && (
           <div className="ag-actions ag-actions--wrap adm-appt__actions">
             {has('confirm') && <button type="button" className="btn btn--primary" disabled={busy} onClick={() => run(() => admin.act(id, 'confirm'))}>Confirmar</button>}
             {appt.canReassign && <button type="button" className="btn btn--ghost" disabled={busy} onClick={openReassign}>Reasignar barbero</button>}

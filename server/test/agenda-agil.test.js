@@ -177,6 +177,7 @@ describe('SPEC-55 agenda ágil', () => {
     assert.equal(r.status, 200, JSON.stringify(r.json));
     assert.equal(r.json.status, 'terminada');
     assert.equal((await CustomerProfile.findOne({ userId: client.user._id })).counters.noShows, 0);
+    assert.equal(await SlotLock.countDocuments({ appointmentId: appt.id }), 3, 'la cita sigue en curso: vuelve a ocupar sus bloques');
     const log = await AuditLog.findOne({ action: 'appointment.revert_no_show' });
     assert.ok(log);
     assert.match(log.summary, /Llegó tarde/);
@@ -278,5 +279,22 @@ describe('SPEC-55 agenda ágil', () => {
     assert.equal(r.status, 201);
     assert.equal(ctx.mailer.outbox.length, 0);
     assert.equal((await Appointment.findById(r.json.appointment.id)).customerUserId, null);
+  });
+
+  test('AC-06 "Sí vino" cuando el rato liberado ya se reservó → 409 y la cita sigue como no vino', async () => {
+    const appt = await book({ service: 'corte-barba', name: 'Pedro', phone: '+56955556666' });
+    ctx.clock.now = Date.parse(at('12:20'));
+    assert.equal((await req('POST', `/api/pro/appointments/${appt.id}/no-show`, {}, cookieA)).status, 200);
+    const other = await req('POST', '/api/pro/invitations', { phone: '+56914141414', name: 'Otro', serviceId: 'corte', startsAt: at('12:30'), confirmed: true }, cookieA);
+    assert.equal(other.status, 201, JSON.stringify(other.json));
+    const r = await req('POST', `/api/admin/appointments/${appt.id}/revert-no-show`, { reason: 'Llegó' });
+    assert.equal(r.status, 409);
+    assert.equal((await Appointment.findById(appt.id)).status, 'no_asistio');
+  });
+
+  test('buscador por nombre sin importar tildes', async () => {
+    await book({ name: 'José Muñoz', phone: '+56915151515' });
+    assert.equal((await req('GET', '/api/pro/customers?q=jose munoz', undefined, cookieA)).json.items.length, 1);
+    assert.equal((await req('GET', '/api/pro/customers?q=MUÑ', undefined, cookieA)).json.items.length, 1);
   });
 });

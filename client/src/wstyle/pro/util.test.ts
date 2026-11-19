@@ -96,4 +96,12 @@ describe('pro/util', () => {
     const old = effectiveDay({ ...day, appointments: [{ ...day.appointments[0], heldUntil: null }] });
     expect(old.appointments[0].endsAt).toBe(iso('13:00'));
   });
+
+  it('cambio de hora: el día sin medianoche igual dibuja su parte de una ausencia larga', () => {
+    // 6-sep-2026: en Chile el reloj salta de 24:00 a 01:00 (UTC-4 → UTC-3).
+    const off = { id: 'x', startsAt: '2026-09-05T16:00:00.000Z', endsAt: '2026-09-07T15:00:00.000Z', reason: 'Viaje' };
+    const [part] = offsInDay([off], '2026-09-06');
+    expect(part.from).toBe('2026-09-06T04:00:00.000Z');
+    expect(part.to).toBe('2026-09-07T03:00:00.000Z');
+  });
 });

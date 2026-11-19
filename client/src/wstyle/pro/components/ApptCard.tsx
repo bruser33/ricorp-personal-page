@@ -94,7 +94,7 @@ export default function ApptCard({ appt, now, onChange, onOpen, reload }: {
             {can('propose') && s === 'pendiente' && <button type="button" className="btn btn--ghost" onClick={() => onOpen(appt, 'move')}>Proponer otra hora</button>}
             {can('reject') && <button type="button" className="btn btn--ghost" onClick={() => onOpen(appt, 'reject')}>Rechazar</button>}
             {s === 'confirmada' && (
-              <button type="button" className="btn btn--primary" disabled={busy || !can('start')} aria-describedby={can('start') ? undefined : `start-${appt.id}`}
+              <button type="button" className="btn btn--primary" disabled={busy || pending || !can('start')} aria-describedby={can('start') ? undefined : `start-${appt.id}`}
                 onClick={() => run(appt.id, 'start')}>Iniciar</button>
             )}
             {s === 'confirmada' && !can('start') && now < startOpens && <span className="pro-card__hint" id={`start-${appt.id}`}>Desde las {localTime(appt.startOpensAt)}</span>}
@@ -104,7 +104,7 @@ export default function ApptCard({ appt, now, onChange, onOpen, reload }: {
               scheduleNoShow<ProAppointment>({ id: appt.id, name: appt.customer.name, path: `/api/pro/appointments/${encodeURIComponent(appt.id)}/no-show`,
                 onDone: (a) => { onChange(a); reload(); }, onError: (text) => { setMsg({ tone: 'error', text }); reload(); } });
             }}>{pending ? 'Marcando que no vino…' : 'El cliente no vino'}</button>}
-            {can('finish') && <button type="button" className="btn btn--primary" disabled={busy} onClick={() => (appt.payment?.method === 'online' ? run(appt.id, 'finish') : setAskPaid('ask'))}>Terminar</button>}
+            {can('finish') && <button type="button" className="btn btn--primary" disabled={busy || pending} onClick={() => (appt.payment?.method === 'online' ? run(appt.id, 'finish') : setAskPaid('ask'))}>Terminar</button>}
             {s === 'invitacion_enviada' && appt.invite?.whatsappUrl && <a className="btn btn--ghost" href={appt.invite.whatsappUrl} target="_blank" rel="noopener">Reenviar por WhatsApp</a>}
             {s === 'invitacion_enviada' && appt.invite && <CopyLink url={appt.invite.url} label="Copiar link" />}
             <button type="button" className="ag-link pro-card__more" onClick={() => onOpen(appt)}>Ver detalle</button>

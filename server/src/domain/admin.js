@@ -348,8 +348,13 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
     const now = clock();
     if (current.status !== 'no_asistio') throw new HttpError(409, 'invalid_transition', 'Esta cita no está marcada como "no vino"', { reason: 'bad_state' });
     if (!canRevertNoShow(current, now)) throw new HttpError(409, 'invalid_transition', 'Pasaron más de 48 horas: ya no se puede corregir', { reason: 'too_late' });
-    const appt = await agenda.mutate(b, current._id, (a) => {
+    const appt = await agenda.mutate(b, current._id, async (a, session) => {
       if (a.status !== 'no_asistio') throw new HttpError(409, 'invalid_transition', 'Recarga para ver el estado actual', { reason: 'stale' });
+      /* Si la cita aún no termina, el barbero vuelve a estar ocupado: se re-toman los bloques que el "no vino" liberó.
+         Si alguien ya reservó ese rato → 409 slot_taken (mutate) y no se corrige. */
+      const have = new Set((await SlotLock.find({ appointmentId: a._id }, { slotStart: 1 }).session(session || null).lean()).map((l) => l.slotStart.getTime()));
+      const missing = slotsFor(a.startsAt.getTime(), a.serviceSnapshot.durationMin, a.location?.travelBufferMin || 0).filter((t) => t + 15 * 60 * 1000 > now && !have.has(t));
+      if (missing.length) await SlotLock.insertMany(missing.map((t) => ({ businessId: b._id, professionalId: a.professionalId, slotStart: new Date(t), appointmentId: a._id, kind: 'main' })), { session, ordered: true });
       a.status = 'terminada';
       return { by: 'admin', byUserId: user._id, reason: `Sí vino: ${reason}` };
     });

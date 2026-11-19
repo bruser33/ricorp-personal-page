@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { ApiError } from '../../agenda/api';
 import { Notice } from '../../agenda/components/ui';
-import { localTime } from '../../agenda/util';
+import { localDate, localTime } from '../../agenda/util';
 import type { ProAppointment } from '../api';
 import type { BookingAdapter } from '../booking';
 import { nextHalfHour } from '../util';
@@ -15,6 +15,13 @@ const DURATIONS: { key: string; label: string; min: number | null }[] = [
 ];
 const toMin = (t: string) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
 const toTime = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+const LAST = 23 * 60 + 45; // último bloque de 15 min del día
+// Desde la cabecera: la próxima media hora si es de ese mismo día; si no (otro día o pasada la medianoche), 13:00.
+function defaultFrom(date: string, startsAt: string | null) {
+  if (startsAt) return localTime(startsAt);
+  const next = nextHalfHour(Date.now());
+  return localDate(next) === date ? localTime(next) : '13:00';
+}
 
 // SPEC-55 bloqueos rápidos: motivo (Almuerzo · Médico · Trámite · Otro) + desde + duración (o "Hasta" a mano).
 // Crea una ausencia (TimeOff) con el mismo endpoint de Perfil → Ausencias y su validación de conflicto (409).
@@ -27,9 +34,9 @@ export default function BlockForm({ date, startsAt, adapter, onDone, onClose }: 
 }) {
   const [reason, setReason] = useState<(typeof REASONS)[number] | null>(null);
   const [other, setOther] = useState('');
-  const [from, setFrom] = useState(() => localTime(startsAt ?? nextHalfHour(Date.now())));
+  const [from, setFrom] = useState(() => defaultFrom(date, startsAt));
   const [dur, setDur] = useState<string | null>('60');
-  const [to, setTo] = useState(() => toTime(Math.min(toMin(localTime(startsAt ?? nextHalfHour(Date.now()))) + 60, 23 * 60 + 59)));
+  const [to, setTo] = useState(() => toTime(Math.min(toMin(defaultFrom(date, startsAt)) + 60, LAST)));
   const [err, setErr] = useState<string | null>(null);
   const [clash, setClash] = useState<ProAppointment[] | null>(null);
   const [busy, setBusy] = useState(false);
@@ -37,12 +44,12 @@ export default function BlockForm({ date, startsAt, adapter, onDone, onClose }: 
 
   function pickDur(d: (typeof DURATIONS)[number]) {
     setDur(d.key);
-    if (d.min) setTo(toTime(Math.min(toMin(from) + d.min, 23 * 60 + 59)));
+    if (d.min) setTo(toTime(Math.min(toMin(from) + d.min, LAST)));
   }
   function changeFrom(v: string) {
     setFrom(v);
     const d = DURATIONS.find((x) => x.key === dur);
-    if (v && d?.min) setTo(toTime(Math.min(toMin(v) + d.min, 23 * 60 + 59)));
+    if (v && d?.min) setTo(toTime(Math.min(toMin(v) + d.min, LAST)));
   }
 
   async function submit(e: FormEvent) {

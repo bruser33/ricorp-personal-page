@@ -56,7 +56,7 @@ export function scheduleNoShow<T>(o: { id: string; name: string; path: string; o
 
 // Si se cierra la pestaña dentro de la ventana, el registro igual sale (keepalive sobrevive a la descarga).
 if (typeof window !== 'undefined') {
-  window.addEventListener('pagehide', () => {
+  const sendNow = () => {
     const p = pending;
     if (!p) return;
     clearTimeout(p.timer);
@@ -67,7 +67,10 @@ if (typeof window !== 'undefined') {
     } catch {
       /* el navegador no lo permitió: nada más que hacer */
     }
-  });
+  };
+  window.addEventListener('pagehide', sendNow);
+  // En el celular, pasar a otra app y que el sistema mate el navegador no siempre dispara pagehide.
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') sendNow(); });
 }
 
 const subscribe = (l: () => void) => {

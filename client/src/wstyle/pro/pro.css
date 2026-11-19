@@ -227,7 +227,7 @@
 .pro-legend i.pro-off { position: static; padding: 0; }
 .pro-block-wrap { position: absolute; z-index: 1; left: 2px; right: 2px; }
 .pro-block-wrap > .pro-block { left: 0; right: 0; top: 0; bottom: 0; text-align: left; font: inherit; font-size: 11px; cursor: pointer; }
-.pro-quick { position: absolute; z-index: 2; right: 4px; bottom: 4px; min-height: 30px; padding: 0 10px; border: 1px solid #e0806b; border-radius: 999px; background: rgba(14, 13, 12, .85);
+.pro-quick { position: absolute; z-index: 2; right: 4px; top: 4px; min-height: 30px; padding: 0 10px; border: 1px solid #e0806b; border-radius: 999px; background: rgba(14, 13, 12, .85);
   color: #f0b3a5; font: 700 11px/1 var(--font-body); letter-spacing: .04em; cursor: pointer; }
 .pro-quick:hover, .pro-quick:focus-visible { background: #e0806b; color: var(--ink); }
 .pro-ns { display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 999px; background: #e0806b; color: var(--ink); font: 700 10px/1.4 var(--font-body); font-style: normal;

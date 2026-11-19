@@ -899,23 +899,25 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
          curso redondeado hacia arriba (nunca horas pasadas ni bloques de otra cita). */
       const freeFrom = ceilSlot(now);
       let freedLocks = 0;
-      const appt = await mutate(b, current._id, async (a, session) => {
+      const appt = await mutate(b, current._id, async (a) => {
         if (a.status !== need) throw invalid('stale');
-        if (to === 'no_asistio') {
-          const r = await SlotLock.deleteMany({ appointmentId: a._id, slotStart: { $gte: new Date(freeFrom) } }, { session });
-          freedLocks = r.deletedCount || 0;
-        }
         a.status = to;
         if (action === 'finish' && localPay && typeof payload.collected === 'boolean') {
           if (payload.collected) applyLocalCollection(a, { ...collect, provider: taxProvider, now });
           else a.payment.status = 'pago_pendiente';
         }
-        return { by, byUserId, reason: reason ?? (action === 'finish' && typeof payload.collected === 'boolean' ? (payload.collected ? 'Cobrado' : 'Sin cobrar') : undefined) };
+        /* `at` = el mismo instante del que sale freeFrom: la grilla (heldUntil) y los bloques liberados coinciden. */
+        return { at: new Date(now), by, byUserId, reason: reason ?? (action === 'finish' && typeof payload.collected === 'boolean' ? (payload.collected ? 'Cobrado' : 'Sin cobrar') : undefined) };
       });
+      /* Se liberan DESPUÉS de guardar el "no vino": si el guardado falla (otra pestaña), los bloques siguen. */
+      if (to === 'no_asistio') {
+        const r = await SlotLock.deleteMany({ appointmentId: appt._id, slotStart: { $gte: new Date(freeFrom) } });
+        freedLocks = r.deletedCount || 0;
+      }
       if (to === 'terminada') await notify(b, appt, 'client', 'finished');
       if (to === 'no_asistio') await notify(b, appt, 'client', 'no_show');
       if (to === 'no_asistio' && appt.customerUserId) {
-        await CustomerProfile.updateOne({ businessId: b._id, userId: appt.customerUserId }, { $inc: { 'counters.noShows': 1 } }, { upsert: true }).catch(() => {});
+        await CustomerProfile.updateOne({ businessId: b._id, userId: appt.customerUserId }, { $inc: { 'counters.noShows': 1 } }, { upsert: true }).catch((err) => logger.error('[agenda] contador de inasistencias:', err.message));
       }
       /* SPEC-55: el rato liberado va a la lista de espera (SPEC-54) si existe. Un error ahí no deshace nada. */
       if (to === 'no_asistio' && freedLocks && hooks.onSlotFreed) {
