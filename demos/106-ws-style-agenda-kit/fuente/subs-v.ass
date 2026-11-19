@@ -1,0 +1,22 @@
+[Script Info]
+ScriptType: v4.00+
+PlayResX: 1080
+PlayResY: 1920
+WrapStyle: 0
+ScaledBorderAndShadow: yes
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Sub,Inter SemiBold,50,&H00F2F5FA,&H000000FF,&H40080A0D,&H40080A0D,0,0,0,0,100,100,0,0,3,14,0,2,80,80,330,1
+Style: Wm,Inter SemiBold,26,&H30DCE8EF,&H000000FF,&H8C080A0D,&H8C080A0D,0,0,0,0,100,100,1,0,3,8,0,2,40,40,120,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 1,0:00:03.30,0:00:09.64,Sub,,0,0,0,,{\fad(150,150)}Así puedes organizar tu agenda y compartir el enlace para reservar en WS Style.
+Dialogue: 1,0:00:11.55,0:00:17.02,Sub,,0,0,0,,{\fad(150,150)}Desde la portada, toca Reservar para empezar a elegir tu servicio.
+Dialogue: 1,0:00:18.80,0:00:24.61,Sub,,0,0,0,,{\fad(150,150)}En la agenda del día puedes ver las horas ocupadas y los espacios disponibles.
+Dialogue: 1,0:00:26.55,0:00:32.38,Sub,,0,0,0,,{\fad(150,150)}En Difusión tienes el enlace de reservas listo para compartir con tus clientes.
+Dialogue: 1,0:00:34.30,0:00:39.96,Sub,,0,0,0,,{\fad(150,150)}Descarga el cartel con tu código QR para que puedan reservar desde el local.
+Dialogue: 1,0:00:42.05,0:00:47.02,Sub,,0,0,0,,{\fad(150,150)}En Estadísticas puedes ver desde dónde llegaron las reservas.
+Dialogue: 1,0:00:48.80,0:00:53.26,Sub,,0,0,0,,{\fad(150,150)}Un producto elaborado por ricorp.cl
+Dialogue: 0,0:00:02.85,0:00:48.55,Wm,,0,0,0,,{\fad(400,300)}Demo con datos ficticios  ·  Un producto elaborado por ricorp.cl
