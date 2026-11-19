@@ -47,6 +47,8 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
   const [busy, setBusy] = useState(false);
   const [phone, setPhone] = useState('');
   const [accept, setAccept] = useState(false);
+  // SPEC-53: casilla de WhatsApp. La primera vez viene desmarcada; después recuerda la última elección (asunción 7).
+  const [waOptIn, setWaOptIn] = useState<boolean | null>(null);
   const [website, setWebsite] = useState('');
   // SPEC-34 RN-08: formas de pago que habilitó el admin (sin datos del catálogo: solo en el local).
   const [payPick, setPayPick] = useState<'local' | 'online' | null>(null);
@@ -70,6 +72,9 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
   const mode = sel.mode ?? 'shop';
   const lastDay = catalog ? addDays(today, catalog.business.settings.horizonDays) : addDays(today, 30);
   const user = session.user;
+  // SPEC-53: el WhatsApp va al celular de la cuenta o al que se escribe en este paso.
+  const waPhone = user?.phone ?? clMobile(phone);
+  const waChecked = waOptIn ?? user?.whatsappOptIn === true;
 
   const update = useCallback((patch: Partial<Selection>) => setSel((s) => ({ ...s, ...patch })), []);
   useEffect(() => { saveSelection(sel); }, [sel]);
@@ -201,6 +206,7 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
         serviceId: sel.serviceId, professionalId: sel.professionalId, startsAt: sel.startsAt, mode,
         address: mode === 'home' ? sel.address : undefined, phone: needPhone ? phone : undefined, note: sel.note ?? '',
         acceptPolicies: accept, paymentMethod: pay, idempotencyKey: idem.current, website,
+        whatsappOptIn: waPhone ? waChecked : undefined,
       });
       if (!r.appointment) { setSubmitError('No pudimos agendar. Inténtalo de nuevo.'); return; }
       // SPEC-35: "Pagar en línea" → la cita queda esperando el pago (15 min) y se va a Mercado Pago. Si no se puede
@@ -437,6 +443,15 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
                       </label>
                     )}
                   </fieldset>
+                  {waPhone && (
+                    <div className="ag-field ag-check" data-wa-optin="">
+                      <label>
+                        <input type="checkbox" checked={waChecked} onChange={(e) => setWaOptIn(e.target.checked)} />
+                        <span>Quiero recibir la confirmación y el recordatorio por WhatsApp al {prettyPhone(waPhone)}</span>
+                      </label>
+                      <p className="ag-field__hint">Solo avisos de tu hora, con un link para verla o cancelarla. Puedes darte de baja cuando quieras.</p>
+                    </div>
+                  )}
                   <div className={`ag-field ag-check${errors.acceptPolicies ? ' has-error' : ''}`}>
                     <label>
                       <input type="checkbox" checked={accept} onChange={(e) => { setAccept(e.target.checked); setErrors((x) => ({ ...x, acceptPolicies: undefined })); }} aria-invalid={errors.acceptPolicies ? true : undefined} aria-describedby={errors.acceptPolicies ? 'ag-pol-err' : undefined} />

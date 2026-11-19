@@ -15,6 +15,8 @@ export function AccountPage({ ctx }: { ctx: AgendaCtx }) {
   const [phoneErr, setPhoneErr] = useState<string | undefined>();
   const [sent, setSent] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [waBusy, setWaBusy] = useState(false);
+  const [waMsg, setWaMsg] = useState<{ tone: 'ok' | 'error'; text: string } | null>(null);
   const deleted = new URLSearchParams(location.search).has('eliminada');
 
   if (session.status === 'loading') return <Shell user={null} current="cuenta"><Spinner label="Cargando tu cuenta…" /></Shell>;
@@ -45,6 +47,20 @@ export function AccountPage({ ctx }: { ctx: AgendaCtx }) {
     }
   }
 
+  // SPEC-53 RN-02: activar o desactivar los avisos por WhatsApp (desactivar frena los que estaban por salir).
+  async function setWhatsapp(on: boolean) {
+    setWaBusy(true);
+    setWaMsg(null);
+    try {
+      session.setUser(await auth.update({ whatsappOptIn: on }));
+      setWaMsg({ tone: 'ok', text: on ? 'Listo: te avisaremos por WhatsApp cuando tu hora quede confirmada y antes de tu cita.' : 'Listo: ya no te enviaremos avisos por WhatsApp. Los correos siguen igual.' });
+    } catch (err) {
+      setWaMsg({ tone: 'error', text: err instanceof ApiError ? err.message : 'No pudimos guardar. Inténtalo de nuevo.' });
+    } finally {
+      setWaBusy(false);
+    }
+  }
+
   return (
     <Shell user={user} current="cuenta">
       <h1 className="ag-h1">Mi cuenta</h1>
@@ -62,8 +78,18 @@ export function AccountPage({ ctx }: { ctx: AgendaCtx }) {
           <div><dt>Nombre</dt><dd>{user.name}</dd></div>
           <div><dt>Email</dt><dd>{user.email}</dd></div>
           {user.phone && <div><dt>Celular</dt><dd>{prettyPhone(user.phone)}</dd></div>}
+          {user.phone && <div data-wa-optin={user.whatsappOptIn ? 'on' : 'off'}><dt>Avisos por WhatsApp</dt><dd>{user.whatsappOptIn ? 'Activados' : 'Desactivados'}</dd></div>}
           <div><dt>Entras con</dt><dd>{user.providers.map((p) => (p === 'email' ? 'correo y contraseña' : p === 'google' ? 'Google' : 'Facebook')).join(' · ')}</dd></div>
         </dl>
+        {user.phone && (
+          <div className="ag-wa-pref">
+            <p className="ag-muted">{user.whatsappOptIn ? `Te mandamos la confirmación y un recordatorio de tus horas al ${prettyPhone(user.phone)}. También puedes responder BAJA a cualquiera de esos mensajes.` : `Recibe la confirmación y un recordatorio de tus horas por WhatsApp al ${prettyPhone(user.phone)}.`}</p>
+            <button type="button" className="btn btn--ghost" disabled={waBusy} onClick={() => setWhatsapp(!user.whatsappOptIn)}>
+              {waBusy ? 'Guardando…' : user.whatsappOptIn ? 'Desactivar avisos por WhatsApp' : 'Activar avisos por WhatsApp'}
+            </button>
+            {waMsg && <Notice tone={waMsg.tone}>{waMsg.text}</Notice>}
+          </div>
+        )}
         {!user.emailVerified && (
           <Notice>
             Aún no confirmas tu correo.{' '}

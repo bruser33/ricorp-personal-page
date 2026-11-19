@@ -47,7 +47,7 @@ export default defineConfig({
         ...Object.fromEntries(['privacidad', 'terminos'].map((r) => [`wstyle-${r}`, resolve(import.meta.dirname, `wstyle/${r}/index.html`)])),
         // Panel del super admin (SPEC-34): /wstyle/admin/ y una carpeta por sección (recargar funciona). Sin enlace público, noindex.
         ...Object.fromEntries(
-          ['admin', ...['barberos', 'citas', 'pagos', 'rendicion', 'carta', 'horario', 'estadisticas', 'configuracion', 'auditoria'].map((s) => `admin/${s}`)].map((r) => [
+          ['admin', ...['barberos', 'citas', 'pagos', 'rendicion', 'mensajes', 'carta', 'horario', 'estadisticas', 'configuracion', 'auditoria'].map((s) => `admin/${s}`)].map((r) => [
             `wstyle-${r.replace('/', '-')}`,
             resolve(import.meta.dirname, `wstyle/${r}/index.html`),
           ]),

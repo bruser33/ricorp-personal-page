@@ -67,7 +67,8 @@ export async function wakeAndGet<T>(path: string, { windowMs = 30_000, onWaking 
 }
 
 // ─── Tipos de la API
-export interface User { id: string; name: string; email: string | null; emailVerified: boolean; phone: string | null; roles: string[]; providers: string[] }
+// SPEC-53: whatsappOptIn = última elección sobre los avisos por WhatsApp (null = nunca eligió).
+export interface User { id: string; name: string; email: string | null; emailVerified: boolean; phone: string | null; roles: string[]; providers: string[]; whatsappOptIn?: boolean | null }
 export interface CatalogService { id: string; name: string; description: string; priceCLP: number; durationMin: number; homeServiceAllowed: boolean }
 export interface CatalogPro { id: string; name: string; specialty: string; photo: string | null; homeService: { surchargeCLP: number; radiusKm: number } | null; serviceIds: string[] }
 export interface Catalog {
@@ -107,6 +108,8 @@ export interface Appointment {
   actions: Action[];
   role: 'client' | 'barber' | 'admin';
   whatsapp: string | null; shopWhatsapp: string | null;
+  // SPEC-53: abierta con el link del WhatsApp, sin sesión (solo se puede cancelar).
+  guest?: boolean;
 }
 
 export const auth = {
@@ -116,7 +119,7 @@ export const auth = {
   register: (body: { email: string; name: string; phone: string; password: string }) => api<{ user: User; verificationSent: boolean }>('/api/auth/register', { method: 'POST', body }),
   login: (email: string, password: string) => api<{ user: User }>('/api/auth/login', { method: 'POST', body: { email, password } }).then((r) => r.user),
   logout: () => api<{ ok: boolean }>('/api/auth/logout', { method: 'POST', body: {} }),
-  update: (body: { name?: string; phone?: string }) => api<{ user: User }>('/api/auth/me', { method: 'PATCH', body }).then((r) => r.user),
+  update: (body: { name?: string; phone?: string; whatsappOptIn?: boolean }) => api<{ user: User }>('/api/auth/me', { method: 'PATCH', body }).then((r) => r.user),
   addClientRole: () => api<{ user: User }>('/api/auth/me/client-role', { method: 'POST', body: {} }).then((r) => r.user),
   resendVerification: () => api<{ ok: boolean }>('/api/auth/resend-verification', { method: 'POST', body: {} }),
   verifyEmail: (token: string) => api<{ ok: boolean }>('/api/auth/verify-email', { method: 'POST', body: { token } }),
@@ -139,7 +142,11 @@ export const agenda = {
   create: (body: Record<string, unknown>) => api<{ ok: boolean; id: string; mailOk?: boolean; appointment: Appointment }>('/api/wstyle/appointments', { method: 'POST', body }),
   mine: () => api<{ upcoming: Appointment[]; past: Appointment[] }>('/api/wstyle/appointments/mine'),
   // inv: token del link de una invitación del barbero (SPEC-33 RN-12); asocia la cita a quien la abre.
-  get: (id: string, inv?: string | null) => api<Appointment>(`/api/wstyle/appointments/${encodeURIComponent(id)}${inv ? `?inv=${encodeURIComponent(inv)}` : ''}`),
+  // t: token del link "Ver o cancelar mi cita" del WhatsApp (SPEC-53): ver y cancelar sin sesión.
+  get: (id: string, inv?: string | null, t?: string | null) => {
+    const q = new URLSearchParams(Object.entries({ inv, t }).filter(([, v]) => v) as [string, string][]).toString();
+    return api<Appointment>(`/api/wstyle/appointments/${encodeURIComponent(id)}${q ? `?${q}` : ''}`);
+  },
   act: (id: string, action: Action, body: Record<string, unknown> = {}) =>
     api<Appointment>(`/api/wstyle/appointments/${encodeURIComponent(id)}/${action === 'no_show' ? 'no-show' : action === 'pay_local' ? 'pay-local' : action}`, { method: 'POST', body }),
   // SPEC-35: el server crea la preferencia de Checkout Pro y devuelve a dónde redirigir (el token nunca pasa por acá).

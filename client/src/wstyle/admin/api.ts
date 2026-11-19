@@ -86,6 +86,27 @@ export interface Settings {
   rules: Record<RuleKey, number>;
   limits: { rules: Record<RuleKey, [number, number]>; platformFeePercent: [number, number]; paymentFeePercent: [number, number] };
 }
+// SPEC-53: WhatsApp a los clientes.
+export type MessageStatus = 'por_salir' | 'enviando' | 'enviado' | 'entregado' | 'leido' | 'fallido' | 'frenado' | 'no_aplica' | 'simulado';
+export interface WaMessage {
+  id: string; kind: 'confirmation' | 'reminder'; kindLabel: string; status: MessageStatus; statusLabel: string; appointmentId: string;
+  customer: string; phone: string; service: string; professional: string; apptStartsAt: string; sendAt: string;
+  sentAt: string | null; deliveredAt: string | null; readAt: string | null; attempts: number; error: string | null; reason: string | null;
+  canStop: boolean; canRetry: boolean;
+  text?: string; template?: string; preview?: boolean;
+}
+export interface WaChannel { mode: 'live' | 'dry-run' | 'incomplete' | 'auth_failed'; label: string; missing: string[]; webhookMissing: string[] }
+export interface WaMessages {
+  kpis: { pending: number; delivered7d: number; failed7d: number; nextSendAt: string | null; monthSent: number };
+  channel: WaChannel; page: number; pages: number; total: number; items: WaMessage[];
+}
+export type ReminderOption = '2h' | '4h' | '1d' | '2d' | 'off';
+export interface WaConfig {
+  channel: WaChannel; confirmEnabled: boolean; reminder: ReminderOption; options: { id: ReminderOption; label: string }[];
+  preview: { confirmation: string; reminder: string }; monthSent: number; rescheduled?: number;
+}
+export interface MessageFilters { status?: string; kind?: string; q?: string; page?: string }
+
 export interface AuditItem { id: string; at: string; actor: string; action: string; entity: string | null; entityId: string | null; summary: string; before: unknown; after: unknown }
 
 export interface ApptFilters { from?: string; to?: string; professional?: string; status?: string; paymentMethod?: string; paymentStatus?: string; mode?: string; q?: string }
@@ -130,6 +151,12 @@ export const admin = {
   stats: (from: string, to: string) => api<Stats>(`/api/admin/stats?${qs({ from, to })}`),
   settings: () => api<Settings>('/api/admin/settings'),
   saveSettings: (body: Partial<Pick<Settings, 'payments' | 'platformFeePercent' | 'paymentFeePercent' | 'paymentFeeVat'>> & { rules?: Partial<Record<RuleKey, number>> }) => send<Settings>('/api/admin/settings', 'PUT', body),
+  messages: (f: MessageFilters) => api<WaMessages>(`/api/admin/messages?${qs(f)}`),
+  message: (mid: string) => api<WaMessage>(`/api/admin/messages/${id(mid)}`),
+  stopMessage: (mid: string) => send<WaMessage>(`/api/admin/messages/${id(mid)}/stop`, 'POST'),
+  retryMessage: (mid: string) => send<WaMessage>(`/api/admin/messages/${id(mid)}/retry`, 'POST'),
+  whatsapp: () => api<WaConfig>('/api/admin/whatsapp'),
+  saveWhatsapp: (body: { confirmEnabled?: boolean; reminder?: ReminderOption }) => send<WaConfig>('/api/admin/whatsapp', 'PUT', body),
   audit: (page = 1, action = '') => api<{ page: number; pages: number; total: number; items: AuditItem[] }>(`/api/admin/audit?${qs({ page: String(page), action })}`),
 };
 

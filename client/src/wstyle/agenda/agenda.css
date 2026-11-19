@@ -200,3 +200,5 @@
 .pay-collect .ag-field, .pay-boleta .ag-field { margin-bottom: 8px; }
 .pay-boleta { margin-top: 10px; }
 .pay-boleta input, .pay-collect input[inputmode] { max-width: 220px; }
+.ag-wa-pref { display: grid; gap: 10px; margin: 16px 0; }
+.ag-wa-pref p { margin: 0; }

@@ -46,6 +46,10 @@ describe('Política de privacidad', () => {
     for (const s of ['Inicio con Google', 'openid', 'ws_gg_nonce', 'myaccount.google.com/permissions']) expect(html).toContain(s);
     expect(html).toMatch(/nunca pasan por nuestros servidores/);
   });
+  it('SPEC-53: avisos por WhatsApp opcionales, Meta como encargado y cómo darse de baja', () => {
+    expect(html).toContain('id="whatsapp"');
+    for (const s of ['Avisos por WhatsApp (opcional)', 'WhatsApp Business Platform', 'encargado del envío', 'BAJA']) expect(html).toContain(s);
+  });
   it('responsable Ricorp; en demo el WhatsApp del local lleva al contacto de Ricorp', () => {
     expect(html).toContain('Ricorp');
     expect(html).toContain(`href="${DEMO_CONTACT_URL}"`);
