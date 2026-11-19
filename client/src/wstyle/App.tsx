@@ -19,7 +19,7 @@ import Icon from './components/Icons';
 import FilmFx, { Marquee } from './components/FilmFx';
 import HeroFire from './components/HeroFire';
 import HeroNav from './components/HeroNav';
-import { heroItems, nextIndex, normalizeSlides, prevIndex } from './heroSlides';
+import { heroItems, nextIndex, normalizeSlides, prevIndex, resolveIndex, PORTRAIT_ID } from './heroSlides';
 import Embers from './components/Embers';
 import { Barbers, DemoStrip, Membership, Policies, Reviews } from './components/Extras';
 import Scene3D from './scene/Scene3D';
@@ -63,11 +63,11 @@ export default function App({ initial }: { initial: Content | null }) {
   // SPEC-61: pantallas del inicio (barbero + tomas de site.json → hero.slides). Las que fallan al cargar se saltan;
   // si falla la que se está mostrando, se vuelve al barbero (nunca en blanco: el barbero siempre está).
   const [broken, setBroken] = useState<ReadonlySet<string>>(() => new Set());
-  const [slideId, setSlideId] = useState('barbero');
+  const [slideId, setSlideId] = useState(PORTRAIT_ID);
   const [armed, setArmed] = useState(false);
   const slides = useMemo(() => normalizeSlides(content?.site ?? {}).filter((s) => !broken.has(s.id)), [content, broken]);
   const items = useMemo(() => heroItems(slides), [slides]);
-  const slideIdx = Math.max(0, items.findIndex((it) => it.id === slideId));
+  const slideIdx = resolveIndex(items, slideId);
   const go = (i: number) => { setArmed(true); setSlideId(items[i].id); };
   const arm = useCallback(() => setArmed(true), []);
   const onBroken = useCallback((id: string) => setBroken((b) => new Set(b).add(id)), []);

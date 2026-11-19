@@ -3,6 +3,7 @@ import { str, type SiteContent } from './content';
 // SPEC-61: pantallas del hero que se recorren con las flechas. La 1 es siempre el barbero con el fuego (SPEC-49);
 // las demás salen de site.json → hero.slides (tomas del recorrido 3D que ya existen). Entradas sin src o sin alt se
 // descartan (el dueño puede editar el JSON a mano).
+export const PORTRAIT_ID = 'barbero';
 export interface HeroSlide { id: string; src: string; srcSm: string; alt: string; caption: string }
 export type HeroItem = { kind: 'portrait'; id: 'barbero'; caption: string } | ({ kind: 'image' } & HeroSlide);
 
@@ -16,17 +17,20 @@ export function normalizeSlides(site: SiteContent): HeroSlide[] {
     const src = str(s.src), alt = str(s.alt);
     if (!src || !alt) return;
     const id = str(s.id) ?? `slide-${i + 1}`;
-    if (seen.has(id)) return;
+    if (seen.has(id) || id === PORTRAIT_ID) return;   // "barbero" es la portada: no puede repetirse
     seen.add(id);
     out.push({ id, src, srcSm: str(s.srcSm) ?? src, alt, caption: str(s.caption) ?? alt });
   });
   return out;
 }
 
-// Lista completa (portada + pantallas válidas), sin las que fallaron al cargar.
-export function heroItems(slides: HeroSlide[], broken: ReadonlySet<string> = new Set()): HeroItem[] {
-  return [{ kind: 'portrait', id: 'barbero', caption: 'Portada' }, ...slides.filter((s) => !broken.has(s.id)).map((s) => ({ kind: 'image' as const, ...s }))];
+// Lista completa: la portada y después las pantallas válidas (las rotas ya filtradas por quien llama).
+export function heroItems(slides: HeroSlide[]): HeroItem[] {
+  return [{ kind: 'portrait', id: PORTRAIT_ID, caption: 'Portada' }, ...slides.map((s) => ({ kind: 'image' as const, ...s }))];
 }
+
+// Índice de la pantalla elegida; si ya no está (su imagen falló), vuelve a la portada (nunca en blanco).
+export const resolveIndex = (items: HeroItem[], id: string) => Math.max(0, items.findIndex((it) => it.id === id));
 
 // Navegación circular (RN-06/07).
 export const nextIndex = (i: number, n: number) => (n > 0 ? (i + 1) % n : 0);

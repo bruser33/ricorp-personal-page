@@ -3,6 +3,9 @@
    --gutter), bajo los puntos de sección (que van centrados a la derecha). Compacto: a media altura del retrato, en
    los bordes que la máscara del retrato ya funde a negro; el bloque de texto queda abajo. */
 .hero-nav { position: absolute; inset: 0; pointer-events: none; }
+/* Escritorio angosto (769–1130 px): el --gutter de 6vw queda bajo 68 px y la flecha (8 + 52 px) entraría en la
+   columna del texto (precio/[Reservar]). Solo ahí el bloque del hero se corre lo justo para dejarle su franja. */
+html:not(.compact) .panel--hero:has(.hero-nav) { padding-left: max(var(--gutter), 68px); }
 .hero-nav__btn {
   --size: 52px;
   position: absolute; top: max(74vh, calc(50vh + 150px)); translate: 0 -50%;

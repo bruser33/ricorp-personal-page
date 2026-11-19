@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { heroItems, nextIndex, normalizeSlides, prevIndex } from './heroSlides';
+import { existsSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { heroItems, nextIndex, normalizeSlides, prevIndex, resolveIndex } from './heroSlides';
 import site from '../../public/wstyle/content/site.json';
+import manifest from '../../public/wstyle/seq/manifest.json';
+import { SHOT_IDS } from './content';
 import type { SiteContent } from './content';
 
 // SPEC-61: flechas del hero (lógica pura).
@@ -35,18 +39,32 @@ describe('pantallas desde site.json', () => {
     expect(normalizeSlides({ hero: { slides: 'x' as never } })).toEqual([]);
     expect(heroItems([])).toHaveLength(1);
   });
-  it('la portada (barbero) es siempre la primera y las rotas se saltan', () => {
-    const s = normalizeSlides({ hero: { slides: [{ id: 'a', src: 'a', alt: 'A' }, { id: 'b', src: 'b', alt: 'B' }] } });
-    const items = heroItems(s, new Set(['a']));
-    expect(items.map((i) => i.id)).toEqual(['barbero', 'b']);
+  it('la portada (barbero) es siempre la primera y su id no se puede reusar', () => {
+    const s = normalizeSlides({ hero: { slides: [{ id: 'barbero', src: 'x', alt: 'X' }, { id: 'a', src: 'a', alt: 'A' }, { id: 'b', src: 'b', alt: 'B' }] } });
+    const items = heroItems(s);
+    expect(items.map((i) => i.id)).toEqual(['barbero', 'a', 'b']);
     expect(items[0].kind).toBe('portrait');
+    expect(resolveIndex(items, 'b')).toBe(2);
   });
-  it('site.json trae las tres vistas del recorrido 3D (El local, El espejo, Tu trono)', () => {
+  it('si la imagen de la pantalla elegida falla (se quita), se vuelve a la portada; si fallan todas, no hay flechas', () => {
+    const s = normalizeSlides({ hero: { slides: [{ id: 'a', src: 'a', alt: 'A' }, { id: 'b', src: 'b', alt: 'B' }] } });
+    const sinA = heroItems(s.filter((x) => x.id !== 'a'));
+    expect(resolveIndex(sinA, 'a')).toBe(0);
+    expect(resolveIndex(sinA, 'b')).toBe(1);
+    expect(heroItems([])).toHaveLength(1);
+  });
+  it('site.json trae las tres vistas del recorrido 3D: los fotogramas ancla de El local, El espejo y Tu trono (P1 = A)', () => {
     const s = normalizeSlides(site as SiteContent);
     expect(s.map((x) => x.caption)).toEqual(['El local', 'El espejo', 'Tu trono']);
-    for (const x of s) {
-      expect(x.src).toMatch(/^wstyle\/seq\/desktop-hd\/\d{4}\.webp$/);
-      expect(x.srcSm).toMatch(/^wstyle\/seq\/mobile-hd\/\d{4}\.webp$/);
-    }
+    const anchors = manifest.formats.desktop.anchorFrames;
+    expect(manifest.formats.mobile.anchorFrames).toEqual(anchors);
+    const frame = (id: string) => String(anchors[SHOT_IDS.indexOf(id as never)]).padStart(4, '0');
+    const want = ['reyes', 'afilado', 'trono'].map(frame);
+    expect(want).toEqual(['0026', '0076', '0100']);
+    s.forEach((x, i) => {
+      expect(x.src).toBe(`wstyle/seq/desktop-hd/${want[i]}.webp`);
+      expect(x.srcSm).toBe(`wstyle/seq/mobile-hd/${want[i]}.webp`);
+      for (const f of [x.src, x.srcSm]) expect(existsSync(fileURLToPath(new URL(`../../public/${f}`, import.meta.url)))).toBe(true);
+    });
   });
 });

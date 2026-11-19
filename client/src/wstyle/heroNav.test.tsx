@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import type { ReactElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import HeroNav from './components/HeroNav';
 import HeroFire from './components/HeroFire';
@@ -28,13 +29,43 @@ describe('flechas del inicio (SPEC-61)', () => {
     expect(html).not.toContain('hero-slide');
     expect(html).toContain('/wstyle/hero/barbero.webp 1100w');
   });
-  it('armado y en otra pantalla: monta las tomas (celular/computador), marca la activa y funde el retrato', () => {
+  it('armado: monta las tomas (celular/computador); el retrato no se funde hasta que la elegida cargue', () => {
     const html = renderToStaticMarkup(<HeroFire name="WS Style" slides={slides} armed active="trono" />);
-    expect(html).toContain('class="hero-fx is-away"');
-    expect(html).toContain('class="hero-slide is-active" data-slide="trono"');
+    expect(html).toContain('class="hero-fx"');                // sin is-away: la toma aún no carga
+    expect(html).not.toContain('is-active');
+    expect(html).toContain('class="hero-slide" data-slide="trono"');
     expect(html).toContain('class="hero-slide" data-slide="local"');
     expect(html).toContain('srcSet="/wstyle/seq/mobile-hd/0100.webp"');
-    expect(html).toContain('src="/wstyle/seq/desktop-hd/0100.webp" alt="Tu trono"');
+    expect(html).toContain('src="/wstyle/seq/desktop-hd/0100.webp"');
     expect(html).toMatch(/<canvas[^>]*class="hero-fire"/);   // el fuego sigue ahí
+  });
+});
+
+// Handlers reales: HeroNav no usa hooks, así que se puede llamar como función y disparar los props de sus botones.
+type El = ReactElement<{ children?: unknown; onClick?: () => void; onKeyDown?: (e: unknown) => void; 'data-hero-nav'?: string }>;
+const find = (el: El, key: string): El | undefined => {
+  if (el?.props?.['data-hero-nav'] === key) return el;
+  for (const c of [el?.props?.children].flat()) { const f = c && typeof c === 'object' ? find(c as El, key) : undefined; if (f) return f; }
+};
+describe('flechas: qué hace cada una (AC-03, AC-04, AC-10)', () => {
+  const setup = () => {
+    const onPrev = vi.fn(), onNext = vi.fn();
+    const tree = HeroNav({ index: 0, count: 4, caption: 'Portada', onPrev, onNext, onArm: noop }) as El;
+    return { tree, onPrev, onNext };
+  };
+  it('la derecha avanza y la izquierda retrocede', () => {
+    const { tree, onPrev, onNext } = setup();
+    find(tree, 'next')!.props.onClick!();
+    expect(onNext).toHaveBeenCalledTimes(1); expect(onPrev).not.toHaveBeenCalled();
+    find(tree, 'prev')!.props.onClick!();
+    expect(onPrev).toHaveBeenCalledTimes(1); expect(onNext).toHaveBeenCalledTimes(1);
+  });
+  it('con foco en las flechas, ← retrocede y → avanza; otras teclas no hacen nada', () => {
+    const { tree, onPrev, onNext } = setup();
+    const key = (k: string) => { const e = { key: k, preventDefault: vi.fn() }; tree.props.onKeyDown!(e); return e; };
+    expect(key('ArrowRight').preventDefault).toHaveBeenCalled(); expect(onNext).toHaveBeenCalledTimes(1);
+    key('ArrowLeft'); expect(onPrev).toHaveBeenCalledTimes(1);
+    expect(key('ArrowDown').preventDefault).not.toHaveBeenCalled();
+    expect(onNext).toHaveBeenCalledTimes(1); expect(onPrev).toHaveBeenCalledTimes(1);
   });
 });

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createFire, heroFadeEnd, heroOut } from '../fx/fire';
 import { isCompact } from '../experience';
 import type { HeroSlide } from '../heroSlides';
@@ -17,6 +17,9 @@ interface Props { name: string; slides?: HeroSlide[]; active?: string; armed?: b
 const PORTRAIT_MQ = '(max-width: 768px), (orientation: portrait)';
 
 export default function HeroFire({ name, slides = [], active = 'barbero', armed = false, onBroken }: Props) {
+  // El retrato no se funde hasta que la toma elegida terminó de cargar: nunca queda solo el fuego sobre negro.
+  const [loaded, setLoaded] = useState<ReadonlySet<string>>(() => new Set());
+  const shown = loaded.has(active) ? active : 'barbero';
   const wrap = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const portrait = useRef<HTMLDivElement>(null);
@@ -67,21 +70,21 @@ export default function HeroFire({ name, slides = [], active = 'barbero', armed 
   }, []);
 
   return (
-    <div className={`hero-fx${active !== 'barbero' ? ' is-away' : ''}`} ref={wrap}>
+    <div className={`hero-fx${shown !== 'barbero' ? ' is-away' : ''}`} ref={wrap}>
       {armed && slides.length > 0 && (
-        <div className="hero-slides" aria-hidden={active === 'barbero' ? 'true' : undefined}>
+        <div className="hero-slides" aria-hidden={shown === 'barbero' ? 'true' : undefined}>
           {slides.map((s) => (
-            <picture key={s.id} className={`hero-slide${s.id === active ? ' is-active' : ''}`} data-slide={s.id}>
+            <picture key={s.id} className={`hero-slide${s.id === shown ? ' is-active' : ''}`} data-slide={s.id}>
               <source media={PORTRAIT_MQ} srcSet={`${import.meta.env.BASE_URL}${s.srcSm}`} />
-              <img className="hero-slide__img" src={`${import.meta.env.BASE_URL}${s.src}`} alt={s.id === active ? s.alt : ''}
-                decoding="async" onError={() => onBroken?.(s.id)} />
+              <img className="hero-slide__img" src={`${import.meta.env.BASE_URL}${s.src}`} alt={s.id === shown ? s.alt : ''}
+                decoding="async" onLoad={() => setLoaded((l) => new Set(l).add(s.id))} onError={() => onBroken?.(s.id)} />
             </picture>
           ))}
         </div>
       )}
       <canvas className="hero-fire" ref={canvas} aria-hidden="true" />
       <div className="hero-portrait" ref={portrait}>
-        <div className="hero-portrait__fade">
+        <div className="hero-portrait__fade" aria-hidden={shown !== 'barbero' ? 'true' : undefined}>
           <img className="hero-portrait__img" src={`${SRC}barbero.webp`} srcSet={`${SRC}barbero-sm.webp 640w, ${SRC}barbero.webp 1100w`}
             sizes="(max-width: 768px) 86vw, 37vw" width={1100} height={1354} decoding="async" alt={name ? `El barbero de ${name}` : 'El barbero'} />
         </div>
