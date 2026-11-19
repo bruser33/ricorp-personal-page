@@ -101,6 +101,9 @@ export async function start({ now, geocoder, facebookFetch, googleFetch, env = {
     onlinePayments: opts.onlinePayments,
     /* SPEC-35: borde HTTP de Mercado Pago (servicio externo) → doble en test/mp-fake.js. */
     mercadoPagoFetch: opts.mercadoPagoFetch,
+    /* SPEC-56: comprobantes en un directorio temporal y aviso a la lista de espera. */
+    receiptStore: opts.receiptStore,
+    onSlotReleased: opts.onSlotReleased,
   });
   const server = await new Promise((resolve) => {
     const s = app.listen(0, '127.0.0.1', () => resolve(s));

@@ -29,6 +29,8 @@ mongoose
       app.locals.agenda.runExpirations().catch(quiet('[agenda] expiraciones:'));
       /* SPEC-35 RN-03: citas que esperaban el pago y se les acabó la retención. */
       app.locals.payments.runHolds().catch(quiet('[mp] retención:'));
+      /* SPEC-56 §11: señas sin comprobante a tiempo (y retención de 12 meses de comprobantes). */
+      app.locals.deposits.runDeposits().catch(quiet('[seña] vencimiento:'));
     }, 60_000).unref();
     /* SPEC-35: conciliación con Mercado Pago al arrancar (Render free "despierta" sin los
        webhooks que llegaron mientras dormía) y cada 5 min mientras esté despierto. */

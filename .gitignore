@@ -4,3 +4,6 @@ dist/
 .DS_Store
 *.log
 .playwright-mcp/
+
+# SPEC-56: comprobantes de seña en desarrollo (driver fs). Nunca al repo.
+server/uploads/

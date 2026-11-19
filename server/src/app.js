@@ -23,6 +23,8 @@ import { createPayments, WEBHOOK_PATH } from './domain/payments.js';
 import { createBilling } from './domain/billing.js';
 import { createTaxDocumentProvider } from './lib/taxDocuments.js';
 import { handle } from './lib/errors.js';
+import { createReceiptStore } from './lib/receipts.js';
+import { createDepositRule, createDeposits } from './domain/deposits.js';
 
 /* La app SIN listen ni connect: index.js conecta Mongo y escucha, y los tests
    (server/test/contact.test.js) la levantan en un puerto efímero con su
@@ -119,6 +121,10 @@ export function createApp({
   onlinePayments = null,
   /* Borde HTTP de Mercado Pago (servicio externo): los tests lo simulan; la BD siempre es real. */
   mercadoPagoFetch = fetch,
+  /* SPEC-56: almacenamiento de comprobantes (los tests usan el driver fs en un directorio temporal)
+     y aviso a la lista de espera (SPEC-54) cuando una seña libera la hora. */
+  receiptStore = null,
+  onSlotReleased = null,
 } = {}) {
   onlinePayments = onlinePayments ?? { ready: Boolean(env.MP_ACCESS_TOKEN) };
   const app = express();
@@ -206,6 +212,9 @@ export function createApp({
   const adminInbox = createAdminInbox({ mailer: agendaMailer, logger, env, frontUrl });
   /* SPEC-37: respaldo tributario de cada venta (SII_TAX_PROVIDER = voucher | manual). */
   const taxProvider = createTaxDocumentProvider(env, logger);
+  /* SPEC-56: seña por transferencia. Comprobantes fuera de Mongo (disco local o S3/R2). */
+  const receipts = receiptStore || createReceiptStore(env);
+  const depositRule = createDepositRule({ clock });
   const agenda = createAgenda({
     clock,
     mailer: agendaMailer,
@@ -216,7 +225,10 @@ export function createApp({
     adminInbox,
     onlinePayments,
     taxProvider,
+    depositRule,
   });
+  const deposits = createDeposits({ agenda, rule: depositRule, store: receipts, clock, logger, mailer: agendaMailer, adminInbox, frontUrl, onSlotReleased });
+  agenda.hooks.depositCreated = deposits.onCreated;
   /* Pago en línea (SPEC-35). */
   const payments = createPayments({ agenda, env, clock, logger, adminInbox, frontUrl, fetchImpl: mercadoPagoFetch, taxProvider });
   /* Pagos en el panel y rendición mensual (SPEC-37). */
@@ -225,8 +237,8 @@ export function createApp({
   /* Barbero (SPEC-33): registro, perfil y panel. */
   const pro = createPro({ agenda, clock, mailer: agendaMailer, logger, frontUrl, env, adminInbox });
   /* Super admin (SPEC-34). */
-  const admin = createAdmin({ agenda, pro, clock, mailer: agendaMailer, logger, frontUrl, env, adminInbox, onlinePayments, payments, billing });
-  const authRouter = createAuthRouter({ env, clock, mailer: agendaMailer, logger, facebook, google, frontUrl, secret, loginLimit, onAccountDeleted: agenda.onAccountDeleted, onBarberFacebook: pro.ensureBarber });
+  const admin = createAdmin({ agenda, pro, clock, mailer: agendaMailer, logger, frontUrl, env, adminInbox, onlinePayments, payments, billing, deposits });
+  const authRouter = createAuthRouter({ env, clock, mailer: agendaMailer, logger, facebook, google, frontUrl, secret, loginLimit, onAccountDeleted: async (u) => { await agenda.onAccountDeleted(u); await deposits.onAccountDeleted(u); }, onBarberFacebook: pro.ensureBarber });
   const withSession = sessionMiddleware({ clock });
   const needsDb = (_req, res, next) =>
     mongoose.connection.readyState === 1 ? next() : res.status(503).json({ ok: false, error: 'db_unavailable' });
@@ -237,7 +249,7 @@ export function createApp({
       if (!res.headersSent) res.status(500).json({ ok: false, error: 'server_error' });
     });
   });
-  app.use('/api/wstyle', needsDb, withSession, createWstyleRouter({ agenda, payments, logger, bookingLimiter }));
+  app.use('/api/wstyle', needsDb, withSession, createWstyleRouter({ agenda, payments, deposits, logger, bookingLimiter }));
   /* Webhook de Mercado Pago: público (lo llama Mercado Pago, sin Origin ni cookie); la
      autenticidad la da la firma x-signature. */
   app.post(WEBHOOK_PATH, needsDb, handle(async (req, res) => {
@@ -246,7 +258,7 @@ export function createApp({
   }, logger));
   app.use('/api/pro', needsDb, withSession, createProRouter({ pro, env, clock, mailer: agendaMailer, logger, frontUrl, loginLimiter: authRouter.loginLimiter, billing }));
   app.use('/api/admin', needsDb, withSession, createAdminRouter({ admin, logger }));
-  Object.assign(app.locals, { agenda, pro, admin, payments, billing, agendaMailer, bookingLimiter, loginLimiter: authRouter.loginLimiter });
+  Object.assign(app.locals, { agenda, pro, admin, payments, billing, deposits, receipts, agendaMailer, bookingLimiter, loginLimiter: authRouter.loginLimiter });
 
   app.get('/api/health', (_req, res) => {
     /* 'unconfigured' y no 'dry-run' en Render: ahí sin mailer el envío es un 503,

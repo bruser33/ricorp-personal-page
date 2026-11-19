@@ -154,3 +154,35 @@ export function reassignedMail({ appt, when, url, from, to }) {
     ...layout('Cambió el barbero de tu cita', [`${from} no podrá atenderte; tu cita queda con ${to}.`, `${appt.serviceSnapshot?.name || 'Servicio'} · ${when}`, 'La hora y el precio no cambian.'], [['Ver la cita', url]]),
   };
 }
+
+/* ─── Seña por transferencia (SPEC-56 §5). `bank` solo va en el correo de instrucciones. */
+export function depositMail({ kind, appt, when, deadline, bank, url, reason }) {
+  const d = appt.deposit || {};
+  const service = appt.serviceSnapshot?.name || 'Servicio';
+  const rest = Math.max(0, Number(appt.pricing?.totalCLP || 0) - Number(d.amountCLP || 0));
+  const titles = {
+    requested: `Deja tu seña de ${money(d.amountCLP)} para guardar tu hora`,
+    confirmed: 'Recibimos tu seña',
+    rejected: 'No pudimos validar tu seña',
+    expired: 'Se venció el plazo de la seña',
+  };
+  const subject = `${titles[kind]} · WS Style`;
+  const lines = [];
+  if (kind === 'requested') {
+    lines.push(
+      `Para guardar tu hora te pedimos una seña de ${money(d.amountCLP)} por transferencia. Tienes hasta las ${deadline} para pagarla y subir el comprobante.`,
+      `Referencia: ${d.reference} (ponla en el comentario o asunto de la transferencia).`,
+    );
+    if (bank) {
+      lines.push(`Titular: ${bank.holder}`, `RUT: ${bank.rut}`, `Banco: ${bank.bank}`, `${bank.accountTypeLabel || 'Cuenta'}: ${bank.accountNumber}`, `Correo para el aviso: ${bank.email}`);
+    }
+    lines.push(`El resto (${money(rest)}) lo pagas en el local. La seña no se devuelve si cancelas o no llegas.`);
+  }
+  if (kind === 'confirmed') lines.push(`Confirmamos tu seña de ${money(d.amountCLP)} (referencia ${d.reference}). En el local pagas el resto: ${money(rest)}.`);
+  if (kind === 'rejected') lines.push(`Revisamos tu comprobante y no pudimos validar la seña${reason ? `. Motivo: ${reason}` : ''}. La hora se liberó; si crees que es un error, escríbenos por WhatsApp.`);
+  if (kind === 'expired') lines.push(`No llegó el comprobante antes de las ${deadline}, así que liberamos la hora. Si ya pagaste, escríbenos por WhatsApp.`);
+  lines.push(`${service} · ${when}`);
+  const links = [[kind === 'requested' ? 'Subir el comprobante' : 'Ver la cita', url]];
+  if (kind === 'expired' || kind === 'rejected') links.push(['Reservar de nuevo', url.replace(/\/wstyle\/cita\/.*$/, '/wstyle/reservar/')]);
+  return { subject, template: `client_deposit_${kind}`, ...layout(titles[kind], lines, links) };
+}

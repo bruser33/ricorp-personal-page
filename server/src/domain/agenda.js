@@ -29,6 +29,7 @@ import { entriesToWeek, weekToSiteRows } from './hours.js';
 import { applyLocalCollection, boletaClash, isBoletaClash, parseCollectInput } from './tax.js';
 import { TAX_DOCUMENT_PROVIDERS } from '../lib/taxDocuments.js';
 import { currentRates, pricingView, quote, ratesView } from './pricing.js';
+import { depositConfig, depositView, publicDepositConfig } from './deposits.js';
 
 const MIN = 60 * 1000;
 const HOUR = 60 * MIN;
@@ -36,6 +37,7 @@ const { ObjectId } = mongoose.Types;
 
 export const STATUS_LABEL = {
   pendiente_pago: 'Esperando el pago',
+  pendiente_sena: 'Pendiente de seña',
   pendiente: 'Esperando confirmación',
   invitacion_enviada: 'Invitación enviada',
   confirmada: 'Confirmada',
@@ -70,7 +72,9 @@ export const PAY_OPEN = ['pendiente', 'en_proceso', 'rechazado'];
 
 /* `onlinePayments.ready`: hay credenciales de Mercado Pago (SPEC-35). Sin ellas "Pagar en
    línea" no se ofrece aunque el admin lo habilite (CB-09). */
-export function createAgenda({ clock = Date.now, mailer, logger = console, frontUrl = 'http://localhost:5173', geocoder, businessSlug = 'ws-style', adminInbox = null, onlinePayments = { ready: false }, taxProvider = TAX_DOCUMENT_PROVIDERS.voucher }) {
+export function createAgenda({ clock = Date.now, mailer, logger = console, frontUrl = 'http://localhost:5173', geocoder, businessSlug = 'ws-style', adminInbox = null, onlinePayments = { ready: false }, taxProvider = TAX_DOCUMENT_PROVIDERS.voucher, depositRule = null }) {
+  /* SPEC-56: app.js engancha acá el correo de instrucciones de la seña (deposits.onCreated). */
+  const hooks = { depositCreated: null };
   async function business() {
     const b = await Business.findOne({ slug: businessSlug }).lean();
     if (!b) throw new HttpError(503, 'agenda_unavailable', 'La agenda aún no está configurada');
@@ -142,6 +146,8 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
         payments: paymentOptions(b),
         /* SPEC-38 RN-20: tasas vigentes; el resumen de la reserva usa la misma fórmula que el server. */
         pricing: ratesView(rates),
+        /* SPEC-56: si se pide seña y a quién (sin datos bancarios: RN-08). */
+        deposit: publicDepositConfig(depositConfig(b)),
       },
       services: services.map((s) => ({ id: s.slug, name: s.name, description: s.description || '', priceCLP: s.priceCLP, durationMin: s.durationMin, homeServiceAllowed: s.homeServiceAllowed !== false })),
       professionals: pros.map((p) => {
@@ -276,6 +282,16 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
     return false;
   }
 
+  /* SPEC-56 §9: seña confirmada de una cita que se cae por el local → por devolver. */
+  function markDepositRefundDue(a, now) {
+    if (a.deposit?.status === 'confirmada') {
+      a.deposit.status = 'por_devolver';
+      a.deposit.refundDueAt = new Date(now);
+      return true;
+    }
+    return false;
+  }
+
   async function alertRefundDue(b, appt, why) {
     await adminInbox?.notify({
       kind: 'refund_due',
@@ -343,6 +359,11 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
       location = { kind: 'home', address: { street: loc.street, commune: loc.commune, details: loc.details, formatted: loc.formatted }, point: loc.point, distanceKm: loc.distanceKm };
     }
 
+    /* SPEC-56 RN-01/RN-04: reserva web con pago en el local → ¿pide seña a este cliente? */
+    const depositReq = payMethod === 'local' && depositRule ? await depositRule.check(b, user, { startsAt, now }) : null;
+    if (depositReq?.tooSoon) throw new HttpError(422, 'deposit_too_soon', 'Esta hora es muy pronto para pagar la seña. Elige otra o paga en línea.');
+    if (depositReq && input.acceptDeposit !== true) throw new HttpError(400, 'deposit_terms_required', 'Marca "Entiendo las condiciones de la seña" para reservar', { fields: { acceptDeposit: 'required' } });
+
     /* RN-14 / CB-10: máx. 2 citas activas futuras por cuenta y por celular. */
     const active = await Appointment.countDocuments({
       status: { $in: BLOCKING },
@@ -378,7 +399,8 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
       const endsAt = startsAt + service.durationMin * MIN;
       /* SPEC-35 RN-03: "Pagar en línea" crea la cita esperando el pago (ocupa la hora 15 min). */
       const online = payMethod === 'online';
-      const firstStatus = online ? 'pendiente_pago' : 'pendiente';
+      const deposit = depositReq ? await depositRule.initial(b, depositReq, pricing) : undefined;
+      const firstStatus = online ? 'pendiente_pago' : deposit ? 'pendiente_sena' : 'pendiente';
       const doc = {
         _id: new ObjectId(),
         businessId: b._id,
@@ -394,7 +416,8 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
         payment: online ? { method: 'online', status: 'pendiente', holdStartedAt: new Date(now) } : { method: 'local', status: 'pendiente' },
         note: note || undefined,
         status: firstStatus,
-        expiresAt: new Date(online ? now + PAYMENT_HOLD_MIN * MIN : confirmDeadline(b, startsAt, now)),
+        expiresAt: new Date(online ? now + PAYMENT_HOLD_MIN * MIN : deposit ? deposit.deadlineAt.getTime() : confirmDeadline(b, startsAt, now)),
+        deposit,
         history: [{ at: new Date(now), from: null, to: firstStatus, by: 'client', byUserId: user._id }],
         source: 'web',
         idempotencyKey,
@@ -417,6 +440,8 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
         await CustomerProfile.updateOne({ businessId: b._id, userId: user._id }, { $inc: { 'counters.appointments': 1 } }, { upsert: true }).catch(() => {});
         /* En línea: los correos de "reserva recibida" salen cuando se aprueba el pago (RN-04). */
         if (online) return { appt, mailOk: true };
+        /* SPEC-56: con seña, el correo es de instrucciones; el barbero se entera cuando llega el comprobante. */
+        if (deposit) return { appt, mailOk: (await hooks.depositCreated?.(b, appt)) !== false };
         const mail = await Promise.all([notify(b, appt, 'client', 'received'), notify(b, appt, 'barber', 'new')]);
         return { appt, mailOk: mail.every(Boolean) };
       } catch (err) {
@@ -522,6 +547,13 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
         if (opts.online) a.push('pay');
         if (opts.local) a.push('pay_local');
       }
+      /* SPEC-56: subir (o reemplazar) el comprobante; CB-08: cambiar a pagar en línea durante el plazo. */
+      const dep = appt.deposit?.status;
+      if (s === 'pendiente_sena' && dep === 'por_pagar' && appt.deposit.deadlineAt?.getTime() > now) {
+        a.push('deposit_upload');
+        if (paymentOptions(b).online) a.push('deposit_pay_online');
+      }
+      if (dep === 'en_revision' && !FINAL.includes(s)) a.push('deposit_upload');
       if (cancellable && appt.startsAt.getTime() - now >= b.settings.cancelUntilMinutes * MIN) a.push('cancel');
       if (s === 'propuesta_cambio' && appt.proposal?.expiresAt?.getTime() > now) a.push('accept', 'counter');
       if (s === 'invitacion_enviada') a.push('confirm');
@@ -556,6 +588,10 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
       /* SPEC-38: desglose (servicio, domicilio, administración, procesamiento, total). */
       pricing: pricingView(appt.pricing),
       payment: paymentView(appt),
+      /* SPEC-56: seña (el barbero nunca ve el comprobante ni los datos bancarios). */
+      deposit: depositView(appt, role, b),
+      /* Hora del server: la cuenta regresiva no depende del reloj del teléfono. */
+      now: new Date(now).toISOString(),
       note: appt.note || '',
       proposal: p ? { startsAt: p.startsAt.toISOString(), when: formatLong(p.startsAt.getTime(), tz), expiresAt: p.expiresAt?.toISOString() } : null,
       actions: actionsFor(appt, role, b, now),
@@ -811,6 +847,8 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
         a.expiresAt = undefined;
         /* SPEC-35 RN-09: pagada en línea → queda marcada para reembolso. */
         markRefundDue(a);
+        /* SPEC-56 RN-07: si cancela el local, la seña confirmada se devuelve; si cancela el cliente, no. */
+        if (role !== 'client') markDepositRefundDue(a, now);
         return { by, byUserId, reason };
       });
       const who = { client: 'el cliente', barber: appt.professionalSnapshot?.displayName || 'el barbero', admin: 'WS Style' }[role];
@@ -908,6 +946,7 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
           await SlotLock.deleteMany({ appointmentId: a._id }, { session });
           a.status = 'expirada';
           markRefundDue(a);
+          markDepositRefundDue(a, now);
           return { by: 'system', reason: 'Sin confirmación del barbero a tiempo' };
         });
         expired++;
@@ -1002,5 +1041,8 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
     notify,
     mutate,
     inviteLinks,
+    /* SPEC-56 */
+    hooks,
+    markDepositRefundDue,
   };
 }
