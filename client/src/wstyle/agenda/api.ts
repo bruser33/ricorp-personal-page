@@ -1,4 +1,4 @@
-import type { PricingView, Rates } from './pricing';
+import type { GiftCardInfo, PricingView, Rates } from './pricing';
 // Cliente HTTP de la agenda (SPEC-32). Misma base que Contacto (VITE_API_URL). La sesión viaja en una cookie
 // httpOnly: front y API tienen que estar en el MISMO host (localhost ↔ localhost; 127.0.0.1 es otro sitio y la
 // cookie no viaja). Todo error vuelve como ApiError con el código estable del server.
@@ -80,6 +80,8 @@ export interface Catalog {
     payments?: { online: boolean; local: boolean };
     // SPEC-38: tasas vigentes de la tarifa de servicio (el resumen usa la misma fórmula que el server).
     pricing?: Rates;
+    // SPEC-60: venta de gift cards en línea (la landing y /wstyle/regalar/ la usan).
+    giftCards?: GiftCardsPublic;
   };
   services: CatalogService[];
   professionals: CatalogPro[];
@@ -107,7 +109,24 @@ export interface Appointment {
   actions: Action[];
   role: 'client' | 'barber' | 'admin';
   whatsapp: string | null; shopWhatsapp: string | null;
+  // SPEC-60: gift card aplicada (código, de quién, monto cubierto).
+  giftCard?: { code: string; from: string; amountCLP: number; status: string } | null;
 }
+
+// ─── SPEC-60: gift cards
+export interface GiftCardsPublic { online: boolean; quickAmounts?: number[]; minCLP?: number; maxCLP?: number; maxMessage?: number }
+export interface GiftCardView {
+  code: string; kind: 'monto' | 'servicio'; amountCLP: number; balanceCLP: number; service: { name: string } | null;
+  from: string; to: string; message: string; expiresAt: string | null; status: string; statusLabel: string; url: string;
+}
+export interface GiftPurchaseInput { kind: 'monto' | 'servicio'; amountCLP?: number; serviceId?: string; from: string; to: string; message: string; email: string }
+export const giftCards = {
+  purchase: (body: GiftPurchaseInput) => api<{ id: string; initPoint: string; preferenceId: string; pricing: { totalCLP: number } }>('/api/wstyle/gift-cards', { method: 'POST', body }),
+  status: (id: string) => api<{ id: string; status: string; statusLabel: string; url: string | null; token: string | null; discarded: boolean }>(`/api/wstyle/gift-cards/${encodeURIComponent(id)}`),
+  retry: (id: string) => api<{ initPoint: string }>(`/api/wstyle/gift-cards/${encodeURIComponent(id)}/checkout`, { method: 'POST', body: {} }),
+  card: (t: string) => api<GiftCardView>(`/api/wstyle/gift-cards/card?t=${encodeURIComponent(t)}`),
+  check: (code: string) => api<GiftCardInfo>('/api/wstyle/gift-cards/check', { method: 'POST', body: { code } }),
+};
 
 export const auth = {
   config: () => api<{ facebook: boolean; google?: boolean }>('/api/auth/config'),

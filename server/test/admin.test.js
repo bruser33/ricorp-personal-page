@@ -904,6 +904,16 @@ describe('AC-02 matriz de autorización', () => {
       /* SPEC-37 regla 1: pagos y rendición solo para el super admin; el resto (también el visitante) → 403. */
       ['GET /api/admin/payments', { ...adminOnly, anon: 403 }], ['POST /api/admin/payments/:id/boleta', { ...adminOnly, anon: 403 }, { path: `/api/admin/payments/${appt}/boleta` }],
       ['GET /api/admin/rendicion', { ...adminOnly, anon: 403 }], ['GET /api/admin/rendicion.csv', { ...adminOnly, anon: 403 }],
+      /* SPEC-60: gift cards. Comprar y validar códigos exige sesión (cualquier rol, como cliente); la venta en línea
+         está apagada en este panel → 409. La tarjeta pública se ve con su token. Emitir/listar/anular: solo super admin. */
+      ['POST /api/wstyle/gift-cards', { anon: 401, client: 409, approved: 409, pending: 409, admin: 409 }],
+      ['GET /api/wstyle/gift-cards/card', pub, { path: '/api/wstyle/gift-cards/card?t=token-que-no-existe-0000' }],
+      ['POST /api/wstyle/gift-cards/check', logged, { body: { code: 'WS-ZZZZ-ZZZZ' } }],
+      ['GET /api/wstyle/gift-cards/:id', logged, { path: `/api/wstyle/gift-cards/${fake}` }],
+      ['POST /api/wstyle/gift-cards/:id/checkout', logged, { path: `/api/wstyle/gift-cards/${fake}/checkout` }],
+      ['GET /api/admin/gift-cards', adminOnly], ['POST /api/admin/gift-cards', adminOnly],
+      ['GET /api/admin/gift-cards/:id', adminOnly, { path: `/api/admin/gift-cards/${fake}` }],
+      ...['void', 'extend', 'resend'].map((a) => [`POST /api/admin/gift-cards/:id/${a}`, adminOnly, { path: `/api/admin/gift-cards/${fake}/${a}` }]),
       /* Al final: agregan roles a la cuenta (cliente → barbero, barbero → cliente) y cambiarían las filas anteriores. */
       ['POST /api/auth/me/client-role', logged],
       ['POST /api/pro/join', { anon: 401, client: OK, approved: OK, pending: OK, admin: OK }],

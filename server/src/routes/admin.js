@@ -3,7 +3,7 @@
 import express from 'express';
 import { handle, HttpError } from '../lib/errors.js';
 
-export function createAdminRouter({ admin, logger }) {
+export function createAdminRouter({ admin, logger, giftCards = null }) {
   const r = express.Router();
   const h = (fn) => handle(fn, logger);
   const u = (req) => req.user;
@@ -87,6 +87,16 @@ export function createAdminRouter({ admin, logger }) {
   r.get('/settings', h(async (req, res) => res.json(await admin.getSettings(u(req)))));
   r.put('/settings', h(async (req, res) => res.json(await admin.setSettings(u(req), req.body || {}))));
   r.get('/audit', h(async (req, res) => res.json(await admin.auditList(u(req), req.query))));
+
+  /* Gift cards (SPEC-60): solo el super admin (el guard de arriba ya respondió 401/403). */
+  if (giftCards) {
+    r.get('/gift-cards', h(async (req, res) => res.json(await giftCards.list(req.query))));
+    r.post('/gift-cards', h(async (req, res) => res.status(201).json(await giftCards.issue(u(req), req.body || {}))));
+    r.get('/gift-cards/:id', h(async (req, res) => res.json(await giftCards.detail(req.params.id))));
+    r.post('/gift-cards/:id/void', h(async (req, res) => res.json(await giftCards.voidCard(u(req), req.params.id, req.body || {}))));
+    r.post('/gift-cards/:id/extend', h(async (req, res) => res.json(await giftCards.extend(u(req), req.params.id, req.body || {}))));
+    r.post('/gift-cards/:id/resend', h(async (req, res) => res.json(await giftCards.resend(u(req), req.params.id, req.body || {}))));
+  }
 
   return r;
 }

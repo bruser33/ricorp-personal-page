@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
-import { agenda, API_BASE, ApiError, auth, type Appointment, type Catalog, type Quote, type Slot } from '../api';
+import { agenda, API_BASE, ApiError, auth, giftCards, type Appointment, type Catalog, type Quote, type Slot } from '../api';
 import type { AgendaCtx } from '../ctx';
 import AuthPanel from '../components/AuthPanel';
 import PriceBreakdown from '../components/PriceBreakdown';
-import { NO_FEES, pct, quote as priceQuote } from '../pricing';
+import { giftCoverage, NO_FEES, pct, quote as priceQuote, withGiftCard, type GiftCardInfo } from '../pricing';
 import Calendar, { TimeChips } from '../components/Calendar';
 import Shell from '../components/Shell';
 import { Field, MotoIcon, Notice, Spinner, Unavailable } from '../components/ui';
@@ -56,6 +56,12 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
   const [gateNotice, setGateNotice] = useState<string | null>(null);
   const [done, setDone] = useState<{ appt: Appointment; mailOk?: boolean } | null>(null);
   const [redirecting, setRedirecting] = useState(false);
+  // SPEC-60: gift card aplicada en "Confirmar" (el server vuelve a validar y descuenta el saldo al crear la cita).
+  const [gift, setGift] = useState<GiftCardInfo | null>(null);
+  // El QR de la tarjeta trae ?giftcard=WS-… para dejar el código listo.
+  const [giftCode, setGiftCode] = useState(() => new URLSearchParams(location.search).get('giftcard')?.slice(0, 20) ?? '');
+  const [giftErr, setGiftErr] = useState<string | null>(null);
+  const [giftBusy, setGiftBusy] = useState(false);
   const idem = useRef(newKey());
   const authedInFlow = useRef(false);
   const restored = useRef(false);
@@ -181,8 +187,28 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
   // SPEC-38: Servicio + Domicilio + Tarifa de servicio (administración + costo de pagos) = Total, igual pagando en el
   // local o en línea. Misma fórmula que el server (que recalcula y manda).
   const rates = catalog?.business.pricing ?? NO_FEES;
-  const price = priceQuote(service?.priceCLP ?? 0, surcharge, rates);
-  const total = price.totalCLP;
+  const basePrice = priceQuote(service?.priceCLP ?? 0, surcharge, rates);
+  // SPEC-60: con gift card, "Gift card −$X" y "Total a pagar". Si cubre todo, no se pide forma de pago (RN-07).
+  const giftCLP = gift ? giftCoverage(gift, basePrice, sel.serviceId, rates) : 0;
+  const price = withGiftCard(basePrice, giftCLP);
+  const due = price.dueCLP ?? price.totalCLP;
+  const covered = Boolean(gift) && due === 0;
+
+  async function applyGift() {
+    const code = giftCode.trim();
+    if (!code || giftBusy) return;
+    setGiftBusy(true);
+    setGiftErr(null);
+    try {
+      setGift(await giftCards.check(code));
+      setGiftCode('');
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) { setGiftErr('Tu sesión venció. Entra de nuevo para usar tu gift card.'); return; }
+      setGiftErr(err instanceof ApiError && err.status !== 0 ? err.message : 'No pudimos revisar el código. Inténtalo de nuevo.');
+    } finally {
+      setGiftBusy(false);
+    }
+  }
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -200,7 +226,8 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
       const r = await agenda.create({
         serviceId: sel.serviceId, professionalId: sel.professionalId, startsAt: sel.startsAt, mode,
         address: mode === 'home' ? sel.address : undefined, phone: needPhone ? phone : undefined, note: sel.note ?? '',
-        acceptPolicies: accept, paymentMethod: pay, idempotencyKey: idem.current, website,
+        acceptPolicies: accept, paymentMethod: covered ? (payments.local ? 'local' : 'online') : pay, idempotencyKey: idem.current, website,
+        giftCardCode: gift?.code,
       });
       if (!r.appointment) { setSubmitError('No pudimos agendar. Inténtalo de nuevo.'); return; }
       // SPEC-35: "Pagar en línea" → la cita queda esperando el pago (15 min) y se va a Mercado Pago. Si no se puede
@@ -232,6 +259,8 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
         setStep(2);
         return;
       }
+      // SPEC-60 RN-05: otra reserva usó el saldo (o la tarjeta ya no vale): se quita y se avisa.
+      if (err.code === 'giftcard_invalid' || err.code === 'giftcard_insufficient') { setGift(null); setGiftErr(err.message); return; }
       if (err.code === 'out_of_range' || err.code === 'address_not_found') { setQuote(null); setQuoteErr(err.message); setStep(3); return; }
       if (Object.keys(err.fields).length) { setErrors(Object.fromEntries(Object.entries(err.fields).map(([k, v]) => [k, k === 'acceptPolicies' ? 'Debes aceptar las políticas para agendar.' : fieldMessage(v)]))); return; }
       setSubmitError(err.message);
@@ -422,8 +451,31 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
                     <p className="ag-field__hint" id="ag-note-count">{(sel.note ?? '').length}/{MAX_NOTE}</p>
                     {errors.note && <p className="ag-field__error" id="ag-note-err" role="alert">{errors.note}</p>}
                   </div>
+                  <div className={`ag-field ag-gift${giftErr ? ' has-error' : ''}`} data-gift="">
+                    {gift ? (
+                      <p className="ag-gift__applied" data-gift-applied="" role="status">
+                        Gift card <strong>{gift.code}</strong> aplicada{gift.from ? <> · Regalo de {gift.from}</> : null} · −{clp.format(giftCLP)}{' '}
+                        <button type="button" className="ag-link" onClick={() => { setGift(null); setGiftErr(null); }}>Quitar</button>
+                      </p>
+                    ) : (
+                      <>
+                        <label htmlFor="ag-gift">¿Tienes una gift card?</label>
+                        <div className="ag-gift__row">
+                          <input id="ag-gift" value={giftCode} placeholder="WS-XXXX-XXXX" autoComplete="off" autoCapitalize="characters" spellCheck={false} maxLength={20}
+                            onChange={(e) => { setGiftCode(e.target.value); setGiftErr(null); }}
+                            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); applyGift(); } }}
+                            aria-invalid={giftErr ? true : undefined} aria-describedby={giftErr ? 'ag-gift-err' : undefined} />
+                          <button type="button" className="btn btn--ghost" onClick={applyGift} disabled={giftBusy || !giftCode.trim()} aria-busy={giftBusy}>{giftBusy ? 'Revisando…' : 'Aplicar'}</button>
+                        </div>
+                      </>
+                    )}
+                    {giftErr && <p className="ag-field__error" id="ag-gift-err" role="alert">{giftErr}</p>}
+                  </div>
+                  {covered ? (
+                    <Notice tone="ok">Tu gift card cubre el total: no necesitas pagar nada más.</Notice>
+                  ) : (
                   <fieldset className="ag-options ag-pay">
-                    <legend>Forma de pago</legend>
+                    <legend>{gift ? `Forma de pago del resto (${clp.format(due)})` : 'Forma de pago'}</legend>
                     {payments.local && (
                       <label className={`ag-option ag-radio${pay === 'local' ? ' is-selected' : ''}`}>
                         <input type="radio" name="pay" value="local" checked={pay === 'local'} onChange={() => setPayPick('local')} />
@@ -437,6 +489,7 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
                       </label>
                     )}
                   </fieldset>
+                  )}
                   <div className={`ag-field ag-check${errors.acceptPolicies ? ' has-error' : ''}`}>
                     <label>
                       <input type="checkbox" checked={accept} onChange={(e) => { setAccept(e.target.checked); setErrors((x) => ({ ...x, acceptPolicies: undefined })); }} aria-invalid={errors.acceptPolicies ? true : undefined} aria-describedby={errors.acceptPolicies ? 'ag-pol-err' : undefined} />
@@ -449,8 +502,8 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
                   {submitError && <Notice tone="error">{submitError}</Notice>}
                   <div className="ag-actions">
                     <button type="button" className="btn btn--ghost" onClick={() => setStep(3)}>Volver</button>
-                    <button className="btn btn--primary" disabled={busy || redirecting} aria-busy={busy || redirecting} data-pay={pay}>
-                      {redirecting ? 'Abriendo Mercado Pago…' : busy ? 'Agendando…' : pay === 'online' ? `Ir a pagar ${clp.format(total)}` : 'Agendar cita'}
+                    <button className="btn btn--primary" disabled={busy || redirecting || giftBusy} aria-busy={busy || redirecting} data-pay={covered ? 'giftcard' : pay}>
+                      {redirecting ? 'Abriendo Mercado Pago…' : busy ? 'Agendando…' : covered ? 'Confirmar reserva' : pay === 'online' ? `Ir a pagar ${clp.format(due)}` : 'Agendar cita'}
                     </button>
                   </div>
                 </form>
@@ -476,6 +529,7 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
                   El total incluye la tarifa de servicio: la administración de la plataforma ({pct(price.platformFeePercent)} %) y el costo de procesar los pagos. Es la misma si pagas en el local o en línea.
                 </p>
               )}
+              {catalog?.business.giftCards?.online && <p className="ag-fine"><a href="/wstyle/regalar/" data-gift-link="">¿Quieres regalar? Regala WS Style</a></p>}
             </>
           )}
         </aside>
@@ -494,7 +548,7 @@ function Success({ appt, mailOk }: { appt: Appointment; mailOk?: boolean }) {
   return (
     <section className="ag-card ag-success" aria-labelledby="ag-ok">
       <h1 className="ag-h1" id="ag-ok" data-success="">NUEVA CITA — esperando confirmación de {appt.professional.name} — {dayMonthTime(appt.startsAt)}</h1>
-      <p className="ag-muted">{appt.service.name} · {appt.location.kind === 'home' ? `A domicilio · ${appt.location.address}` : 'En el local'} · Total {clp.format(appt.pricing.totalCLP)}</p>
+      <p className="ag-muted">{appt.service.name} · {appt.location.kind === 'home' ? `A domicilio · ${appt.location.address}` : 'En el local'} · {appt.pricing.giftCardCLP ? `Total a pagar ${clp.format(appt.pricing.dueCLP ?? 0)} (gift card −${clp.format(appt.pricing.giftCardCLP)})` : `Total ${clp.format(appt.pricing.totalCLP)}`}</p>
       <p>Te avisaremos por correo cuando {appt.professional.name} la confirme.</p>
       {mailOk === false && <Notice>No pudimos enviarte el correo. Guarda este link de tu cita: <a href={url}>{url}</a></Notice>}
       <div className="ag-actions ag-actions--wrap">

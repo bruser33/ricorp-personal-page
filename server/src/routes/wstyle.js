@@ -2,7 +2,7 @@
 import express from 'express';
 import { HttpError, handle } from '../lib/errors.js';
 
-export function createWstyleRouter({ agenda, payments, logger, bookingLimiter }) {
+export function createWstyleRouter({ agenda, payments, logger, bookingLimiter, giftCards = null, giftCardLimiter = null }) {
   const r = express.Router();
   const h = (fn) => handle(fn, logger);
   const requireUser = (req) => {
@@ -77,6 +77,25 @@ export function createWstyleRouter({ agenda, payments, logger, bookingLimiter })
     r.post(`/appointments/:id/${path}`, h(async (req, res) => {
       res.json(await agenda.act(req.params.id, requireUser(req), action, req.body || {}));
     }));
+  }
+
+  /* ─── Gift cards (SPEC-60) */
+  if (giftCards) {
+    /* Compra en línea (requiere sesión) → preferencia de Mercado Pago con external_reference gc:<id>. */
+    r.post('/gift-cards', h(async (req, res) => res.status(201).json(await giftCards.purchase(requireUser(req), req.body || {}))));
+    r.get('/gift-cards/card', h(async (req, res) => res.json(await giftCards.publicCard(req.query.t))));
+    /* RN-12: validar un código. Limitado por usuario + IP; inexistente/vencida/anulada → misma respuesta. */
+    r.post('/gift-cards/check', h(async (req, res) => {
+      const user = requireUser(req);
+      const wait = giftCardLimiter ? giftCardLimiter.hit(`${user._id}|${req.ip || 'unknown'}`) : 0;
+      if (wait) {
+        res.set('Retry-After', String(wait));
+        return res.status(429).json({ ok: false, error: 'too_many_requests', message: 'Demasiados intentos. Espera unos minutos y vuelve a probar.', retryAfter: wait });
+      }
+      res.json(await giftCards.check(user, req.body?.code));
+    }));
+    r.get('/gift-cards/:id', h(async (req, res) => res.json(await giftCards.purchaseStatus(requireUser(req), req.params.id))));
+    r.post('/gift-cards/:id/checkout', h(async (req, res) => res.json(await giftCards.retry(requireUser(req), req.params.id))));
   }
 
   return r;

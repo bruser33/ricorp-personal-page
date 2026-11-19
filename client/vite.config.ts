@@ -32,8 +32,9 @@ export default defineConfig({
         main: resolve(import.meta.dirname, 'index.html'),
         wstyle: resolve(import.meta.dirname, 'wstyle/index.html'),
         // Agenda (SPEC-32): cada ruta es una carpeta real con su index.html (Pages solo sirve carpetas que existen).
+        // SPEC-60: /wstyle/regalar/ (comprar una gift card) y /wstyle/regalo/ (la tarjeta por su enlace secreto).
         ...Object.fromEntries(
-          ['reservar', 'cita', 'cuenta', 'cuenta/mis-citas', 'cuenta/recuperar', 'cuenta/confirmar'].map((r) => [
+          ['reservar', 'cita', 'cuenta', 'cuenta/mis-citas', 'cuenta/recuperar', 'cuenta/confirmar', 'regalar', 'regalo'].map((r) => [
             `wstyle-${r.replace('/', '-')}`,
             resolve(import.meta.dirname, `wstyle/${r}/index.html`),
           ]),
@@ -47,7 +48,7 @@ export default defineConfig({
         ...Object.fromEntries(['privacidad', 'terminos'].map((r) => [`wstyle-${r}`, resolve(import.meta.dirname, `wstyle/${r}/index.html`)])),
         // Panel del super admin (SPEC-34): /wstyle/admin/ y una carpeta por sección (recargar funciona). Sin enlace público, noindex.
         ...Object.fromEntries(
-          ['admin', ...['barberos', 'citas', 'pagos', 'rendicion', 'carta', 'horario', 'estadisticas', 'configuracion', 'auditoria'].map((s) => `admin/${s}`)].map((r) => [
+          ['admin', ...['barberos', 'citas', 'pagos', 'rendicion', 'carta', 'horario', 'estadisticas', 'configuracion', 'auditoria', 'gift-cards'].map((s) => `admin/${s}`)].map((r) => [
             `wstyle-${r.replace('/', '-')}`,
             resolve(import.meta.dirname, `wstyle/${r}/index.html`),
           ]),

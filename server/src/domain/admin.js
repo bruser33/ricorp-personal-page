@@ -88,7 +88,7 @@ export const CSV_COLUMNS = [
 ];
 
 
-export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = console, frontUrl = 'http://localhost:5173', env = {}, adminInbox, onlinePayments = { ready: false }, payments = null, billing = null }) {
+export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = console, frontUrl = 'http://localhost:5173', env = {}, adminInbox, onlinePayments = { ready: false }, payments = null, billing = null, giftCards = null }) {
   /* ─── Acceso */
   function requireAdmin(user) {
     if (!user) throw new HttpError(401, 'unauthorized', 'Tu sesión venció. Inicia sesión para continuar.');
@@ -896,11 +896,13 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
       paymentFeePercent: rates.paymentFeePercent,
       paymentFeeVat: rates.paymentFeeVat,
       rules: Object.fromEntries(Object.keys(RULE_LIMITS).map((k) => [k, b.settings?.[k]])),
+      /* SPEC-60: venta de gift cards en línea (apagada por defecto) y vigencia por defecto. */
+      giftCards: { onlineEnabled: Boolean(b.giftCards?.onlineEnabled), validityMonths: b.giftCards?.validityMonths ?? 12 },
       limits: { rules: RULE_LIMITS, platformFeePercent: [0, MAX_FEE_PERCENT], paymentFeePercent: [0, MAX_PAYMENT_FEE_PERCENT] },
     };
   }
 
-  const ALLOWED_SETTINGS = new Set(['payments', 'platformFeePercent', 'paymentFeePercent', 'paymentFeeVat', 'rules']);
+  const ALLOWED_SETTINGS = new Set(['payments', 'platformFeePercent', 'paymentFeePercent', 'paymentFeeVat', 'rules', 'giftCards']);
   /* % con hasta 2 decimales dentro de [0, max]. */
   const validPercent = (v, max) => typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= max && Math.abs(Math.round(v * 100) - v * 100) <= 1e-6;
 
@@ -945,13 +947,21 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
         else set[`settings.${k}`] = v;
       }
     }
+    if (body.giftCards !== undefined) {
+      if (!giftCards || typeof body.giftCards !== 'object' || body.giftCards === null) fields.giftCards = 'invalid';
+      else {
+        const g = await giftCards.setSettings(b, body.giftCards);
+        Object.assign(fields, g.fields);
+        Object.assign(set, g.set);
+      }
+    }
     if (Object.keys(fields).length) throw fieldError(fields, fields['payments.local'] === 'one_required' ? 'Deja al menos una forma de pago habilitada' : 'Revisa los valores');
     const before = await getSettings(user);
     if (Object.keys(set).length) await Business.updateOne({ _id: b._id }, { $set: set });
     /* RN-08: la comisión se congela en cada cita nueva; cambiarla no toca las existentes. */
     if (Object.keys(fee).length) await PlatformSettings.updateOne({ key: 'default' }, { $set: fee }, { upsert: true });
     const after = await getSettings(user);
-    const strip = (x) => ({ payments: x.payments, platformFeePercent: x.platformFeePercent, paymentFeePercent: x.paymentFeePercent, paymentFeeVat: x.paymentFeeVat, rules: x.rules });
+    const strip = (x) => ({ payments: x.payments, platformFeePercent: x.platformFeePercent, paymentFeePercent: x.paymentFeePercent, paymentFeeVat: x.paymentFeeVat, rules: x.rules, giftCards: x.giftCards });
     await audit(user, b, 'settings.update', { entity: 'settings', summary: 'Configuración', before: strip(before), after: strip(after) });
     return after;
   }

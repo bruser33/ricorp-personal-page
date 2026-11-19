@@ -25,7 +25,8 @@ export interface SiteContent {
 }
 export interface Service { id?: string; name?: string; description?: string; priceCLP?: unknown; durationMin?: unknown }
 export interface Config { poweredBy?: boolean }
-export interface Content { site: SiteContent; services: Service[]; config: Config }
+// giftCardsOnline (SPEC-60): viene del catálogo de la API; sin API (o apagada) no hay enlace "Regala WS Style".
+export interface Content { site: SiteContent; services: Service[]; config: Config; giftCardsOnline?: boolean }
 
 export const SHOT_IDS = ['hero', 'reyes', 'linea', 'afilado', 'trono', 'servicios', 'llega'] as const;
 export type ShotId = (typeof SHOT_IDS)[number];
@@ -75,6 +76,8 @@ export interface LandingCatalog {
   business: {
     hoursRows?: Hours[];
     contact?: { whatsapp?: string | null; phone?: string | null };
+    // SPEC-60: el enlace "Regala WS Style" solo aparece si la venta en línea está activa.
+    giftCards?: { online?: boolean };
   };
 }
 
@@ -90,7 +93,7 @@ export function mergeCatalog(content: Content, catalog: LandingCatalog | null): 
   if (c && (str(c.phone) || str(c.whatsapp))) {
     site.contact = { ...(site.contact ?? {}), ...(str(c.phone) ? { phone: c.phone as string } : {}), ...(str(c.whatsapp) ? { whatsapp: c.whatsapp as string } : {}) };
   }
-  return { ...content, site, services };
+  return { ...content, site, services, giftCardsOnline: catalog.business?.giftCards?.online === true };
 }
 
 // GET /api/wstyle/catalog con tope de 4 s. null = usar el JSON (API caída, dormida, lenta o sin negocio configurado).

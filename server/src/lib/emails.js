@@ -154,3 +154,20 @@ export function reassignedMail({ appt, when, url, from, to }) {
     ...layout('Cambió el barbero de tu cita', [`${from} no podrá atenderte; tu cita queda con ${to}.`, `${appt.serviceSnapshot?.name || 'Servicio'} · ${when}`, 'La hora y el precio no cambian.'], [['Ver la cita', url]]),
   };
 }
+
+/* SPEC-60: la gift card al correo de quien compra (asunción 11). El mensaje va como texto plano
+   (layout lo escapa): nunca se renderiza como HTML (CB-10). */
+export function giftCardMail({ card, url }) {
+  const what = card.kind === 'servicio' ? card.service?.name || 'un servicio' : money(card.amountCLP);
+  const until = card.expiresAt ? new Intl.DateTimeFormat('es-CL', { timeZone: 'America/Santiago', day: 'numeric', month: 'short', year: 'numeric' }).format(card.expiresAt) : '';
+  const subject = `Tu gift card de WS Style para ${card.to || 'regalar'}`;
+  const lines = [
+    `Un regalo para ${card.to || ''}: ${what}.`,
+    card.message ? `“${card.message}”` : '',
+    `De ${card.from || ''}.`,
+    `Código: ${card.code}${until ? ` · Válida hasta ${until}` : ''}`,
+    'Para usarla: reserva en ricorp.cl/wstyle/reservar e ingresa el código en el paso "Confirmar".',
+    'Descarga la tarjeta o compártela por WhatsApp desde el enlace.',
+  ].filter(Boolean);
+  return { subject, template: 'gift_card', ...layout('Tu gift card está lista', lines, [['Ver y descargar la tarjeta', url]]) };
+}

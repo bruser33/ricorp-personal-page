@@ -46,6 +46,11 @@ const BusinessSchema = new Schema(
       onlineEnabled: { type: Boolean, default: false },
       localEnabled: { type: Boolean, default: true },
     },
+    /* SPEC-60: venta de gift cards en línea (apagada por defecto) y vigencia por defecto en meses. */
+    giftCards: {
+      onlineEnabled: { type: Boolean, default: false },
+      validityMonths: { type: Number, default: 12 },
+    },
   },
   { timestamps: true }
 );
@@ -324,6 +329,21 @@ const AppointmentSchema = new Schema(
     ],
     source: { type: String, enum: ['web', 'pro_invite', 'admin'], default: 'web' },
     idempotencyKey: String,
+    /* SPEC-60: gift card aplicada a la cita. `amountCLP` = descuento sobre el total (lo que no se
+       cobra); `debitCLP` = lo que se descontó del saldo de la tarjeta (vuelve si la cita se cae).
+       status: reservada (al crear) → confirmada (pagada en línea o terminada) | revertida. */
+    giftCard: {
+      giftCardId: ObjectId,
+      code: String,
+      from: String,
+      kind: String,
+      amountCLP: Number,
+      debitCLP: Number,
+      status: { type: String, enum: ['reservada', 'confirmada', 'revertida'] },
+      appliedAt: Date,
+      confirmedAt: Date,
+      revertedAt: Date,
+    },
   },
   /* optimisticConcurrency: dos pestañas (o cliente y barbero) que cambian la misma
      cita a la vez → la segunda falla con VersionError → 409 (CB-14). */
@@ -436,6 +456,8 @@ const PaymentEventSchema = new Schema(
     status: { type: String, required: true },
     amount: Number,
     currency: String,
+    /* SPEC-60: pago de la compra de una gift card (external_reference = gc:<id>). */
+    giftCardId: ObjectId,
     via: { type: String, enum: ['webhook', 'reconcile', 'view'] },
     outcome: String,
   },
@@ -444,6 +466,72 @@ const PaymentEventSchema = new Schema(
 PaymentEventSchema.index({ mpPaymentId: 1, status: 1 }, { unique: true });
 PaymentEventSchema.index({ appointmentId: 1, createdAt: 1 });
 export const PaymentEvent = model('PaymentEvent', PaymentEventSchema);
+
+/* SPEC-60: gift cards. `code` (WS-XXXX-XXXX) se canjea al reservar; `token` (distinto) abre la
+   página pública de la tarjeta. El saldo solo cambia con updates atómicos condicionales. */
+export const GIFT_CARD_STATUSES = ['pendiente_pago', 'activa', 'usada', 'vencida', 'anulada'];
+const GiftCardSchema = new Schema(
+  {
+    businessId: { type: ObjectId, required: true },
+    code: { type: String, required: true, unique: true },
+    token: { type: String, required: true, unique: true },
+    kind: { type: String, enum: ['monto', 'servicio'], required: true },
+    service: { serviceId: ObjectId, slug: String, name: String, priceCLP: Number },
+    amountCLP: { type: Number, required: true },
+    balanceCLP: { type: Number, required: true, min: 0 },
+    from: String,
+    to: String,
+    message: String,
+    buyerEmail: String,
+    buyerUserId: ObjectId,
+    status: { type: String, enum: GIFT_CARD_STATUSES, required: true },
+    origin: { type: String, enum: ['online', 'local'], required: true },
+    validityMonths: Number,
+    activatedAt: Date,
+    expiresAt: Date,
+    /* Compra en línea: desglose de SPEC-38 (valor + tarifa de servicio) congelado. */
+    pricing: { priceCLP: Number, platformFeeCLP: Number, paymentFeeCLP: Number, serviceFeeCLP: Number, totalCLP: Number, platformFeeRate: Number, paymentFeeRate: Number, paymentFeeVat: Boolean },
+    /* Cobro: en línea (Mercado Pago) o en el local (forma de cobro). */
+    payment: {
+      preferenceId: String,
+      attempts: { type: Number, default: 0 },
+      mpPaymentId: String,
+      mpStatus: String,
+      paidAt: Date,
+      amountCLP: Number,
+      mpFeeCLP: Number,
+      mpNetCLP: Number,
+      refundedAt: Date,
+      chargebackAt: Date,
+      localMethod: { type: String, enum: ['efectivo', 'transferencia', 'tarjeta'] },
+      collectedAt: Date,
+      taxModel: String,
+      taxDoc: { kind: { type: String, enum: ['voucher_mp', 'boleta_sii'] }, number: String, provider: String, at: Date },
+    },
+    /* RN-08: reembolsada después de usarse → bloqueada (no se canjea) y alerta al admin. */
+    blocked: Boolean,
+    discardedAt: Date,
+    voidReason: String,
+    mailedAt: Date,
+    movements: [
+      {
+        _id: false,
+        kind: { type: String, enum: ['emision', 'canje', 'reversion', 'anulacion', 'extension', 'activacion', 'reembolso'] },
+        amountCLP: Number,
+        balanceCLP: Number,
+        appointmentId: ObjectId,
+        byUserId: ObjectId,
+        by: String,
+        reason: String,
+        at: { type: Date, required: true },
+      },
+    ],
+    createdByUserId: ObjectId,
+  },
+  { timestamps: true }
+);
+GiftCardSchema.index({ businessId: 1, status: 1, createdAt: -1 });
+export const GiftCard = model('GiftCard', GiftCardSchema);
 
 export const ALL_MODELS = [
   Business,
@@ -463,4 +551,5 @@ export const ALL_MODELS = [
   PlatformSettings,
   AuditLog,
   PaymentEvent,
+  GiftCard,
 ];

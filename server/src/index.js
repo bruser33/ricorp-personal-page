@@ -29,6 +29,8 @@ mongoose
       app.locals.agenda.runExpirations().catch(quiet('[agenda] expiraciones:'));
       /* SPEC-35 RN-03: citas que esperaban el pago y se les acabó la retención. */
       app.locals.payments.runHolds().catch(quiet('[mp] retención:'));
+      /* SPEC-60: gift cards vencidas y compras sin pagar de más de 24 h. */
+      app.locals.giftCards.runTasks().catch(quiet('[giftcards] tareas:'));
     }, 60_000).unref();
     /* SPEC-35: conciliación con Mercado Pago al arrancar (Render free "despierta" sin los
        webhooks que llegaron mientras dormía) y cada 5 min mientras esté despierto. */

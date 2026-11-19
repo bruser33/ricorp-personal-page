@@ -29,6 +29,7 @@ import { entriesToWeek, weekToSiteRows } from './hours.js';
 import { applyLocalCollection, boletaClash, isBoletaClash, parseCollectInput } from './tax.js';
 import { TAX_DOCUMENT_PROVIDERS } from '../lib/taxDocuments.js';
 import { currentRates, pricingView, quote, ratesView } from './pricing.js';
+import { coverage, payableCLP } from './giftcards.js';
 
 const MIN = 60 * 1000;
 const HOUR = 60 * MIN;
@@ -70,7 +71,7 @@ export const PAY_OPEN = ['pendiente', 'en_proceso', 'rechazado'];
 
 /* `onlinePayments.ready`: hay credenciales de Mercado Pago (SPEC-35). Sin ellas "Pagar en
    línea" no se ofrece aunque el admin lo habilite (CB-09). */
-export function createAgenda({ clock = Date.now, mailer, logger = console, frontUrl = 'http://localhost:5173', geocoder, businessSlug = 'ws-style', adminInbox = null, onlinePayments = { ready: false }, taxProvider = TAX_DOCUMENT_PROVIDERS.voucher }) {
+export function createAgenda({ clock = Date.now, mailer, logger = console, frontUrl = 'http://localhost:5173', geocoder, businessSlug = 'ws-style', adminInbox = null, onlinePayments = { ready: false }, taxProvider = TAX_DOCUMENT_PROVIDERS.voucher, giftCards = null }) {
   async function business() {
     const b = await Business.findOne({ slug: businessSlug }).lean();
     if (!b) throw new HttpError(503, 'agenda_unavailable', 'La agenda aún no está configurada');
@@ -140,6 +141,8 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
         contact: { whatsapp: b.contact?.whatsapp || null, phone: b.contact?.phone || null, address: b.address || {} },
         settings: { minLeadMinutes: b.settings.minLeadMinutes, horizonDays: b.settings.horizonDays, cancelUntilMinutes: b.settings.cancelUntilMinutes },
         payments: paymentOptions(b),
+        /* SPEC-60: venta de gift cards en línea (la landing muestra el enlace solo si está activa). */
+        giftCards: giftCards ? giftCards.publicInfo(b) : { online: false },
         /* SPEC-38 RN-20: tasas vigentes; el resumen de la reserva usa la misma fórmula que el server. */
         pricing: ratesView(rates),
       },
@@ -312,11 +315,18 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
     if (input.acceptPolicies !== true) fields.acceptPolicies = 'required';
     const payMethod = input.paymentMethod === undefined ? 'local' : input.paymentMethod;
     const payOpts = paymentOptions(b);
+    /* SPEC-60: código de gift card (una por cita). Se valida antes de todo lo caro y se descuenta
+       dentro de la transacción que crea la cita (RN-05). */
+    const giftCode = typeof input.giftCardCode === 'string' && input.giftCardCode.trim() ? input.giftCardCode.trim().slice(0, 40) : null;
+    const giftCard = giftCode && giftCards ? await giftCards.findUsable(b, giftCode, now) : null;
+    if (giftCode && !giftCard) throw new HttpError(409, 'giftcard_invalid', 'Código no válido', { fields: { giftCardCode: 'giftcard_invalid' } });
+    /* Si la gift card cubre todo, no se pide forma de pago: la validación de la forma de pago espera. */
+    let payProblem = null;
     if (!['local', 'online'].includes(payMethod)) fields.paymentMethod = 'invalid_payment';
     /* SPEC-34 AC-09: una forma de pago deshabilitada por el admin se rechaza aunque el front la mande.
        "En línea" además necesita SPEC-35 (hasta entonces nunca se acepta). */
-    else if (payMethod === 'local' && !payOpts.local) fields.paymentMethod = 'payment_unavailable';
-    else if (payMethod === 'online' && !payOpts.online) fields.paymentMethod = 'payment_unavailable';
+    else if ((payMethod === 'local' && !payOpts.local) || (payMethod === 'online' && !payOpts.online)) payProblem = 'payment_unavailable';
+    if (payProblem && !giftCard) fields.paymentMethod = payProblem;
     if (Object.keys(fields).length) throw new HttpError(400, Object.values(fields)[0], 'Revisa los datos', { fields });
 
     let pros = await professionals(b, { service, mode });
@@ -376,8 +386,12 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
       const surcharge = mode === 'home' ? pro.homeService.surchargeCLP : 0;
       const pricing = quote({ priceCLP: service.priceCLP, surchargeCLP: surcharge, method: payMethod, ...rates });
       const endsAt = startsAt + service.durationMin * MIN;
+      /* SPEC-60 RN-07: con gift card se paga solo el resto; si el resto es $0 no hay pago que hacer. */
+      const covered = giftCard ? coverage(giftCard, pricing, service._id).amountCLP >= pricing.totalCLP : false;
+      if (payProblem && !covered) throw new HttpError(400, payProblem, 'Revisa los datos', { fields: { paymentMethod: payProblem } });
       /* SPEC-35 RN-03: "Pagar en línea" crea la cita esperando el pago (ocupa la hora 15 min). */
-      const online = payMethod === 'online';
+      const online = payMethod === 'online' && !covered;
+      if (covered) pricing.paymentMethod = 'local';
       const firstStatus = online ? 'pendiente_pago' : 'pendiente';
       const doc = {
         _id: new ObjectId(),
@@ -391,7 +405,7 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
         endsAt: new Date(endsAt),
         location: { ...location, travelBufferMin: buffer },
         pricing,
-        payment: online ? { method: 'online', status: 'pendiente', holdStartedAt: new Date(now) } : { method: 'local', status: 'pendiente' },
+        payment: online ? { method: 'online', status: 'pendiente', holdStartedAt: new Date(now) } : covered ? { method: 'local', status: 'cobrado', collectedAt: new Date(now) } : { method: 'local', status: 'pendiente' },
         note: note || undefined,
         status: firstStatus,
         expiresAt: new Date(online ? now + PAYMENT_HOLD_MIN * MIN : confirmDeadline(b, startsAt, now)),
@@ -401,15 +415,25 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
       };
       try {
         const appt = await withTransaction(async (session, { transactional }) => {
+          let applied = null;
           try {
             await SlotLock.insertMany(
               slotsFor(startsAt, service.durationMin, buffer).map((t) => ({ businessId: b._id, professionalId: pro._id, slotStart: new Date(t), appointmentId: doc._id, kind: 'main' })),
               { session, ordered: true }
             );
+            if (giftCard) {
+              applied = await giftCards.reserve(session, { b, code: giftCard.code, pricing, serviceId: service._id, apptId: doc._id, user, now });
+              doc.giftCard = applied;
+              /* El saldo cambió entre la validación y la transacción: ya no cubre lo que se calculó. */
+              if ((covered && applied.amountCLP < pricing.totalCLP) || (!covered && applied.amountCLP >= pricing.totalCLP)) throw new HttpError(409, 'giftcard_insufficient', 'Esta gift card ya no tiene saldo suficiente');
+            }
             const [created] = await Appointment.create([doc], { session });
             return created;
           } catch (err) {
-            if (!transactional) await SlotLock.deleteMany({ appointmentId: doc._id });
+            if (!transactional) {
+              await SlotLock.deleteMany({ appointmentId: doc._id });
+              if (applied) await giftCards.undoReserve(applied, doc._id).catch(() => {});
+            }
             throw err;
           }
         }, logger);
@@ -554,8 +578,10 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
       timezone: tz,
       location: { kind: appt.location?.kind || 'shop', address: appt.location?.kind === 'home' ? appt.location.address?.formatted : [b.address?.street, b.address?.city].filter(Boolean).join(', '), distanceKm: appt.location?.distanceKm },
       /* SPEC-38: desglose (servicio, domicilio, administración, procesamiento, total). */
-      pricing: pricingView(appt.pricing),
+      pricing: withGift(pricingView(appt.pricing), appt),
       payment: paymentView(appt),
+      /* SPEC-60: gift card aplicada (también la ve el barbero en la ficha, asunción 8). */
+      giftCard: appt.giftCard?.giftCardId ? { code: appt.giftCard.code, from: appt.giftCard.from || '', amountCLP: appt.giftCard.amountCLP, status: appt.giftCard.status } : null,
       note: appt.note || '',
       proposal: p ? { startsAt: p.startsAt.toISOString(), when: formatLong(p.startsAt.getTime(), tz), expiresAt: p.expiresAt?.toISOString() } : null,
       actions: actionsFor(appt, role, b, now),
@@ -569,6 +595,12 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
     };
     if (role === 'barber' || role === 'admin') Object.assign(out, proExtras(appt, b));
     return out;
+  }
+
+  /* SPEC-60: la parte cubierta por gift card y lo que queda por pagar. */
+  function withGift(view, appt) {
+    if (!appt.giftCard?.giftCardId) return view;
+    return { ...view, giftCardCLP: Math.round(Number(appt.giftCard.amountCLP) || 0), dueCLP: payableCLP(appt) };
   }
 
   /* SPEC-35: el pago hacia afuera (sin campos internos como el bloqueo de reembolso). */
@@ -659,7 +691,7 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
   /* Aplica `fn` a la cita dentro de una transacción y registra el historial. */
   async function mutate(b, apptId, fn) {
     try {
-      return await withTransaction(async (session) => {
+      const appt = await withTransaction(async (session) => {
         const appt = await Appointment.findById(apptId).session(session);
         if (!appt) throw notFound();
         const from = appt.status;
@@ -668,6 +700,9 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
         await appt.save({ session });
         return appt;
       }, logger);
+      /* SPEC-60 RN-06: cita caída → la gift card recupera lo aplicado (una vez). */
+      if (giftCards && (await giftCards.afterChange(appt))) appt.giftCard.status = 'revertida';
+      return appt;
     } catch (err) {
       if (err?.name === 'VersionError') throw invalid('stale');
       if (isBoletaClash(err)) throw boletaClash();
@@ -839,7 +874,8 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
       if (action === 'no_show' && now < current.startsAt.getTime() + START_WINDOW_MIN * MIN) throw invalid('too_early', 'Aún no pasa la hora de inicio + 15 min');
       if (action === 'start' && now < current.startsAt.getTime() - START_WINDOW_MIN * MIN) throw invalid('too_early', 'Puedes iniciar desde 15 minutos antes de la hora');
       /* SPEC-33 RN-10: al terminar una cita con pago en el local se registra si se cobró. */
-      const localPay = (current.payment?.method || 'local') === 'local';
+      /* SPEC-60: una cita cubierta entera por gift card ya está cobrada (no se pregunta "¿Cobraste?"). */
+      const localPay = (current.payment?.method || 'local') === 'local' && payableCLP(current) > 0;
       if (action === 'finish' && role === 'barber' && localPay && typeof payload.collected !== 'boolean') {
         throw new HttpError(400, 'collected_required', '¿Cobraste la cita?', { fields: { collected: 'required' } });
       }
@@ -850,6 +886,11 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
       const appt = await mutate(b, current._id, (a) => {
         if (a.status !== need) throw invalid('stale');
         a.status = to;
+        /* SPEC-60 RN-05: al terminar, lo aplicado de la gift card queda confirmado. */
+        if (action === 'finish' && a.giftCard?.status === 'reservada') {
+          a.giftCard.status = 'confirmada';
+          a.giftCard.confirmedAt = new Date(now);
+        }
         if (action === 'finish' && localPay && typeof payload.collected === 'boolean') {
           if (payload.collected) applyLocalCollection(a, { ...collect, provider: taxProvider, now });
           else a.payment.status = 'pago_pendiente';
