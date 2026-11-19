@@ -8,7 +8,8 @@ import { HttpError, handle } from '../lib/errors.js';
 import { checkPassword, findToken, hashPassword, issueToken, publicUser, startSession } from '../lib/session.js';
 import { clMobile, isEmail, normEmail, passwordProblem } from '../lib/validate.js';
 import { linkFacebookMail, verifyEmailMail } from '../lib/emails.js';
-import { MAX_PHOTO_BYTES, MAX_PHOTOS } from '../lib/photos.js';
+import { imageUpload, MAX_PHOTO_BYTES, MAX_PHOTOS } from '../lib/photos.js';
+import { MAX_STYLES_PER_UPLOAD } from '../domain/styles.js';
 import { validName } from '../domain/pro.js';
 import { computeStats, parseRange } from '../domain/stats.js';
 
@@ -16,7 +17,7 @@ const HOUR = 60 * 60 * 1000;
 
 const fieldError = (fields) => new HttpError(400, Object.values(fields)[0], 'Revisa los datos', { fields });
 
-export function createProRouter({ pro, env, clock, mailer, logger, frontUrl, loginLimiter, billing = null }) {
+export function createProRouter({ pro, env, clock, mailer, logger, frontUrl, loginLimiter, billing = null, styles = null }) {
   const r = express.Router();
   const h = (fn) => handle(fn, logger);
 
@@ -192,6 +193,13 @@ export function createProRouter({ pro, env, clock, mailer, logger, frontUrl, log
     const out = await billing.registerBoleta(b, req.params.id, req.body?.number, { professionalId: me._id, by: 'barber', user: u(req) });
     res.json({ payment: out.payment });
   }));
+  /* SPEC-59: "Mis estilos" — el barbero aprobado sube y edita SOLO sus fotos (RN-08). */
+  if (styles) {
+    r.get('/styles', h(async (req, res) => res.json(await styles.panelList(u(req)))));
+    r.post('/styles', h(async (req, _res, next) => { await styles.editor(u(req)); next(); }), imageUpload({ field: 'photos', max: MAX_STYLES_PER_UPLOAD }), h(async (req, res) => res.status(201).json(await styles.upload(u(req), req.files || [], req.body || {}))));
+    r.patch('/styles/:id', h(async (req, res) => res.json(await styles.update(u(req), req.params.id, req.body || {}))));
+    r.delete('/styles/:id', h(async (req, res) => res.json(await styles.remove(u(req), req.params.id))));
+  }
   r.get('/notifications', h(async (req, res) => res.json(await pro.notifications(u(req)))));
   r.post('/notifications/read', h(async (req, res) => res.json(await pro.markRead(u(req), req.body?.ids))));
 

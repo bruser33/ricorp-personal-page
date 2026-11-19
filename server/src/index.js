@@ -32,7 +32,11 @@ mongoose
     }, 60_000).unref();
     /* SPEC-35: conciliación con Mercado Pago al arrancar (Render free "despierta" sin los
        webhooks que llegaron mientras dormía) y cada 5 min mientras esté despierto. */
-    const reconcile = () => app.locals.payments.reconcile().catch(quiet('[mp] conciliación:'));
+    const reconcile = () => {
+      app.locals.payments.reconcile().catch(quiet('[mp] conciliación:'));
+      /* SPEC-59: fotos provisionales de más de 24 h y de citas finalizadas hace más de 90 días. */
+      app.locals.styles.runCleanup().catch(quiet('[estilos] limpieza:'));
+    };
     setTimeout(reconcile, 5_000).unref();
     setInterval(reconcile, 5 * 60_000).unref();
   })

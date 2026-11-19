@@ -19,6 +19,7 @@ import { sendPhoto } from './lib/photos.js';
 import { createAdminInbox } from './lib/adminInbox.js';
 import { createAdmin } from './domain/admin.js';
 import { createAdminRouter } from './routes/admin.js';
+import { createStyles } from './domain/styles.js';
 import { createPayments, WEBHOOK_PATH } from './domain/payments.js';
 import { createBilling } from './domain/billing.js';
 import { createTaxDocumentProvider } from './lib/taxDocuments.js';
@@ -226,27 +227,37 @@ export function createApp({
   const pro = createPro({ agenda, clock, mailer: agendaMailer, logger, frontUrl, env, adminInbox });
   /* Super admin (SPEC-34). */
   const admin = createAdmin({ agenda, pro, clock, mailer: agendaMailer, logger, frontUrl, env, adminInbox, onlinePayments, payments, billing });
-  const authRouter = createAuthRouter({ env, clock, mailer: agendaMailer, logger, facebook, google, frontUrl, secret, loginLimit, onAccountDeleted: agenda.onAccountDeleted, onBarberFacebook: pro.ensureBarber });
+  /* Catálogo de estilos y foto de referencia del cliente (SPEC-59). */
+  const styles = createStyles({ agenda, pro, clock, logger });
+  /* RN-10 de SPEC-59: al eliminar la cuenta también se borran sus fotos de referencia. */
+  const onAccountDeleted = async (user) => {
+    await agenda.onAccountDeleted(user);
+    await styles.onAccountDeleted(user).catch((err) => logger.error('[estilos] borrar fotos de la cuenta:', err.message));
+  };
+  const authRouter = createAuthRouter({ env, clock, mailer: agendaMailer, logger, facebook, google, frontUrl, secret, loginLimit, onAccountDeleted, onBarberFacebook: pro.ensureBarber });
   const withSession = sessionMiddleware({ clock });
   const needsDb = (_req, res, next) =>
     mongoose.connection.readyState === 1 ? next() : res.status(503).json({ ok: false, error: 'db_unavailable' });
   app.use('/api/auth', needsDb, withSession, authRouter);
-  app.get('/api/wstyle/photos/:id', needsDb, (req, res) => {
-    sendPhoto(req.params.id, res).catch((err) => {
+  /* Fotos públicas. SPEC-59: las de clientes nunca salen por acá y las de estilos ocultos solo
+     las ve el panel (super admin o el barbero que la subió). */
+  app.get('/api/wstyle/photos/:id', needsDb, withSession, (req, res) => {
+    const allow = (file) => (file.metadata?.kind === 'style' ? styles.canSeeStylePhoto(req.user, file._id) : true);
+    sendPhoto(req.params.id, res, { allow }).catch((err) => {
       logger.error('[photos]', err.message);
       if (!res.headersSent) res.status(500).json({ ok: false, error: 'server_error' });
     });
   });
-  app.use('/api/wstyle', needsDb, withSession, createWstyleRouter({ agenda, payments, logger, bookingLimiter }));
+  app.use('/api/wstyle', needsDb, withSession, createWstyleRouter({ agenda, payments, logger, bookingLimiter, styles }));
   /* Webhook de Mercado Pago: público (lo llama Mercado Pago, sin Origin ni cookie); la
      autenticidad la da la firma x-signature. */
   app.post(WEBHOOK_PATH, needsDb, handle(async (req, res) => {
     const [status, body] = await payments.webhook(req);
     res.status(status).json(body);
   }, logger));
-  app.use('/api/pro', needsDb, withSession, createProRouter({ pro, env, clock, mailer: agendaMailer, logger, frontUrl, loginLimiter: authRouter.loginLimiter, billing }));
-  app.use('/api/admin', needsDb, withSession, createAdminRouter({ admin, logger }));
-  Object.assign(app.locals, { agenda, pro, admin, payments, billing, agendaMailer, bookingLimiter, loginLimiter: authRouter.loginLimiter });
+  app.use('/api/pro', needsDb, withSession, createProRouter({ pro, env, clock, mailer: agendaMailer, logger, frontUrl, loginLimiter: authRouter.loginLimiter, billing, styles }));
+  app.use('/api/admin', needsDb, withSession, createAdminRouter({ admin, logger, styles }));
+  Object.assign(app.locals, { agenda, pro, admin, styles, payments, billing, agendaMailer, bookingLimiter, loginLimiter: authRouter.loginLimiter });
 
   app.get('/api/health', (_req, res) => {
     /* 'unconfigured' y no 'dry-run' en Render: ahí sin mailer el envío es un 503,

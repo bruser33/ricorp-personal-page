@@ -2,8 +2,10 @@
    autorización (sesión + rol superadmin, en el server) viven en domain/admin.js. */
 import express from 'express';
 import { handle, HttpError } from '../lib/errors.js';
+import { imageUpload } from '../lib/photos.js';
+import { MAX_STYLES_PER_UPLOAD } from '../domain/styles.js';
 
-export function createAdminRouter({ admin, logger }) {
+export function createAdminRouter({ admin, logger, styles = null }) {
   const r = express.Router();
   const h = (fn) => handle(fn, logger);
   const u = (req) => req.user;
@@ -67,6 +69,16 @@ export function createAdminRouter({ admin, logger }) {
   r.post('/appointments/:id/refund', h(async (req, res) => res.json(await admin.refund(u(req), req.params.id, req.body || {}))));
   for (const [path, action] of [['confirm', 'confirm'], ['reject', 'reject'], ['cancel', 'cancel'], ['propose', 'propose'], ['start', 'start'], ['finish', 'finish'], ['no-show', 'no_show']]) {
     r.post(`/appointments/:id/${path}`, h(async (req, res) => res.json(await admin.actOnAppointment(u(req), req.params.id, action, req.body || {}))));
+  }
+
+  /* SPEC-59: catálogo de estilos y moderación de la foto del cliente. */
+  if (styles) {
+    r.get('/styles', h(async (req, res) => res.json(await styles.panelList(u(req)))));
+    r.post('/styles', imageUpload({ field: 'photos', max: MAX_STYLES_PER_UPLOAD }), h(async (req, res) => res.status(201).json(await styles.upload(u(req), req.files || [], req.body || {}))));
+    r.post('/styles/reorder', h(async (req, res) => res.json(await styles.reorder(u(req), req.body?.ids))));
+    r.patch('/styles/:id', h(async (req, res) => res.json(await styles.update(u(req), req.params.id, req.body || {}))));
+    r.delete('/styles/:id', h(async (req, res) => res.json(await styles.remove(u(req), req.params.id))));
+    r.post('/appointments/:id/remove-photo', h(async (req, res) => res.json(await styles.moderateRemove(u(req), req.params.id))));
   }
 
   /* Carta */
