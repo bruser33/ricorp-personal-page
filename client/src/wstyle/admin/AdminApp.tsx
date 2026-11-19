@@ -9,6 +9,7 @@ import { LoadError } from './components/common';
 import AppointmentsPage from './pages/AppointmentsPage';
 import AuditPage from './pages/AuditPage';
 import BarbersPage from './pages/BarbersPage';
+import DifusionPage from './pages/DifusionPage';
 import HomePage from './pages/HomePage';
 import PaymentsPage from './pages/PaymentsPage';
 import RendicionPage from './pages/RendicionPage';
@@ -109,6 +110,7 @@ export default function AdminApp({ fbReturn }: { fbReturn: FacebookReturn | null
     carta: <ServicesPage />,
     horario: <SchedulePage />,
     estadisticas: <StatsPage />,
+    difusion: <DifusionPage />,
     configuracion: <SettingsPage user={user} />,
     auditoria: <AuditPage />,
   }[section];

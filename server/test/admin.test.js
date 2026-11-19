@@ -322,6 +322,8 @@ describe('AC-04 citas del admin', () => {
     assert.equal(n.json.status, 'confirmada');
     const appt = await Appointment.findById(n.json.id);
     assert.equal(appt.source, 'admin');
+    /* SPEC-58 RN-04: las citas del admin no guardan origen. */
+    assert.equal(appt.origin, undefined);
     assert.equal(appt.customerSnapshot.phoneE164, '+56988887777');
     assert.equal(await SlotLock.countDocuments({ appointmentId: appt._id }), 3);
     /* Hora ocupada → 409. */
@@ -642,6 +644,52 @@ describe('AC-08 estadísticas', () => {
     /* Sábado sin turno, domingo cerrado, lunes 12–18 = 360 min exactos. */
     assert.equal(r.json.barbers.find((x) => x.name === 'Barbero A').availableMin, 360);
     assert.equal((await t.get('/api/admin/stats?from=2026-09-07&to=2026-09-05')).status, 400);
+  });
+
+  test('SPEC-58 AC-07 reservas por origen: solo citas web del rango, creadas y terminadas', async () => {
+    await seedKnown();
+    /* Del seed: 7 citas en noviembre sin origen guardado (anteriores al kit → "sin_dato"). Se reparten orígenes mixtos. */
+    const nov = (await Appointment.find({ startsAt: { $gte: new Date('2026-11-01T03:00:00Z'), $lt: new Date('2026-12-01T03:00:00Z') } }).sort({ startsAt: 1, _id: 1 })).map((a) => a._id);
+    assert.equal(nov.length, 7);
+    await Appointment.updateMany({ _id: { $in: nov.slice(0, 3) } }, { origin: 'cartel' });
+    await Appointment.updateMany({ _id: { $in: nov.slice(3, 4) } }, { origin: 'instagram_bio' });
+    await Appointment.updateOne({ _id: nov[4] }, { origin: 'directo' });
+    /* Una cita del admin y una del barbero: no cuentan aunque tengan origen. */
+    await Appointment.updateOne({ _id: nov[5] }, { source: 'admin' });
+    await Appointment.updateOne({ _id: nov[6] }, { source: 'pro_invite', origin: 'whatsapp' });
+    /* Fuera del rango: no cuenta. */
+    await Appointment.updateMany({ startsAt: { $gte: new Date('2026-12-01T00:00:00Z') } }, { origin: 'whatsapp' });
+    const all = await Appointment.find({ _id: { $in: nov } }).lean();
+    const want = new Map();
+    for (const a of all) {
+      if ((a.source || 'web') !== 'web') continue;
+      const k = a.origin || 'sin_dato';
+      const o = want.get(k) || { origin: k, created: 0, finished: 0 };
+      o.created++;
+      if (a.status === 'terminada') o.finished++;
+      want.set(k, o);
+    }
+    const r = await t.get('/api/admin/stats');
+    assert.equal(r.status, 200);
+    assert.deepEqual([...r.json.byOrigin].sort((x, y) => x.origin.localeCompare(y.origin)), [...want.values()].sort((x, y) => x.origin.localeCompare(y.origin)));
+    assert.equal(r.json.byOrigin.reduce((n, o) => n + o.created, 0), 5);
+    assert.ok(!r.json.byOrigin.some((o) => o.origin === 'whatsapp'));
+    assert.equal(r.json.byOrigin.find((o) => o.origin === 'directo').created, 1);
+    assert.equal(r.json.byOrigin.some((o) => o.origin === 'sin_dato'), false);
+    assert.equal(r.json.byOrigin.find((o) => o.origin === 'cartel').created, 3);
+    /* RN-07: el barbero no ve el detalle de orígenes en sus estadísticas. */
+    const cookie = await t.barberCookie(t.pro(1));
+    /* Una cita web vieja (sin el campo) cae en "sin_dato", no en "directo". */
+    await Appointment.updateOne({ _id: nov[0] }, { $unset: { origin: 1 } });
+    const r2 = await t.get('/api/admin/stats');
+    assert.equal(r2.json.byOrigin.find((o) => o.origin === 'sin_dato').created, 1);
+    assert.equal(r2.json.byOrigin.find((o) => o.origin === 'directo').created, 1);
+    const pro = await t.get('/api/pro/stats', cookie);
+    assert.equal(pro.status, 200);
+    assert.equal(pro.json.byOrigin, undefined);
+    assert.equal((await t.get('/api/admin/stats', cookie)).status, 403);
+    const client = await makeClient({ phone: '+56955554444' });
+    assert.equal((await t.get('/api/admin/stats', client.cookie)).status, 403);
   });
 
   test('el barbero aprobado ve solo SUS estadísticas', async () => {
