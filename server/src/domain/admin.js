@@ -89,7 +89,7 @@ export const CSV_COLUMNS = [
 ];
 
 
-export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = console, frontUrl = 'http://localhost:5173', env = {}, adminInbox, onlinePayments = { ready: false }, payments = null, billing = null }) {
+export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = console, frontUrl = 'http://localhost:5173', env = {}, adminInbox, onlinePayments = { ready: false }, payments = null, billing = null, reviews = null }) {
   /* ─── Acceso */
   function requireAdmin(user) {
     if (!user) throw new HttpError(401, 'unauthorized', 'Tu sesión venció. Inicia sesión para continuar.');
@@ -140,7 +140,7 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
     const dayStart = new Date(zonedToUtc(today, '00:00', tz));
     const dayEnd = new Date(zonedToUtc(addDays(today, 1), '00:00', tz));
     const month = monthRange(now, tz);
-    const [pendingBarbers, todayCount, pendingConfirm, refunds, monthStats, unread, alerts] = await Promise.all([
+    const [pendingBarbers, todayCount, pendingConfirm, refunds, monthStats, unread, alerts, reviewsLast7d] = await Promise.all([
       Membership.countDocuments({ businessId: b._id, status: 'pending', submittedAt: { $ne: null } }),
       Appointment.countDocuments({ businessId: b._id, startsAt: { $gte: dayStart, $lt: dayEnd }, status: { $nin: ['cancelada', 'expirada'] } }),
       Appointment.countDocuments({ businessId: b._id, status: 'pendiente' }),
@@ -148,10 +148,12 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
       computeStats(b, month),
       PanelNotification.countDocuments({ userId: user._id, readAt: null }),
       suspendedAlerts(b, now),
+      /* SPEC-52: reseñas nuevas de los últimos 7 días. */
+      reviews ? reviews.countSince(b, 7) : 0,
     ]);
     return {
       today,
-      cards: { pendingBarbers, today: todayCount, pendingConfirm, refundsPending: refunds, monthRevenueCLP: monthStats.revenue.totalCLP },
+      cards: { pendingBarbers, today: todayCount, pendingConfirm, refundsPending: refunds, monthRevenueCLP: monthStats.revenue.totalCLP, reviewsLast7d },
       alerts,
       unread,
       user: publicUser(user),
@@ -1064,6 +1066,27 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
   }
 
   /* ─── Mi cuenta */
+  /* ─── Reseñas (SPEC-52 RN-09): ocultar y mostrar quedan en la auditoría. */
+  async function listReviews(user, q = {}) {
+    const b = await ctx(user);
+    return reviews.adminList(b, q);
+  }
+
+  const reviewAudit = (r) => ({ status: r.status, reason: r.hidden?.reason || null });
+  async function hideReview(user, id, body = {}) {
+    const b = await ctx(user);
+    const { before, after } = await reviews.hide(b, user, id, body);
+    await audit(user, b, 'review.hide', { entity: 'review', entityId: after._id, summary: `Ocultó la reseña de ${after.authorName} (${after.rating}★)${after.hidden?.reason ? `: ${after.hidden.reason}` : ''}`, before: reviewAudit(before), after: reviewAudit(after) });
+    return { ok: true, status: after.status };
+  }
+
+  async function showReview(user, id) {
+    const b = await ctx(user);
+    const { before, after } = await reviews.show(b, user, id);
+    await audit(user, b, 'review.show', { entity: 'review', entityId: after._id, summary: `Volvió a mostrar la reseña de ${after.authorName} (${after.rating}★)`, before: reviewAudit(before), after: reviewAudit(after) });
+    return { ok: true, status: after.status };
+  }
+
   async function changePassword(user, body = {}) {
     requireAdmin(user);
     const identity = user.identities.find((i) => i.provider === 'email' && i.passwordHash);
@@ -1119,6 +1142,9 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
     setSettings,
     auditList,
     changePassword,
+    listReviews,
+    hideReview,
+    showReview,
   };
 }
 

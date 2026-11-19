@@ -909,6 +909,9 @@ describe('AC-02 matriz de autorización', () => {
       /* Catálogo público y horas libres */
       ['GET /api/wstyle/catalog', pub], ['GET /api/wstyle/availability', pub, { path: `/api/wstyle/availability?service=corte&from=${MONDAY}&to=${MONDAY}` }], ['POST /api/wstyle/quote', pub],
       /* Citas propias (cliente); el barbero aprobado ve las suyas; el admin todas; ajenas → 404 */
+      /* SPEC-52: reseñas. Resumen público; formulario y creación solo con sesión (sin cita propia → 404). */
+      ['GET /api/wstyle/reviews', pub], ['GET /api/wstyle/reviews/eligibility', { anon: 401, client: 404, approved: 404, pending: 404, admin: 404 }, { path: `/api/wstyle/reviews/eligibility?cita=${appt}` }],
+      ['POST /api/wstyle/reviews', { anon: 401, client: 404, approved: 404, pending: 404, admin: 404 }, { body: { appointmentId: appt, rating: 5, comment: 'Excelente atención del barbero.' } }],
       ['POST /api/wstyle/appointments', { anon: 401, client: OK, approved: 403, pending: 403, admin: 403 }, { body: { serviceId: 'corte', professionalId: String(A._id), startsAt: at('16:00'), acceptPolicies: true } }],
       ['GET /api/wstyle/appointments/mine', logged],
       ['GET /api/wstyle/appointments/:id', ownAppt, { path: `/api/wstyle/appointments/${appt}` }],
@@ -956,6 +959,8 @@ describe('AC-02 matriz de autorización', () => {
       ['GET /api/admin/export', adminOnly],
       ['GET /api/admin/schedule', adminOnly], ['PUT /api/admin/schedule/hours', adminOnly], ['POST /api/admin/schedule/closures', adminOnly],
       ['DELETE /api/admin/schedule/closures/:id', adminOnly, { path: `/api/admin/schedule/closures/${fake}` }],
+      ['GET /api/admin/reviews', adminOnly],
+      ['POST /api/admin/reviews/:id/hide', { ...adminOnly, admin: 404 }, { path: `/api/admin/reviews/${fake}/hide` }], ['POST /api/admin/reviews/:id/show', { ...adminOnly, admin: 404 }, { path: `/api/admin/reviews/${fake}/show` }],
       ['GET /api/admin/stats', adminOnly], ['GET /api/admin/settings', adminOnly], ['PUT /api/admin/settings', adminOnly], ['GET /api/admin/audit', adminOnly],
       /* SPEC-37 regla 1: pagos y rendición solo para el super admin; el resto (también el visitante) → 403. */
       ['GET /api/admin/payments', { ...adminOnly, anon: 403 }], ['POST /api/admin/payments/:id/boleta', { ...adminOnly, anon: 403 }, { path: `/api/admin/payments/${appt}/boleta` }],

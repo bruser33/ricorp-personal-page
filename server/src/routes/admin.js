@@ -83,6 +83,11 @@ export function createAdminRouter({ admin, logger }) {
   r.delete('/services/:id', h(async (req, res) => res.json(await admin.removeService(u(req), req.params.id))));
   r.get('/export', h(async (req, res) => res.json(await admin.exportContent(u(req)))));
 
+  /* Reseñas (SPEC-52): todas (incluye ocultas), ocultar y volver a mostrar. */
+  r.get('/reviews', h(async (req, res) => res.json(await admin.listReviews(u(req), req.query))));
+  r.post('/reviews/:id/hide', h(async (req, res) => res.json(await admin.hideReview(u(req), req.params.id, req.body || {}))));
+  r.post('/reviews/:id/show', h(async (req, res) => res.json(await admin.showReview(u(req), req.params.id))));
+
   /* Horario y cierres */
   r.get('/schedule', h(async (req, res) => res.json(await admin.schedule(u(req)))));
   r.put('/schedule/hours', h(async (req, res) => res.json(await admin.setHours(u(req), req.body || {}))));
