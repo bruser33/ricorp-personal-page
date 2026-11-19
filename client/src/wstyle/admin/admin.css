@@ -280,6 +280,13 @@ button.adm-row:hover { border-color: var(--brass-soft); }
 .adm-checklist li::before { content: '☐ '; color: var(--brass); }
 .adm-fieldset > .pro-check { display: flex; align-items: center; gap: 8px; margin: 8px 0; }
 
+/* SPEC-51: bloque de categorías y carta agrupada por categoría. */
+.adm-cats { margin: 0 0 22px; }
+.adm-svc-group { margin: 0 0 22px; }
+.adm-svc-group > .ag-h3 { margin: 0 0 4px; }
+.adm-svc-group > .ag-muted { margin: 0 0 8px; }
+.adm-row__btns .ag-link:disabled { opacity: .35; cursor: default; }
+
 /* SPEC-52: reseñas (lista con estrellas latón; las ocultas atenuadas). */
 .adm-reviews { list-style: none; margin: 16px 0 0; padding: 0; display: grid; gap: 10px; }
 .adm-review { padding: 16px; border: 1px solid rgba(237, 230, 218, .16); border-radius: 4px; }

@@ -5,7 +5,9 @@ export interface ProPhoto { id: string; url: string }
 export interface HomeService { enabled: boolean; surchargeCLP: number; radiusKm: number; travelBufferMin: number }
 export interface Rule { weekday: number; start: string; end: string }
 export interface TimeOff { id: string; startsAt: string; endsAt: string; reason: string }
-export interface ProService { id: string; name: string; priceCLP: number; durationMin: number; homeServiceAllowed: boolean; selected?: boolean }
+export interface ProService { id: string; name: string; priceCLP: number; durationMin: number; homeServiceAllowed: boolean; selected?: boolean; category?: string }
+// SPEC-51: categorías de la carta (asunción 7: el barbero ve sus servicios agrupados).
+export interface ProCategory { id: string; name: string; note: string }
 export type MembershipStatus = 'pending' | 'approved' | 'rejected' | 'suspended';
 export interface ProMe {
   user: User;
@@ -14,6 +16,7 @@ export interface ProMe {
   professional: { id: string; displayName: string; phone: string | null; bio: string; photos: ProPhoto[]; homeService: HomeService };
   membership: { status: MembershipStatus; reason: string | null; submittedAt: string | null };
   business: { name: string; timezone: string; hours: { weekday: number; opens: string | null; closes: string | null }[] };
+  categories?: ProCategory[];
   services: ProService[];
   rules: Rule[];
   timeOffs: TimeOff[];
