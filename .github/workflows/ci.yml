@@ -1,0 +1,64 @@
+# Pruebas obligatorias de cada PR a main (check "CI / pruebas" en la protección de main).
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pruebas:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      MONGO_TEST_URI: mongodb://localhost:27017/wstyle_test?replicaSet=rs0
+      AUTH_SECRET: solo-ci-no-es-un-secreto-real-0123456789
+      MAIL_DRY_RUN: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            client/package-lock.json
+            server/package-lock.json
+
+      - name: MongoDB como replica set
+        run: |
+          docker run -d --name mongo -p 27017:27017 mongo:8 --replSet rs0 --bind_ip_all
+          for i in $(seq 1 30); do
+            docker exec mongo mongosh --quiet --eval 'db.runCommand({ping:1}).ok' >/dev/null 2>&1 && break
+            sleep 2
+          done
+          docker exec mongo mongosh --quiet --eval 'rs.initiate({_id:"rs0",members:[{_id:0,host:"localhost:27017"}]})'
+
+      - run: npm ci --prefix client
+      - run: npm ci --prefix server
+
+      - name: Client · tipos
+        working-directory: client
+        run: npx tsc -b --noEmit
+      - name: Client · tests
+        working-directory: client
+        run: npx vitest run
+      - name: Client · lint
+        working-directory: client
+        run: npm run lint
+      - name: Client · build
+        working-directory: client
+        env:
+          VITE_BASE: /${{ github.event.repository.name }}/
+        run: npm run build
+      - name: Server · tests
+        working-directory: server
+        run: npm test

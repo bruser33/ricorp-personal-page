@@ -88,7 +88,8 @@ de buena fe y confirma lo dudoso en la misma pregunta.
 - PR contra la rama principal con título `SPEC-NN — …` y cuerpo con: qué se hizo, AC uno por uno
   (✅ / ⛔ BLOQUEADO), cómo se verificó, capturas y `Closes #<N>`. Comenta en la issue el link al PR
   con un resumen de 3 líneas.
-- Nunca mergear, ni tocar secretos/variables, ni desplegar. El merge lo hace Pedro.
+- Nunca mergear, ni tocar secretos/variables, ni desplegar. El merge lo hace una persona:
+  Pedro, o Joe en los PRs de WS Style (ver "Publicación de WS Style" abajo).
 - Board #2 "WS Style — Specs": las tarjetas se mueven solas (`.github/workflows/board-sync.yml`:
   issue nueva → Todo, PR abierto → In Progress, issue cerrada → Done). Tú solo haces UNA cosa:
   cuando empieces a implementar una spec, corre `bash .github/claude/board.sh <N> "In Progress"`.
@@ -99,3 +100,31 @@ de buena fe y confirma lo dudoso en la misma pregunta.
   de la issue no coinciden y confunde.
 - Si en la issue hay un comentario "Plan del planner" (de una corrida anterior), úsalo como punto de
   partida del paso planner y valídalo contra el código antes de seguirlo.
+
+## Publicación de WS Style (delegada a Joe)
+Pedro (`bruser33`) delegó en **Joe (`jhoncamacho017-ai`)** la gestión de WS Style de principio a
+fin: crear y priorizar tareas, aprobar specs, pedir implementaciones y correcciones, revisar,
+**aprobar y mergear PRs de WS Style** (= publicar en ricorp.cl/wstyle) y ordenar una reversión.
+Para WS Style, la decisión de publicar de Joe vale lo mismo que la de Pedro. Cuando Joe pide algo
+desde su cuenta, se registra con su identidad (su aprobación, comentario o merge en GitHub).
+
+**Cómo publica Joe (desde el celular):** en el PR → *Files changed* → *Review changes* →
+**Approve** → *Merge pull request*. GitHub solo deja mergear si:
+1. pasó el check obligatorio **CI / pruebas** (`.github/workflows/ci.yml`), y
+2. hay 1 aprobación de alguien distinto del autor del PR (Joe aprueba los PRs que abre Claude), y
+3. si el PR toca **archivos compartidos** con el resto del sitio (lista en `.github/CODEOWNERS`:
+   dependencias, `vite.config.ts`, `server/src/index.js`, `server/src/models/`, `render.yaml`,
+   workflows, este archivo), también necesita el visto bueno de Pedro. Pedro lo da mergeándolo él.
+
+**Alcance:** solo WS Style (`client/src/wstyle/`, `client/wstyle/`, `server/src/domain|routes`
+de WS Style, sus tests y `specs/` de WS Style). Un PR que mezcle WS Style con otros proyectos del
+repo (página personal, trayectoria, contacto, clips) lo publica Pedro.
+
+**Reversión:** si Joe pide "revierte"/"vuelve atrás" en un PR ya mergeado, Claude (modo GitHub)
+abre un PR de revert (`git revert`) con el mismo flujo; Joe lo aprueba y mergea igual que arriba.
+
+**Claude en modo GitHub, cuando Joe pida publicar:** no mergea. Comenta en el PR: si las pruebas
+están en verde, si el PR toca solo WS Style o también archivos compartidos (entonces avisa que
+falta Pedro) y los pasos de arriba para que Joe apruebe y mergee.
+
+**Ojo:** cada merge a `main` redespliega el sitio entero (Pages + Render), no solo WS Style.
