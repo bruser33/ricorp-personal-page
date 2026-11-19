@@ -68,7 +68,7 @@ export default function ApptSheet({ appt: initial, mode: initialMode = 'detail',
           <p className="ag-appt__when">{longDay(localDate(appt.startsAt))}, {localTime(appt.startsAt)}–{localTime(appt.endsAt)}</p>
           {appt.proposal && <p className="ag-muted">Propuesta: {appt.proposal.when}</p>}
           <dl className="ag-breakdown">
-            <div><dt>Cliente</dt><dd>{appt.customer.name}</dd></div>
+            <div><dt>Cliente</dt><dd>{appt.customer.name}{(appt.noShows ?? 0) > 0 && <span className="pro-card__noshows" data-noshows={appt.noShows}>Inasistencias anteriores: {appt.noShows}</span>}</dd></div>
             {appt.customer.phone && <div><dt>Celular</dt><dd>{prettyPhone(appt.customer.phone)}</dd></div>}
             <div><dt>Servicio</dt><dd>{appt.service.name} · {appt.service.durationMin} min</dd></div>
             <div><dt>Lugar</dt><dd>{home ? <><MotoIcon /> {appt.location.address}{appt.location.distanceKm !== undefined && ` · ${appt.location.distanceKm.toLocaleString('es-CL')} km`}</> : 'En el local'}</dd></div>

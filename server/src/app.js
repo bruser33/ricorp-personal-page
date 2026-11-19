@@ -18,6 +18,7 @@ import { createProRouter } from './routes/pro.js';
 import { sendPhoto } from './lib/photos.js';
 import { createAdminInbox } from './lib/adminInbox.js';
 import { createAdmin } from './domain/admin.js';
+import { createReviews } from './domain/reviews.js';
 import { createAdminRouter } from './routes/admin.js';
 import { createPayments, WEBHOOK_PATH } from './domain/payments.js';
 import { createBilling } from './domain/billing.js';
@@ -101,6 +102,8 @@ function escapeHtml(s) {
  */
 /* Rate limit de intentos de reserva por IP (RN-14): mismo patrón que /api/contact. */
 export const BOOKING_RATE_LIMIT = { max: 5, windowMs: 10 * 60 * 1000 };
+/* SPEC-52 RN-13: crear reseñas tiene su propio límite por IP, igual que la reserva. */
+export const REVIEW_RATE_LIMIT = { max: 5, windowMs: 10 * 60 * 1000 };
 
 export function createApp({
   env = process.env,
@@ -115,6 +118,7 @@ export function createApp({
   /* SPEC-38: borde HTTP de Google (token endpoint); los tests lo simulan. */
   googleFetch = fetch,
   bookingRateLimit = BOOKING_RATE_LIMIT,
+  reviewRateLimit = REVIEW_RATE_LIMIT,
   loginLimit = LOGIN_LIMIT,
   /* SPEC-35: "Pagar en línea" se ofrece si hay credenciales de Mercado Pago (MP_ACCESS_TOKEN).
      Los tests pueden forzarlo; por defecto se deduce del env. */
@@ -236,9 +240,18 @@ export function createApp({
   const bookingLimiter = createRateLimiter(bookingRateLimit);
   /* Barbero (SPEC-33): registro, perfil y panel. */
   const pro = createPro({ agenda, clock, mailer: agendaMailer, logger, frontUrl, env, adminInbox });
+  /* Reseñas de clientes (SPEC-52). */
+  const reviews = createReviews({ agenda, clock, mailer: agendaMailer, logger, frontUrl, adminInbox });
+  const reviewLimiter = createRateLimiter(reviewRateLimit);
   /* Super admin (SPEC-34). */
-  const admin = createAdmin({ agenda, pro, clock, mailer: agendaMailer, logger, frontUrl, env, adminInbox, onlinePayments, payments, billing, deposits });
-  const authRouter = createAuthRouter({ env, clock, mailer: agendaMailer, logger, facebook, google, frontUrl, secret, loginLimit, onAccountDeleted: async (u) => { await agenda.onAccountDeleted(u); await deposits.onAccountDeleted(u); }, onBarberFacebook: pro.ensureBarber });
+  const admin = createAdmin({ agenda, pro, clock, mailer: agendaMailer, logger, frontUrl, env, adminInbox, onlinePayments, payments, billing, deposits, reviews });
+  /* RN-26 + SPEC-52 RN-12 + SPEC-56: al eliminar la cuenta se cancelan sus citas futuras, sus señas y se ocultan sus reseñas. */
+  const onAccountDeleted = async (user) => {
+    await agenda.onAccountDeleted(user);
+    await deposits.onAccountDeleted(user);
+    await reviews.hideForUser(user._id).catch((err) => logger.error('[reseñas] ocultar por cuenta eliminada:', err.message));
+  };
+  const authRouter = createAuthRouter({ env, clock, mailer: agendaMailer, logger, facebook, google, frontUrl, secret, loginLimit, onAccountDeleted, onBarberFacebook: pro.ensureBarber });
   const withSession = sessionMiddleware({ clock });
   const needsDb = (_req, res, next) =>
     mongoose.connection.readyState === 1 ? next() : res.status(503).json({ ok: false, error: 'db_unavailable' });
@@ -249,7 +262,7 @@ export function createApp({
       if (!res.headersSent) res.status(500).json({ ok: false, error: 'server_error' });
     });
   });
-  app.use('/api/wstyle', needsDb, withSession, createWstyleRouter({ agenda, payments, deposits, logger, bookingLimiter }));
+  app.use('/api/wstyle', needsDb, withSession, createWstyleRouter({ agenda, payments, deposits, reviews, logger, bookingLimiter, reviewLimiter }));
   /* Webhook de Mercado Pago: público (lo llama Mercado Pago, sin Origin ni cookie); la
      autenticidad la da la firma x-signature. */
   app.post(WEBHOOK_PATH, needsDb, handle(async (req, res) => {
@@ -258,7 +271,7 @@ export function createApp({
   }, logger));
   app.use('/api/pro', needsDb, withSession, createProRouter({ pro, env, clock, mailer: agendaMailer, logger, frontUrl, loginLimiter: authRouter.loginLimiter, billing }));
   app.use('/api/admin', needsDb, withSession, createAdminRouter({ admin, logger }));
-  Object.assign(app.locals, { agenda, pro, admin, payments, billing, deposits, receipts, agendaMailer, bookingLimiter, loginLimiter: authRouter.loginLimiter });
+  Object.assign(app.locals, { agenda, pro, admin, payments, billing, deposits, receipts, reviews, agendaMailer, bookingLimiter, reviewLimiter, loginLimiter: authRouter.loginLimiter });
 
   app.get('/api/health', (_req, res) => {
     /* 'unconfigured' y no 'dry-run' en Render: ahí sin mailer el envío es un 503,

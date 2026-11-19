@@ -10,8 +10,9 @@ import Sheet from '../../pro/components/Sheet';
 import { admin, type AdminAppointment } from '../api';
 import { paymentLabel } from '../util';
 import { ReasonForm } from './common';
+import { scheduleNoShow, usePendingNoShow } from '../../pro/undo';
 
-type Mode = null | 'cancel' | 'reject' | 'propose' | 'reassign' | 'finish' | 'collect' | { refund: string | null };
+type Mode = null | 'cancel' | 'reject' | 'propose' | 'reassign' | 'finish' | 'collect' | 'revert' | { refund: string | null };
 
 const BY: Record<string, string> = { client: 'Cliente', barber: 'Barbero', admin: 'WS Style', system: 'Sistema' };
 const LOCAL_LABEL: Record<string, string> = { efectivo: 'Efectivo', transferencia: 'Transferencia', tarjeta: 'Tarjeta' };
@@ -30,6 +31,7 @@ export default function ApptSheet({ id, onClose, onChanged }: { id: string; onCl
   const [collected, setCollected] = useState(true);
   const col = useCollect();
   const [minWhen] = useState(() => `${localDate(Date.now())}T${localTime(Date.now())}`);
+  const pending = usePendingNoShow()?.id === id;
 
   useEffect(() => {
     let alive = true;
@@ -73,7 +75,7 @@ export default function ApptSheet({ id, onClose, onChanged }: { id: string; onCl
   return (
     <Sheet title="Cita" onClose={onClose} wide>
       <div className="adm-appt" data-appt={appt.id}>
-        <p className="adm-appt__status"><StatusPill status={appt.status} label={appt.statusLabel} /> <span className="ag-muted">{appt.source === 'admin' ? 'Agendada por WS Style' : appt.source === 'pro_invite' ? 'Invitación del barbero' : 'Reserva web'}</span></p>
+        <p className="adm-appt__status"><StatusPill status={appt.status} label={appt.statusLabel} /> <span className="ag-muted">{appt.source === 'admin' ? 'Agendada por WS Style' : appt.source === 'pro_invite' ? 'Invitación del barbero' : appt.source === 'pro_direct' ? 'Confirmada por el barbero' : 'Reserva web'}</span></p>
         {depositTag(appt.deposit, appt.status) && <p className="pro-card__deposit" data-deposit-tag="">{depositTag(appt.deposit, appt.status)} {appt.deposit?.status === 'en_revision' && <a href="/wstyle/admin/pagos/?vista=senas">Revisar</a>}</p>}
         <dl className="adm-dl">
           <dt>Cuándo</dt><dd>{appt.when}</dd>
@@ -84,6 +86,7 @@ export default function ApptSheet({ id, onClose, onChanged }: { id: string; onCl
             {appt.customer.name}
             {appt.customer.phone && <> · <a href={`tel:${appt.customer.phone}`}>{prettyPhone(appt.customer.phone)}</a></>}
             {appt.customer.email && <> · <a href={`mailto:${appt.customer.email}`}>{appt.customer.email}</a></>}
+            {(appt.noShows ?? 0) > 0 && <span className="pro-card__noshows" data-noshows={appt.noShows}>Inasistencias anteriores: {appt.noShows}</span>}
           </dd>
           <dt>Lugar</dt><dd>{appt.location.kind === 'home' ? `A domicilio: ${appt.location.address ?? ''}${appt.location.distanceKm != null ? ` (${appt.location.distanceKm} km)` : ''}` : 'En el local'}</dd>
           {/* SPEC-38: el admin ve las dos partes de la tarifa de servicio por separado. */}
@@ -121,19 +124,31 @@ export default function ApptSheet({ id, onClose, onChanged }: { id: string; onCl
 
         {err && <Notice tone="error">{err}</Notice>}
 
-        {mode === null && (
+        {mode === null && pending && <p className="ag-muted" role="status">Marcando que {appt.customer.name} no vino… puedes deshacerlo en el aviso de abajo.</p>}
+        {mode === null && !pending && (
           <div className="ag-actions ag-actions--wrap adm-appt__actions">
             {has('confirm') && <button type="button" className="btn btn--primary" disabled={busy} onClick={() => run(() => admin.act(id, 'confirm'))}>Confirmar</button>}
             {appt.canReassign && <button type="button" className="btn btn--ghost" disabled={busy} onClick={openReassign}>Reasignar barbero</button>}
             {has('propose') && <button type="button" className="btn btn--ghost" disabled={busy} onClick={() => { setMode('propose'); setWhen(''); }}>Proponer cambio</button>}
             {has('start') && <button type="button" className="btn btn--ghost" disabled={busy} onClick={() => run(() => admin.act(id, 'start'))}>Iniciar</button>}
             {has('finish') && <button type="button" className="btn btn--primary" disabled={busy} onClick={() => setMode('finish')}>Terminar</button>}
-            {has('no_show') && <button type="button" className="btn btn--ghost" disabled={busy} onClick={() => run(() => admin.act(id, 'no_show'))}>Marcar inasistencia</button>}
+            {/* SPEC-55: un toque + [Deshacer] 8 s; la petición sale después. */}
+            {has('no_show') && <button type="button" className="btn btn--ghost" disabled={busy || pending} data-noshow-btn="" onClick={() => {
+              setErr(null);
+              scheduleNoShow<AdminAppointment>({ id, name: appt.customer.name, path: `/api/admin/appointments/${encodeURIComponent(id)}/no-show`,
+                onDone: (a) => { setAppt(a); onChanged(a); }, onError: (m) => setErr(m) });
+            }}>{pending ? 'Marcando que no vino…' : 'El cliente no vino'}</button>}
+            {appt.canRevertNoShow && <button type="button" className="btn btn--ghost" disabled={busy} onClick={() => setMode('revert')}>Sí vino (corregir)</button>}
             {appt.canCollect && <button type="button" className="btn btn--ghost" disabled={busy} onClick={() => setMode('collect')}>Marcar cobrado en el local</button>}
             {appt.canRefund && <button type="button" className="btn btn--primary" disabled={busy} onClick={() => setMode({ refund: null })}>{pay.refundError ? 'Reintentar reembolso' : 'Reembolsar'} {clp.format(appt.pricing.totalCLP)}</button>}
             {has('reject') && <button type="button" className="btn btn--ghost" disabled={busy} onClick={() => setMode('reject')}>Rechazar</button>}
             {has('cancel') && <button type="button" className="btn btn--danger" disabled={busy} onClick={() => setMode('cancel')}>Cancelar cita</button>}
           </div>
+        )}
+
+        {mode === 'revert' && (
+          <ReasonForm label='Motivo de la corrección (queda en la auditoría)' cta='Sí vino: dejarla terminada' busy={busy} onCancel={() => setMode(null)}
+            placeholder='Ej: llegó 20 minutos tarde y se atendió' onSubmit={(reason) => run(() => admin.revertNoShow(id, reason))} />
         )}
 
         {(mode === 'cancel' || mode === 'reject') && (

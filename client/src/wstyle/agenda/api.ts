@@ -140,6 +140,18 @@ export interface Appointment {
   actions: Action[];
   role: 'client' | 'barber' | 'admin';
   whatsapp: string | null; shopWhatsapp: string | null;
+  // SPEC-52 (solo en "Mis citas", citas terminadas): estrellas de su reseña o si todavía puede dejarla.
+  review?: { rating: number } | null;
+  canReview?: boolean;
+}
+
+// SPEC-52: formulario de reseña (/wstyle/cuenta/resena/?cita=…).
+export type ReviewState = 'open' | 'reviewed' | 'expired' | 'not_attended';
+export interface ReviewEligibility {
+  state: ReviewState;
+  appointment: { id: string; service: string; professional: string; startsAt: string; when: string; status: string };
+  review: { rating: number; comment: string; createdAt: string } | null;
+  deadline: string | null;
 }
 
 export const auth = {
@@ -181,5 +193,8 @@ export const agenda = {
   uploadReceipt: (id: string, file: File) => upload<{ ok: boolean; replay: boolean; appointment: Appointment }>(`/api/wstyle/appointments/${encodeURIComponent(id)}/deposit/receipt`, file),
   depositPayOnline: (id: string) => api<Appointment>(`/api/wstyle/appointments/${encodeURIComponent(id)}/deposit/pay-online`, { method: 'POST', body: {} }),
   receiptUrl: (id: string) => `${API_BASE}/api/wstyle/appointments/${encodeURIComponent(id)}/deposit/receipt`,
+  // SPEC-52: reseñas del cliente.
+  reviewEligibility: (cita: string) => api<ReviewEligibility>(`/api/wstyle/reviews/eligibility?cita=${encodeURIComponent(cita)}`),
+  createReview: (body: { appointmentId: string; rating: number; comment: string }) => api<{ ok: boolean; review: { id: string; rating: number } }>('/api/wstyle/reviews', { method: 'POST', body }),
   checkout: (id: string) => api<{ initPoint: string; preferenceId: string; holdUntil: string }>(`/api/wstyle/appointments/${encodeURIComponent(id)}/checkout`, { method: 'POST', body: {} }),
 };
