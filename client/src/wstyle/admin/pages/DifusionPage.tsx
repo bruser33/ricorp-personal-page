@@ -15,9 +15,11 @@ type Fonts = 'loading' | 'ready' | 'error';
 
 function Copy({ text, label = 'Copiar', id }: { text: string; label?: string; id: string }) {
   const [done, setDone] = useState(false);
+  const [failed, setFailed] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
   async function copy() {
+    let ok = true;
     try {
       await navigator.clipboard.writeText(text);
     } catch {
@@ -25,17 +27,19 @@ function Copy({ text, label = 'Copiar', id }: { text: string; label?: string; id
       ta.value = text;
       document.body.appendChild(ta);
       ta.select();
-      document.execCommand('copy');
+      try { ok = document.execCommand('copy'); } catch { ok = false; }
       ta.remove();
     }
+    if (!ok) { setFailed(true); return; }
+    setFailed(false);
     setDone(true);
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => setDone(false), 2000);
   }
   return (
     <button type="button" className="btn btn--ghost kit-copy" data-copy={id} onClick={copy}>
-      {done ? 'Copiado' : label}
-      <span className="ag-sr" role="status">{done ? 'Copiado' : ''}</span>
+      {done ? 'Copiado' : failed ? 'No se pudo copiar' : label}
+      <span className="ag-sr" role="status">{done ? 'Copiado' : failed ? 'No se pudo copiar: mantén presionado el texto para copiarlo' : ''}</span>
     </button>
   );
 }
@@ -48,7 +52,9 @@ export default function DifusionPage() {
   const [lines, setLines] = useState<string[] | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
-  const [printSrc, setPrintSrc] = useState<string | null>(null);
+  // Imagen de la hoja de impresión, marcada con el tamaño y link con que se dibujó (no se imprime una desfasada).
+  const [printImg, setPrintImg] = useState<{ src: string; size: PosterSize; url: string } | null>(null);
+  const lastSrc = useRef<string | null>(null);
   const storyRef = useRef<HTMLCanvasElement>(null);
   const posterRef = useRef<HTMLCanvasElement>(null);
 
@@ -89,33 +95,41 @@ export default function DifusionPage() {
     if (fonts !== 'ready' || lines === null || !c) return;
     renderPoster(size, posterUrl, display, lines, c);
     let alive = true;
-    let url: string | null = null;
     canvasBlob(c).then((b) => {
       if (!alive) return;
-      url = URL.createObjectURL(b);
-      setPrintSrc(url);
+      const src = URL.createObjectURL(b);
+      // La anterior se libera recién cuando la nueva la reemplaza.
+      if (lastSrc.current) URL.revokeObjectURL(lastSrc.current);
+      lastSrc.current = src;
+      setPrintImg({ src, size, url: posterUrl });
     }, () => {});
-    return () => { alive = false; if (url) URL.revokeObjectURL(url); };
+    return () => { alive = false; };
   }, [fonts, lines, size, posterUrl, display]);
+
+  useEffect(() => () => { if (lastSrc.current) URL.revokeObjectURL(lastSrc.current); }, []);
+  const printSrc = printImg && printImg.size === size && printImg.url === posterUrl ? printImg.src : null;
 
   const ready = fonts === 'ready';
   const posterReady = ready && lines !== null;
 
-  async function run(key: string, fn: () => Promise<void>) {
+  // `needsFonts`: las piezas con texto esperan las fuentes de la marca (CB-03); el QR suelto no las usa.
+  async function run(key: string, fn: () => Promise<void>, needsFonts = true) {
     setBusy(key);
     setErr(null);
     try {
-      await ensureBrandFonts();
+      if (needsFonts) await ensureBrandFonts();
       await fn();
     } catch {
-      setErr('No pudimos generar el archivo. Revisa tu conexión (las fuentes de la marca deben cargar) e inténtalo de nuevo.');
+      setErr(needsFonts
+        ? 'No pudimos generar el archivo. Revisa tu conexión (las fuentes de la marca deben cargar) e inténtalo de nuevo.'
+        : 'No pudimos generar el archivo. Inténtalo de nuevo.');
     } finally {
       setBusy(null);
     }
   }
 
-  const downloadQrPng = () => run('qr-png', async () => saveBlob(await canvasBlob(renderQrPng(qrUrl)), FILES.qrPng));
-  const downloadQrSvg = () => run('qr-svg', async () => saveBlob(new Blob([svg], { type: 'image/svg+xml' }), FILES.qrSvg));
+  const downloadQrPng = () => run('qr-png', async () => saveBlob(await canvasBlob(renderQrPng(qrUrl)), FILES.qrPng), false);
+  const downloadQrSvg = () => run('qr-svg', async () => saveBlob(new Blob([svg], { type: 'image/svg+xml' }), FILES.qrSvg), false);
   const downloadStory = () => run('story', async () => saveBlob(await canvasBlob(renderStory(storyUrl, display)), FILES.story));
   const shareStory = () => run('story-share', async () => {
     const blob = await canvasBlob(renderStory(storyUrl, display));

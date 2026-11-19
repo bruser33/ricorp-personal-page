@@ -648,11 +648,12 @@ describe('AC-08 estadísticas', () => {
 
   test('SPEC-58 AC-07 reservas por origen: solo citas web del rango, creadas y terminadas', async () => {
     await seedKnown();
-    /* Del seed: 7 citas en noviembre (sin origen guardado → "directo"). Se reparten orígenes mixtos. */
+    /* Del seed: 7 citas en noviembre sin origen guardado (anteriores al kit → "sin_dato"). Se reparten orígenes mixtos. */
     const nov = (await Appointment.find({ startsAt: { $gte: new Date('2026-11-01T03:00:00Z'), $lt: new Date('2026-12-01T03:00:00Z') } }).sort({ startsAt: 1, _id: 1 })).map((a) => a._id);
     assert.equal(nov.length, 7);
     await Appointment.updateMany({ _id: { $in: nov.slice(0, 3) } }, { origin: 'cartel' });
-    await Appointment.updateMany({ _id: { $in: nov.slice(3, 5) } }, { origin: 'instagram_bio' });
+    await Appointment.updateMany({ _id: { $in: nov.slice(3, 4) } }, { origin: 'instagram_bio' });
+    await Appointment.updateOne({ _id: nov[4] }, { origin: 'directo' });
     /* Una cita del admin y una del barbero: no cuentan aunque tengan origen. */
     await Appointment.updateOne({ _id: nov[5] }, { source: 'admin' });
     await Appointment.updateOne({ _id: nov[6] }, { source: 'pro_invite', origin: 'whatsapp' });
@@ -662,7 +663,7 @@ describe('AC-08 estadísticas', () => {
     const want = new Map();
     for (const a of all) {
       if ((a.source || 'web') !== 'web') continue;
-      const k = a.origin || 'directo';
+      const k = a.origin || 'sin_dato';
       const o = want.get(k) || { origin: k, created: 0, finished: 0 };
       o.created++;
       if (a.status === 'terminada') o.finished++;
@@ -673,9 +674,16 @@ describe('AC-08 estadísticas', () => {
     assert.deepEqual([...r.json.byOrigin].sort((x, y) => x.origin.localeCompare(y.origin)), [...want.values()].sort((x, y) => x.origin.localeCompare(y.origin)));
     assert.equal(r.json.byOrigin.reduce((n, o) => n + o.created, 0), 5);
     assert.ok(!r.json.byOrigin.some((o) => o.origin === 'whatsapp'));
+    assert.equal(r.json.byOrigin.find((o) => o.origin === 'directo').created, 1);
+    assert.equal(r.json.byOrigin.some((o) => o.origin === 'sin_dato'), false);
     assert.equal(r.json.byOrigin.find((o) => o.origin === 'cartel').created, 3);
     /* RN-07: el barbero no ve el detalle de orígenes en sus estadísticas. */
     const cookie = await t.barberCookie(t.pro(1));
+    /* Una cita web vieja (sin el campo) cae en "sin_dato", no en "directo". */
+    await Appointment.updateOne({ _id: nov[0] }, { $unset: { origin: 1 } });
+    const r2 = await t.get('/api/admin/stats');
+    assert.equal(r2.json.byOrigin.find((o) => o.origin === 'sin_dato').created, 1);
+    assert.equal(r2.json.byOrigin.find((o) => o.origin === 'directo').created, 1);
     const pro = await t.get('/api/pro/stats', cookie);
     assert.equal(pro.status, 200);
     assert.equal(pro.json.byOrigin, undefined);

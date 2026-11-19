@@ -15,13 +15,14 @@
    - % domicilio: sobre las citas no canceladas ni expiradas.
    - Comisión de plataforma: suma de `pricing.platformFeeCLP` de las terminadas.
    - Reservas por origen (SPEC-58, solo el panel del admin): citas WEB (`source: web`) que empiezan en el
-     rango, agrupadas por `origin` (utm_source normalizado; sin origen guardado → "directo"). "Creadas" = todas
+     rango, agrupadas por `origin` (utm_source normalizado; "directo" = sin UTM). Las reservas web anteriores
+     a SPEC-58 no tienen el campo: van a "sin_dato" (no inflan "directo"). "Creadas" = todas
      esas citas (cualquier estado); "terminadas" = las `terminada`. Las citas del barbero o del admin no cuentan. */
 import { Appointment, AvailabilityRule, BLOCKING, Membership, Professional, STATUSES, TimeOff } from '../models/index.js';
 import { HttpError } from '../lib/errors.js';
 import { workWindows } from './availability.js';
 import { addDays, isDate, isoWeekday, wallClock, zonedToUtc } from './time.js';
-import { DIRECT } from './origin.js';
+import { NO_DATA } from './origin.js';
 
 const MIN = 60 * 1000;
 const RESERVED = new Set([...BLOCKING, 'terminada', 'no_asistio']);
@@ -146,7 +147,7 @@ export async function computeStats(b, { from, to, professionalId = null }) {
     const origins = new Map();
     for (const a of appts) {
       if ((a.source || 'web') !== 'web') continue;
-      const k = a.origin || DIRECT;
+      const k = a.origin || NO_DATA;
       if (!origins.has(k)) origins.set(k, { origin: k, created: 0, finished: 0 });
       const o = origins.get(k);
       o.created++;

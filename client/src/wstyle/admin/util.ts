@@ -118,6 +118,6 @@ export const AUDIT_LABEL: Record<string, string> = {
 
 /* Nombre legible de un origen en Estadísticas. Los desconocidos (p. ej. "tiktok") se muestran tal cual (texto). */
 export const ORIGIN_LABEL: Record<string, string> = {
-  cartel: 'Cartel y QR', instagram_historia: 'Instagram (historia)', instagram_bio: 'Instagram (bio)', whatsapp: 'WhatsApp', directo: 'Directo (sin link del kit)',
+  cartel: 'Cartel y QR', instagram_historia: 'Instagram (historia)', instagram_bio: 'Instagram (bio)', whatsapp: 'WhatsApp', directo: 'Directo (sin link del kit)', sin_dato: 'Sin dato (reservas anteriores al kit)',
 };
 export const originLabel = (o: string) => ORIGIN_LABEL[o] ?? o;
