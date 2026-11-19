@@ -93,6 +93,9 @@ de buena fe y confirma lo dudoso en la misma pregunta.
   issue nueva → Todo, PR abierto → In Progress, issue cerrada → Done). Tú solo haces UNA cosa:
   cuando empieces a implementar una spec, corre `bash .github/claude/board.sh <N> "In Progress"`.
   Sin `GH_PROJECT_TOKEN` el script no hace nada; no intentes mover el board de otra forma.
-- La etiqueta "⏳ Claude trabajando" la pone y la quita el workflow; no la toques.
+- La etiqueta "⏳ Claude trabajando" y el "⏳ " al inicio del título los pone y los quita el
+  workflow; no los toques. Si renombras la issue, conserva el "⏳ " del inicio.
+- Al hablar de una tarea di siempre las dos cosas: "SPEC-51 (issue #84)". El número de la spec y el
+  de la issue no coinciden y confunde.
 - Si en la issue hay un comentario "Plan del planner" (de una corrida anterior), úsalo como punto de
   partida del paso planner y valídalo contra el código antes de seguirlo.

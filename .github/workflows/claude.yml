@@ -91,6 +91,9 @@ jobs:
           gh label create "⏳ Claude trabajando" -R "$GITHUB_REPOSITORY" --color FBCA04 \
             --description "Claude está trabajando en esta tarea ahora" 2>/dev/null || true
           gh issue edit "$N" -R "$GITHUB_REPOSITORY" --add-label "⏳ Claude trabajando" || true
+          # El ⏳ al inicio del título se ve en la tarjeta aunque esté abajo en la columna.
+          T=$(gh issue view "$N" -R "$GITHUB_REPOSITORY" --json title --jq .title)
+          case "$T" in "⏳ "*) ;; *) gh issue edit "$N" -R "$GITHUB_REPOSITORY" --title "⏳ $T" || true ;; esac
 
       - uses: anthropics/claude-code-action@v1
         with:
@@ -112,4 +115,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           N: ${{ github.event.issue.number || github.event.pull_request.number }}
-        run: gh issue edit "$N" -R "$GITHUB_REPOSITORY" --remove-label "⏳ Claude trabajando" || true
+        run: |
+          gh issue edit "$N" -R "$GITHUB_REPOSITORY" --remove-label "⏳ Claude trabajando" || true
+          T=$(gh issue view "$N" -R "$GITHUB_REPOSITORY" --json title --jq .title)
+          case "$T" in "⏳ "*) gh issue edit "$N" -R "$GITHUB_REPOSITORY" --title "${T#⏳ }" || true ;; esac
