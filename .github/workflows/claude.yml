@@ -82,8 +82,19 @@ jobs:
           # para que el MCP encuentre el Chromium instalado. Si se sube el MCP, subir esto igual.
           npx -y playwright@1.65.0-alpha-2026-10-30 install --with-deps chromium
 
+      - name: Tarjeta con "⏳ Claude trabajando"
+        if: github.event.issue.number || github.event.pull_request.number
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          N: ${{ github.event.issue.number || github.event.pull_request.number }}
+        run: |
+          gh label create "⏳ Claude trabajando" -R "$GITHUB_REPOSITORY" --color FBCA04 \
+            --description "Claude está trabajando en esta tarea ahora" 2>/dev/null || true
+          gh issue edit "$N" -R "$GITHUB_REPOSITORY" --add-label "⏳ Claude trabajando" || true
+
       - uses: anthropics/claude-code-action@v1
         with:
+          track_progress: true
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -95,3 +106,10 @@ jobs:
             --mcp-config .github/claude/mcp.json
             --allowedTools "Bash,Read,Edit,Write,Glob,Grep,Task,TodoWrite,WebFetch,WebSearch,Skill,mcp__playwright__*"
             --append-system-prompt "Estás corriendo en GitHub Actions, no en el computador de Pedro. Antes de hacer nada lee la sección 'Modo GitHub' de CLAUDE.md y síguela al pie de la letra: ahí está cómo escribir specs, cómo hacer preguntas por comentario y cómo ejecutar /owork aquí."
+
+      - name: Quitar "⏳ Claude trabajando"
+        if: always() && (github.event.issue.number || github.event.pull_request.number)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          N: ${{ github.event.issue.number || github.event.pull_request.number }}
+        run: gh issue edit "$N" -R "$GITHUB_REPOSITORY" --remove-label "⏳ Claude trabajando" || true

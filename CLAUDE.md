@@ -89,7 +89,10 @@ de buena fe y confirma lo dudoso en la misma pregunta.
   (✅ / ⛔ BLOQUEADO), cómo se verificó, capturas y `Closes #<N>`. Comenta en la issue el link al PR
   con un resumen de 3 líneas.
 - Nunca mergear, ni tocar secretos/variables, ni desplegar. El merge lo hace Pedro.
-- Board #2 "WS Style — Specs" (project `PVT_kwHOAP4BNs4BsQ4r`, campo Status
-  `PVTSSF_lAHOAP4BNs4BsQ4rzhqf0wg`): solo si existe `GH_PROJECT_TOKEN`, usa
-  `GH_TOKEN=$GH_PROJECT_TOKEN gh project …` para agregar la issue y moverla (spec nueva → Todo; al
-  empezar → In Progress). Si no existe, no toques el board.
+- Board #2 "WS Style — Specs": las tarjetas se mueven solas (`.github/workflows/board-sync.yml`:
+  issue nueva → Todo, PR abierto → In Progress, issue cerrada → Done). Tú solo haces UNA cosa:
+  cuando empieces a implementar una spec, corre `bash .github/claude/board.sh <N> "In Progress"`.
+  Sin `GH_PROJECT_TOKEN` el script no hace nada; no intentes mover el board de otra forma.
+- La etiqueta "⏳ Claude trabajando" la pone y la quita el workflow; no la toques.
+- Si en la issue hay un comentario "Plan del planner" (de una corrida anterior), úsalo como punto de
+  partida del paso planner y valídalo contra el código antes de seguirlo.

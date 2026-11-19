@@ -1,0 +1,51 @@
+# Mantiene el board #2 "WS Style — Specs" al día sin intervención manual:
+#   issue nueva de WS Style (o con @claude) → Todo · PR abierto que la cierra → In Progress
+#   issue cerrada (p. ej. al mergear su PR) → Done · issue reabierta → Todo
+# Requiere el secreto PROJECT_TOKEN (ver .github/claude/board.sh). Sin él, no hace nada.
+name: Board WS Style
+
+on:
+  issues:
+    types: [opened, reopened, closed]
+  pull_request:
+    types: [opened, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    env:
+      GH_PROJECT_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+      ACTION: ${{ github.event.action }}
+      ISSUE: ${{ github.event.issue.number }}
+      ISSUE_TITLE: ${{ github.event.issue.title }}
+      ISSUE_BODY: ${{ github.event.issue.body }}
+      PR: ${{ github.event.pull_request.number }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Issue → columna
+        if: github.event_name == 'issues'
+        run: |
+          case "$ACTION" in
+            opened)
+              # Solo las tareas de WS Style (o las que llaman a Claude) entran al board.
+              if printf '%s\n%s' "$ISSUE_TITLE" "$ISSUE_BODY" | grep -qiE '@claude|ws ?style|w style|barber'; then
+                bash .github/claude/board.sh "$ISSUE" "Todo"
+              fi ;;
+            closed)   bash .github/claude/board.sh "$ISSUE" "Done" --solo-si-esta ;;
+            reopened) bash .github/claude/board.sh "$ISSUE" "Todo" --solo-si-esta ;;
+          esac
+
+      - name: PR abierto → sus issues a In Progress
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          for n in $(gh pr view "$PR" -R "$GITHUB_REPOSITORY" --json closingIssuesReferences --jq '.closingIssuesReferences[].number'); do
+            bash .github/claude/board.sh "$n" "In Progress" --solo-si-esta
+          done
