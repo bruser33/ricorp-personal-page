@@ -141,7 +141,7 @@ export default function ProfilePage({ ctx }: { ctx: ProCtx }) {
 
         <Section id="pro-services" title="Servicios">
           {note('services')}
-          <ServicesEditor services={me.services} value={services} onChange={setServices} />
+          <ServicesEditor services={me.services} categories={me.categories} value={services} onChange={setServices} />
           <button type="button" className="btn btn--primary" onClick={saveServices}>Guardar servicios</button>
         </Section>
 

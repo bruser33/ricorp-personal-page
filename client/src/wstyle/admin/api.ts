@@ -71,15 +71,21 @@ export interface BarberDetail {
 export interface AdminService {
   _id: string; id: string; name: string; description: string; priceCLP: number; durationMin: number;
   homeServiceAllowed: boolean; active: boolean; archived: boolean; order: number; appointments: number; updatedAt: string;
+  // SPEC-51: _id de su categoría (null = dato anterior a la migración → "Barbería").
+  categoryId: string | null;
 }
-export interface ServiceInput { name?: string; description?: string; priceCLP?: number; durationMin?: number; homeServiceAllowed?: boolean; active?: boolean; archived?: boolean; updatedAt?: string }
+export interface ServiceInput { name?: string; description?: string; priceCLP?: number; durationMin?: number; homeServiceAllowed?: boolean; active?: boolean; archived?: boolean; updatedAt?: string; categoryId?: string }
+// SPEC-51: categoría de la carta. `services` = cuántos servicios no archivados tiene (con alguno no se puede borrar).
+export interface AdminCategory { _id: string; id: string; name: string; note: string; order: number; services: number; updatedAt: string }
+export interface ExportCategory { id: string; name: string; note: string }
+export interface ExportService { id: string; name: string; description: string; priceCLP: number; durationMin: number; category?: string; homeServiceAllowed?: boolean }
 
 export interface Range { opens: string; closes: string }
 export interface WeekDay { weekday: number; ranges: Range[] }
 export interface Closure { id: string; date: string; reason: string; groupId: string | null }
 export interface Schedule { timezone: string; week: WeekDay[]; closures: Closure[] }
 export interface SiteHoursRow { days: string; dayCodes: string; opens: string | null; closes: string | null }
-export interface ExportContent { services: { id: string; name: string; description: string; priceCLP: number; durationMin: number }[]; hours: SiteHoursRow[] }
+export interface ExportContent { categories?: ExportCategory[]; services: ExportService[]; hours: SiteHoursRow[] }
 
 export interface Stats {
   from: string; to: string; timezone: string; total: number;
@@ -164,7 +170,11 @@ export const admin = {
   addBarberTimeOff: (pid: string, body: TimeOffInput) => send<{ timeOff: TimeOff }>(`/api/admin/barbers/${id(pid)}/time-off`, 'POST', body),
   removeBarberTimeOff: (pid: string, oid: string) => api<{ ok: boolean }>(`/api/admin/barbers/${id(pid)}/time-off/${id(oid)}`, { method: 'DELETE' }),
 
-  services: () => api<{ items: AdminService[] }>('/api/admin/services'),
+  services: () => api<{ items: AdminService[]; categories: AdminCategory[] }>('/api/admin/services'),
+  createCategory: (body: { name: string; note?: string }) => send<{ category: AdminCategory }>('/api/admin/service-categories', 'POST', body),
+  updateCategory: (cid: string, body: { name?: string; note?: string }) => send<{ category: AdminCategory }>(`/api/admin/service-categories/${id(cid)}`, 'PATCH', body),
+  reorderCategories: (ids: string[]) => send<{ items: AdminCategory[] }>('/api/admin/service-categories/order', 'PUT', { ids }),
+  removeCategory: (cid: string) => api<{ result: 'deleted' }>(`/api/admin/service-categories/${id(cid)}`, { method: 'DELETE' }),
   createService: (body: ServiceInput) => send<{ service: AdminService }>('/api/admin/services', 'POST', body),
   updateService: (sid: string, body: ServiceInput) => send<{ service: AdminService; unbookableBarbers: string[] }>(`/api/admin/services/${id(sid)}`, 'PATCH', body),
   removeService: (sid: string) => api<{ result: 'archived' | 'deleted'; unbookableBarbers: string[] }>(`/api/admin/services/${id(sid)}`, { method: 'DELETE' }),

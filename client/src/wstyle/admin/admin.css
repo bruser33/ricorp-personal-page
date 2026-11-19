@@ -277,6 +277,14 @@ button.adm-row:hover { border-color: var(--brass-soft); }
 .adm-wa-chips legend { margin-bottom: 8px; font-weight: 600; }
 .adm-wa-preview { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
 .adm-wa-preview .adm-card__l { display: block; margin: 0 0 6px; }
+
+/* SPEC-51: bloque de categorías y carta agrupada por categoría. */
+.adm-cats { margin: 0 0 22px; }
+.adm-svc-group { margin: 0 0 22px; }
+.adm-svc-group > .ag-h3 { margin: 0 0 4px; }
+.adm-svc-group > .ag-muted { margin: 0 0 8px; }
+.adm-row__btns .ag-link:disabled { opacity: .35; cursor: default; }
+
 /* SPEC-52: reseñas (lista con estrellas latón; las ocultas atenuadas). */
 .adm-reviews { list-style: none; margin: 16px 0 0; padding: 0; display: grid; gap: 10px; }
 .adm-review { padding: 16px; border: 1px solid rgba(237, 230, 218, .16); border-radius: 4px; }

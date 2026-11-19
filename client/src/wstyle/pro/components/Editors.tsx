@@ -1,8 +1,9 @@
-import { useRef, useState } from 'react';
+import { Fragment, useRef, useState } from 'react';
 import { ApiError } from '../../agenda/api';
 import { Notice } from '../../agenda/components/ui';
 import { clp } from '../../agenda/util';
-import { assetUrl, uploadPhotos, pro, type HomeService, type ProPhoto, type ProService, type Rule } from '../api';
+import { assetUrl, uploadPhotos, pro, type HomeService, type ProPhoto, type ProCategory, type ProService, type Rule } from '../api';
+import { groupByCategory } from '../../content';
 import { WEEKDAYS } from '../util';
 
 const MAX_PHOTOS = 4;
@@ -71,22 +72,28 @@ export function PhotosEditor({ photos, onChange }: { photos: ProPhoto[]; onChang
 }
 
 // Servicios de la carta del local (RN-04, asunción 1): precio y duración los define WS Style.
-export function ServicesEditor({ services, value, onChange, error }: { services: ProService[]; value: string[]; onChange: (v: string[]) => void; error?: string | null }) {
+// SPEC-51 asunción 7: agrupados por categoría (Barbería, Decoloración capilar…), en el orden de la carta.
+export function ServicesEditor({ services, categories, value, onChange, error }: { services: ProService[]; categories?: ProCategory[]; value: string[]; onChange: (v: string[]) => void; error?: string | null }) {
   return (
     <fieldset className="ag-options pro-services">
       <legend>Servicios de la carta</legend>
-      {services.map((s) => {
-        const on = value.includes(s.id);
-        return (
-          <label key={s.id} className={`ag-option pro-check${on ? ' is-selected' : ''}`}>
-            <input type="checkbox" checked={on} onChange={() => onChange(on ? value.filter((x) => x !== s.id) : [...value, s.id])} />
-            <span>
-              <span className="ag-option__name">{s.name}</span>
-              <span className="ag-option__meta">{s.durationMin} min · {clp.format(s.priceCLP)}</span>
-            </span>
-          </label>
-        );
-      })}
+      {groupByCategory(services, categories).map((g) => (
+        <Fragment key={g.id}>
+          <p className="ag-svc-group" data-category={g.id}><span className="ag-svc-group__title">{g.name}</span></p>
+          {g.items.map((s) => {
+            const on = value.includes(s.id);
+            return (
+              <label key={s.id} className={`ag-option pro-check${on ? ' is-selected' : ''}`}>
+                <input type="checkbox" checked={on} onChange={() => onChange(on ? value.filter((x) => x !== s.id) : [...value, s.id])} />
+                <span>
+                  <span className="ag-option__name">{s.name}</span>
+                  <span className="ag-option__meta">{s.durationMin} min · {clp.format(s.priceCLP)}</span>
+                </span>
+              </label>
+            );
+          })}
+        </Fragment>
+      ))}
       {error && <p className="ag-field__error" role="alert">{error}</p>}
     </fieldset>
   );

@@ -61,11 +61,13 @@ export function publishedDiff(published: { id?: string; name?: string; priceCLP?
   return out;
 }
 
-/* "Exportar a JSON": services.json con el mismo formato (una línea por servicio, como el archivo del repo). */
-export function servicesJsonText(services: ExportContent['services']): string {
-  const line = (s: ExportContent['services'][number]) =>
-    '  { ' + Object.entries({ id: s.id, name: s.name, description: s.description, priceCLP: s.priceCLP, durationMin: s.durationMin }).map(([k, v]) => `${JSON.stringify(k)}: ${JSON.stringify(v)}`).join(', ') + ' }';
-  return '[\n' + services.map(line).join(',\n') + '\n]\n';
+/* "Exportar a JSON": services.json con el mismo formato que el archivo del repo (SPEC-51: { categories, services },
+   una línea por categoría y por servicio). */
+export function servicesJsonText(content: Pick<ExportContent, 'categories' | 'services'>): string {
+  const line = (o: object) => '    { ' + Object.entries(o).filter(([, v]) => v !== undefined).map(([k, v]) => `${JSON.stringify(k)}: ${JSON.stringify(v)}`).join(', ') + ' }';
+  const cats = (content.categories ?? []).map((c) => line({ id: c.id, name: c.name, note: c.note }));
+  const svcs = content.services.map((s) => line({ id: s.id, name: s.name, description: s.description, priceCLP: s.priceCLP, durationMin: s.durationMin, category: s.category, homeServiceAllowed: s.homeServiceAllowed }));
+  return '{\n  "categories": [\n' + cats.join(',\n') + (cats.length ? '\n' : '') + '  ],\n  "services": [\n' + svcs.join(',\n') + (svcs.length ? '\n' : '') + '  ]\n}\n';
 }
 export const hoursJsonText = (hours: ExportContent['hours']) => JSON.stringify(hours, null, 2) + '\n';
 
@@ -116,6 +118,7 @@ export const AUDIT_LABEL: Record<string, string> = {
   'appointment.confirm': 'Confirmó cita', 'appointment.reject': 'Rechazó cita', 'appointment.cancel': 'Canceló cita', 'appointment.propose': 'Propuso cambio', 'appointment.start': 'Inició cita',
   'appointment.finish': 'Terminó cita', 'appointment.no_show': 'Marcó inasistencia', 'appointment.collect': 'Marcó cobrado', 'appointment.reassign': 'Reasignó cita', 'appointment.create': 'Agendó cita',
   'appointments.export': 'Exportó CSV', 'service.create': 'Creó servicio', 'service.update': 'Editó servicio', 'service.price': 'Cambió precio', 'service.archive': 'Archivó servicio', 'service.delete': 'Borró servicio',
+  'service.category': 'Cambió categoría de servicio', 'service.category.create': 'Creó categoría', 'service.category.update': 'Editó categoría', 'service.category.reorder': 'Reordenó categorías', 'service.category.delete': 'Borró categoría',
   'content.export': 'Exportó JSON', 'schedule.hours': 'Cambió horario', 'schedule.closure_add': 'Agregó cierre', 'schedule.closure_remove': 'Quitó cierre', 'settings.update': 'Cambió configuración', 'account.password': 'Cambió su contraseña',
   'whatsapp.stop': 'Frenó un WhatsApp', 'whatsapp.retry': 'Reintentó un WhatsApp', 'settings.whatsapp': 'Cambió avisos por WhatsApp',
   'review.hide': 'Ocultó reseña', 'review.show': 'Mostró reseña',

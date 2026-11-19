@@ -135,7 +135,7 @@ export default function App({ initial }: { initial: Content | null }) {
         </Section>
         <Marquee words={(site.marquee ?? []).filter((w): w is string => !!str(w))} />
         <Section id="servicios" className="panel--wide" label={lab('servicios')} headline={h.servicios} copy={copy.servicios}>
-          <Services services={services} />
+          <Services services={services} categories={content?.categories} />
         </Section>
         <Membership site={site} booking={booking} label={lab('membresia')} />
         <Barbers site={site} booking={booking} label={lab('barberos')} />
