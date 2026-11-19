@@ -546,8 +546,10 @@ describe('AC-07 migración de la carta y exportación', () => {
     const r = await t.get('/api/admin/export');
     assert.equal(r.status, 200);
     const original = JSON.parse(readFileSync(resolve(import.meta.dirname, '../../client/public/wstyle/content/services.json'), 'utf8'));
-    const keys = Object.keys(original[0]).filter((k) => k !== 'placeholder');
+    /* SPEC-51: services.json es { categories, services }; cada servicio lleva su categoría. */
+    const keys = Object.keys(original.services[0]).filter((k) => k !== 'placeholder');
     for (const s of r.json.services) assert.deepEqual(Object.keys(s), keys);
+    assert.deepEqual(Object.keys(r.json.categories[0]), Object.keys(original.categories[0]));
     assert.deepEqual(r.json.services.map((s) => s.id), ['corte', 'corte-barba']);
     assert.deepEqual(Object.keys(r.json.hours[0]), ['days', 'dayCodes', 'opens', 'closes']);
     assert.deepEqual(r.json.hours[0], { days: 'Lunes a viernes', dayCodes: 'Mo-Fr', opens: '10:00', closes: '20:00' });
@@ -897,6 +899,9 @@ describe('AC-02 matriz de autorización', () => {
       ...['confirm', 'reject', 'cancel', 'propose', 'start', 'finish', 'no-show'].map((a) => [`POST /api/admin/appointments/:id/${a}`, adminOnly, { path: `/api/admin/appointments/${appt}/${a}` }]),
       ['GET /api/admin/services', adminOnly], ['POST /api/admin/services', adminOnly],
       ['PATCH /api/admin/services/:id', adminOnly, { path: `/api/admin/services/${fake}` }], ['DELETE /api/admin/services/:id', adminOnly, { path: `/api/admin/services/${fake}` }],
+      /* SPEC-51: categorías de la carta */
+      ['GET /api/admin/service-categories', adminOnly], ['POST /api/admin/service-categories', adminOnly], ['PUT /api/admin/service-categories/order', adminOnly],
+      ['PATCH /api/admin/service-categories/:id', adminOnly, { path: `/api/admin/service-categories/${fake}` }], ['DELETE /api/admin/service-categories/:id', adminOnly, { path: `/api/admin/service-categories/${fake}` }],
       ['GET /api/admin/export', adminOnly],
       ['GET /api/admin/schedule', adminOnly], ['PUT /api/admin/schedule/hours', adminOnly], ['POST /api/admin/schedule/closures', adminOnly],
       ['DELETE /api/admin/schedule/closures/:id', adminOnly, { path: `/api/admin/schedule/closures/${fake}` }],

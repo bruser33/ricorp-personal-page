@@ -23,9 +23,40 @@ export interface SiteContent {
   demo?: boolean | string;   // true o "true" (editado a mano) ⇒ modo demostración
   policies?: { title?: string; text?: string }[];
 }
-export interface Service { id?: string; name?: string; description?: string; priceCLP?: unknown; durationMin?: unknown }
+export interface Service { id?: string; name?: string; description?: string; priceCLP?: unknown; durationMin?: unknown; category?: string; homeServiceAllowed?: boolean }
+// SPEC-51: categoría de la carta (Barbería, Decoloración capilar…). `note` va una vez bajo el título del grupo.
+export interface Category { id?: string; name?: string; note?: string }
 export interface Config { poweredBy?: boolean }
-export interface Content { site: SiteContent; services: Service[]; config: Config }
+export interface Content { site: SiteContent; services: Service[]; categories?: Category[]; config: Config }
+
+// services.json es { categories, services } (SPEC-51). Se acepta también el formato antiguo (array de servicios).
+export function normalizeServicesJson(raw: unknown): { services: Service[]; categories: Category[] } {
+  if (Array.isArray(raw)) return { services: raw, categories: [] };
+  const o = (raw ?? {}) as { services?: unknown; categories?: unknown };
+  return { services: Array.isArray(o.services) ? o.services : [], categories: Array.isArray(o.categories) ? o.categories : [] };
+}
+
+// SPEC-51 RN-01/02/03: grupos de la carta en el orden de las categorías; dentro de cada grupo, el orden de llegada
+// (el `order` de la BD). Un servicio sin categoría (o con una desconocida) cae en "Barbería". Las categorías sin
+// servicios no se muestran. Genérico: lo usan la landing, la reserva y los paneles.
+export const DEFAULT_CATEGORY = { id: 'barberia', name: 'Barbería', note: '' } as const;
+export interface CategoryGroup<T> { id: string; name: string; note: string; items: T[] }
+export function groupByCategory<T extends { category?: string | null }>(services: T[], categories: Category[] | null | undefined): CategoryGroup<T>[] {
+  const cats = (Array.isArray(categories) ? categories : []).filter((c): c is Category & { id: string } => !!c && !!str(c.id));
+  const groups = new Map<string, CategoryGroup<T>>();
+  for (const c of cats) if (!groups.has(c.id)) groups.set(c.id, { id: c.id, name: str(c.name) ?? c.id, note: str(c.note) ?? '', items: [] });
+  if (!groups.has(DEFAULT_CATEGORY.id)) {
+    const rest = [...groups.entries()];
+    groups.clear();
+    groups.set(DEFAULT_CATEGORY.id, { ...DEFAULT_CATEGORY, items: [] });
+    for (const [k, v] of rest) groups.set(k, v);
+  }
+  for (const s of services) {
+    const key = s.category && groups.has(s.category) ? s.category : DEFAULT_CATEGORY.id;
+    groups.get(key)!.items.push(s);
+  }
+  return [...groups.values()].filter((g) => g.items.length);
+}
 
 export const SHOT_IDS = ['hero', 'reyes', 'linea', 'afilado', 'trono', 'servicios', 'llega'] as const;
 export type ShotId = (typeof SHOT_IDS)[number];
@@ -63,7 +94,7 @@ export async function loadContent(base = './'): Promise<Content> {
   });
   const config = fetch(`${base}config.json`, { cache: 'no-cache' }).then((r) => (r.ok ? r.json() : {})).catch(() => ({}));
   const [site, services, cfg] = await Promise.all([load('site'), load('services'), config]);
-  return { site, services: Array.isArray(services) ? services : [], config: cfg ?? {} };
+  return { site, ...normalizeServicesJson(services), config: cfg ?? {} };
 }
 
 // ─── Carta y horario desde la API (SPEC-34 RN-06). La BD es la fuente de verdad en runtime: al cargar, la landing
@@ -71,7 +102,8 @@ export async function loadContent(base = './'): Promise<Content> {
 // o tarda más de 4 s, se queda con el JSON estático (fallback) sin mostrar ningún error (CB-07).
 export const CATALOG_TIMEOUT_MS = 4000;
 export interface LandingCatalog {
-  services: { id: string; name: string; description?: string; priceCLP: number; durationMin: number }[];
+  categories?: { id: string; name: string; note?: string }[];
+  services: { id: string; name: string; description?: string; priceCLP: number; durationMin: number; category?: string }[];
   business: {
     hoursRows?: Hours[];
     contact?: { whatsapp?: string | null; phone?: string | null };
@@ -82,7 +114,10 @@ export interface LandingCatalog {
 // filas; del contacto solo teléfono y WhatsApp (dirección, mapa y textos siguen en site.json, asunción 9).
 export function mergeCatalog(content: Content, catalog: LandingCatalog | null): Content {
   if (!catalog || !Array.isArray(catalog.services)) return content;
-  const services: Service[] = catalog.services.map((s) => ({ id: s.id, name: s.name, description: s.description ?? '', priceCLP: s.priceCLP, durationMin: s.durationMin }));
+  const services: Service[] = catalog.services.map((s) => ({ id: s.id, name: s.name, description: s.description ?? '', priceCLP: s.priceCLP, durationMin: s.durationMin, ...(s.category ? { category: s.category } : {}) }));
+  // SPEC-51: las categorías (nombre, nota y orden) también mandan desde la BD; una API sin categorías deja las del JSON
+  // (sus servicios, sin categoría, caen en "Barbería").
+  const categories = Array.isArray(catalog.categories) ? catalog.categories : content.categories;
   const site: SiteContent = { ...content.site };
   const rows = catalog.business?.hoursRows;
   if (Array.isArray(rows) && rows.some((h) => h && str(h.days))) site.hours = rows;
@@ -90,7 +125,7 @@ export function mergeCatalog(content: Content, catalog: LandingCatalog | null): 
   if (c && (str(c.phone) || str(c.whatsapp))) {
     site.contact = { ...(site.contact ?? {}), ...(str(c.phone) ? { phone: c.phone as string } : {}), ...(str(c.whatsapp) ? { whatsapp: c.whatsapp as string } : {}) };
   }
-  return { ...content, site, services };
+  return { ...content, site, services, categories };
 }
 
 // GET /api/wstyle/catalog con tope de 4 s. null = usar el JSON (API caída, dormida, lenta o sin negocio configurado).

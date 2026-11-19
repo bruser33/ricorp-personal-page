@@ -99,6 +99,23 @@ const MembershipSchema = new Schema(
 MembershipSchema.index({ businessId: 1, professionalId: 1 }, { unique: true });
 export const Membership = model('Membership', MembershipSchema);
 
+/* SPEC-51: categoría de la carta (Barbería, Decoloración capilar…). `note` = texto bajo el título del grupo
+   (landing y reserva). `slug` = id de la categoría en services.json. */
+const ServiceCategorySchema = new Schema(
+  {
+    businessId: { type: ObjectId, required: true },
+    slug: { type: String, required: true },
+    name: { type: String, required: true },
+    note: { type: String, default: '' },
+    order: { type: Number, default: 0 },
+  },
+  { timestamps: true }
+);
+ServiceCategorySchema.index({ businessId: 1, slug: 1 }, { unique: true });
+export const ServiceCategory = model('ServiceCategory', ServiceCategorySchema);
+/* SPEC-51 RN-01: un servicio sin categoría se muestra en "Barbería". */
+export const DEFAULT_CATEGORY = { slug: 'barberia', name: 'Barbería' };
+
 /* professionalId null = carta del local. `slug` = id de services.json. */
 const ServiceSchema = new Schema(
   {
@@ -112,6 +129,8 @@ const ServiceSchema = new Schema(
     homeServiceAllowed: { type: Boolean, default: true },
     active: { type: Boolean, default: true },
     order: { type: Number, default: 0 },
+    /* SPEC-51: categoría (null = "Barbería", RN-01). */
+    categoryId: { type: ObjectId, default: null },
     /* SPEC-34 RN-04: un servicio con citas no se borra, se archiva (deja de ofrecerse). */
     archivedAt: { type: Date, default: null },
   },
@@ -449,6 +468,7 @@ export const ALL_MODELS = [
   Business,
   Professional,
   Membership,
+  ServiceCategory,
   Service,
   ProfessionalService,
   AvailabilityRule,
