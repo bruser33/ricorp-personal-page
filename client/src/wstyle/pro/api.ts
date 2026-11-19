@@ -35,6 +35,8 @@ export interface ProAppointment extends Omit<Appointment, 'actions' | 'customer'
   expiresAt: string | null;
   // SPEC-55: inasistencias anteriores del cliente en WS Style (0 = no se muestra nada).
   noShows?: number;
+  // Fin efectivo de un "no vino" en la grilla (el resto de la cita quedó libre).
+  heldUntil?: string | null;
 }
 export interface AgendaDay { date: string; shop: { opens: string; closes: string } | null; windows: { startsAt: string; endsAt: string }[]; appointments: ProAppointment[] }
 export interface AgendaRange {

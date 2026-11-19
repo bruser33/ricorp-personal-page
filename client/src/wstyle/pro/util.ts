@@ -164,3 +164,12 @@ export function nextHalfHour(now: number) {
   const step = 30 * 60000;
   return new Date(Math.ceil(now / step) * step).toISOString();
 }
+
+// SPEC-55: el bloque de un "no vino" se dibuja (y ocupa) solo hasta que se marcó; desde ahí el rato es reservable.
+// Para los huecos, ese tramo cuenta como ocupado aunque `no_asistio` no esté en BLOCKING.
+export function effectiveDay<A extends { startsAt: string; endsAt: string; status: string; heldUntil?: string | null }>(day: { appointments: A[] } & Omit<GridDay, 'appointments'>) {
+  const appointments = day.appointments.map((a) =>
+    a.status === 'no_asistio' && a.heldUntil && Date.parse(a.heldUntil) < Date.parse(a.endsAt) ? { ...a, endsAt: a.heldUntil } : a);
+  const forFree = { ...day, appointments: appointments.map((a) => (a.status === 'no_asistio' ? { ...a, status: 'en_curso' } : a)) };
+  return { appointments, forFree };
+}

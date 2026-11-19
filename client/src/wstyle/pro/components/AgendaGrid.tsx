@@ -1,7 +1,7 @@
 import { useRef, type CSSProperties, type ReactNode } from 'react';
 import { localDate, localTime, longDay } from '../../agenda/util';
 import type { AgendaDay, ProAppointment, TimeOff } from '../api';
-import { blockBox, freeCells, gapFrom, gridRange, groupFree, minutesOfDay, offsInDay } from '../util';
+import { blockBox, effectiveDay, freeCells, gapFrom, gridRange, groupFree, minutesOfDay, offsInDay } from '../util';
 
 export const PX = 1.2; // px por minuto (72 px la hora)
 const HIDDEN = ['cancelada', 'expirada'];
@@ -33,7 +33,10 @@ export default function AgendaGrid<A extends ProAppointment>({ cols, now, wide, 
   cellMin?: number;
 }) {
   const touch = useRef<number | null>(null);
-  const visible = cols.map((c) => ({ ...c, day: { ...c.day, appointments: c.day.appointments.filter((a) => !HIDDEN.includes(a.status)) } }));
+  const visible = cols.map((c) => {
+    const { appointments, forFree } = effectiveDay({ ...c.day, appointments: c.day.appointments.filter((a) => !HIDDEN.includes(a.status)) });
+    return { ...c, day: { ...c.day, appointments }, forFree };
+  });
   const range = gridRange(visible.length ? visible.map((c) => c.day) : [{ date: '', shop: null, windows: [], appointments: [] }]);
   const height = (range.endMin - range.startMin) * PX;
   const y = (iso: string) => (minutesOfDay(iso) - range.startMin) * PX;
@@ -61,7 +64,7 @@ export default function AgendaGrid<A extends ProAppointment>({ cols, now, wide, 
           ))}
         </div>
         {visible.map((c) => {
-          const groups = groupFree(freeCells(c.day, now, cellMin), cellMin);
+          const groups = groupFree(freeCells(c.forFree, now, cellMin), cellMin);
           return (
             <div key={c.key} className="pro-grid__col" role="group" aria-label={c.ariaLabel}>
               {c.day.windows.map((w) => {

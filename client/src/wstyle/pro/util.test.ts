@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { blockBox, freeCells, gapFrom, gridRange, groupFree, minutesOfDay, mondayOf, nextHalfHour, offsInDay, visibleDays, WEEKDAYS } from './util';
+import { blockBox, effectiveDay, freeCells, gapFrom, gridRange, groupFree, minutesOfDay, mondayOf, nextHalfHour, offsInDay, visibleDays, WEEKDAYS } from './util';
 
 // Lunes 2 de noviembre de 2026 en America/Santiago (UTC-3 en verano).
 const iso = (hhmm: string, date = '2026-11-02') => new Date(`${date}T${hhmm}:00-03:00`).toISOString();
@@ -81,5 +81,19 @@ describe('pro/util', () => {
     expect(out[1].to).toBe(iso('00:00', '2026-11-03'));
     expect(nextHalfHour(Date.parse(iso('13:10')))).toBe(iso('13:30'));
     expect(nextHalfHour(Date.parse(iso('13:30')))).toBe(iso('13:30'));
+  });
+
+  it('un "no vino" ocupa solo hasta que se marcó y el resto queda reservable', () => {
+    const day = {
+      date: '2026-11-02', shop: { opens: '10:00', closes: '20:00' },
+      windows: [{ startsAt: iso('12:00'), endsAt: iso('14:00') }],
+      appointments: [{ startsAt: iso('12:00'), endsAt: iso('13:00'), status: 'no_asistio', heldUntil: iso('12:30') }],
+    };
+    const { appointments, forFree } = effectiveDay(day);
+    expect(appointments[0].endsAt).toBe(iso('12:30'));
+    expect(freeCells(forFree, Date.parse(iso('12:20'))).map((c) => c.label)).toEqual(['12:30', '13:00', '13:30']);
+    // Sin heldUntil (cita antigua) se dibuja completa.
+    const old = effectiveDay({ ...day, appointments: [{ ...day.appointments[0], heldUntil: null }] });
+    expect(old.appointments[0].endsAt).toBe(iso('13:00'));
   });
 });

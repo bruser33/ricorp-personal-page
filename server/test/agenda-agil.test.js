@@ -2,10 +2,10 @@
    la hora, corrección del admin, bloqueos rápidos y agenda del admin), contra la BD de test REAL. */
 import { test, describe, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { Appointment, AuditLog, CustomerProfile, PanelNotification, SlotLock, TimeOff, User } from '../src/models/index.js';
+import { Appointment, AuditLog, CustomerProfile, PanelNotification, SlotLock, TimeOff } from '../src/models/index.js';
 import { zonedToUtc } from '../src/domain/time.js';
 import { maskPhone } from '../src/domain/pro.js';
-import { api, connectDb, disconnectDb, HOUR, makeClient, MIN, PRO_A, PRO_B, PRO_C, resetDb, seed, start, stop } from './helpers.js';
+import { api, connectDb, disconnectDb, HOUR, makeClient, PRO_A, PRO_B, PRO_C, resetDb, seed, start, stop } from './helpers.js';
 
 const TZ = 'America/Santiago';
 const MONDAY = '2026-11-02';
@@ -124,7 +124,8 @@ describe('SPEC-55 agenda ágil', () => {
     r = await req('POST', `/api/pro/appointments/${appt.id}/no-show`, {}, cookieA);
     assert.equal(r.status, 200, JSON.stringify(r.json));
     assert.equal(r.json.status, 'no_asistio');
-    assert.equal(r.json.noShows, 1);
+    assert.equal(r.json.noShows, 0, '"anteriores": la cita recién marcada no se cuenta a sí misma');
+    assert.equal(r.json.heldUntil, at('12:30'), 'en la grilla ocupa solo hasta que se marcó');
     assert.equal((await CustomerProfile.findOne({ userId: client.user._id })).counters.noShows, 1);
     const left = (await SlotLock.find({ appointmentId: appt.id }).sort({ slotStart: 1 })).map((l) => l.slotStart.toISOString());
     assert.deepEqual(left, [at('12:00'), at('12:15')], 'no toca las horas pasadas');
@@ -258,7 +259,24 @@ describe('SPEC-55 agenda ágil', () => {
       req('POST', '/api/pro/invitations', body('+56911110002'), cookieA),
     ]);
     assert.deepEqual([x.status, y.status].sort(), [201, 409]);
-    void MIN;
-    void User;
+  });
+
+  test('AC-04 en un cuarto exacto (12:30) libera desde 12:30; un error de la lista de espera no deshace el no vino', async () => {
+    const appt = await book({ service: 'corte-barba', name: 'Pedro', phone: '+56955556666' });
+    ctx.app.locals.agenda.hooks.onSlotFreed = async () => { throw new Error('lista de espera caída'); };
+    ctx.clock.now = Date.parse(at('12:30'));
+    const r = await req('POST', `/api/admin/appointments/${appt.id}/no-show`);
+    assert.equal(r.status, 200, JSON.stringify(r.json));
+    assert.equal(r.json.status, 'no_asistio');
+    const left = (await SlotLock.find({ appointmentId: appt.id }).sort({ slotStart: 1 })).map((l) => l.slotStart.toISOString());
+    assert.deepEqual(left, [at('12:00'), at('12:15')]);
+  });
+
+  test('AC-03 "Ya está confirmada" sin cuenta ni correo: no sale ningún correo al cliente', async () => {
+    ctx.mailer.outbox.length = 0;
+    const r = await req('POST', '/api/pro/invitations', { phone: '+56913131313', name: 'Sin Correo', serviceId: 'corte', startsAt: at('14:00'), confirmed: true }, cookieA);
+    assert.equal(r.status, 201);
+    assert.equal(ctx.mailer.outbox.length, 0);
+    assert.equal((await Appointment.findById(r.json.appointment.id)).customerUserId, null);
   });
 });

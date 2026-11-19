@@ -62,7 +62,8 @@ if (typeof window !== 'undefined') {
     clearTimeout(p.timer);
     pending = null;
     try {
-      void fetch(API_BASE + p.path, { method: 'POST', credentials: 'include', keepalive: true, headers: { 'Content-Type': 'application/json' }, body: '{}' });
+      // Sin Content-Type JSON: así es una petición "simple" (sin preflight CORS), que sí sale al cerrar la pestaña.
+      void fetch(API_BASE + p.path, { method: 'POST', credentials: 'include', keepalive: true });
     } catch {
       /* el navegador no lo permitió: nada más que hacer */
     }

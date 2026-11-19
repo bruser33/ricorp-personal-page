@@ -566,7 +566,9 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
       userIds: appts.map((a) => a.customerUserId),
       phones: appts.filter((a) => !a.customerUserId).map((a) => a.customerSnapshot?.phoneE164),
     });
-    return new Map(appts.map((a) => [String(a._id), Math.max(0, a.customerUserId ? c.user.get(String(a.customerUserId)) ?? 0 : c.phone.get(a.customerSnapshot?.phoneE164) ?? 0)]));
+    /* "Anteriores": si esta misma cita ya es un "no vino", no se cuenta a sí misma. */
+    const total = (a) => (a.customerUserId ? c.user.get(String(a.customerUserId)) ?? 0 : c.phone.get(a.customerSnapshot?.phoneE164) ?? 0);
+    return new Map(appts.map((a) => [String(a._id), Math.max(0, total(a) - (a.status === 'no_asistio' ? 1 : 0))]));
   }
 
   /* `extra.noShows` = Map precalculado con noShowsFor (listas); si no viene, se calcula para esta cita. */
@@ -628,6 +630,13 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
     return out;
   }
 
+  function heldUntil(appt) {
+    const h = [...(appt.history || [])].reverse().find((x) => x.to === 'no_asistio');
+    if (!h?.at) return null;
+    const t = Math.min(appt.endsAt.getTime(), Math.max(appt.startsAt.getTime() + 15 * MIN, ceilSlot(h.at.getTime())));
+    return new Date(t).toISOString();
+  }
+
   /* SPEC-33 RN-14/RN-15: lo que el barbero necesita para atender (nunca el email del cliente). */
   function proExtras(appt, b) {
     const home = appt.location?.kind === 'home';
@@ -640,6 +649,8 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
       telUrl: phone ? `tel:${phone}` : null,
       startOpensAt: new Date(appt.startsAt.getTime() - START_WINDOW_MIN * MIN).toISOString(),
       noShowOpensAt: new Date(appt.startsAt.getTime() + START_WINDOW_MIN * MIN).toISOString(),
+      /* SPEC-55: un "no vino" ocupa la grilla solo hasta que se marcó (el resto se liberó). */
+      heldUntil: appt.status === 'no_asistio' ? heldUntil(appt) : null,
       source: appt.source,
       invite: appt.status === 'invitacion_enviada' && appt.invite?.token ? inviteLinks(appt, b) : null,
       expiresAt: appt.expiresAt ? appt.expiresAt.toISOString() : null,

@@ -587,18 +587,26 @@ export function createPro({ agenda, clock = Date.now, mailer, logger = console, 
     const filter = { businessId: b._id, 'customerSnapshot.phoneE164': { $type: 'string' } };
     if (pro) filter.professionalId = pro._id;
     if (byPhone) filter['customerSnapshot.phoneE164'] = { $regex: escapeRe(digits) };
-    const appts = await Appointment.find(filter, { customerSnapshot: 1, customerUserId: 1, startsAt: 1, status: 1 }).sort({ startsAt: -1 }).limit(2000).lean();
     const needle = fold(q);
-    const now = clock();
-    const groups = new Map();
-    for (const a of appts) {
-      const phone = a.customerSnapshot.phoneE164;
-      if (!groups.has(phone)) groups.set(phone, { latest: a, userId: null, lastVisit: null, names: new Set() });
-      const g = groups.get(phone);
-      if (!g.userId && a.customerUserId) g.userId = a.customerUserId;
-      if (!g.lastVisit && a.startsAt.getTime() <= now && !['cancelada', 'expirada'].includes(a.status)) g.lastVisit = a.startsAt;
-      g.names.add(a.customerSnapshot.name || '');
-    }
+    const now = new Date(clock());
+    /* Agrupado en la BD (un registro por celular): no depende de cuántas citas haya. */
+    const rows = await Appointment.aggregate([
+      { $match: filter },
+      { $sort: { startsAt: -1 } },
+      {
+        $group: {
+          _id: '$customerSnapshot.phoneE164',
+          latestId: { $first: '$_id' },
+          latestName: { $first: '$customerSnapshot.name' },
+          latestAt: { $first: '$startsAt' },
+          userId: { $max: '$customerUserId' },
+          names: { $addToSet: '$customerSnapshot.name' },
+          lastVisit: { $max: { $cond: [{ $and: [{ $lte: ['$startsAt', now] }, { $not: [{ $in: ['$status', ['cancelada', 'expirada']] }] }] }, '$startsAt', null] } },
+        },
+      },
+      { $sort: { latestAt: -1 } },
+    ]);
+    const groups = new Map(rows.map((r) => [r._id, { latest: { _id: r.latestId, customerSnapshot: { name: r.latestName } }, userId: r.userId || null, lastVisit: r.lastVisit || null, names: new Set(r.names || []) }]));
     const users = await User.find({ _id: { $in: [...groups.values()].map((g) => g.userId).filter(Boolean) }, status: 'active' }, { name: 1 }).lean();
     const nameOf = new Map(users.map((u) => [String(u._id), u.name]));
     const hits = [];
