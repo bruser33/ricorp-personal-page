@@ -150,8 +150,3 @@ export const POSTER_QR_RATIO = 0.52;
 export const STORY = { w: 1080, h: 1920, safe: 250 };
 export const FILES = { qrPng: 'wstyle-qr.png', qrSvg: 'wstyle-qr.svg', story: 'wstyle-historia.png', poster: (s: PosterSize) => `wstyle-cartel-${s}.png` };
 
-/* Nombre legible de un origen en Estadísticas. Los desconocidos (p. ej. "tiktok") se muestran tal cual (texto). */
-export const ORIGIN_LABEL: Record<string, string> = {
-  cartel: 'Cartel y QR', instagram_historia: 'Instagram (historia)', instagram_bio: 'Instagram (bio)', whatsapp: 'WhatsApp', directo: 'Directo (sin link del kit)',
-};
-export const originLabel = (o: string) => ORIGIN_LABEL[o] ?? o;

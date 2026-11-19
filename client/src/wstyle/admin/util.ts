@@ -115,3 +115,9 @@ export const AUDIT_LABEL: Record<string, string> = {
   'content.export': 'Exportó JSON', 'schedule.hours': 'Cambió horario', 'schedule.closure_add': 'Agregó cierre', 'schedule.closure_remove': 'Quitó cierre', 'settings.update': 'Cambió configuración', 'account.password': 'Cambió su contraseña',
   'payment.boleta': 'Registró N° de boleta', 'rendicion.export': 'Exportó rendición', 'appointment.refund': 'Reembolsó pago', 'appointment.refund_failed': 'Reembolso fallido',
 };
+
+/* Nombre legible de un origen en Estadísticas. Los desconocidos (p. ej. "tiktok") se muestran tal cual (texto). */
+export const ORIGIN_LABEL: Record<string, string> = {
+  cartel: 'Cartel y QR', instagram_historia: 'Instagram (historia)', instagram_bio: 'Instagram (bio)', whatsapp: 'WhatsApp', directo: 'Directo (sin link del kit)',
+};
+export const originLabel = (o: string) => ORIGIN_LABEL[o] ?? o;

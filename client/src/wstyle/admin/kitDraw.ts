@@ -59,7 +59,8 @@ function grain(ctx: CanvasRenderingContext2D, w: number, h: number, color: [numb
 }
 
 /* QR oscuro sobre hueso dentro de un cuadrado de `px` (la zona de silencio queda dentro del cuadrado). */
-export function drawQr(ctx: CanvasRenderingContext2D, url: string, x: number, y: number, px: number) {
+export function drawQr(ctx: CanvasRenderingContext2D, url: string, x0: number, y0: number, px: number) {
+  const x = Math.round(x0), y = Math.round(y0);
   const m = qrMatrix(url);
   const { cell, offset } = qrLayout(m, px);
   ctx.fillStyle = BONE;
@@ -153,9 +154,15 @@ export function renderPoster(size: PosterSize, url: string, display: string, lin
   ctx.strokeStyle = BRASS;
   ctx.lineWidth = 8;
   ctx.strokeRect(m, m, W - 2 * m, H - 2 * m);
-
   const inner = W - 4 * m;
-  let y = m * 2 + 170;
+
+  // Medidas primero (el titular se achica si no cabe) y después todo el bloque se centra en el marco.
+  ctx.font = anton(330);
+  const t = fit(ctx, anton, 'RESERVA TU HORA', 330, inner);
+  const qr = Math.floor(W * POSTER_QR_RATIO); // RN-02: ≈ 11 cm a 300 dpi
+  const blockH = 170 + 90 + t + 170 + 90 + qr + 140 + lines.length * 100 + 30;
+  let y = Math.round(Math.max(m * 2, (H - blockH) / 2)) + 170;
+
   ctx.fillStyle = INK;
   ctx.font = anton(170);
   spaced(ctx, 'WS STYLE', W / 2, y, 36);
@@ -163,7 +170,6 @@ export function renderPoster(size: PosterSize, url: string, display: string, lin
   ctx.fillRect(W / 2 - 140, y + 60, 280, 8);
 
   ctx.fillStyle = INK;
-  const t = fit(ctx, anton, 'RESERVA TU HORA', 330, inner);
   ctx.font = anton(t);
   y += 90 + t;
   ctx.fillText('RESERVA TU HORA', W / 2, y);
@@ -173,13 +179,12 @@ export function renderPoster(size: PosterSize, url: string, display: string, lin
   y += 170;
   ctx.fillText('Escanea y elige día, hora y barbero.', W / 2, y);
 
-  // RN-02: el QR mide el 52 % del ancho (≥ 10 cm a 300 dpi), con marco de latón.
-  const footer = 150 + lines.length * 100;
-  const qr = Math.min(Math.floor(W * POSTER_QR_RATIO), H - m * 2 - footer - (y + 90));
-  const qy = y + 90;
+  // Coordenadas enteras: sin costuras entre módulos del QR.
+  const qx = Math.round((W - qr) / 2);
+  const qy = Math.round(y + 90);
   ctx.fillStyle = BRASS;
-  ctx.fillRect((W - qr) / 2 - 8, qy - 8, qr + 16, qr + 16);
-  drawQr(ctx, url, (W - qr) / 2, qy, qr);
+  ctx.fillRect(qx - 8, qy - 8, qr + 16, qr + 16);
+  drawQr(ctx, url, qx, qy, qr);
 
   y = qy + qr + 140;
   ctx.fillStyle = INK;

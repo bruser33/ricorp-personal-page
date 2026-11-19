@@ -3,8 +3,7 @@ import { clp } from '../../agenda/util';
 import { admin, type Stats } from '../api';
 import { Loaded } from '../components/common';
 import { useLoad, useToday } from '../hooks';
-import { originLabel } from '../difusion';
-import { monthLabel, monthOf, shiftMonth, STATUS_OPTIONS } from '../util';
+import { monthLabel, monthOf, originLabel, shiftMonth, STATUS_OPTIONS } from '../util';
 
 const pct = (n: number) => `${n.toLocaleString('es-CL', { maximumFractionDigits: 1 })} %`;
 const hours = (min: number) => `${Math.round(min / 6) / 10} h`.replace('.', ',');
