@@ -365,8 +365,8 @@ export function createPayments({ agenda, env = {}, clock = Date.now, logger = co
     const who = `${a.customerSnapshot?.name || 'Cliente'} · ${a.serviceSnapshot?.name || ''} · ${formatLong(a.startsAt.getTime(), b.timezone)}`;
     if (r.kind === 'paid') await Promise.all([agenda.notify(b, a, 'client', 'received'), agenda.notify(b, a, 'barber', 'new')]);
     if (giftShort) await alert('giftcard_reapply_failed', `Gift card sin saldo en una cita reactivada`, `${who}. El pago llegó tarde y la cita volvió, pero la gift card ${a.giftCard?.code || ''} ya no tiene saldo para cubrir ${money(a.giftCard?.amountCLP)}. Cobra la diferencia en el local.`, a);
-    if (r.kind === 'late') await alert('payment_late', `Pago tardío por reembolsar: ${money(a.pricing?.totalCLP)}`, `${who}. El pago llegó con la cita ya cancelada y la hora ocupada. Reembólsalo desde la ficha de la cita.`, a);
-    if (r.kind === 'duplicate') await alert('payment_duplicate', `Pago duplicado por reembolsar: ${money(a.pricing?.totalCLP)}`, `${who}. La cita se pagó dos veces (pago ${mpId}). Reembolsa el segundo desde la ficha de la cita.`, a);
+    if (r.kind === 'late') await alert('payment_late', `Pago tardío por reembolsar: ${money(payableCLP(a))}`, `${who}. El pago llegó con la cita ya cancelada y la hora ocupada. Reembólsalo desde la ficha de la cita.`, a);
+    if (r.kind === 'duplicate') await alert('payment_duplicate', `Pago duplicado por reembolsar: ${money(payableCLP(a))}`, `${who}. La cita se pagó dos veces (pago ${mpId}). Reembolsa el segundo desde la ficha de la cita.`, a);
     return r.kind;
   }
 

@@ -562,7 +562,11 @@ export function createGiftCards({ env = {}, clock = Date.now, logger = console, 
     const now = new Date(clock());
     const expired = await GiftCard.updateMany({ status: 'activa', expiresAt: { $lte: now } }, { $set: { status: 'vencida' } });
     const discarded = await GiftCard.updateMany({ status: 'pendiente_pago', discardedAt: { $exists: false }, createdAt: { $lte: new Date(now.getTime() - PENDING_TTL_HOURS * HOUR) } }, { $set: { discardedAt: now } });
-    return { expired: expired.modifiedCount, discarded: discarded.modifiedCount };
+    /* RN-06: si la devolución falló después de caerse la cita (o el proceso se reinició), se completa acá. */
+    const stuck = await Appointment.find({ 'giftCard.status': { $in: ['reservada', 'confirmada'] }, $or: [{ status: { $in: ['cancelada', 'expirada'] } }, { 'payment.status': 'reembolsado' }] }, { _id: 1, status: 1, payment: 1, giftCard: 1 }).limit(200).lean();
+    let recovered = 0;
+    for (const a of stuck) if (await afterChange(a)) recovered++;
+    return { expired: expired.modifiedCount, discarded: discarded.modifiedCount, recovered };
   }
 
   async function sendCard(card, to) {

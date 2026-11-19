@@ -282,7 +282,7 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
   async function alertRefundDue(b, appt, why) {
     await adminInbox?.notify({
       kind: 'refund_due',
-      title: `Reembolso pendiente: ${appt.customerSnapshot?.name || 'Cliente'} · $${Number(appt.pricing?.totalCLP || 0).toLocaleString('es-CL')}`,
+      title: `Reembolso pendiente: ${appt.customerSnapshot?.name || 'Cliente'} · $${payableCLP(appt).toLocaleString('es-CL')}`,
       body: `${appt.serviceSnapshot?.name || ''} · ${formatLong(appt.startsAt.getTime(), b.timezone)} · ${why}. Reembólsalo desde la ficha de la cita.`,
       appointmentId: appt._id,
       professionalId: appt.professionalId,

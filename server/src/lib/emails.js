@@ -50,9 +50,11 @@ const CLIENT_SUBJECTS = {
   no_show: 'Registramos una inasistencia',
   /* SPEC-35 */
   payment_incomplete: 'Tu reserva no se completó',
-  refunded: (_b, appt) => `Te devolvimos ${money(appt.pricing?.totalCLP)}`,
+  refunded: (_b, appt) => `Te devolvimos ${money(paidCLP(appt))}`,
 };
 const money = (n) => `$${Number(n || 0).toLocaleString('es-CL')}`;
+/* SPEC-60: lo pagado aparte de la gift card (lo que se devuelve en Mercado Pago). */
+const paidCLP = (appt) => Math.max(0, Math.round(Number(appt?.pricing?.totalCLP) || 0) - (appt?.giftCard?.giftCardId ? Math.round(Number(appt.giftCard.amountCLP) || 0) : 0));
 const BARBER_SUBJECTS = {
   new: 'Nueva cita por confirmar',
   client_accepted: 'El cliente aceptó el cambio',
@@ -90,7 +92,7 @@ export function appointmentMail({ kind, to, appt, when, proposalWhen, url, waUrl
     if (kind === 'finished') lines.push(`Gracias por atenderte con ${barber}. ¡Te esperamos de vuelta!`);
     if (kind === 'no_show') lines.push(`${barber} registró que no llegaste a tu cita. Si fue un error, escríbenos por WhatsApp.`);
     if (kind === 'payment_incomplete') lines.push('No recibimos el pago a tiempo, así que la hora se liberó. Puedes reservar de nuevo cuando quieras.');
-    if (kind === 'refunded') lines.push(`Te devolvimos ${money(appt.pricing?.totalCLP)} en el mismo medio con que pagaste en Mercado Pago. Según tu banco, puede tardar unos días en verse.`);
+    if (kind === 'refunded') lines.push(`Te devolvimos ${money(paidCLP(appt))} en el mismo medio${appt.giftCard?.giftCardId ? ' (lo de tu gift card vuelve a la tarjeta)' : ''} con que pagaste en Mercado Pago. Según tu banco, puede tardar unos días en verse.`);
   } else {
     subject = BARBER_SUBJECTS[kind] + ' · WS Style';
     lines.push(`Cliente: ${client}`);

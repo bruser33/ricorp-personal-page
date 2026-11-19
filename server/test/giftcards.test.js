@@ -246,6 +246,42 @@ describe('SPEC-60 gift cards', () => {
     assert.equal((await t.card(card4.code)).balanceCLP, 5000);
   });
 
+  test('AC-05 devolución: tarjeta vencida queda vencida, recuperación periódica y reembolso desde el panel', async () => {
+    /* Asunción 5: la cita se cancela cuando la tarjeta ya venció → el saldo vuelve, pero queda vencida. */
+    const card = await t.issue({ amountCLP: 12000 });
+    const r = await t.book({ code: card.code });
+    await GiftCard.updateOne({ code: card.code }, { $set: { expiresAt: new Date(SUNDAY_9AM - 1000) } });
+    assert.equal((await t.post(`/api/wstyle/appointments/${r.id}/cancel`, { reason: 'x' }, r.client.cookie)).status, 200);
+    let g = await t.card(card.code);
+    assert.equal(g.balanceCLP, 12000);
+    assert.equal(g.status, 'vencida');
+
+    /* Si la devolución no alcanzó a correr (proceso caído), la tarea periódica la completa una sola vez. */
+    const card2 = await t.issue({ amountCLP: 5000 });
+    const r2 = await t.book({ time: '13:00', code: card2.code });
+    await Appointment.updateOne({ _id: r2.id }, { $set: { status: 'cancelada' } });
+    let tasks = await t.ctx.app.locals.giftCards.runTasks();
+    assert.equal(tasks.recovered, 1);
+    tasks = await t.ctx.app.locals.giftCards.runTasks();
+    assert.equal(tasks.recovered, 0);
+    assert.equal((await t.card(card2.code)).balanceCLP, 5000);
+
+    /* Reembolso desde el panel del resto pagado en línea: vuelve la gift card y el correo dice lo devuelto en MP. */
+    const card3 = await t.issue({ amountCLP: 5000 });
+    const r3 = await t.book({ time: '15:00', code: card3.code, method: 'online' });
+    await t.post(`/api/wstyle/appointments/${r3.id}/checkout`, {}, r3.client.cookie);
+    const p = t.mp.pay(r3.id, { amount: 7000 });
+    await t.hook(p.id);
+    assert.equal((await t.post(`/api/admin/appointments/${r3.id}/cancel`, { reason: 'Cierre' }, t.admin.cookie)).status, 200);
+    assert.equal((await t.card(card3.code)).balanceCLP, 5000);
+    const ref = await t.post(`/api/admin/appointments/${r3.id}/refund`, {}, t.admin.cookie);
+    assert.equal(ref.status, 200, JSON.stringify(ref.json));
+    g = await t.card(card3.code);
+    assert.equal(g.balanceCLP, 5000);
+    assert.equal(g.movements.filter((m) => m.kind === 'reversion').length, 1);
+    assert.ok(t.ctx.mailer.outbox.some((m) => /Te devolvimos \$7\.000/.test(m.subject || '')));
+  });
+
   test('AC-06 validar códigos: misma respuesta ante inexistente, vencido, anulado o por pagar; minúsculas sin guiones se reconocen', async () => {
     const c = await t.client();
     const card = await t.issue({ amountCLP: 20000, from: 'Camila' });

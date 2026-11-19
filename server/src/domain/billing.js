@@ -42,6 +42,8 @@ const DIFF_MESSAGE = {
 };
 const MODEL_LABEL = { ...Object.fromEntries(Object.values(TAX_DOCUMENT_PROVIDERS).map((p) => [p.id, p.declaredModel])), sin_dato: 'Sin dato' };
 
+/* SPEC-60: la parte cubierta por gift card se resta en el detalle (las líneas suman lo cobrado). */
+const withGiftLine = (lines, a) => (a.giftCard?.giftCardId && a.giftCard.amountCLP ? [...lines, { kind: 'gift_card', label: `Gift card ${a.giftCard.code || ''}`.trim(), amountCLP: -Math.round(Number(a.giftCard.amountCLP) || 0) }] : lines);
 const sum = (list, f) => list.reduce((acc, x) => acc + (f(x) || 0), 0);
 
 export function createBilling({ agenda, env = {}, clock = Date.now, logger = console, taxProvider }) {
@@ -104,7 +106,7 @@ export function createBilling({ agenda, env = {}, clock = Date.now, logger = con
         date: iso(COUNTED.has(status) ? paidAt : p.holdStartedAt || a.createdAt),
         method: 'mercadopago',
         amountCLP: amount,
-        lines: duplicate ? [{ kind: 'service', label: `${a.serviceSnapshot?.name || 'Servicio'} (pago duplicado)`, amountCLP: amount }] : saleLines(a.pricing, a.serviceSnapshot?.name),
+        lines: duplicate ? [{ kind: 'service', label: `${a.serviceSnapshot?.name || 'Servicio'} (pago duplicado)`, amountCLP: amount }] : withGiftLine(saleLines(a.pricing, a.serviceSnapshot?.name), a),
         status,
         refundedAt: iso(refundAt),
         mp,
@@ -125,7 +127,7 @@ export function createBilling({ agenda, env = {}, clock = Date.now, logger = con
           date: iso(status === 'aprobado' ? p.collectedAt || a.updatedAt : a.startsAt),
           method: p.localMethod || 'local',
           amountCLP: payableCLP(a),
-          lines: saleLines(a.pricing, a.serviceSnapshot?.name),
+          lines: withGiftLine(saleLines(a.pricing, a.serviceSnapshot?.name), a),
           status,
           refundedAt: null,
           mp: null,
