@@ -11,6 +11,8 @@ export interface SiteContent {
   };
   hours?: Hours[];
   concept?: string;
+  // SPEC-61: pantallas extra del inicio (la 1 es siempre el barbero). Ver heroSlides.ts.
+  hero?: { slides?: { id?: string; src?: string; srcSm?: string; alt?: string; caption?: string }[] };
   stat?: { value?: string; label?: string; note?: string };
   marquee?: string[];
   booking?: { provider?: string; url?: string };

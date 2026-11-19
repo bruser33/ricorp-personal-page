@@ -48,3 +48,15 @@
 /* Compacto en scroll 0: el sombreado superior se aclara un poco más que en SPEC-28 para que el retrato (que ocupa la
    mitad de arriba) se lea; el header conserva su propio fondo. */
 .compact .hero-fx ~ .shade.is-top { opacity: .25; }
+
+/* SPEC-61: otras pantallas del inicio. Capa fija entre el fondo oscuro del retrato y el fuego (el fuego sigue en
+   screen encima: no se toca). Fundido de 600 ms + leve acercamiento; con movimiento reducido el cambio es inmediato.
+   El retrato se funde en su envoltura (.hero-portrait__fade) para no pelear con su animación de entrada. */
+.hero-slides { position: fixed; inset: 0; z-index: 1; pointer-events: none; opacity: calc(1 - var(--hero-out)); }
+.hero-slide { position: absolute; inset: 0; opacity: 0; transform: scale(1.04); transition: opacity .6s ease, transform .9s cubic-bezier(.2, .7, .2, 1); }
+.hero-slide.is-active { opacity: 1; transform: none; }
+.hero-slide__img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.hero-portrait__fade { width: 100%; height: 100%; transition: opacity .6s ease; }
+.hero-fx.is-away .hero-portrait__fade { opacity: 0; }
+.hero-fx.is-out .hero-slides { visibility: hidden; }
+@media (prefers-reduced-motion: reduce) { .hero-slide, .hero-portrait__fade { transition: none; } }

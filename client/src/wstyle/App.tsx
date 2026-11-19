@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { headTexts, jsonLd, str, type Content } from './content';
 import { bookingLabel, bookingLink, clp, ctaLinks, ext, fromPrice, isDemo, isWhatsAppUrl } from './links';
 import { useContent } from './hooks/useContent';
@@ -18,6 +18,8 @@ import Stat from './components/Stat';
 import Icon from './components/Icons';
 import FilmFx, { Marquee } from './components/FilmFx';
 import HeroFire from './components/HeroFire';
+import HeroNav from './components/HeroNav';
+import { heroItems, nextIndex, normalizeSlides, prevIndex, resolveIndex, PORTRAIT_ID } from './heroSlides';
 import Embers from './components/Embers';
 import { Barbers, DemoStrip, Membership, Policies, Reviews } from './components/Extras';
 import Scene3D from './scene/Scene3D';
@@ -58,6 +60,18 @@ export default function App({ initial }: { initial: Content | null }) {
   const city = str(site.contact?.address?.city);
   const demo = isDemo(site);
 
+  // SPEC-61: pantallas del inicio (barbero + tomas de site.json → hero.slides). Las que fallan al cargar se saltan;
+  // si falla la que se está mostrando, se vuelve al barbero (nunca en blanco: el barbero siempre está).
+  const [broken, setBroken] = useState<ReadonlySet<string>>(() => new Set());
+  const [slideId, setSlideId] = useState(PORTRAIT_ID);
+  const [armed, setArmed] = useState(false);
+  const slides = useMemo(() => normalizeSlides(content?.site ?? {}).filter((s) => !broken.has(s.id)), [content, broken]);
+  const items = useMemo(() => heroItems(slides), [slides]);
+  const slideIdx = resolveIndex(items, slideId);
+  const go = (i: number) => { setArmed(true); setSlideId(items[i].id); };
+  const arm = useCallback(() => setArmed(true), []);
+  const onBroken = useCallback((id: string) => setBroken((b) => new Set(b).add(id)), []);
+
   // Capítulos numerados sin huecos (D4): 01… en el orden en que se publican (barberos/reseñas solo con enabled).
   const chapters = useMemo(() => {
     const site = content?.site ?? {};
@@ -89,7 +103,7 @@ export default function App({ initial }: { initial: Content | null }) {
       <canvas id="seq" ref={seqCanvas} aria-hidden="true" hidden={mode !== 'seq'} />
       <Scene3D active={mode === '3d'} onRenderer={setRenderer3D} />
       {/* SPEC-49: fuego + retrato sobre la película y bajo el grano/viñeta; las brasas sobre el sombreado y bajo el texto. */}
-      <HeroFire name={name ?? ''} />
+      <HeroFire name={name ?? ''} slides={slides} active={items[slideIdx].id} armed={armed} onBroken={onBroken} />
       <FilmFx />
       <Loader name={name} progress={progress} done={loaderDone} poweredBy={poweredBy} />
       <div className={`shade${scrolled ? '' : ' is-top'}`} aria-hidden="true"></div>
@@ -105,6 +119,8 @@ export default function App({ initial }: { initial: Content | null }) {
             {from && <p className="hero__from" data-from-price="">{from.label} desde <strong>{clp.format(from.price)}</strong></p>}
             {booking && <a className="btn btn--primary" data-cta="hero-booking" href={booking} {...ext(booking)}>Reservar</a>}
           </div>
+          <HeroNav index={slideIdx} count={items.length} caption={items[slideIdx].caption}
+            onPrev={() => go(prevIndex(slideIdx, items.length))} onNext={() => go(nextIndex(slideIdx, items.length))} onArm={arm} />
           {/* SPEC-28: en compacto el hint va centrado al pie con una flecha que late; se desvanece al empezar a scrollear. */}
           <p className={`hint reveal${scrolled ? ' is-gone' : ''}`} aria-hidden="true">Desliza para recorrer el local<span className="hint__arrow"></span></p>
         </Section>

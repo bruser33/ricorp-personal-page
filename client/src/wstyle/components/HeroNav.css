@@ -1,0 +1,43 @@
+/* SPEC-61: flechas del inicio. Círculo hueso sobre negro cálido con borde latón y un brillo cobre (#C2622D, el tope
+   del fuego de SPEC-49) que respira suave. Desktop: en la franja libre entre el borde y el titular (mitad del
+   --gutter), bajo los puntos de sección (que van centrados a la derecha). Compacto: a media altura del retrato, en
+   los bordes que la máscara del retrato ya funde a negro; el bloque de texto queda abajo. */
+.hero-nav { position: absolute; inset: 0; pointer-events: none; }
+/* Escritorio angosto (769–1130 px): el --gutter de 6vw queda bajo 68 px y la flecha (8 + 52 px) entraría en la
+   columna del texto (precio/[Reservar]). Solo ahí el bloque del hero se corre lo justo para dejarle su franja. */
+html:not(.compact) .panel--hero:has(.hero-nav) { padding-left: max(var(--gutter), 68px); }
+.hero-nav__btn {
+  --size: 52px;
+  position: absolute; top: max(74vh, calc(50vh + 150px)); translate: 0 -50%;
+  width: var(--size); height: var(--size); padding: 0; display: grid; place-items: center;
+  border: 1px solid var(--brass); border-radius: 50%; color: var(--bone); cursor: pointer; pointer-events: auto;
+  background: rgba(14, 13, 12, .62); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  box-shadow: 0 0 18px rgba(194, 98, 45, .32), inset 0 0 12px rgba(194, 98, 45, .16);
+  transition: background-color .25s ease, border-color .25s ease, box-shadow .25s ease, scale .25s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.hero-nav__btn--prev { left: max(8px, calc((var(--gutter) - var(--size)) / 2)); }
+.hero-nav__btn--next { right: max(8px, calc((var(--gutter) - var(--size)) / 2)); }
+.hero-nav__btn:hover, .hero-nav__btn:focus-visible {
+  background: rgba(122, 59, 34, .55); border-color: #D9A57A;
+  box-shadow: 0 0 26px rgba(194, 98, 45, .62), inset 0 0 14px rgba(194, 98, 45, .3);
+}
+.hero-nav__btn:focus-visible { outline: 2px solid var(--bone); outline-offset: 3px; }
+.hero-nav__btn:active { scale: .94; }
+.hero-nav__icon { display: block; }
+.hero-nav__btn--prev .hero-nav__icon { margin-left: -2px; }
+.hero-nav__btn--next .hero-nav__icon { margin-right: -2px; }
+.hero-nav__live { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+
+.compact .hero-nav__btn { --size: 44px; top: calc(var(--chrome-h) + 24svh); }
+.compact .hero-nav__btn--prev { left: 8px; }
+.compact .hero-nav__btn--next { right: 8px; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .hero-nav__btn:not(:hover, :focus-visible) { animation: hero-nav-glow 3s ease-in-out infinite; }
+}
+@keyframes hero-nav-glow {
+  0%, 100% { box-shadow: 0 0 14px rgba(194, 98, 45, .24), inset 0 0 10px rgba(194, 98, 45, .12); }
+  50% { box-shadow: 0 0 24px rgba(194, 98, 45, .48), inset 0 0 14px rgba(194, 98, 45, .24); }
+}
+@media (prefers-reduced-motion: reduce) { .hero-nav__btn { transition: none; } }
