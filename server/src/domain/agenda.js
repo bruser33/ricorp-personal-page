@@ -382,8 +382,10 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
     const wait = typeof input.waitlistToken === 'string' && input.waitlistToken && hooks.waitlistBooking ? await hooks.waitlistBooking(b, user, input.waitlistToken) : null;
     const takenMsg = wait ? 'Alguien tomó esta hora antes. Sigues en la lista de espera.' : null;
     if (wait && (wait.date !== date || String(wait.serviceId) !== String(service._id) || mode !== 'shop')) throw new HttpError(409, 'slot_unavailable', 'Esa hora no corresponde a tu aviso de la lista de espera.');
+    /* El token vale para el barbero y la preferencia horaria de la entrada (los 30 min no son para cualquier hora). */
+    if (wait?.professionalId) pros = pros.filter((p) => String(p._id) === String(wait.professionalId));
     const [day] = await availabilityFor(b, { service, pros, from: date, to: date, mode, now, ...(wait ? { minLeadMin: wait.minLeadMin } : {}) });
-    const slot = day?.slots.find((s) => Date.parse(s.startsAt) === startsAt);
+    const slot = day?.slots.find((s) => Date.parse(s.startsAt) === startsAt && (!wait || wait.fits(s.label)));
     if (!slot) {
       await wait?.lost();
       throw new HttpError(409, wait ? 'slot_taken' : 'slot_unavailable', takenMsg || 'Esa hora ya no está disponible. Elige otra.');

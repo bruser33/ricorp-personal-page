@@ -219,7 +219,7 @@ export function createWaitlist({ agenda, pro: proDomain, admin: adminDomain, clo
     const e = await byToken(b, user, token);
     /* AC-04: si otro la tomó antes, la entrada vuelve a "Esperando". */
     const lost = () => WaitlistEntry.updateOne({ _id: e._id, active: true }, { $set: { status: 'waiting' } }).catch(() => {});
-    return { date: e.date, serviceId: e.serviceId, minLeadMin: WAITLIST.leadMin, lost };
+    return { date: e.date, serviceId: e.serviceId, professionalId: e.professionalId, fits: (label) => fitsPref(e.pref, label), minLeadMin: WAITLIST.leadMin, lost };
   };
 
   /* Alcance 8 / CB-05: reservó ese día (por la lista o no) → "Tomaste la hora". */
@@ -263,10 +263,16 @@ export function createWaitlist({ agenda, pro: proDomain, admin: adminDomain, clo
     if (!chosen.length) return { notified: 0 };
 
     const day = dayLabel(date);
+    let sent = chosen.length;
     for (const { e, service, slot } of chosen) {
       const at = new Date(now);
       /* CB-07: aunque el correo falle, la entrada cuenta como avisada. */
-      await WaitlistEntry.updateOne({ _id: e._id }, { $set: { status: 'notified', lastNotifiedAt: at }, $inc: { autoNotices: 1 }, $push: { notices: { at, kind: 'auto', startsAt: new Date(slot.startsAt) } } });
+      /* Atómico: si mientras tanto tomó la hora, salió de la lista u otra liberación ya la avisó (CB-04), se salta. */
+      const upd = await WaitlistEntry.updateOne(
+        { _id: e._id, active: true, autoNotices: { $lt: WAITLIST.maxAutoNotices }, $or: [{ lastNotifiedAt: null }, { lastNotifiedAt: { $lte: new Date(now - WAITLIST.renotifyAfterMin * MIN) } }] },
+        { $set: { status: 'notified', lastNotifiedAt: at }, $inc: { autoNotices: 1 }, $push: { notices: { at, kind: 'auto', startsAt: new Date(slot.startsAt) } } }
+      );
+      if (!upd.modifiedCount) { sent--; continue; }
       const email = e.customerSnapshot?.email;
       const mail = waitlistSlotMail({ name: e.customerSnapshot?.name, day, service: service.name, barber: pro.displayName, time: slot.label, url: linkFor(e.token) });
       const out = email ? await mailer.send({ to: email, ...mail }) : { status: 'failed', error: 'no recipient' };
@@ -276,8 +282,9 @@ export function createWaitlist({ agenda, pro: proDomain, admin: adminDomain, clo
         await fn(b, { entry: e, url: linkFor(e.token), day, service: service.name, barber: pro.displayName, time: slot.label }).catch((err) => logger.error('[lista] whatsapp:', err.message));
       }
     }
+    if (!sent) return { notified: 0 };
     const first = chosen.map((c) => c.slot.label).sort()[0];
-    const n = chosen.length;
+    const n = sent;
     const title = `Se liberó ${first}: avisamos a ${n} ${n === 1 ? 'persona' : 'personas'} de la lista de espera`;
     if (pro.userId) await PanelNotification.create({ userId: pro.userId, professionalId: pro._id, kind: 'waitlist_notified', title, body: day }).catch(() => {});
     await adminInbox?.notify({ kind: 'waitlist_notified', title: `${pro.displayName} · ${title}`, body: day, professionalId: pro._id, path: 'citas/', email: false });

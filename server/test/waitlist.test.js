@@ -273,6 +273,20 @@ describe('lista de espera (SPEC-54)', () => {
     assert.ok(appt.expiresAt.getTime() > ms('16:20'), 'el barbero alcanza a confirmarla');
   });
 
+  test('el token vale solo para el barbero y la preferencia de la entrada', async () => {
+    await boot([PRO_A, PRO_B]);
+    const appts = await fillMonday();
+    const [carla] = await entries([{ name: 'Carla', pref: 'am' }]);
+    await call('POST', `/api/wstyle/appointments/${appts['16:00'].id}/cancel`, appts['16:00'].cookie, {});
+    assert.equal(waitMails().length, 0, '16:00 no entra en "mañana"');
+    ctx.clock.now = ms('15:00');
+    const pm = await book(carla.cookie, '16:00', { professionalId: 'any', waitlistToken: carla.entry.token });
+    assert.equal(pm.status, 409);
+    const [dani] = await entries([{ name: 'Dani', pro: proA._id }]);
+    const otherPro = await book(dani.cookie, '16:00', { professionalId: String(proB._id), waitlistToken: dani.entry.token });
+    assert.equal(otherPro.status, 409, 'pidió al barbero A: no puede usar los 30 min con B');
+  });
+
   test('AC-06 token: otra cuenta 403, día pasado 410, lista apagada 409', async () => {
     const [ana] = await entries([{ name: 'Ana' }]);
     const bea = await makeClient({ name: 'Bea' });

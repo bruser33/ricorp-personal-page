@@ -39,6 +39,8 @@ export default function WaitlistTake({ ctx, token, catalog }: { ctx: AgendaCtx; 
   const loadOffer = useCallback(() => {
     agenda.waitlistOffer(token).then((o) => {
       setOffer(o);
+      // Sin horas ya se muestra "Alguien tomó esta hora antes…" en la tarjeta: no repetirlo arriba.
+      if (!o.slots.length) setNotice(null);
       setStartsAt((cur) => (o.slots.some((s) => s.startsAt === cur) ? cur : o.slots.length === 1 ? o.slots[0].startsAt : undefined));
     }, (e) => {
       if (e instanceof ApiError && e.status === 401) { expire(); return; }

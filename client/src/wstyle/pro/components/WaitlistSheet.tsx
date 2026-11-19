@@ -56,11 +56,20 @@ export default function WaitlistSheet({ source, days, initialDate, showProfessio
       setBusy(null);
     }
   }
-  const notify = (w: ProWaitEntry) => run(w.id, async () => {
-    const r = await source.notify(w.id);
-    setWaLinks((x) => ({ ...x, [w.id]: r.waUrl }));
-    window.open(r.waUrl, '_blank', 'noopener');
-  });
+  // La pestaña se abre en el mismo toque (Safari en iPhone bloquea window.open después de un await) y luego se le da el link.
+  const notify = (w: ProWaitEntry) => {
+    const tab = window.open('', '_blank');
+    return run(w.id, async () => {
+      try {
+        const r = await source.notify(w.id);
+        setWaLinks((x) => ({ ...x, [w.id]: r.waUrl }));
+        if (tab) tab.location.href = r.waUrl;
+      } catch (e) {
+        tab?.close();
+        throw e;
+      }
+    });
+  };
   const remove = (w: ProWaitEntry) => run(w.id, async () => { await source.remove(w.id); });
 
   return (

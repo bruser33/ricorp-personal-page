@@ -118,7 +118,7 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
         setAvail(new Map(r.days.map((d) => [d.date, d.slots])));
         setFullDays(new Set(r.waitlist ? r.days.filter((d) => d.full).map((d) => d.date) : []));
       })
-      .catch(() => { if (alive) { setAvail(new Map()); setNotice('No pudimos cargar las horas. Revisa tu conexión y vuelve a intentarlo.'); } });
+      .catch(() => { if (alive) { setAvail(new Map()); setFullDays(new Set()); setNotice('No pudimos cargar las horas. Revisa tu conexión y vuelve a intentarlo.'); } });
     return () => { alive = false; };
   }, [catalog, sel.serviceId, sel.professionalId, mode, month, today, lastDay, step]);
 
