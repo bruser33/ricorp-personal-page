@@ -51,7 +51,8 @@ export default function PointsPage({ ctx }: { ctx: AgendaCtx }) {
       const r = await points.redeem(confirm.product.id, confirm.key);
       setDone(r.redemption);
       setConfirm(null);
-      await load();
+      // Si recargar falla, el código recién emitido sigue a la vista (no se pasa a "no disponible").
+      await points.mine().then(setData, () => {});
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'No pudimos canjear. Inténtalo de nuevo.');
       if (e instanceof ApiError && e.status === 409) load();

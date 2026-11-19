@@ -162,6 +162,8 @@ describe('SPEC-57 acreditación, cálculo y correos', () => {
     assert.equal(await loyalty.earnForAppointment(t.business, fake(50000)), null);
     assert.deepEqual((await t.entries()).map((e) => e.points).sort((a, b) => a - b), [9, 10, 25]);
     assert.equal(await loyalty.balanceOf(t.business._id, c.user._id), 44);
+    /* Pago ya reembolsado antes de terminar → no da puntos (RN-06). */
+    assert.equal(await loyalty.earnForAppointment(t.business, fake(20000, {}) .set('payment.status', 'reembolsado')), null);
     /* Cuenta eliminada → no da puntos (RN-01). */
     await t.config({ pointsPer1000: 1 });
     await User.updateOne({ _id: c.user._id }, { status: 'deleted' });

@@ -115,6 +115,8 @@ export function createLoyalty({ agenda, clock = Date.now, mailer, logger = conso
   /* RN-01/RN-02/RN-03. Se llama dentro de la transacción de "Terminar". null = la cita no da puntos. */
   async function earnForAppointment(b, appt, session = null) {
     if (appt.source !== 'web' || !appt.customerUserId) return null;
+    /* Pago ya devuelto (reembolso o contracargo antes de terminar): no da puntos (RN-06). */
+    if (REVERT_ON_PAYMENT.includes(appt.payment?.status)) return null;
     const s = await settingsOf(b._id, session);
     if (!s.enabled) return null;
     const points = pointsFor(appt.pricing?.priceCLP ?? appt.serviceSnapshot?.priceCLP, s.pointsPer1000);

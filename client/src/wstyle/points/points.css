@@ -1,7 +1,7 @@
 /* Programa de puntos (SPEC-57), "Noir de oficio": negro cálido, hueso y un solo acento latón. Mobile first: nada
    debe pasarse de 390 px (CB-12). */
 .pts-balance { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 16px; margin: 0 0 6px; }
-.pts-balance__n { font: italic 500 clamp(56px, 16vw, 96px)/1 var(--font-serif); color: var(--brass); font-variant-numeric: tabular-nums; }
+.pts-balance__n { font: italic 500 clamp(56px, 16vw, 96px)/1 var(--font-serif); color: var(--brass); }
 .pts-balance__unit { font: italic 500 clamp(24px, 6vw, 34px)/1 var(--font-serif); color: var(--bone); }
 .pts-balance.is-negative .pts-balance__n { color: var(--muted); }
 
