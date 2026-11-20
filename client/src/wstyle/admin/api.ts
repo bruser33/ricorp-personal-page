@@ -2,7 +2,7 @@ import type { PricingView } from '../agenda/pricing';
 // Cliente HTTP del panel del super admin (SPEC-34): /api/admin/… con la misma sesión (cookie httpOnly) de la agenda.
 // El server valida la sesión y el rol en cada ruta; el front solo oculta botones.
 import { api, API_BASE, ApiError, type Appointment, type User } from '../agenda/api';
-import type { AgendaDay, CustomerHit, ProService, TimeOff, TimeOffInput } from '../pro/api';
+import type { AgendaDay, CustomerHit, ProService, TimeOff, TimeOffInput, WaitlistApi, WaitlistRange } from '../pro/api';
 
 export type MembershipStatus = 'pending' | 'approved' | 'rejected' | 'suspended';
 export type Decision = 'approve' | 'reject' | 'suspend' | 'reactivate' | 'reopen';
@@ -110,6 +110,8 @@ export interface Settings {
   // SPEC-38: comisión de Mercado Pago que se traslada al cliente en la tarifa de servicio (+ IVA si corresponde).
   paymentFeePercent: number;
   paymentFeeVat: boolean;
+  // SPEC-54: lista de espera encendida/apagada.
+  waitlist?: boolean;
   rules: Record<RuleKey, number>;
   // SPEC-60: venta de gift cards en línea y vigencia por defecto (meses).
   giftCards?: { onlineEnabled: boolean; validityMonths: number };
@@ -185,7 +187,7 @@ export const admin = {
 
   stats: (from: string, to: string) => api<Stats>(`/api/admin/stats?${qs({ from, to })}`),
   settings: () => api<Settings>('/api/admin/settings'),
-  saveSettings: (body: Partial<Pick<Settings, 'payments' | 'platformFeePercent' | 'paymentFeePercent' | 'paymentFeeVat'>> & { rules?: Partial<Record<RuleKey, number>>; giftCards?: Partial<{ onlineEnabled: boolean; validityMonths: number }> }) => send<Settings>('/api/admin/settings', 'PUT', body),
+  saveSettings: (body: Partial<Pick<Settings, 'payments' | 'platformFeePercent' | 'paymentFeePercent' | 'paymentFeeVat' | 'waitlist'>> & { rules?: Partial<Record<RuleKey, number>>; giftCards?: Partial<{ onlineEnabled: boolean; validityMonths: number }> }) => send<Settings>('/api/admin/settings', 'PUT', body),
   // SPEC-60: gift cards.
   giftCards: (q: { q?: string; status?: string }) => api<GiftCardList>(`/api/admin/gift-cards?${qs(q)}`),
   giftCard: (gid: string) => api<GiftCardDetail>(`/api/admin/gift-cards/${id(gid)}`),
@@ -198,6 +200,13 @@ export const admin = {
   hideReview: (rid: string, reason = '') => send<{ ok: boolean; status: string }>(`/api/admin/reviews/${id(rid)}/hide`, 'POST', { reason }),
   showReview: (rid: string) => send<{ ok: boolean; status: string }>(`/api/admin/reviews/${id(rid)}/show`, 'POST'),
   audit: (page = 1, action = '') => api<{ page: number; pages: number; total: number; items: AuditItem[] }>(`/api/admin/audit?${qs({ page: String(page), action })}`),
+};
+
+// SPEC-54: lista de espera de todos los barberos (misma forma que el panel del barbero + summary.next7).
+export const adminWaitlist: WaitlistApi = {
+  list: (from, to) => api<WaitlistRange>(`/api/admin/waitlist?${qs({ from, to })}`),
+  notify: (wid) => send<{ waUrl: string }>(`/api/admin/waitlist/${id(wid)}/notify`, 'POST'),
+  remove: (wid) => api<{ ok: boolean }>(`/api/admin/waitlist/${id(wid)}`, { method: 'DELETE' }),
 };
 
 /* CSV: la descarga necesita la cookie de sesión → fetch con credenciales y un blob (un <a href> cross-origin no la manda en Safari). */

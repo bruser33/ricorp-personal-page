@@ -206,6 +206,25 @@
 .pay-boleta { margin-top: 10px; }
 .pay-boleta input, .pay-collect input[inputmode] { max-width: 220px; }
 
+/* SPEC-54: lista de espera. Día lleno: tocable, con borde punteado latón (distinto de "Sin disp."). */
+.ag-cal__day.is-full { border-style: dashed; border-color: rgba(184, 135, 90, .55); background: rgba(184, 135, 90, .06); color: #d9cfc1; }
+.ag-cal__day.is-full.is-selected { background: var(--brass); border-style: solid; color: var(--ink); }
+.ag-cal__full { font: 600 8px/1 var(--font-body); letter-spacing: .04em; text-transform: uppercase; color: #e2bf98; }
+.ag-cal__day.is-selected .ag-cal__full { color: var(--ink); }
+.ag-wait { display: grid; gap: 14px; }
+.ag-wait p { margin: 0; }
+.ag-wait__what { margin: 0; }
+.ag-wait__pref { margin: 0; }
+.ag-wait__pref .ag-option { min-height: 48px; }
+.ag-wait .btn { justify-self: start; }
+.ag-wait-mine { margin: 18px 0; }
+.ag-wait-mine .ag-item { align-items: center; }
+.ag-wait-mine .btn { min-height: 40px; padding: 0 14px; font-size: 13px; }
+@media (min-width: 700px) {
+  .ag-cal__full { font-size: 9px; }
+  .ag-wait__pref { grid-template-columns: repeat(3, 1fr); }
+}
+
 /* SPEC-52: reseñas. "Dejar reseña" / "Tu reseña: ★★★★☆" bajo la cita pasada; formulario con estrellas como radio group. */
 .ag-item__review { display: inline-block; margin: 6px 0 0 14px; font-size: 14px; color: var(--muted); }
 .ag-item__review span { color: var(--brass); letter-spacing: .08em; }

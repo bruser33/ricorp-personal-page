@@ -175,3 +175,29 @@ export function giftCardMail({ card, url }) {
   ].filter(Boolean);
   return { subject, template: 'gift_card', ...layout('Tu gift card está lista', lines, [['Ver y descargar la tarjeta', url]]) };
 }
+
+/* SPEC-54: lista de espera. Tuteo y nunca "turno" (asunción 10). */
+export function waitlistSlotMail({ name, day, service, barber, time, url }) {
+  const subject = `Se liberó una hora el ${day} · WS Style`;
+  return {
+    subject,
+    template: 'waitlist_slot',
+    ...layout(subject, [
+      `Hola ${name || ''}`.trim() + ',',
+      `Se liberó una hora el ${day}: ${service} con ${barber} a las ${time}. La primera persona que la confirme se la queda.`,
+      'Avisamos a algunas personas de la lista a la vez. Si alguien la toma antes, sigues en la lista de espera.',
+    ], [['Tomar esta hora', url]]),
+  };
+}
+
+export function waitlistEndedMail({ name, day, url }) {
+  const subject = `Ese día ya no está disponible · WS Style`;
+  return {
+    subject,
+    template: 'waitlist_ended',
+    ...layout(subject, [
+      `Hola ${name || ''}`.trim() + ',',
+      `Te sacamos de la lista de espera del ${day}: ese día ya no está disponible para lo que pediste. Puedes reservar otro día cuando quieras.`,
+    ], [['Reservar otra hora', url]]),
+  };
+}

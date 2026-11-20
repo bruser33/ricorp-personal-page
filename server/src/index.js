@@ -37,6 +37,8 @@ mongoose
       app.locals.payments.runHolds().catch(quiet('[mp] retención:'));
       /* SPEC-60: gift cards vencidas y compras sin pagar de más de 24 h. */
       app.locals.giftCards.runTasks().catch(quiet('[giftcards] tareas:'));
+      /* SPEC-54: entradas de la lista de espera de días que ya terminaron (o sin barbero/servicio). */
+      app.locals.waitlist.sweep().catch(quiet('[lista] barrido:'));
     }, 60_000).unref();
     /* SPEC-35: conciliación con Mercado Pago al arrancar (Render free "despierta" sin los
        webhooks que llegaron mientras dormía) y cada 5 min mientras esté despierto. */

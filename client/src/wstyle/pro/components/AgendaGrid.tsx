@@ -20,7 +20,7 @@ export interface GridCol<A extends ProAppointment = ProAppointment> {
 // Grilla de agenda compartida (SPEC-33 + SPEC-55): huecos libres agrupados y tocables ("Libre · tocar para reservar"),
 // bloques por cita con su insignia de inasistencias, bloqueos rayados con su motivo, línea de "ahora" y —en la vista
 // amplia— la acción rápida "El cliente no vino".
-export default function AgendaGrid<A extends ProAppointment>({ cols, now, wide, pendingId, onFree, onAppt, onOff, onNoShow, onSwipe, cellMin = 30 }: {
+export default function AgendaGrid<A extends ProAppointment>({ cols, now, wide, pendingId, onFree, onAppt, onOff, onNoShow, onSwipe, headExtra, cellMin = 30 }: {
   cols: GridCol<A>[];
   now: number;
   wide: boolean;
@@ -30,6 +30,8 @@ export default function AgendaGrid<A extends ProAppointment>({ cols, now, wide, 
   onOff: (col: GridCol<A>, off: TimeOff) => void;
   onNoShow?: (col: GridCol<A>, a: A) => void;
   onSwipe?: (dir: 1 | -1) => void;
+  /* SPEC-54: algo extra bajo el nombre del día (chip de la lista de espera). */
+  headExtra?: (col: GridCol<A>) => ReactNode;
   cellMin?: number;
 }) {
   const touch = useRef<number | null>(null);
@@ -54,7 +56,7 @@ export default function AgendaGrid<A extends ProAppointment>({ cols, now, wide, 
       <div className="pro-grid__head">
         <span />
         {visible.map((c) => (
-          <span key={c.key} className={`pro-grid__day${c.isToday ? ' is-today' : ''}`}>{c.label}{!c.day.shop && <small>Cerrado</small>}</span>
+          <span key={c.key} className={`pro-grid__day${c.isToday ? ' is-today' : ''}`}>{c.label}{!c.day.shop && <small>Cerrado</small>}{headExtra?.(c)}</span>
         ))}
       </div>
       <div className="pro-grid__body" style={{ height }}>

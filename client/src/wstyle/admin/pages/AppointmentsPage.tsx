@@ -7,6 +7,7 @@ import { admin, downloadCsv, type AdminAppointment, type ApptFilters } from '../
 import AgendaBoard from '../components/AgendaBoard';
 import ApptSheet from '../components/ApptSheet';
 import { Loaded } from '../components/common';
+import WaitlistSummary from '../components/WaitlistSummary';
 import { useLoad, useToday } from '../hooks';
 import { paymentLabel, STATUS_OPTIONS } from '../util';
 
@@ -96,6 +97,7 @@ export default function AppointmentsPage() {
           <button type="button" className="btn btn--ghost" onClick={exportCsv}>Exportar CSV</button>
         </div>
       </div>
+      <WaitlistSummary />
       <div className="pro-views adm-viewpick" role="group" aria-label="Vista de citas">
         <button type="button" aria-pressed={view === 'list'} onClick={() => pickView('list')}>Lista</button>
         <button type="button" aria-pressed={view === 'agenda'} onClick={() => pickView('agenda')}>Agenda</button>

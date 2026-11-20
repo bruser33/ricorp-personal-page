@@ -6,9 +6,11 @@ import type { BookingAdapter } from '../../pro/booking';
 import AgendaGrid, { type GridCol } from '../../pro/components/AgendaGrid';
 import InviteSheet from '../../pro/components/InviteSheet';
 import OffSheet from '../../pro/components/OffSheet';
+import WaitlistSheet, { WaitlistChip } from '../../pro/components/WaitlistSheet';
 import { scheduleNoShow, usePendingNoShow } from '../../pro/undo';
 import { useMobile } from '../../pro/useMobile';
-import { admin, type AdminAgenda, type AdminAppointment } from '../api';
+import { useWaitlist } from '../../pro/useWaitlist';
+import { admin, adminWaitlist, type AdminAgenda, type AdminAppointment } from '../api';
 import { useLoad, useToday } from '../hooks';
 import { Loaded } from './common';
 import ApptSheet from './ApptSheet';
@@ -45,6 +47,10 @@ export default function AgendaBoard() {
   const [flash, setFlash] = useState<string | null>(null);
   const state = useLoad(() => admin.agenda(date), date);
   const pending = usePendingNoShow();
+  // SPEC-54 §6: chip ⏳ con la cantidad en espera del día (todos los barberos) y la misma hoja del barbero.
+  const wait = useWaitlist(adminWaitlist, date, date);
+  const [waitOpen, setWaitOpen] = useState(false);
+  const waitDay = wait.data?.enabled ? wait.data.days.find((x) => x.date === date && x.count > 0) : undefined;
   const adapters = useMemo(() => new Map((state.data?.barbers ?? []).map((b) => [b.id, adapterFor(b)])), [state.data]);
 
   return (
@@ -54,6 +60,7 @@ export default function AgendaBoard() {
         <p className="pro-agenda-nav__label" aria-live="polite">{longDay(date)}</p>
         <button type="button" className="ag-cal__nav" aria-label="Día siguiente" onClick={() => setDate((d) => addDays(d, 1))}>›</button>
         <button type="button" className="btn btn--ghost pro-today-btn" onClick={() => setDate(today)}>Hoy</button>
+        {waitDay && <WaitlistChip date={date} count={waitDay.count} onOpen={() => setWaitOpen(true)} />}
       </div>
       {flash && <Notice tone="error">{flash}</Notice>}
       <Loaded state={state} label="Cargando la agenda…">
@@ -89,6 +96,7 @@ export default function AgendaBoard() {
           adapter={adapters.get(free.barber.id)!} onClose={() => { setFree(null); state.reload(); }} onCreated={() => {}} onBlocked={() => state.reload()} />
       )}
       {open && <ApptSheet id={open} onClose={() => { setOpen(null); state.reload(); }} onChanged={() => {}} />}
+      {waitOpen && waitDay && <WaitlistSheet source={adminWaitlist} days={[waitDay]} initialDate={date} showProfessional onChanged={wait.reload} onClose={() => setWaitOpen(false)} />}
       {off && (
         <OffSheet off={off.off} remove={() => admin.removeBarberTimeOff(off.barber.id, off.off.id)} onClose={() => setOff(null)}
           onRemoved={() => { setOff(null); state.reload(); }} />
