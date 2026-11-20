@@ -46,7 +46,7 @@ export default function ApptCard({ appt, now, onChange, onOpen, reload }: {
           <h3 className="pro-card__name">{appt.customer.name}</h3>
           <StatusPill status={s} label={s === 'propuesta_cambio' ? 'Esperando respuesta del cliente' : appt.statusLabel} />
         </div>
-        <p className="pro-card__service">{appt.service.name} · {appt.service.durationMin} min · {clp.format(appt.pricing.totalCLP)}</p>
+        <p className="pro-card__service">{appt.service.name} · {appt.service.durationMin} min · {clp.format(appt.pricing.totalCLP)}{appt.giftCard ? ` · gift card −${clp.format(appt.pricing.giftCardCLP ?? 0)}` : ''}</p>
         {home ? (
           <p className="pro-card__where" data-home="">
             <MotoIcon /> <span>{appt.location.address}</span>
@@ -73,7 +73,7 @@ export default function ApptCard({ appt, now, onChange, onOpen, reload }: {
             const c = col.check();
             if (c && (await run(appt.id, 'finish', { collected: true, ...c }))) setAskPaid(false);
           }}>
-            <p>Cobraste {clp.format(appt.pricing.totalCLP)}.</p>
+            <p>Cobraste {clp.format(appt.pricing.dueCLP ?? appt.pricing.totalCLP)}{appt.giftCard ? ' (el resto lo cubrió una gift card)' : ''}.</p>
             <CollectFields method={col.method} onMethod={col.setMethod} boleta={col.boleta} onBoleta={col.setBoleta} error={col.error} />
             <div className="pro-card__actions">
               <button type="submit" className="btn btn--primary" disabled={busy}>Terminar la cita</button>
@@ -82,7 +82,7 @@ export default function ApptCard({ appt, now, onChange, onOpen, reload }: {
           </form>
         ) : askPaid ? (
           <div className="pro-paid" role="group" aria-label="¿Cobraste?">
-            <p>¿Cobraste {clp.format(appt.pricing.totalCLP)}?</p>
+            <p>¿Cobraste {clp.format(appt.pricing.dueCLP ?? appt.pricing.totalCLP)}?{appt.giftCard ? ` La gift card cubrió ${clp.format(appt.pricing.giftCardCLP ?? 0)}.` : ''}</p>
             <div className="pro-card__actions">
               <button type="button" className="btn btn--primary" disabled={busy} onClick={() => setAskPaid('how')}>Sí</button>
               <button type="button" className="btn btn--ghost" disabled={busy} onClick={async () => { if (await run(appt.id, 'finish', { collected: false })) setAskPaid(false); }}>No, queda pendiente</button>
@@ -104,7 +104,7 @@ export default function ApptCard({ appt, now, onChange, onOpen, reload }: {
               scheduleNoShow<ProAppointment>({ id: appt.id, name: appt.customer.name, path: `/api/pro/appointments/${encodeURIComponent(appt.id)}/no-show`,
                 onDone: (a) => { onChange(a); reload(); }, onError: (text) => { setMsg({ tone: 'error', text }); reload(); } });
             }}>{pending ? 'Marcando que no vino…' : 'El cliente no vino'}</button>}
-            {can('finish') && <button type="button" className="btn btn--primary" disabled={busy || pending} onClick={() => (appt.payment?.method === 'online' ? run(appt.id, 'finish') : setAskPaid('ask'))}>Terminar</button>}
+            {can('finish') && <button type="button" className="btn btn--primary" disabled={busy || pending} onClick={() => (appt.payment?.method === 'online' || (appt.giftCard && appt.pricing.dueCLP === 0) ? run(appt.id, 'finish') : setAskPaid('ask'))}>Terminar</button>}
             {s === 'invitacion_enviada' && appt.invite?.whatsappUrl && <a className="btn btn--ghost" href={appt.invite.whatsappUrl} target="_blank" rel="noopener">Reenviar por WhatsApp</a>}
             {s === 'invitacion_enviada' && appt.invite && <CopyLink url={appt.invite.url} label="Copiar link" />}
             <button type="button" className="ag-link pro-card__more" onClick={() => onOpen(appt)}>Ver detalle</button>

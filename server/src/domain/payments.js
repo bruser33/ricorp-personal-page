@@ -17,6 +17,7 @@ import { createTaxDocumentProvider } from '../lib/taxDocuments.js';
 import { slotsFor } from './availability.js';
 import { formatLong, wallClock } from './time.js';
 import { PAY_OPEN, PAYMENT_HOLD_MIN } from './agenda.js';
+import { GC_PREFIX, payableCLP } from './giftcards.js';
 
 const MIN = 60 * 1000;
 const HOUR = 60 * MIN;
@@ -45,7 +46,7 @@ export function mpFees(p) {
   return { feeCLP: fee, netCLP: net };
 }
 
-export function createPayments({ agenda, env = {}, clock = Date.now, logger = console, adminInbox = null, frontUrl = 'http://localhost:5173', fetchImpl = fetch, taxProvider = null }) {
+export function createPayments({ agenda, env = {}, clock = Date.now, logger = console, adminInbox = null, frontUrl = 'http://localhost:5173', fetchImpl = fetch, taxProvider = null, giftCards = null }) {
   /* SPEC-37: quién respalda la venta (voucher MP o boleta manual), según SII_TAX_PROVIDER. */
   const tax = taxProvider || createTaxDocumentProvider(env, logger);
   const token = String(env.MP_ACCESS_TOKEN || '');
@@ -87,7 +88,8 @@ export function createPayments({ agenda, env = {}, clock = Date.now, logger = co
         id: appt.serviceSnapshot?.slug || 'servicio',
         title: `${appt.serviceSnapshot?.name || 'Servicio'} · WS Style · ${w.date.split('-').reverse().join('-')} ${w.time}`,
         quantity: 1,
-        unit_price: appt.pricing.totalCLP,
+        /* SPEC-60 RN-07: con gift card, solo el resto. */
+        unit_price: payableCLP(appt),
         currency_id: 'CLP',
       }],
       payer: { email: appt.customerSnapshot?.email || user.email },
@@ -131,7 +133,11 @@ export function createPayments({ agenda, env = {}, clock = Date.now, logger = co
           a.history.push({ at: new Date(clock()), from, to: a.status, by: r.by || 'system', byUserId: r.byUserId, reason: r.reason });
           await a.save({ session });
           return { ...r, appt: a };
-        }, logger);
+        }, logger).then(async (r) => {
+          /* SPEC-60 RN-06: cita caída o pago reembolsado → la gift card recupera lo aplicado. */
+          if (r && giftCards && (await giftCards.afterChange(r.appt))) r.appt.giftCard.status = 'revertida';
+          return r;
+        });
       } catch (err) {
         if (err?.name === 'VersionError' && i < 3) continue;
         throw err;
@@ -148,11 +154,17 @@ export function createPayments({ agenda, env = {}, clock = Date.now, logger = co
     const mpId = String(p?.id ?? '');
     const status = String(p?.status ?? '');
     if (!mpId || !status) return 'invalid';
+    /* SPEC-60: la compra de una gift card lleva external_reference = gc:<id>. */
+    if (String(p.external_reference || '').startsWith(GC_PREFIX)) {
+      if (!giftCards) return 'orphan';
+      return giftCards.applyPayment(p, via);
+    }
     const b = await agenda.business();
     const _id = oid(p.external_reference);
     const appt = _id ? await Appointment.findOne({ _id, businessId: b._id }).lean() : null;
-    /* SPEC-38: el monto es el total de la cita (incluye la tarifa de servicio). */
-    const amountOk = appt && p.currency_id === 'CLP' && Math.round(Number(p.transaction_amount)) === appt.pricing?.totalCLP;
+    /* SPEC-38: el monto es el total de la cita (incluye la tarifa de servicio).
+       SPEC-60 RN-07: menos la parte cubierta por gift card. */
+    const amountOk = appt && p.currency_id === 'CLP' && Math.round(Number(p.transaction_amount)) === payableCLP(appt);
 
     /* Idempotencia: el primero que inserta el evento lo procesa; los demás son repeticiones. */
     let event;
@@ -183,7 +195,7 @@ export function createPayments({ agenda, env = {}, clock = Date.now, logger = co
     if (!amountOk) {
       /* CB-07: monto o moneda distintos → nunca se marca pagado. */
       if (status === 'approved') {
-        await alert('payment_mismatch', `Pago con monto distinto: ${money(p.transaction_amount)} ${p.currency_id || ''} (cita ${money(appt.pricing?.totalCLP)})`, `${appt.customerSnapshot?.name || 'Cliente'} · ${formatLong(appt.startsAt.getTime(), b.timezone)} · pago ${mpId}. No se marcó como pagada.`, appt);
+        await alert('payment_mismatch', `Pago con monto distinto: ${money(p.transaction_amount)} ${p.currency_id || ''} (cita ${money(payableCLP(appt))})`, `${appt.customerSnapshot?.name || 'Cliente'} · ${formatLong(appt.startsAt.getTime(), b.timezone)} · pago ${mpId}. No se marcó como pagada.`, appt);
       }
       return 'mismatch';
     }
@@ -289,6 +301,11 @@ export function createPayments({ agenda, env = {}, clock = Date.now, logger = co
       a.payment.mpFeeCLP = fees.feeCLP;
       a.payment.mpNetCLP = fees.netCLP;
       if (p.payment_type_id) a.payment.mpPaymentType = String(p.payment_type_id);
+      /* SPEC-60 RN-05: pagada en línea → lo aplicado de la gift card queda confirmado. */
+      if (a.giftCard?.status === 'reservada') {
+        a.giftCard.status = 'confirmada';
+        a.giftCard.confirmedAt = new Date(now);
+      }
       const { taxModel, taxDoc } = backing();
       a.payment.taxModel = taxModel;
       /* Una venta, un respaldo: si la cita traía una boleta de un cobro en el local, el pago en
@@ -297,6 +314,7 @@ export function createPayments({ agenda, env = {}, clock = Date.now, logger = co
       return { reason };
     };
     let r;
+    let giftShort = false;
     try {
       r = await txn(appt._id, async (a, session) => {
         const pay = a.payment;
@@ -320,6 +338,8 @@ export function createPayments({ agenda, env = {}, clock = Date.now, logger = co
               slotsFor(a.startsAt.getTime(), a.serviceSnapshot.durationMin, a.location?.travelBufferMin || 0).map((t) => ({ businessId: b._id, professionalId: a.professionalId, slotStart: new Date(t), appointmentId: a._id, kind: 'main' })),
               { session, ordered: true }
             );
+            /* SPEC-60: su gift card se devolvió al cancelarse; se vuelve a aplicar (si ya no alcanza, se avisa). */
+            if (giftCards && a.giftCard?.status === 'revertida' && !(await giftCards.reapply(session, a, now))) giftShort = true;
             a.status = 'pendiente';
             a.expiresAt = new Date(agenda.confirmDeadline(b, a.startsAt.getTime(), now));
             return { ...paid(a, 'Pago aprobado después del plazo: la hora seguía libre'), kind: 'paid' };
@@ -344,8 +364,9 @@ export function createPayments({ agenda, env = {}, clock = Date.now, logger = co
     const a = r.appt;
     const who = `${a.customerSnapshot?.name || 'Cliente'} · ${a.serviceSnapshot?.name || ''} · ${formatLong(a.startsAt.getTime(), b.timezone)}`;
     if (r.kind === 'paid') await Promise.all([agenda.notify(b, a, 'client', 'received'), agenda.notify(b, a, 'barber', 'new')]);
-    if (r.kind === 'late') await alert('payment_late', `Pago tardío por reembolsar: ${money(a.pricing?.totalCLP)}`, `${who}. El pago llegó con la cita ya cancelada y la hora ocupada. Reembólsalo desde la ficha de la cita.`, a);
-    if (r.kind === 'duplicate') await alert('payment_duplicate', `Pago duplicado por reembolsar: ${money(a.pricing?.totalCLP)}`, `${who}. La cita se pagó dos veces (pago ${mpId}). Reembolsa el segundo desde la ficha de la cita.`, a);
+    if (giftShort) await alert('giftcard_reapply_failed', `Gift card sin saldo en una cita reactivada`, `${who}. El pago llegó tarde y la cita volvió, pero la gift card ${a.giftCard?.code || ''} ya no tiene saldo para cubrir ${money(a.giftCard?.amountCLP)}. Cobra la diferencia en el local.`, a);
+    if (r.kind === 'late') await alert('payment_late', `Pago tardío por reembolsar: ${money(payableCLP(a))}`, `${who}. El pago llegó con la cita ya cancelada y la hora ocupada. Reembólsalo desde la ficha de la cita.`, a);
+    if (r.kind === 'duplicate') await alert('payment_duplicate', `Pago duplicado por reembolsar: ${money(payableCLP(a))}`, `${who}. La cita se pagó dos veces (pago ${mpId}). Reembolsa el segundo desde la ficha de la cita.`, a);
     return r.kind;
   }
 
@@ -417,7 +438,9 @@ export function createPayments({ agenda, env = {}, clock = Date.now, logger = co
       }
     }
     if (applied) logger.log(`[mp] conciliación: ${applied} pago(s) aplicados de ${list.length} cita(s)`);
-    return { checked: list.length, applied };
+    /* SPEC-60: compras de gift cards por pagar. */
+    const gc = giftCards ? await giftCards.reconcile().catch((err) => (logger.error(`[mp] conciliación gift cards: ${err.message}`), { checked: 0, applied: 0 })) : { checked: 0, applied: 0 };
+    return { checked: list.length + gc.checked, applied: applied + gc.applied };
   }
 
   /* La página de la cita consulta al server, que consulta a Mercado Pago si el pago sigue abierto. */

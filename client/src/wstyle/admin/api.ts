@@ -113,8 +113,27 @@ export interface Settings {
   // SPEC-54: lista de espera encendida/apagada.
   waitlist?: boolean;
   rules: Record<RuleKey, number>;
+  // SPEC-60: venta de gift cards en línea y vigencia por defecto (meses).
+  giftCards?: { onlineEnabled: boolean; validityMonths: number };
   limits: { rules: Record<RuleKey, [number, number]>; platformFeePercent: [number, number]; paymentFeePercent: [number, number] };
 }
+// SPEC-60
+export interface GiftCardRow {
+  id: string; code: string; from: string; to: string; kind: 'monto' | 'servicio'; service: { id: string; name: string } | null;
+  amountCLP: number; balanceCLP: number; expiresAt: string | null; status: string; statusLabel: string; origin: 'online' | 'local';
+  localMethod: string | null; blocked: boolean; discarded: boolean; createdAt: string;
+}
+export interface GiftCardList { counters: Record<string, number>; items: GiftCardRow[]; settings: { onlineEnabled: boolean; validityMonths: number }; online: boolean }
+export interface GiftCardDetail extends GiftCardRow {
+  message: string; buyerEmail: string | null; voidReason: string | null; unusableReason: string | null; token: string; url: string;
+  pricing: { totalCLP: number; priceCLP: number; serviceFeeCLP: number } | null;
+  payment: { mpPaymentId: string | null; paidAt: string | null; collectedAt: string | null; localMethod: string | null; refundedAt: string | null };
+  activatedAt: string | null; mailedAt: string | null;
+  movements: { kind: string; amountCLP: number; appointmentId: string | null; by: string | null; reason: string | null; at: string }[];
+  appointments: { id: string; startsAt: string; status: string; customer: string; service: string; amountCLP: number; giftStatus: string | null }[];
+}
+export interface GiftIssueInput { kind: 'monto' | 'servicio'; amountCLP?: number; serviceId?: string; from: string; to: string; message: string; email?: string; localMethod: string }
+
 export interface AuditItem { id: string; at: string; actor: string; action: string; entity: string | null; entityId: string | null; summary: string; before: unknown; after: unknown }
 
 export interface ApptFilters { from?: string; to?: string; professional?: string; status?: string; paymentMethod?: string; paymentStatus?: string; mode?: string; q?: string }
@@ -168,7 +187,14 @@ export const admin = {
 
   stats: (from: string, to: string) => api<Stats>(`/api/admin/stats?${qs({ from, to })}`),
   settings: () => api<Settings>('/api/admin/settings'),
-  saveSettings: (body: Partial<Pick<Settings, 'payments' | 'platformFeePercent' | 'paymentFeePercent' | 'paymentFeeVat' | 'waitlist'>> & { rules?: Partial<Record<RuleKey, number>> }) => send<Settings>('/api/admin/settings', 'PUT', body),
+  saveSettings: (body: Partial<Pick<Settings, 'payments' | 'platformFeePercent' | 'paymentFeePercent' | 'paymentFeeVat' | 'waitlist'>> & { rules?: Partial<Record<RuleKey, number>>; giftCards?: Partial<{ onlineEnabled: boolean; validityMonths: number }> }) => send<Settings>('/api/admin/settings', 'PUT', body),
+  // SPEC-60: gift cards.
+  giftCards: (q: { q?: string; status?: string }) => api<GiftCardList>(`/api/admin/gift-cards?${qs(q)}`),
+  giftCard: (gid: string) => api<GiftCardDetail>(`/api/admin/gift-cards/${id(gid)}`),
+  issueGiftCard: (body: GiftIssueInput) => send<GiftCardDetail>('/api/admin/gift-cards', 'POST', body),
+  voidGiftCard: (gid: string, reason: string) => send<GiftCardDetail>(`/api/admin/gift-cards/${id(gid)}/void`, 'POST', { reason }),
+  extendGiftCard: (gid: string, months: number) => send<GiftCardDetail>(`/api/admin/gift-cards/${id(gid)}/extend`, 'POST', { months }),
+  resendGiftCard: (gid: string, email?: string) => send<{ ok: boolean; to: string }>(`/api/admin/gift-cards/${id(gid)}/resend`, 'POST', { email }),
   // SPEC-52: reseñas (filtros: visibles/ocultas, estrellas, búsqueda por cliente o texto), ocultar y mostrar.
   reviews: (q: { status?: string; rating?: string; q?: string; page?: number }) => api<AdminReviewList>(`/api/admin/reviews?${qs({ status: q.status ?? '', rating: q.rating ?? '', q: q.q ?? '', page: String(q.page ?? 1) })}`),
   hideReview: (rid: string, reason = '') => send<{ ok: boolean; status: string }>(`/api/admin/reviews/${id(rid)}/hide`, 'POST', { reason }),

@@ -10,6 +10,8 @@ describe('rutas del panel', () => {
     expect(sectionFromPath('/wstyle/admin/estadisticas')).toBe('estadisticas');
     expect(sectionFromPath('/wstyle/admin/difusion/')).toBe('difusion');
     expect(sectionFromPath('/wstyle/admin/cualquiera/')).toBe('inicio');
+    // SPEC-60: sección con guion.
+    expect(sectionFromPath('/wstyle/admin/gift-cards/')).toBe('gift-cards');
   });
 });
 

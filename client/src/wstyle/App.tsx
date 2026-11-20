@@ -140,7 +140,7 @@ export default function App({ initial }: { initial: Content | null }) {
         <Membership site={site} booking={booking} label={lab('membresia')} />
         <Barbers site={site} booking={booking} label={lab('barberos')} />
         <Reviews data={hasReviews ? reviews.data : null} label={lab('resenas')} onMore={reviews.more} loadingMore={reviews.loadingMore} />
-        <Policies site={site} label={lab('politicas')} />
+        <Policies site={site} label={lab('politicas')} giftCards={content?.giftCardsOnline === true} />
         <Section id="llega" className="panel--last" label={lab('llega')} headline={h.llega} copy={copy.llega}
           after={<Footer name={name} poweredBy={poweredBy} />}>
           <Location site={site} links={links} />

@@ -138,7 +138,7 @@ export default function ApptSheet({ id, onClose, onChanged }: { id: string; onCl
             }}>{pending ? 'Marcando que no vino…' : 'El cliente no vino'}</button>}
             {appt.canRevertNoShow && <button type="button" className="btn btn--ghost" disabled={busy} onClick={() => setMode('revert')}>Sí vino (corregir)</button>}
             {appt.canCollect && <button type="button" className="btn btn--ghost" disabled={busy} onClick={() => setMode('collect')}>Marcar cobrado en el local</button>}
-            {appt.canRefund && <button type="button" className="btn btn--primary" disabled={busy} onClick={() => setMode({ refund: null })}>{pay.refundError ? 'Reintentar reembolso' : 'Reembolsar'} {clp.format(appt.pricing.totalCLP)}</button>}
+            {appt.canRefund && <button type="button" className="btn btn--primary" disabled={busy} onClick={() => setMode({ refund: null })}>{pay.refundError ? 'Reintentar reembolso' : 'Reembolsar'} {clp.format(appt.pricing.dueCLP ?? appt.pricing.totalCLP)}</button>}
             {has('reject') && <button type="button" className="btn btn--ghost" disabled={busy} onClick={() => setMode('reject')}>Rechazar</button>}
             {has('cancel') && <button type="button" className="btn btn--danger" disabled={busy} onClick={() => setMode('cancel')}>Cancelar cita</button>}
           </div>
@@ -157,7 +157,7 @@ export default function ApptSheet({ id, onClose, onChanged }: { id: string; onCl
 
         {typeof mode === 'object' && mode !== null && (
           <div className="adm-inline" role="group" aria-label="Confirmar reembolso">
-            <p>Se devolverá el total ({clp.format(appt.pricing.totalCLP)}) en Mercado Pago{mode.refund ? ` del pago ${mode.refund}` : ''}. El cliente recibe un correo. No se puede deshacer.</p>
+            <p>Se devolverá el total pagado ({clp.format(appt.pricing.dueCLP ?? appt.pricing.totalCLP)}) en Mercado Pago{mode.refund ? ` del pago ${mode.refund}` : ''}. El cliente recibe un correo. No se puede deshacer.</p>
             <div className="ag-actions ag-actions--wrap">
               <button type="button" className="btn btn--danger" disabled={busy} aria-busy={busy} onClick={async () => {
                 // CB-11: si Mercado Pago falla, se recarga la ficha para ver el error guardado y poder reintentar.
@@ -191,7 +191,7 @@ export default function ApptSheet({ id, onClose, onChanged }: { id: string; onCl
           }}>
             <CollectFields method={col.method} onMethod={col.setMethod} boleta={col.boleta} onBoleta={col.setBoleta} error={col.error} />
             <div className="ag-actions ag-actions--wrap">
-              <button type="submit" className="btn btn--primary" disabled={busy}>Marcar cobrado {clp.format(appt.pricing.totalCLP)}</button>
+              <button type="submit" className="btn btn--primary" disabled={busy}>Marcar cobrado {clp.format(appt.pricing.dueCLP ?? appt.pricing.totalCLP)}</button>
               <button type="button" className="btn btn--ghost" onClick={() => setMode(null)}>Volver</button>
             </div>
           </form>
