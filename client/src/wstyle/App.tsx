@@ -136,13 +136,13 @@ export default function App({ initial }: { initial: Content | null }) {
         </Section>
         <Marquee words={(site.marquee ?? []).filter((w): w is string => !!str(w))} />
         <Section id="servicios" className="panel--wide" label={lab('servicios')} headline={h.servicios} copy={copy.servicios}>
-          <Services services={services} />
+          <Services services={services} categories={content?.categories} />
         </Section>
         <Membership site={site} booking={booking} label={lab('membresia')} />
         <Barbers site={site} booking={booking} label={lab('barberos')} />
         <Reviews data={hasReviews ? reviews.data : null} label={lab('resenas')} onMore={reviews.more} loadingMore={reviews.loadingMore} />
         {/* SPEC-57: "Junta puntos con cada corte" dentro de Antes de venir (asunción 11); solo con el programa activo. */}
-        <Policies site={site} label={lab('politicas')} extra={<PointsTeaser />} />
+        <Policies site={site} label={lab('politicas')} giftCards={content?.giftCardsOnline === true} extra={<PointsTeaser />} />
         <Section id="llega" className="panel--last" label={lab('llega')} headline={h.llega} copy={copy.llega}
           after={<Footer name={name} poweredBy={poweredBy} />}>
           <Location site={site} links={links} />

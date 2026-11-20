@@ -50,10 +50,12 @@ const CLIENT_SUBJECTS = {
   no_show: 'Registramos una inasistencia',
   /* SPEC-35 */
   payment_incomplete: 'Tu reserva no se completó',
-  refunded: (_b, appt) => `Te devolvimos ${money(appt.pricing?.totalCLP)}`,
+  refunded: (_b, appt) => `Te devolvimos ${money(paidCLP(appt))}`,
 };
 const money = (n) => `$${Number(n || 0).toLocaleString('es-CL')}`;
 const pts = (n) => `${Number(n || 0).toLocaleString('es-CL')} ${Math.abs(Number(n)) === 1 ? 'punto' : 'puntos'}`;
+/* SPEC-60: lo pagado aparte de la gift card (lo que se devuelve en Mercado Pago). */
+const paidCLP = (appt) => Math.max(0, Math.round(Number(appt?.pricing?.totalCLP) || 0) - (appt?.giftCard?.giftCardId ? Math.round(Number(appt.giftCard.amountCLP) || 0) : 0));
 const BARBER_SUBJECTS = {
   new: 'Nueva cita por confirmar',
   client_accepted: 'El cliente aceptó el cambio',
@@ -95,7 +97,7 @@ export function appointmentMail({ kind, to, appt, when, proposalWhen, url, waUrl
     if (kind === 'finished' && reviewUrl) lines.push('¿Cómo te fue? Cuéntalo en una reseña: toma un minuto y ayuda a otros a decidirse.');
     if (kind === 'no_show') lines.push(`${barber} registró que no llegaste a tu cita. Si fue un error, escríbenos por WhatsApp.`);
     if (kind === 'payment_incomplete') lines.push('No recibimos el pago a tiempo, así que la hora se liberó. Puedes reservar de nuevo cuando quieras.');
-    if (kind === 'refunded') lines.push(`Te devolvimos ${money(appt.pricing?.totalCLP)} en el mismo medio con que pagaste en Mercado Pago. Según tu banco, puede tardar unos días en verse.`);
+    if (kind === 'refunded') lines.push(`Te devolvimos ${money(paidCLP(appt))} en el mismo medio${appt.giftCard?.giftCardId ? ' (lo de tu gift card vuelve a la tarjeta)' : ''} con que pagaste en Mercado Pago. Según tu banco, puede tardar unos días en verse.`);
   } else {
     subject = BARBER_SUBJECTS[kind] + ' · WS Style';
     lines.push(`Cliente: ${client}`);
@@ -181,4 +183,47 @@ export function pointsCancelledMail({ name, product, points, code, reason, balan
     `Te devolvimos ${pts(points)}. Tu saldo: ${pts(balance)}.`,
   ];
   return { subject, template: 'client_points_cancelled', ...layout('Tu canje fue anulado', lines, [['Ver mis puntos', url]]) };
+}
+
+/* SPEC-60: la gift card al correo de quien compra (asunción 11). El mensaje va como texto plano
+   (layout lo escapa): nunca se renderiza como HTML (CB-10). */
+export function giftCardMail({ card, url }) {
+  const what = card.kind === 'servicio' ? card.service?.name || 'un servicio' : money(card.amountCLP);
+  const until = card.expiresAt ? new Intl.DateTimeFormat('es-CL', { timeZone: 'America/Santiago', day: 'numeric', month: 'short', year: 'numeric' }).format(card.expiresAt) : '';
+  const subject = `Tu gift card de WS Style para ${card.to || 'regalar'}`;
+  const lines = [
+    `Un regalo para ${card.to || ''}: ${what}.`,
+    card.message ? `“${card.message}”` : '',
+    `De ${card.from || ''}.`,
+    `Código: ${card.code}${until ? ` · Válida hasta ${until}` : ''}`,
+    'Para usarla: reserva en ricorp.cl/wstyle/reservar e ingresa el código en el paso "Confirmar".',
+    'Descarga la tarjeta o compártela por WhatsApp desde el enlace.',
+  ].filter(Boolean);
+  return { subject, template: 'gift_card', ...layout('Tu gift card está lista', lines, [['Ver y descargar la tarjeta', url]]) };
+}
+
+/* SPEC-54: lista de espera. Tuteo y nunca "turno" (asunción 10). */
+export function waitlistSlotMail({ name, day, service, barber, time, url }) {
+  const subject = `Se liberó una hora el ${day} · WS Style`;
+  return {
+    subject,
+    template: 'waitlist_slot',
+    ...layout(subject, [
+      `Hola ${name || ''}`.trim() + ',',
+      `Se liberó una hora el ${day}: ${service} con ${barber} a las ${time}. La primera persona que la confirme se la queda.`,
+      'Avisamos a algunas personas de la lista a la vez. Si alguien la toma antes, sigues en la lista de espera.',
+    ], [['Tomar esta hora', url]]),
+  };
+}
+
+export function waitlistEndedMail({ name, day, url }) {
+  const subject = `Ese día ya no está disponible · WS Style`;
+  return {
+    subject,
+    template: 'waitlist_ended',
+    ...layout(subject, [
+      `Hola ${name || ''}`.trim() + ',',
+      `Te sacamos de la lista de espera del ${day}: ese día ya no está disponible para lo que pediste. Puedes reservar otro día cuando quieras.`,
+    ], [['Reservar otra hora', url]]),
+  };
 }

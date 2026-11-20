@@ -2,7 +2,7 @@ import type { PricingView } from '../agenda/pricing';
 // Cliente HTTP del panel del super admin (SPEC-34): /api/admin/… con la misma sesión (cookie httpOnly) de la agenda.
 // El server valida la sesión y el rol en cada ruta; el front solo oculta botones.
 import { api, API_BASE, ApiError, type Appointment, type User } from '../agenda/api';
-import type { AgendaDay, CustomerHit, ProService, TimeOff, TimeOffInput } from '../pro/api';
+import type { AgendaDay, CustomerHit, ProService, TimeOff, TimeOffInput, WaitlistApi, WaitlistRange } from '../pro/api';
 
 export type MembershipStatus = 'pending' | 'approved' | 'rejected' | 'suspended';
 export type Decision = 'approve' | 'reject' | 'suspend' | 'reactivate' | 'reopen';
@@ -71,15 +71,21 @@ export interface BarberDetail {
 export interface AdminService {
   _id: string; id: string; name: string; description: string; priceCLP: number; durationMin: number;
   homeServiceAllowed: boolean; active: boolean; archived: boolean; order: number; appointments: number; updatedAt: string;
+  // SPEC-51: _id de su categoría (null = dato anterior a la migración → "Barbería").
+  categoryId: string | null;
 }
-export interface ServiceInput { name?: string; description?: string; priceCLP?: number; durationMin?: number; homeServiceAllowed?: boolean; active?: boolean; archived?: boolean; updatedAt?: string }
+export interface ServiceInput { name?: string; description?: string; priceCLP?: number; durationMin?: number; homeServiceAllowed?: boolean; active?: boolean; archived?: boolean; updatedAt?: string; categoryId?: string }
+// SPEC-51: categoría de la carta. `services` = cuántos servicios no archivados tiene (con alguno no se puede borrar).
+export interface AdminCategory { _id: string; id: string; name: string; note: string; order: number; services: number; updatedAt: string }
+export interface ExportCategory { id: string; name: string; note: string }
+export interface ExportService { id: string; name: string; description: string; priceCLP: number; durationMin: number; category?: string; homeServiceAllowed?: boolean }
 
 export interface Range { opens: string; closes: string }
 export interface WeekDay { weekday: number; ranges: Range[] }
 export interface Closure { id: string; date: string; reason: string; groupId: string | null }
 export interface Schedule { timezone: string; week: WeekDay[]; closures: Closure[] }
 export interface SiteHoursRow { days: string; dayCodes: string; opens: string | null; closes: string | null }
-export interface ExportContent { services: { id: string; name: string; description: string; priceCLP: number; durationMin: number }[]; hours: SiteHoursRow[] }
+export interface ExportContent { categories?: ExportCategory[]; services: ExportService[]; hours: SiteHoursRow[] }
 
 export interface Stats {
   from: string; to: string; timezone: string; total: number;
@@ -104,9 +110,30 @@ export interface Settings {
   // SPEC-38: comisión de Mercado Pago que se traslada al cliente en la tarifa de servicio (+ IVA si corresponde).
   paymentFeePercent: number;
   paymentFeeVat: boolean;
+  // SPEC-54: lista de espera encendida/apagada.
+  waitlist?: boolean;
   rules: Record<RuleKey, number>;
+  // SPEC-60: venta de gift cards en línea y vigencia por defecto (meses).
+  giftCards?: { onlineEnabled: boolean; validityMonths: number };
   limits: { rules: Record<RuleKey, [number, number]>; platformFeePercent: [number, number]; paymentFeePercent: [number, number] };
 }
+// SPEC-60
+export interface GiftCardRow {
+  id: string; code: string; from: string; to: string; kind: 'monto' | 'servicio'; service: { id: string; name: string } | null;
+  amountCLP: number; balanceCLP: number; expiresAt: string | null; status: string; statusLabel: string; origin: 'online' | 'local';
+  localMethod: string | null; blocked: boolean; discarded: boolean; createdAt: string;
+}
+export interface GiftCardList { counters: Record<string, number>; items: GiftCardRow[]; settings: { onlineEnabled: boolean; validityMonths: number }; online: boolean }
+export interface GiftCardDetail extends GiftCardRow {
+  message: string; buyerEmail: string | null; voidReason: string | null; unusableReason: string | null; token: string; url: string;
+  pricing: { totalCLP: number; priceCLP: number; serviceFeeCLP: number } | null;
+  payment: { mpPaymentId: string | null; paidAt: string | null; collectedAt: string | null; localMethod: string | null; refundedAt: string | null };
+  activatedAt: string | null; mailedAt: string | null;
+  movements: { kind: string; amountCLP: number; appointmentId: string | null; by: string | null; reason: string | null; at: string }[];
+  appointments: { id: string; startsAt: string; status: string; customer: string; service: string; amountCLP: number; giftStatus: string | null }[];
+}
+export interface GiftIssueInput { kind: 'monto' | 'servicio'; amountCLP?: number; serviceId?: string; from: string; to: string; message: string; email?: string; localMethod: string }
+
 export interface AuditItem { id: string; at: string; actor: string; action: string; entity: string | null; entityId: string | null; summary: string; before: unknown; after: unknown }
 
 export interface ApptFilters { from?: string; to?: string; professional?: string; status?: string; paymentMethod?: string; paymentStatus?: string; mode?: string; q?: string }
@@ -143,7 +170,11 @@ export const admin = {
   addBarberTimeOff: (pid: string, body: TimeOffInput) => send<{ timeOff: TimeOff }>(`/api/admin/barbers/${id(pid)}/time-off`, 'POST', body),
   removeBarberTimeOff: (pid: string, oid: string) => api<{ ok: boolean }>(`/api/admin/barbers/${id(pid)}/time-off/${id(oid)}`, { method: 'DELETE' }),
 
-  services: () => api<{ items: AdminService[] }>('/api/admin/services'),
+  services: () => api<{ items: AdminService[]; categories: AdminCategory[] }>('/api/admin/services'),
+  createCategory: (body: { name: string; note?: string }) => send<{ category: AdminCategory }>('/api/admin/service-categories', 'POST', body),
+  updateCategory: (cid: string, body: { name?: string; note?: string }) => send<{ category: AdminCategory }>(`/api/admin/service-categories/${id(cid)}`, 'PATCH', body),
+  reorderCategories: (ids: string[]) => send<{ items: AdminCategory[] }>('/api/admin/service-categories/order', 'PUT', { ids }),
+  removeCategory: (cid: string) => api<{ result: 'deleted' }>(`/api/admin/service-categories/${id(cid)}`, { method: 'DELETE' }),
   createService: (body: ServiceInput) => send<{ service: AdminService }>('/api/admin/services', 'POST', body),
   updateService: (sid: string, body: ServiceInput) => send<{ service: AdminService; unbookableBarbers: string[] }>(`/api/admin/services/${id(sid)}`, 'PATCH', body),
   removeService: (sid: string) => api<{ result: 'archived' | 'deleted'; unbookableBarbers: string[] }>(`/api/admin/services/${id(sid)}`, { method: 'DELETE' }),
@@ -156,12 +187,26 @@ export const admin = {
 
   stats: (from: string, to: string) => api<Stats>(`/api/admin/stats?${qs({ from, to })}`),
   settings: () => api<Settings>('/api/admin/settings'),
-  saveSettings: (body: Partial<Pick<Settings, 'payments' | 'platformFeePercent' | 'paymentFeePercent' | 'paymentFeeVat'>> & { rules?: Partial<Record<RuleKey, number>> }) => send<Settings>('/api/admin/settings', 'PUT', body),
+  saveSettings: (body: Partial<Pick<Settings, 'payments' | 'platformFeePercent' | 'paymentFeePercent' | 'paymentFeeVat' | 'waitlist'>> & { rules?: Partial<Record<RuleKey, number>>; giftCards?: Partial<{ onlineEnabled: boolean; validityMonths: number }> }) => send<Settings>('/api/admin/settings', 'PUT', body),
+  // SPEC-60: gift cards.
+  giftCards: (q: { q?: string; status?: string }) => api<GiftCardList>(`/api/admin/gift-cards?${qs(q)}`),
+  giftCard: (gid: string) => api<GiftCardDetail>(`/api/admin/gift-cards/${id(gid)}`),
+  issueGiftCard: (body: GiftIssueInput) => send<GiftCardDetail>('/api/admin/gift-cards', 'POST', body),
+  voidGiftCard: (gid: string, reason: string) => send<GiftCardDetail>(`/api/admin/gift-cards/${id(gid)}/void`, 'POST', { reason }),
+  extendGiftCard: (gid: string, months: number) => send<GiftCardDetail>(`/api/admin/gift-cards/${id(gid)}/extend`, 'POST', { months }),
+  resendGiftCard: (gid: string, email?: string) => send<{ ok: boolean; to: string }>(`/api/admin/gift-cards/${id(gid)}/resend`, 'POST', { email }),
   // SPEC-52: reseñas (filtros: visibles/ocultas, estrellas, búsqueda por cliente o texto), ocultar y mostrar.
   reviews: (q: { status?: string; rating?: string; q?: string; page?: number }) => api<AdminReviewList>(`/api/admin/reviews?${qs({ status: q.status ?? '', rating: q.rating ?? '', q: q.q ?? '', page: String(q.page ?? 1) })}`),
   hideReview: (rid: string, reason = '') => send<{ ok: boolean; status: string }>(`/api/admin/reviews/${id(rid)}/hide`, 'POST', { reason }),
   showReview: (rid: string) => send<{ ok: boolean; status: string }>(`/api/admin/reviews/${id(rid)}/show`, 'POST'),
   audit: (page = 1, action = '') => api<{ page: number; pages: number; total: number; items: AuditItem[] }>(`/api/admin/audit?${qs({ page: String(page), action })}`),
+};
+
+// SPEC-54: lista de espera de todos los barberos (misma forma que el panel del barbero + summary.next7).
+export const adminWaitlist: WaitlistApi = {
+  list: (from, to) => api<WaitlistRange>(`/api/admin/waitlist?${qs({ from, to })}`),
+  notify: (wid) => send<{ waUrl: string }>(`/api/admin/waitlist/${id(wid)}/notify`, 'POST'),
+  remove: (wid) => api<{ ok: boolean }>(`/api/admin/waitlist/${id(wid)}`, { method: 'DELETE' }),
 };
 
 /* CSV: la descarga necesita la cookie de sesión → fetch con credenciales y un blob (un <a href> cross-origin no la manda en Safari). */

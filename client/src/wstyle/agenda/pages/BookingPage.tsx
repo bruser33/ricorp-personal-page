@@ -1,12 +1,15 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
-import { agenda, API_BASE, ApiError, auth, type Appointment, type Catalog, type Quote, type Slot } from '../api';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { groupByCategory } from '../../content';
+import { agenda, API_BASE, ApiError, auth, giftCards, type Appointment, type Catalog, type Quote, type Slot } from '../api';
 import type { AgendaCtx } from '../ctx';
 import AuthPanel from '../components/AuthPanel';
 import PriceBreakdown from '../components/PriceBreakdown';
-import { NO_FEES, pct, quote as priceQuote } from '../pricing';
+import { giftCoverage, NO_FEES, pct, quote as priceQuote, withGiftCard, type GiftCardInfo } from '../pricing';
 import Calendar, { TimeChips } from '../components/Calendar';
 import Shell from '../components/Shell';
 import { Field, MotoIcon, Notice, Spinner, Unavailable } from '../components/ui';
+import WaitlistCard from '../components/WaitlistCard';
+import WaitlistTake from './WaitlistTake';
 import {
   addDays, buildIcs, clMobile, clp, dayMonthTime, fieldMessage, loadSelection, localDate, longDay, MAX_NOTE, prettyPhone,
   mergeSelection, saveSelection, selectionFromQuery, selectionToQuery, type Selection,
@@ -36,6 +39,9 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
     return { y: Number(d.slice(0, 4)), m: Number(d.slice(5, 7)) };
   });
   const [avail, setAvail] = useState<Map<string, Slot[]> | null>(null);
+  // SPEC-54: días llenos (solo si la lista de espera está encendida) y el link "Tomar esta hora" (?espera=<token>).
+  const [fullDays, setFullDays] = useState<Set<string>>(() => new Set());
+  const [espera] = useState(() => new URLSearchParams(location.search).get('espera'));
   const [slotPros, setSlotPros] = useState<string[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
   const [quote, setQuote] = useState<Quote | null>(null);
@@ -53,6 +59,12 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
   const [gateNotice, setGateNotice] = useState<string | null>(null);
   const [done, setDone] = useState<{ appt: Appointment; mailOk?: boolean } | null>(null);
   const [redirecting, setRedirecting] = useState(false);
+  // SPEC-60: gift card aplicada en "Confirmar" (el server vuelve a validar y descuenta el saldo al crear la cita).
+  const [gift, setGift] = useState<GiftCardInfo | null>(null);
+  // El QR de la tarjeta trae ?giftcard=WS-… para dejar el código listo.
+  const [giftCode, setGiftCode] = useState(() => new URLSearchParams(location.search).get('giftcard')?.slice(0, 20) ?? '');
+  const [giftErr, setGiftErr] = useState<string | null>(null);
+  const [giftBusy, setGiftBusy] = useState(false);
   const idem = useRef(newKey());
   const authedInFlow = useRef(false);
   const restored = useRef(false);
@@ -105,8 +117,12 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
     Promise.resolve().then(() => alive && setAvail(null));
     if (from > to) { Promise.resolve().then(() => alive && setAvail(new Map())); return () => { alive = false; }; }
     agenda.availability({ service: sel.serviceId, professional: sel.professionalId, from, to, mode })
-      .then((r) => { if (alive) setAvail(new Map(r.days.map((d) => [d.date, d.slots]))); })
-      .catch(() => { if (alive) { setAvail(new Map()); setNotice('No pudimos cargar las horas. Revisa tu conexión y vuelve a intentarlo.'); } });
+      .then((r) => {
+        if (!alive) return;
+        setAvail(new Map(r.days.map((d) => [d.date, d.slots])));
+        setFullDays(new Set(r.waitlist ? r.days.filter((d) => d.full).map((d) => d.date) : []));
+      })
+      .catch(() => { if (alive) { setAvail(new Map()); setFullDays(new Set()); setNotice('No pudimos cargar las horas. Revisa tu conexión y vuelve a intentarlo.'); } });
     return () => { alive = false; };
   }, [catalog, sel.serviceId, sel.professionalId, mode, month, today, lastDay, step]);
 
@@ -178,8 +194,28 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
   // SPEC-38: Servicio + Domicilio + Tarifa de servicio (administración + costo de pagos) = Total, igual pagando en el
   // local o en línea. Misma fórmula que el server (que recalcula y manda).
   const rates = catalog?.business.pricing ?? NO_FEES;
-  const price = priceQuote(service?.priceCLP ?? 0, surcharge, rates);
-  const total = price.totalCLP;
+  const basePrice = priceQuote(service?.priceCLP ?? 0, surcharge, rates);
+  // SPEC-60: con gift card, "Gift card −$X" y "Total a pagar". Si cubre todo, no se pide forma de pago (RN-07).
+  const giftCLP = gift ? giftCoverage(gift, basePrice, sel.serviceId, rates) : 0;
+  const price = withGiftCard(basePrice, giftCLP);
+  const due = price.dueCLP ?? price.totalCLP;
+  const covered = Boolean(gift) && due === 0;
+
+  async function applyGift() {
+    const code = giftCode.trim();
+    if (!code || giftBusy) return;
+    setGiftBusy(true);
+    setGiftErr(null);
+    try {
+      setGift(await giftCards.check(code));
+      setGiftCode('');
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) { setGiftErr('Tu sesión venció. Entra de nuevo para usar tu gift card.'); return; }
+      setGiftErr(err instanceof ApiError && err.status !== 0 ? err.message : 'No pudimos revisar el código. Inténtalo de nuevo.');
+    } finally {
+      setGiftBusy(false);
+    }
+  }
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -197,7 +233,8 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
       const r = await agenda.create({
         serviceId: sel.serviceId, professionalId: sel.professionalId, startsAt: sel.startsAt, mode,
         address: mode === 'home' ? sel.address : undefined, phone: needPhone ? phone : undefined, note: sel.note ?? '',
-        acceptPolicies: accept, paymentMethod: pay, idempotencyKey: idem.current, website,
+        acceptPolicies: accept, paymentMethod: covered ? (payments.local ? 'local' : 'online') : pay, idempotencyKey: idem.current, website,
+        giftCardCode: gift?.code,
         // SPEC-58: canal del link (sin UTM → el server guarda "directo").
         origin: sel.origin,
       });
@@ -231,6 +268,8 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
         setStep(2);
         return;
       }
+      // SPEC-60 RN-05: otra reserva usó el saldo (o la tarjeta ya no vale): se quita y se avisa.
+      if (err.code === 'giftcard_invalid' || err.code === 'giftcard_insufficient') { setGift(null); setGiftErr(err.message); return; }
       if (err.code === 'out_of_range' || err.code === 'address_not_found') { setQuote(null); setQuoteErr(err.message); setStep(3); return; }
       if (Object.keys(err.fields).length) { setErrors(Object.fromEntries(Object.entries(err.fields).map(([k, v]) => [k, k === 'acceptPolicies' ? 'Debes aceptar las políticas para agendar.' : fieldMessage(v)]))); return; }
       setSubmitError(err.message);
@@ -244,7 +283,7 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
   if (session.status === 'loading') return <Shell user={null} current="reservar"><h1 className="ag-h1">Reserva tu hora</h1><Spinner label="Cargando…" /></Shell>;
   if (session.status === 'offline') return <Shell user={null} current="reservar"><h1 className="ag-h1">Reserva tu hora</h1><Unavailable whatsapp={whatsapp} onRetry={() => session.refresh()} /></Shell>;
   if (!user || !user.roles.includes('client')) {
-    const gateReturn = `/wstyle/reservar/?${selectionToQuery(sel)}`.replace(/\?$/, '');
+    const gateReturn = espera ? `/wstyle/reservar/?espera=${encodeURIComponent(espera)}` : `/wstyle/reservar/?${selectionToQuery(sel)}`.replace(/\?$/, '');
     return (
       <Shell user={user} current="reservar">
         <h1 className="ag-h1">Reserva tu hora</h1>
@@ -283,6 +322,8 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
     );
   }
 
+  if (espera) return <WaitlistTake ctx={ctx} token={espera} catalog={catalog} />;
+
   if (step === 5 && done) return <Shell user={user} current="reservar"><Success appt={done.appt} mailOk={done.mailOk} /></Shell>;
 
   const proName = sel.professionalId === 'any' ? 'Sin preferencia' : pro?.name ?? '';
@@ -307,13 +348,22 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
               {welcome && <Notice tone="ok">{welcome}</Notice>}
               <fieldset className="ag-options">
                 <legend>¿Qué te hacemos?</legend>
-                {catalog.services.map((s) => (
-                  <button key={s.id} type="button" className={`ag-option${sel.serviceId === s.id ? ' is-selected' : ''}`} aria-pressed={sel.serviceId === s.id} onClick={() => pickService(s.id)}>
-                    <span>
-                      <span className="ag-option__name">{s.name}</span>
-                      <span className="ag-option__meta">{clp.format(s.priceCLP)} · dura ~{s.durationMin} min</span>
-                    </span>
-                  </button>
+                {/* SPEC-51: agrupados por categoría (mismo orden y nota que la carta de la landing). */}
+                {groupByCategory(catalog.services, catalog.categories).map((g) => (
+                  <Fragment key={g.id}>
+                    <p className="ag-svc-group" data-category={g.id}>
+                      <span className="ag-svc-group__title">{g.name}</span>
+                      {g.note && <span className="ag-svc-group__note">{g.note}</span>}
+                    </p>
+                    {g.items.map((s) => (
+                      <button key={s.id} type="button" className={`ag-option${sel.serviceId === s.id ? ' is-selected' : ''}`} aria-pressed={sel.serviceId === s.id} onClick={() => pickService(s.id)}>
+                        <span>
+                          <span className="ag-option__name">{s.name}</span>
+                          <span className="ag-option__meta">{clp.format(s.priceCLP)} · dura ~{s.durationMin} min</span>
+                        </span>
+                      </button>
+                    ))}
+                  </Fragment>
                 ))}
               </fieldset>
               {service && (
@@ -347,9 +397,17 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
             <>
               <h2 className="ag-h2" id="ag-step-title" tabIndex={-1} ref={heading}>Día y hora</h2>
               {notice && <Notice tone="error">{notice}</Notice>}
-              <Calendar year={month.y} month={month.m} today={today} lastDay={lastDay} slotsByDay={avail} selected={sel.date}
+              <Calendar year={month.y} month={month.m} today={today} lastDay={lastDay} slotsByDay={avail} selected={sel.date} fullDays={fullDays}
                 onSelect={pickDay} onMonth={(y, m) => setMonth({ y, m })} />
-              {sel.date && avail && (
+              {sel.date && avail && service && fullDays.has(sel.date) && !avail.get(sel.date)?.length ? (
+                <div className="ag-daytimes">
+                  <h3 className="ag-h3">Día lleno · {longDay(sel.date)}</h3>
+                  <WaitlistCard key={`${sel.date}|${sel.professionalId}`} date={sel.date} service={service}
+                    professional={{ id: sel.professionalId ?? 'any', name: sel.professionalId === 'any' ? 'Cualquiera' : pro?.name ?? '' }} canAny={pros.length > 1}
+                    onPickSlot={(s, proId) => { if (proId !== sel.professionalId) update({ professionalId: proId }); pickSlot(s); }}
+                    onSessionExpired={() => { saveSelection(sel); session.setUser(null); setGateNotice('Tu sesión venció. Entra de nuevo; tu selección sigue aquí.'); }} />
+                </div>
+              ) : sel.date && avail && (
                 <div className="ag-daytimes">
                   <h3 className="ag-h3">Selecciona la hora · {longDay(sel.date)}</h3>
                   <TimeChips slots={avail.get(sel.date) ?? []} selected={sel.startsAt} onSelect={pickSlot} label={`Horas libres del ${longDay(sel.date)}`} />
@@ -421,8 +479,31 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
                     <p className="ag-field__hint" id="ag-note-count">{(sel.note ?? '').length}/{MAX_NOTE}</p>
                     {errors.note && <p className="ag-field__error" id="ag-note-err" role="alert">{errors.note}</p>}
                   </div>
+                  <div className={`ag-field ag-gift${giftErr ? ' has-error' : ''}`} data-gift="">
+                    {gift ? (
+                      <p className="ag-gift__applied" data-gift-applied="" role="status">
+                        Gift card <strong>{gift.code}</strong> aplicada{gift.from ? <> · Regalo de {gift.from}</> : null} · −{clp.format(giftCLP)}{' '}
+                        <button type="button" className="ag-link" onClick={() => { setGift(null); setGiftErr(null); }}>Quitar</button>
+                      </p>
+                    ) : (
+                      <>
+                        <label htmlFor="ag-gift">¿Tienes una gift card?</label>
+                        <div className="ag-gift__row">
+                          <input id="ag-gift" value={giftCode} placeholder="WS-XXXX-XXXX" autoComplete="off" autoCapitalize="characters" spellCheck={false} maxLength={20}
+                            onChange={(e) => { setGiftCode(e.target.value); setGiftErr(null); }}
+                            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); applyGift(); } }}
+                            aria-invalid={giftErr ? true : undefined} aria-describedby={giftErr ? 'ag-gift-err' : undefined} />
+                          <button type="button" className="btn btn--ghost" onClick={applyGift} disabled={giftBusy || !giftCode.trim()} aria-busy={giftBusy}>{giftBusy ? 'Revisando…' : 'Aplicar'}</button>
+                        </div>
+                      </>
+                    )}
+                    {giftErr && <p className="ag-field__error" id="ag-gift-err" role="alert">{giftErr}</p>}
+                  </div>
+                  {covered ? (
+                    <Notice tone="ok">Tu gift card cubre el total: no necesitas pagar nada más.</Notice>
+                  ) : (
                   <fieldset className="ag-options ag-pay">
-                    <legend>Forma de pago</legend>
+                    <legend>{gift ? `Forma de pago del resto (${clp.format(due)})` : 'Forma de pago'}</legend>
                     {payments.local && (
                       <label className={`ag-option ag-radio${pay === 'local' ? ' is-selected' : ''}`}>
                         <input type="radio" name="pay" value="local" checked={pay === 'local'} onChange={() => setPayPick('local')} />
@@ -436,6 +517,7 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
                       </label>
                     )}
                   </fieldset>
+                  )}
                   <div className={`ag-field ag-check${errors.acceptPolicies ? ' has-error' : ''}`}>
                     <label>
                       <input type="checkbox" checked={accept} onChange={(e) => { setAccept(e.target.checked); setErrors((x) => ({ ...x, acceptPolicies: undefined })); }} aria-invalid={errors.acceptPolicies ? true : undefined} aria-describedby={errors.acceptPolicies ? 'ag-pol-err' : undefined} />
@@ -448,8 +530,8 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
                   {submitError && <Notice tone="error">{submitError}</Notice>}
                   <div className="ag-actions">
                     <button type="button" className="btn btn--ghost" onClick={() => setStep(3)}>Volver</button>
-                    <button className="btn btn--primary" disabled={busy || redirecting} aria-busy={busy || redirecting} data-pay={pay}>
-                      {redirecting ? 'Abriendo Mercado Pago…' : busy ? 'Agendando…' : pay === 'online' ? `Ir a pagar ${clp.format(total)}` : 'Agendar cita'}
+                    <button className="btn btn--primary" disabled={busy || redirecting || giftBusy} aria-busy={busy || redirecting} data-pay={covered ? 'giftcard' : pay}>
+                      {redirecting ? 'Abriendo Mercado Pago…' : busy ? 'Agendando…' : covered ? 'Confirmar reserva' : pay === 'online' ? `Ir a pagar ${clp.format(due)}` : 'Agendar cita'}
                     </button>
                   </div>
                 </form>
@@ -462,6 +544,8 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
           <dl>
             {!service && <div><dt>Servicio</dt><dd>—</dd></div>}
             <div><dt>Barbero</dt><dd>{proName || '—'}</dd></div>
+            {/* SPEC-51 AC-09: la duración del servicio elegido (bloquea la agenda completa). */}
+            {service && <div><dt>Duración</dt><dd data-summary="duration">{service.durationMin} min</dd></div>}
             <div><dt>Fecha y hora</dt><dd>{sel.startsAt ? `${longDay(localDate(sel.startsAt))}, ${dayMonthTime(sel.startsAt).split(', ')[1]}` : '—'}</dd></div>
             <div><dt>Dónde</dt><dd>{step >= 3 ? (mode === 'home' ? `A domicilio${where ? ` · ${where}` : ''}` : `En el local · ${where}`) : '—'}</dd></div>
           </dl>
@@ -475,6 +559,7 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
                   El total incluye la tarifa de servicio: la administración de la plataforma ({pct(price.platformFeePercent)} %) y el costo de procesar los pagos. Es la misma si pagas en el local o en línea.
                 </p>
               )}
+              {catalog?.business.giftCards?.online && <p className="ag-fine"><a href="/wstyle/regalar/" data-gift-link="">¿Quieres regalar? Regala WS Style</a></p>}
             </>
           )}
         </aside>
@@ -493,7 +578,7 @@ function Success({ appt, mailOk }: { appt: Appointment; mailOk?: boolean }) {
   return (
     <section className="ag-card ag-success" aria-labelledby="ag-ok">
       <h1 className="ag-h1" id="ag-ok" data-success="">NUEVA CITA — esperando confirmación de {appt.professional.name} — {dayMonthTime(appt.startsAt)}</h1>
-      <p className="ag-muted">{appt.service.name} · {appt.location.kind === 'home' ? `A domicilio · ${appt.location.address}` : 'En el local'} · Total {clp.format(appt.pricing.totalCLP)}</p>
+      <p className="ag-muted">{appt.service.name} · {appt.location.kind === 'home' ? `A domicilio · ${appt.location.address}` : 'En el local'} · {appt.pricing.giftCardCLP ? `Total a pagar ${clp.format(appt.pricing.dueCLP ?? 0)} (gift card −${clp.format(appt.pricing.giftCardCLP)})` : `Total ${clp.format(appt.pricing.totalCLP)}`}</p>
       <p>Te avisaremos por correo cuando {appt.professional.name} la confirme.</p>
       {mailOk === false && <Notice>No pudimos enviarte el correo. Guarda este link de tu cita: <a href={url}>{url}</a></Notice>}
       <div className="ag-actions ag-actions--wrap">

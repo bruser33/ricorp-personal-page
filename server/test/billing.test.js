@@ -82,7 +82,7 @@ const mpPaid = ({ id, paidAt, fee = 0, amount, model = 'voucher', status = 'paga
 
 describe('SPEC-37 · cálculo neto/IVA y proveedor de documentos (sin BD)', () => {
   test('AC-05 neto = round(total / 1,19) e IVA = total − neto con los precios de la carta y el recargo por domicilio', () => {
-    const carta = JSON.parse(readFileSync(new URL('../../client/public/wstyle/content/services.json', import.meta.url), 'utf8'));
+    const carta = JSON.parse(readFileSync(new URL('../../client/public/wstyle/content/services.json', import.meta.url), 'utf8')).services;
     assert.ok(carta.length >= 3);
     for (const s of carta) {
       for (const surcharge of [0, 2000, 3000, 3500, 5000]) {

@@ -109,7 +109,7 @@ export function Membership({ site, booking, label }: { site: SiteContent; bookin
   );
 }
 
-export function Policies({ site, label, extra }: { site: SiteContent; label: string; extra?: ReactNode }) {
+export function Policies({ site, label, giftCards = false, extra }: { site: SiteContent; label: string; giftCards?: boolean; extra?: ReactNode }) {
   const list = (site.policies ?? []).filter((p) => p && str(p.title) && str(p.text));
   if (!list.length) return null;
   return (
@@ -118,6 +118,8 @@ export function Policies({ site, label, extra }: { site: SiteContent; label: str
         {list.map((p, i) => <div key={i}><dt>{p.title}</dt><dd>{p.text}</dd></div>)}
       </dl>
       {extra}
+      {/* SPEC-60: enlace discreto, solo si la venta de gift cards en línea está activa (AC-10). */}
+      {giftCards && <p className="policies__gift reveal"><a href="/wstyle/regalar/" data-gift-link="">Regala WS Style · gift cards</a></p>}
     </Extra>
   );
 }

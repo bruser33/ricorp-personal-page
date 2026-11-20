@@ -9,6 +9,7 @@ import AppointmentPage from './pages/AppointmentPage';
 import ReviewPage from './pages/ReviewPage';
 import { AccountPage, ConfirmPage, MyAppointmentsPage, RecoverPage } from './pages/AccountPages';
 import PointsPage from './pages/PointsPage';
+import { GiftBuyPage, GiftCardPage } from './pages/GiftPages';
 
 // Enrutado por carpeta (location.pathname). El WhatsApp del local sale de site.json, como en la landing: es la
 // salida cuando la agenda no responde (CB-15/AC-17).
@@ -23,6 +24,9 @@ export default function AgendaApp({ fbReturn }: { fbReturn: FacebookReturn | nul
   const ctx: AgendaCtx = { session, whatsapp, fbReturn };
   const path = location.pathname.replace(/\/+$/, '/');
   if (path.endsWith('/wstyle/cita/')) return <AppointmentPage ctx={ctx} />;
+  // SPEC-60: comprar una gift card y verla por su enlace secreto.
+  if (path.endsWith('/wstyle/regalar/')) return <GiftBuyPage ctx={ctx} />;
+  if (path.endsWith('/wstyle/regalo/')) return <GiftCardPage ctx={ctx} />;
   if (path.endsWith('/wstyle/cuenta/mis-citas/')) return <MyAppointmentsPage ctx={ctx} />;
   // SPEC-57: saldo, canje de productos e historial de puntos.
   if (path.endsWith('/wstyle/cuenta/puntos/')) return <PointsPage ctx={ctx} />;

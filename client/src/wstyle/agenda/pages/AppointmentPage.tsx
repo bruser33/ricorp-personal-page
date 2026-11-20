@@ -190,7 +190,8 @@ export default function AppointmentPage({ ctx }: { ctx: AgendaCtx }) {
 function PayBox({ appt, view, busy, canPay, canLocal, onPay, onLocal }: {
   appt: Appointment; view: ReturnType<typeof payView>; busy: boolean; canPay: boolean; canLocal: boolean; onPay: () => void; onLocal: () => void;
 }) {
-  const total = clp.format(appt.pricing.totalCLP);
+  // SPEC-60: con gift card se paga solo el resto.
+  const total = clp.format(appt.pricing.dueCLP ?? appt.pricing.totalCLP);
   const until = appt.payment.holdUntil ? localTime(appt.payment.holdUntil) : null;
   const actions = (retry: boolean) => (canPay || canLocal) && (
     <div className="ag-actions ag-actions--wrap">

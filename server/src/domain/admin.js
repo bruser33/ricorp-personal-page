@@ -17,6 +17,8 @@ import {
   Professional,
   ProfessionalService,
   Service,
+  ServiceCategory,
+  DEFAULT_CATEGORY,
   SlotLock,
   User,
 } from '../models/index.js';
@@ -29,6 +31,7 @@ import { csvCell } from '../lib/csv.js';
 import { slotsFor } from './availability.js';
 import { entriesToWeek, fitsInRanges, parseWeek, weekToEntries, weekToSiteRows } from './hours.js';
 import { computeStats, monthRange, parseRange } from './stats.js';
+import { categoriesOf, categoryView } from './categories.js';
 import { addDays, formatLong, isDate, isoWeekday, wallClock, zonedToUtc } from './time.js';
 import { photoUrl, STATUS_LABEL } from './agenda.js';
 import { applyLocalCollection, boletaClash, parseCollectInput } from './tax.js';
@@ -89,7 +92,7 @@ export const CSV_COLUMNS = [
 ];
 
 
-export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = console, frontUrl = 'http://localhost:5173', env = {}, adminInbox, onlinePayments = { ready: false }, payments = null, billing = null, reviews = null }) {
+export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = console, frontUrl = 'http://localhost:5173', env = {}, adminInbox, onlinePayments = { ready: false }, payments = null, billing = null, reviews = null, giftCards = null }) {
   /* ─── Acceso */
   function requireAdmin(user) {
     if (!user) throw new HttpError(401, 'unauthorized', 'Tu sesión venció. Inicia sesión para continuar.');
@@ -763,6 +766,8 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
     active: Boolean(s.active),
     archived: Boolean(s.archivedAt),
     order: s.order ?? 0,
+    /* SPEC-51: categoría (null solo en datos anteriores a la migración = "Barbería"). */
+    categoryId: s.categoryId ? String(s.categoryId) : null,
     appointments: counts.get(String(s._id)) ?? 0,
     updatedAt: s.updatedAt.toISOString(),
   });
@@ -771,7 +776,127 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
     const b = await ctx(user);
     const services = await Service.find({ businessId: b._id }).sort({ archivedAt: 1, order: 1, createdAt: 1 }).lean();
     const counts = new Map((await Appointment.aggregate([{ $match: { businessId: b._id } }, { $group: { _id: '$serviceSnapshot.serviceId', n: { $sum: 1 } } }])).map((c) => [String(c._id), c.n]));
-    return { items: services.map((s) => serializeService(s, counts)) };
+    return { items: services.map((s) => serializeService(s, counts)), categories: await categoryList(b) };
+  }
+
+  /* ─── Categorías de la carta (SPEC-51) */
+  const serializeCategory = (c, counts = new Map()) => ({
+    _id: String(c._id),
+    id: c.slug,
+    name: c.name,
+    note: c.note || '',
+    order: c.order ?? 0,
+    services: counts.get(String(c._id)) ?? 0,
+    updatedAt: c.updatedAt.toISOString(),
+  });
+
+  /* "Barbería" siempre existe (RN-01): es la categoría por defecto de los servicios nuevos y de los huérfanos. */
+  async function defaultCategory(b) {
+    const last = await ServiceCategory.findOne({ businessId: b._id }).sort({ order: -1 }).lean();
+    return ServiceCategory.findOneAndUpdate(
+      { businessId: b._id, slug: DEFAULT_CATEGORY.slug },
+      { $setOnInsert: { businessId: b._id, slug: DEFAULT_CATEGORY.slug, name: DEFAULT_CATEGORY.name, note: '', order: last ? -1 : 0 } },
+      { upsert: true, new: true }
+    ).lean();
+  }
+
+  async function categoryList(b) {
+    await defaultCategory(b);
+    const [cats, counts] = await Promise.all([
+      ServiceCategory.find({ businessId: b._id }).sort({ order: 1, createdAt: 1 }).lean(),
+      Service.aggregate([{ $match: { businessId: b._id, archivedAt: null } }, { $group: { _id: '$categoryId', n: { $sum: 1 } } }]),
+    ]);
+    const def = cats.find((c) => c.slug === DEFAULT_CATEGORY.slug);
+    const map = new Map();
+    for (const c of counts) {
+      const key = c._id && cats.some((x) => String(x._id) === String(c._id)) ? String(c._id) : String(def?._id);
+      map.set(key, (map.get(key) ?? 0) + c.n);
+    }
+    return cats.map((c) => serializeCategory(c, map));
+  }
+
+  async function listCategories(user) {
+    const b = await ctx(user);
+    return { items: await categoryList(b) };
+  }
+
+  /* CB-08: acepta el _id o el slug de una categoría del negocio. */
+  async function resolveCategory(b, raw) {
+    const v = String(raw ?? '').trim();
+    const _id = oid(v);
+    const c = v ? await ServiceCategory.findOne({ businessId: b._id, ...(_id ? { _id } : { slug: v }) }).lean() : null;
+    if (!c) throw fieldError({ categoryId: 'invalid_category' }, 'Esa categoría no existe. Elige una de la lista.');
+    return c;
+  }
+
+  function validateCategory(body, { partial = false } = {}) {
+    const fields = {};
+    const out = {};
+    if (!partial || body.name !== undefined) {
+      const n = cleanName(body.name);
+      if (n.length < 2 || n.length > 40) fields.name = 'invalid_name';
+      else out.name = n;
+    }
+    if (body.note !== undefined) {
+      const t = String(body.note ?? '').trim();
+      if (t.length > 200) fields.note = 'too_long';
+      else out.note = t;
+    }
+    if (Object.keys(fields).length) throw fieldError(fields, fields.name ? 'El nombre de la categoría tiene que tener entre 2 y 40 letras' : 'La nota puede tener hasta 200 caracteres');
+    return out;
+  }
+
+  async function createCategory(user, body = {}) {
+    const b = await ctx(user);
+    const data = validateCategory(body);
+    await defaultCategory(b);
+    const base = slugify(data.name);
+    let slug = base;
+    for (let i = 2; await ServiceCategory.exists({ businessId: b._id, slug }); i++) slug = `${base}-${i}`;
+    const last = await ServiceCategory.findOne({ businessId: b._id }).sort({ order: -1 }).lean();
+    const c = await ServiceCategory.create({ businessId: b._id, slug, note: '', order: (last?.order ?? -1) + 1, ...data });
+    await audit(user, b, 'service.category.create', { entity: 'service_category', entityId: c._id, summary: c.name, after: { name: c.name, note: c.note } });
+    return { category: serializeCategory(c.toObject()) };
+  }
+
+  async function updateCategory(user, id, body = {}) {
+    const b = await ctx(user);
+    const _id = oid(id);
+    const current = _id ? await ServiceCategory.findOne({ _id, businessId: b._id }).lean() : null;
+    if (!current) throw new HttpError(404, 'not_found', 'No encontramos esa categoría');
+    const data = validateCategory(body, { partial: true });
+    const updated = await ServiceCategory.findByIdAndUpdate(current._id, { $set: data }, { new: true }).lean();
+    await audit(user, b, 'service.category.update', { entity: 'service_category', entityId: current._id, summary: updated.name, before: { name: current.name, note: current.note || '' }, after: { name: updated.name, note: updated.note || '' } });
+    return { category: serializeCategory(updated) };
+  }
+
+  /* body.ids = todos los _id de las categorías, en el orden nuevo. */
+  async function reorderCategories(user, body = {}) {
+    const b = await ctx(user);
+    const cats = await ServiceCategory.find({ businessId: b._id }).sort({ order: 1, createdAt: 1 }).lean();
+    const ids = Array.isArray(body.ids) ? body.ids.map(String) : [];
+    const known = new Set(cats.map((c) => String(c._id)));
+    if (ids.length !== cats.length || new Set(ids).size !== ids.length || ids.some((x) => !known.has(x))) throw fieldError({ ids: 'invalid' }, 'El orden tiene que incluir todas las categorías una vez');
+    for (const [i, x] of ids.entries()) await ServiceCategory.updateOne({ _id: new ObjectId(x) }, { $set: { order: i } });
+    const name = new Map(cats.map((c) => [String(c._id), c.name]));
+    await audit(user, b, 'service.category.reorder', { entity: 'service_category', summary: ids.map((x) => name.get(x)).join(' → '), before: { order: cats.map((c) => c.name) }, after: { order: ids.map((x) => name.get(x)) } });
+    return { items: await categoryList(b) };
+  }
+
+  /* CB-06: una categoría con servicios (activos o inactivos, no archivados) no se borra. "Barbería" tampoco: es la
+     categoría por defecto (RN-01). Los archivados que quedaban en ella pasan a "Barbería". */
+  async function removeCategory(user, id) {
+    const b = await ctx(user);
+    const _id = oid(id);
+    const current = _id ? await ServiceCategory.findOne({ _id, businessId: b._id }).lean() : null;
+    if (!current) throw new HttpError(404, 'not_found', 'No encontramos esa categoría');
+    if (current.slug === DEFAULT_CATEGORY.slug) throw new HttpError(409, 'default_category', `"${current.name}" es la categoría por defecto: no se puede borrar.`);
+    if (await Service.exists({ businessId: b._id, categoryId: current._id, archivedAt: null })) throw new HttpError(409, 'category_in_use', 'Mueve o archiva sus servicios antes de borrar la categoría');
+    const def = await defaultCategory(b);
+    await Service.updateMany({ businessId: b._id, categoryId: current._id }, { $set: { categoryId: def._id } });
+    await ServiceCategory.deleteOne({ _id: current._id });
+    await audit(user, b, 'service.category.delete', { entity: 'service_category', entityId: current._id, summary: current.name, before: { name: current.name, note: current.note || '' } });
+    return { result: 'deleted' };
   }
 
   /* CB-06: precio entero > 0; duración 5–240 múltiplo de 5. Devuelve los campos válidos. */
@@ -844,14 +969,16 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
     const base = body.id ? slugify(String(body.id)) : slugify(data.name);
     let slug = base;
     for (let i = 2; await Service.exists({ businessId: b._id, slug }); i++) slug = `${base}-${i}`;
+    /* SPEC-51 RN-01: sin categoría en el body → "Barbería". */
+    const cat = body.categoryId !== undefined && body.categoryId !== null && body.categoryId !== '' ? await resolveCategory(b, body.categoryId) : await defaultCategory(b);
     const last = await Service.findOne({ businessId: b._id }).sort({ order: -1 }).lean();
-    const s = await Service.create({ businessId: b._id, slug, description: '', homeServiceAllowed: true, active: true, order: (last?.order ?? -1) + 1, ...data });
+    const s = await Service.create({ businessId: b._id, slug, description: '', homeServiceAllowed: true, active: true, order: (last?.order ?? -1) + 1, ...data, categoryId: cat._id });
     await audit(user, b, 'service.create', { entity: 'service', entityId: s._id, summary: `${s.name} · $${s.priceCLP} · ${s.durationMin} min`, after: serializeService(s.toObject()) });
     return { service: serializeService(s.toObject()) };
   }
 
-  const AUDIT_FIELDS = ['name', 'description', 'priceCLP', 'durationMin', 'homeServiceAllowed', 'active', 'order', 'archived'];
-  const pick = (s) => Object.fromEntries(AUDIT_FIELDS.map((k) => [k, k === 'archived' ? Boolean(s.archivedAt) : s[k]]));
+  const AUDIT_FIELDS = ['name', 'description', 'priceCLP', 'durationMin', 'homeServiceAllowed', 'active', 'order', 'archived', 'categoryId'];
+  const pick = (s) => Object.fromEntries(AUDIT_FIELDS.map((k) => [k, k === 'archived' ? Boolean(s.archivedAt) : k === 'categoryId' ? (s.categoryId ? String(s.categoryId) : null) : s[k]]));
 
   async function updateService(user, id, body = {}) {
     const b = await ctx(user);
@@ -859,6 +986,7 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
     const current = _id ? await Service.findOne({ _id, businessId: b._id }).lean() : null;
     if (!current) throw new HttpError(404, 'not_found', 'No encontramos ese servicio');
     const data = validateService(body, { partial: true });
+    if (body.categoryId !== undefined) data.categoryId = (await resolveCategory(b, body.categoryId))._id;
     if (body.archived === false) Object.assign(data, { archivedAt: null, active: true });
     if (body.archived === true) Object.assign(data, { archivedAt: new Date(clock()), active: false });
     /* CB-09: control de versión con updatedAt; la otra pestaña recibe 409. */
@@ -870,7 +998,8 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
     const updated = await Service.findOneAndUpdate({ _id: current._id, updatedAt: current.updatedAt }, { $set: data }, { new: true }).lean();
     if (!updated) throw new HttpError(409, 'stale', 'Este servicio cambió mientras lo editabas. Recarga para ver la versión actual.');
     /* RN-04: un cambio de precio NO toca las citas existentes (llevan su precio congelado). */
-    await audit(user, b, current.priceCLP !== updated.priceCLP ? 'service.price' : 'service.update', { entity: 'service', entityId: current._id, summary: updated.name, before: pick(current), after: pick(updated) });
+    const action = current.priceCLP !== updated.priceCLP ? 'service.price' : String(current.categoryId ?? '') !== String(updated.categoryId ?? '') ? 'service.category' : 'service.update';
+    await audit(user, b, action, { entity: 'service', entityId: current._id, summary: updated.name, before: pick(current), after: pick(updated) });
     if (warnings.length) await adminInbox?.notify({ kind: 'barber_unbookable', title: `${warnings.join(', ')} ya no ${warnings.length === 1 ? 'es reservable' : 'son reservables'}`, body: `"${updated.name}" era su único servicio activo.`, path: 'barberos/', email: false });
     return { service: serializeService(updated), unbookableBarbers: warnings };
   }
@@ -899,9 +1028,13 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
   async function exportContent(user) {
     const b = await ctx(user);
     const services = await Service.find({ businessId: b._id, active: true }).sort({ order: 1 }).lean();
+    /* SPEC-51: services.json lleva las categorías y la de cada servicio (mismo formato que el archivo del repo). */
+    const cats = await categoriesOf(b._id);
+    const { slugOf } = categoryView(cats, services);
     await audit(user, b, 'content.export', { entity: 'business', summary: `${services.length} servicios` });
     return {
-      services: services.map((s) => ({ id: s.slug, name: s.name, description: s.description || '', priceCLP: s.priceCLP, durationMin: s.durationMin })),
+      categories: cats.map((c) => ({ id: c.slug, name: c.name, note: c.note || '' })),
+      services: services.map((s) => ({ id: s.slug, name: s.name, description: s.description || '', priceCLP: s.priceCLP, durationMin: s.durationMin, category: slugOf(s), ...(s.homeServiceAllowed === false ? { homeServiceAllowed: false } : {}) })),
       hours: weekToSiteRows(entriesToWeek(b.hours)),
     };
   }
@@ -1005,11 +1138,15 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
       paymentFeePercent: rates.paymentFeePercent,
       paymentFeeVat: rates.paymentFeeVat,
       rules: Object.fromEntries(Object.keys(RULE_LIMITS).map((k) => [k, b.settings?.[k]])),
+      /* SPEC-60: venta de gift cards en línea (apagada por defecto) y vigencia por defecto. */
+      giftCards: { onlineEnabled: Boolean(b.giftCards?.onlineEnabled), validityMonths: b.giftCards?.validityMonths ?? 12 },
+      /* SPEC-54: lista de espera de días llenos (ausente = encendida). */
+      waitlist: b.settings?.waitlistEnabled !== false,
       limits: { rules: RULE_LIMITS, platformFeePercent: [0, MAX_FEE_PERCENT], paymentFeePercent: [0, MAX_PAYMENT_FEE_PERCENT] },
     };
   }
 
-  const ALLOWED_SETTINGS = new Set(['payments', 'platformFeePercent', 'paymentFeePercent', 'paymentFeeVat', 'rules']);
+  const ALLOWED_SETTINGS = new Set(['payments', 'platformFeePercent', 'paymentFeePercent', 'paymentFeeVat', 'rules', 'giftCards', 'waitlist']);
   /* % con hasta 2 decimales dentro de [0, max]. */
   const validPercent = (v, max) => typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= max && Math.abs(Math.round(v * 100) - v * 100) <= 1e-6;
 
@@ -1046,6 +1183,10 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
       if (typeof body.paymentFeeVat !== 'boolean') fields.paymentFeeVat = 'invalid';
       else fee.paymentFeeVat = body.paymentFeeVat;
     }
+    if (body.waitlist !== undefined) {
+      if (typeof body.waitlist !== 'boolean') fields.waitlist = 'invalid';
+      else set['settings.waitlistEnabled'] = body.waitlist;
+    }
     if (body.rules !== undefined) {
       for (const [k, v] of Object.entries(body.rules || {})) {
         const lim = RULE_LIMITS[k];
@@ -1054,13 +1195,21 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
         else set[`settings.${k}`] = v;
       }
     }
+    if (body.giftCards !== undefined) {
+      if (!giftCards || typeof body.giftCards !== 'object' || body.giftCards === null) fields.giftCards = 'invalid';
+      else {
+        const g = await giftCards.setSettings(b, body.giftCards);
+        Object.assign(fields, g.fields);
+        Object.assign(set, g.set);
+      }
+    }
     if (Object.keys(fields).length) throw fieldError(fields, fields['payments.local'] === 'one_required' ? 'Deja al menos una forma de pago habilitada' : 'Revisa los valores');
     const before = await getSettings(user);
     if (Object.keys(set).length) await Business.updateOne({ _id: b._id }, { $set: set });
     /* RN-08: la comisión se congela en cada cita nueva; cambiarla no toca las existentes. */
     if (Object.keys(fee).length) await PlatformSettings.updateOne({ key: 'default' }, { $set: fee }, { upsert: true });
     const after = await getSettings(user);
-    const strip = (x) => ({ payments: x.payments, platformFeePercent: x.platformFeePercent, paymentFeePercent: x.paymentFeePercent, paymentFeeVat: x.paymentFeeVat, rules: x.rules });
+    const strip = (x) => ({ payments: x.payments, platformFeePercent: x.platformFeePercent, paymentFeePercent: x.paymentFeePercent, paymentFeeVat: x.paymentFeeVat, rules: x.rules, giftCards: x.giftCards, waitlist: x.waitlist });
     await audit(user, b, 'settings.update', { entity: 'settings', summary: 'Configuración', before: strip(before), after: strip(after) });
     return after;
   }
@@ -1132,6 +1281,11 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
     createService,
     updateService,
     removeService,
+    listCategories,
+    createCategory,
+    updateCategory,
+    reorderCategories,
+    removeCategory,
     exportContent,
     schedule,
     setHours,

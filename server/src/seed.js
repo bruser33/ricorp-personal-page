@@ -19,6 +19,8 @@ import {
   Professional,
   ProfessionalService,
   Service,
+  ServiceCategory,
+  DEFAULT_CATEGORY,
   User,
 } from './models/index.js';
 import { DEFAULTS_MIGRATION, ensurePlatformDefaults } from './domain/pricing.js';
@@ -68,8 +70,33 @@ export const DEMO_PROS = [
   },
 ];
 
-/* SPEC-34 RN-06: negocio + carta + horario desde los JSON. Idempotente por `id`. */
-export async function importCatalog({ site, services, slug = 'ws-style', location = [-70.6506, -33.4378], fees = null }) {
+/* SPEC-51: services.json es { categories, services }. Se acepta también el formato antiguo (un array de servicios,
+   sin categorías: todo cae en "Barbería"). */
+export function normalizeCatalogJson(raw) {
+  if (Array.isArray(raw)) return { categories: [], services: raw };
+  return { categories: Array.isArray(raw?.categories) ? raw.categories : [], services: Array.isArray(raw?.services) ? raw.services : [] };
+}
+
+/* SPEC-51 RN-04: categorías por slug. Si existen no se tocan (nombre/nota/orden los edita el super admin). "Barbería"
+   siempre existe: es la categoría de los servicios sin categoría (RN-01). */
+async function importCategories(business, categories = []) {
+  const list = categories.filter((c) => c?.id && c?.name);
+  if (!list.some((c) => c.id === DEFAULT_CATEGORY.slug)) list.unshift({ id: DEFAULT_CATEGORY.slug, name: DEFAULT_CATEGORY.name, note: '' });
+  const bySlug = new Map();
+  for (const [i, c] of list.entries()) {
+    const doc = await ServiceCategory.findOneAndUpdate(
+      { businessId: business._id, slug: c.id },
+      { $setOnInsert: { businessId: business._id, slug: c.id, name: c.name, note: c.note || '', order: i } },
+      { upsert: true, new: true }
+    );
+    bySlug.set(c.id, doc);
+  }
+  return bySlug;
+}
+
+/* SPEC-34 RN-06 + SPEC-51 RN-04: negocio + categorías + carta + horario desde los JSON. Idempotente por `id`/slug:
+   lo que ya existe no se toca (precio, duración, nombre, activo/archivado editados en el panel se respetan). */
+export async function importCatalog({ site, services, categories = [], slug = 'ws-style', location = [-70.6506, -33.4378], fees = null }) {
   const business = await Business.findOneAndUpdate(
     { slug },
     {
@@ -84,7 +111,25 @@ export async function importCatalog({ site, services, slug = 'ws-style', locatio
     },
     { upsert: true, new: true, setDefaultsOnInsert: true }
   );
+  const carta = await importCarta(business, { services, categories });
+  /* SPEC-38 RN-09: administración 10 % y Mercado Pago 3,19 % + IVA por defecto (idempotente). `fees`
+     fija valores exactos (lo usan los tests heredados, que siembran 0 % para aislar sus montos). */
+  if (fees) {
+    await PlatformSettings.updateOne(
+      { key: 'default' },
+      { $set: { defaultPlatformFeeRate: fees.platformFeeRate ?? 0, paymentFeeRate: fees.paymentFeeRate ?? 0, paymentFeeVat: fees.paymentFeeVat ?? true, appliedDefaults: [DEFAULTS_MIGRATION] } },
+      { upsert: true }
+    );
+  } else await ensurePlatformDefaults();
+  return { business, ...carta };
+}
+
+/* SPEC-51: categorías + servicios de la carta (sin tocar los datos del negocio). Idempotente por slug. */
+export async function importCarta(business, { services = [], categories = [] } = {}) {
+  const cats = await importCategories(business, categories);
+  const fallbackCat = cats.get(DEFAULT_CATEGORY.slug);
   const svcDocs = [];
+  const inserted = [];
   let created = 0;
   for (const [i, s] of services.entries()) {
     if (!s?.id) continue;
@@ -102,27 +147,46 @@ export async function importCatalog({ site, services, slug = 'ws-style', locatio
           active: true,
           order: i,
           homeServiceAllowed: s.homeServiceAllowed !== false,
+          categoryId: (cats.get(s.category) ?? fallbackCat)._id,
         },
       },
       { upsert: true, new: true }
     );
-    if (!before) created++;
+    if (!before) {
+      created++;
+      inserted.push(doc);
+    }
     svcDocs.push(doc);
   }
-  /* SPEC-38 RN-09: administración 10 % y Mercado Pago 3,19 % + IVA por defecto (idempotente). `fees`
-     fija valores exactos (lo usan los tests heredados, que siembran 0 % para aislar sus montos). */
-  if (fees) {
-    await PlatformSettings.updateOne(
-      { key: 'default' },
-      { $set: { defaultPlatformFeeRate: fees.platformFeeRate ?? 0, paymentFeeRate: fees.paymentFeeRate ?? 0, paymentFeeVat: fees.paymentFeeVat ?? true, appliedDefaults: [DEFAULTS_MIGRATION] } },
-      { upsert: true }
-    );
-  } else await ensurePlatformDefaults();
-  return { business, services: svcDocs, created };
+  /* RN-04: solo los servicios sin categoría (datos anteriores a SPEC-51) pasan a "Barbería". */
+  await Service.updateMany({ businessId: business._id, categoryId: null }, { $set: { categoryId: fallbackCat._id } });
+  /* Asunción 3: los servicios creados en ESTA corrida se enlazan a los barberos aprobados (upsert, sin duplicados).
+     Los que ya existían no se re-enlazan: así no se deshace un "desmarcar" del barbero (CB-09). */
+  if (inserted.length) {
+    const approved = await Membership.find({ businessId: business._id, status: 'approved' }, { professionalId: 1 }).lean();
+    for (const m of approved) {
+      for (const s of inserted) await ProfessionalService.updateOne({ businessId: business._id, professionalId: m.professionalId, serviceId: s._id }, {}, { upsert: true });
+    }
+  }
+  return { services: svcDocs, categories: [...cats.values()], created };
 }
 
-export async function seedBusiness({ site, services, pros = DEMO_PROS, slug = 'ws-style', location = [-70.6506, -33.4378], fees = null }) {
-  const { business, services: svcDocs } = await importCatalog({ site, services, slug, location, fees });
+/* SPEC-51: la carta nueva se carga UNA vez al arrancar el server (Render no corre `npm run seed:catalog`). Queda
+   marcada en PlatformSettings.appliedDefaults: correrla de nuevo no hace nada, así no revive un servicio o una
+   categoría que Joe borre después. Solo si el negocio ya existe; no toca nombre, contacto ni horario. */
+export const CARTA_MIGRATION = 'spec51-carta';
+export async function ensureCartaMigration({ slug = 'ws-style', content } = {}) {
+  const business = await Business.findOne({ slug });
+  if (!business) return { applied: false, reason: 'no_business' };
+  if (await PlatformSettings.exists({ key: 'default', appliedDefaults: CARTA_MIGRATION })) return { applied: false, reason: 'done' };
+  const { services, categories } = content ?? readContent();
+  const r = await importCarta(business, { services, categories });
+  await PlatformSettings.updateOne({ key: 'default' }, { $addToSet: { appliedDefaults: CARTA_MIGRATION } }, { upsert: true });
+  return { applied: true, created: r.created, services: r.services.length, categories: r.categories.length };
+}
+
+export async function seedBusiness({ site, services, categories = [], pros = DEMO_PROS, slug = 'ws-style', location = [-70.6506, -33.4378], fees = null }) {
+  const { business, services: svcDocs } = await importCatalog({ site, services, categories, slug, location, fees });
   const proDocs = [];
   for (const [i, p] of pros.entries()) {
     let user = await User.findOne({ email: p.email });
@@ -148,7 +212,7 @@ export async function seedBusiness({ site, services, pros = DEMO_PROS, slug = 'w
 export function readContent(dir = resolve(import.meta.dirname, '../../client/public/wstyle/content')) {
   return {
     site: JSON.parse(readFileSync(resolve(dir, 'site.json'), 'utf8')),
-    services: JSON.parse(readFileSync(resolve(dir, 'services.json'), 'utf8')),
+    ...normalizeCatalogJson(JSON.parse(readFileSync(resolve(dir, 'services.json'), 'utf8'))),
   };
 }
 
@@ -157,10 +221,10 @@ if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
   await import('dotenv/config');
   const mongoose = (await import('mongoose')).default;
   await mongoose.connect(process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/pagina_personal');
-  for (const m of [Business, Service, Professional, Membership, ProfessionalService, AvailabilityRule, User]) await m.syncIndexes();
+  for (const m of [Business, ServiceCategory, Service, Professional, Membership, ProfessionalService, AvailabilityRule, User]) await m.syncIndexes();
   if (process.argv.includes('--catalog')) {
-    const { business, services, created } = await importCatalog(readContent());
-    console.log(`[seed] ${business.name}: carta con ${services.length} servicios (${created} nuevos; los existentes no se tocan)`);
+    const { business, services, categories, created } = await importCatalog(readContent());
+    console.log(`[seed] ${business.name}: carta con ${categories.length} categorías y ${services.length} servicios (${created} nuevos; los existentes no se tocan)`);
   } else {
     const { business, services, pros } = await seedBusiness(readContent());
     console.log(`[seed] ${business.name}: ${services.length} servicios, ${pros.length} barberos de demostración`);
