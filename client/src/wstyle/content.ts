@@ -131,9 +131,9 @@ export interface LandingCatalog {
 // filas; del contacto solo teléfono y WhatsApp (dirección, mapa y textos siguen en site.json, asunción 9).
 export function mergeCatalog(content: Content, catalog: LandingCatalog | null): Content {
   if (!catalog || !Array.isArray(catalog.services)) return content;
-  const services: Service[] = catalog.services.map((s) => ({ id: s.id, name: s.name, description: s.description ?? '', priceCLP: s.priceCLP, durationMin: s.durationMin, ...(s.category ? { category: s.category } : {}) }));
-  // SPEC-51: las categorías (nombre, nota y orden) también mandan desde la BD; una API sin categorías deja las del JSON
-  // (sus servicios, sin categoría, caen en "Barbería").
+  // Una API anterior a SPEC-51 no conoce la carta agrupada publicada.
+  const legacyCatalog = !Array.isArray(catalog.categories) && Boolean(content.categories?.length);
+  const services: Service[] = legacyCatalog ? content.services : catalog.services.map((s) => ({ id: s.id, name: s.name, description: s.description ?? '', priceCLP: s.priceCLP, durationMin: s.durationMin, ...(s.category ? { category: s.category } : {}) }));
   const categories = Array.isArray(catalog.categories) ? catalog.categories : content.categories;
   const site: SiteContent = { ...content.site };
   const rows = catalog.business?.hoursRows;
