@@ -24,6 +24,8 @@ import { createPayments, WEBHOOK_PATH } from './domain/payments.js';
 import { createBilling } from './domain/billing.js';
 import { createTaxDocumentProvider } from './lib/taxDocuments.js';
 import { handle } from './lib/errors.js';
+import { createWaitlist } from './domain/waitlist.js';
+import { createWaitlistRouters } from './routes/waitlist.js';
 
 /* La app SIN listen ni connect: index.js conecta Mongo y escucha, y los tests
    (server/test/contact.test.js) la levantan en un puerto efímero con su
@@ -233,6 +235,9 @@ export function createApp({
   const reviewLimiter = createRateLimiter(reviewRateLimit);
   /* Super admin (SPEC-34). */
   const admin = createAdmin({ agenda, pro, clock, mailer: agendaMailer, logger, frontUrl, env, adminInbox, onlinePayments, payments, billing, reviews });
+  /* Lista de espera de días llenos (SPEC-54): se engancha a la agenda (liberaciones y reservas). */
+  const waitlist = createWaitlist({ agenda, pro, admin, clock, mailer: agendaMailer, logger, frontUrl, adminInbox });
+  const waitlistRouters = createWaitlistRouters({ waitlist, logger, bookingLimiter });
   /* RN-26 + SPEC-52 RN-12: al eliminar la cuenta se cancelan sus citas futuras y se ocultan sus reseñas. */
   const onAccountDeleted = async (user) => {
     await agenda.onAccountDeleted(user);
@@ -249,6 +254,9 @@ export function createApp({
       if (!res.headersSent) res.status(500).json({ ok: false, error: 'server_error' });
     });
   });
+  app.use('/api/wstyle/waitlist', needsDb, withSession, waitlistRouters.client);
+  app.use('/api/pro/waitlist', needsDb, withSession, waitlistRouters.pro);
+  app.use('/api/admin/waitlist', needsDb, withSession, waitlistRouters.admin);
   app.use('/api/wstyle', needsDb, withSession, createWstyleRouter({ agenda, payments, reviews, logger, bookingLimiter, reviewLimiter }));
   /* Webhook de Mercado Pago: público (lo llama Mercado Pago, sin Origin ni cookie); la
      autenticidad la da la firma x-signature. */
@@ -258,7 +266,7 @@ export function createApp({
   }, logger));
   app.use('/api/pro', needsDb, withSession, createProRouter({ pro, env, clock, mailer: agendaMailer, logger, frontUrl, loginLimiter: authRouter.loginLimiter, billing }));
   app.use('/api/admin', needsDb, withSession, createAdminRouter({ admin, logger }));
-  Object.assign(app.locals, { agenda, pro, admin, payments, billing, reviews, agendaMailer, bookingLimiter, reviewLimiter, loginLimiter: authRouter.loginLimiter });
+  Object.assign(app.locals, { agenda, pro, admin, waitlist, payments, billing, reviews, agendaMailer, bookingLimiter, reviewLimiter, loginLimiter: authRouter.loginLimiter });
 
   app.get('/api/health', (_req, res) => {
     /* 'unconfigured' y no 'dry-run' en Render: ahí sin mailer el envío es un 503,
