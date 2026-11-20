@@ -211,6 +211,12 @@
 .pro-pay__amount { font-variant-numeric: tabular-nums; white-space: nowrap; font-weight: 600; }
 .pro-pay__meta { margin: 6px 0 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; color: #b3ab9f; font-size: 14px; }
 .pro-pay .ag-link { margin-top: 8px; }
+/* SPEC-56: seña en la agenda del barbero y del admin. */
+.pro-block--pendiente_sena { background: #3a3024; border-color: #e2bf98; border-style: dotted; }
+.pro-card__deposit { margin: 4px 0; font-size: 13px; font-weight: 600; color: #e2bf98; }
+.pay-collect__rest { margin: 0 0 10px; padding: 8px 10px; border-left: 3px solid #8fbf8a; background: rgba(143, 191, 138, .1); font-weight: 600; }
+.pro-block__dep { display: block; font-size: 11px; color: #e2bf98; }
+
 
 /* SPEC-54: lista de espera (chip del día + hoja). Compartido con el admin. */
 .pro-wait-chip { display: inline-flex; align-items: center; gap: 3px; min-height: 26px; margin-top: 3px; padding: 2px 8px; border: 1px solid rgba(184, 135, 90, .6); border-radius: 999px;

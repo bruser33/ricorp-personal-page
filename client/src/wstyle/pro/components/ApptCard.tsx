@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { CollectFields } from '../../agenda/components/CollectFields';
 import { useCollect } from '../../agenda/useCollect';
+import { amountToCollect, depositTag, restLine } from '../../agenda/deposit';
 import { MotoIcon, Notice, StatusPill } from '../../agenda/components/ui';
 import { clp, localTime } from '../../agenda/util';
 import type { ProAppointment } from '../api';
@@ -46,6 +47,7 @@ export default function ApptCard({ appt, now, onChange, onOpen, reload }: {
           <h3 className="pro-card__name">{appt.customer.name}</h3>
           <StatusPill status={s} label={s === 'propuesta_cambio' ? 'Esperando respuesta del cliente' : appt.statusLabel} />
         </div>
+        {depositTag(appt.deposit, s) && <p className="pro-card__deposit" data-deposit-tag="">{depositTag(appt.deposit, s)}</p>}
         <p className="pro-card__service">{appt.service.name} · {appt.service.durationMin} min · {clp.format(appt.pricing.totalCLP)}{appt.giftCard ? ` · gift card −${clp.format(appt.pricing.giftCardCLP ?? 0)}` : ''}</p>
         {home ? (
           <p className="pro-card__where" data-home="">
@@ -73,8 +75,8 @@ export default function ApptCard({ appt, now, onChange, onOpen, reload }: {
             const c = col.check();
             if (c && (await run(appt.id, 'finish', { collected: true, ...c }))) setAskPaid(false);
           }}>
-            <p>Cobraste {clp.format(appt.pricing.dueCLP ?? appt.pricing.totalCLP)}{appt.giftCard ? ' (el resto lo cubrió una gift card)' : ''}.</p>
-            <CollectFields method={col.method} onMethod={col.setMethod} boleta={col.boleta} onBoleta={col.setBoleta} error={col.error} />
+            <p>Cobraste {clp.format(amountToCollect(appt.pricing, appt.deposit))}{appt.giftCard ? ' (el resto lo cubrió una gift card)' : ''}.</p>
+            <CollectFields method={col.method} onMethod={col.setMethod} boleta={col.boleta} onBoleta={col.setBoleta} error={col.error} rest={restLine(appt.deposit)} />
             <div className="pro-card__actions">
               <button type="submit" className="btn btn--primary" disabled={busy}>Terminar la cita</button>
               <button type="button" className="btn btn--ghost" disabled={busy} onClick={() => setAskPaid('ask')}>Volver</button>
@@ -82,7 +84,8 @@ export default function ApptCard({ appt, now, onChange, onOpen, reload }: {
           </form>
         ) : askPaid ? (
           <div className="pro-paid" role="group" aria-label="¿Cobraste?">
-            <p>¿Cobraste {clp.format(appt.pricing.dueCLP ?? appt.pricing.totalCLP)}?{appt.giftCard ? ` La gift card cubrió ${clp.format(appt.pricing.giftCardCLP ?? 0)}.` : ''}</p>
+            <p>¿Cobraste {clp.format(amountToCollect(appt.pricing, appt.deposit))}?{appt.giftCard ? ` La gift card cubrió ${clp.format(appt.pricing.giftCardCLP ?? 0)}.` : ''}</p>
+            {restLine(appt.deposit) && <p className="pay-collect__rest" data-deposit-rest="">{restLine(appt.deposit)}</p>}
             <div className="pro-card__actions">
               <button type="button" className="btn btn--primary" disabled={busy} onClick={() => setAskPaid('how')}>Sí</button>
               <button type="button" className="btn btn--ghost" disabled={busy} onClick={async () => { if (await run(appt.id, 'finish', { collected: false })) setAskPaid(false); }}>No, queda pendiente</button>

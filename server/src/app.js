@@ -25,6 +25,8 @@ import { createBilling } from './domain/billing.js';
 import { CHECK_LIMIT, createGiftCards, createKeyedLimiter } from './domain/giftcards.js';
 import { createTaxDocumentProvider } from './lib/taxDocuments.js';
 import { handle } from './lib/errors.js';
+import { createReceiptStore } from './lib/receipts.js';
+import { createDepositRule, createDeposits } from './domain/deposits.js';
 import { createWaitlist } from './domain/waitlist.js';
 import { createWaitlistRouters } from './routes/waitlist.js';
 
@@ -126,6 +128,10 @@ export function createApp({
   onlinePayments = null,
   /* Borde HTTP de Mercado Pago (servicio externo): los tests lo simulan; la BD siempre es real. */
   mercadoPagoFetch = fetch,
+  /* SPEC-56: almacenamiento de comprobantes (los tests usan el driver fs en un directorio temporal)
+     y aviso a la lista de espera (SPEC-54) cuando una seña libera la hora. */
+  receiptStore = null,
+  onSlotReleased = null,
   /* SPEC-60 RN-12: intentos de validar códigos de gift card por usuario + IP. */
   giftCardCheckLimit = CHECK_LIMIT,
 } = {}) {
@@ -215,6 +221,9 @@ export function createApp({
   const adminInbox = createAdminInbox({ mailer: agendaMailer, logger, env, frontUrl });
   /* SPEC-37: respaldo tributario de cada venta (SII_TAX_PROVIDER = voucher | manual). */
   const taxProvider = createTaxDocumentProvider(env, logger);
+  /* SPEC-56: seña por transferencia. Comprobantes fuera de Mongo (disco local o S3/R2). */
+  const receipts = receiptStore || createReceiptStore(env);
+  const depositRule = createDepositRule({ clock, storeReady: () => Boolean(receipts.configured) });
   /* Gift cards (SPEC-60): las usa la agenda (canje) y los pagos (compra en línea, gc:<id>). */
   const giftCards = createGiftCards({ env, clock, logger, mailer: agendaMailer, adminInbox, frontUrl, fetchImpl: mercadoPagoFetch, businessSlug: env.BUSINESS_SLUG || 'ws-style', taxProvider });
   const giftCardLimiter = createKeyedLimiter(giftCardCheckLimit, clock);
@@ -228,8 +237,11 @@ export function createApp({
     adminInbox,
     onlinePayments,
     taxProvider,
+    depositRule,
     giftCards,
   });
+  const deposits = createDeposits({ agenda, rule: depositRule, store: receipts, clock, logger, mailer: agendaMailer, adminInbox, frontUrl, onSlotReleased });
+  agenda.hooks.depositCreated = deposits.onCreated;
   /* Pago en línea (SPEC-35). */
   const payments = createPayments({ agenda, env, clock, logger, adminInbox, frontUrl, fetchImpl: mercadoPagoFetch, taxProvider, giftCards });
   /* Pagos en el panel y rendición mensual (SPEC-37). */
@@ -241,13 +253,15 @@ export function createApp({
   const reviews = createReviews({ agenda, clock, mailer: agendaMailer, logger, frontUrl, adminInbox });
   const reviewLimiter = createRateLimiter(reviewRateLimit);
   /* Super admin (SPEC-34). */
-  const admin = createAdmin({ agenda, pro, clock, mailer: agendaMailer, logger, frontUrl, env, adminInbox, onlinePayments, payments, billing, reviews, giftCards });
-  /* Lista de espera de días llenos (SPEC-54): se engancha a la agenda (liberaciones y reservas). */
+  const admin = createAdmin({ agenda, pro, clock, mailer: agendaMailer, logger, frontUrl, env, adminInbox, onlinePayments, payments, billing, deposits, reviews, giftCards });
+  /* Lista de espera de días llenos (SPEC-54): se engancha a la agenda (liberaciones y reservas). Una seña
+     vencida o rechazada (SPEC-56) libera la hora vía agenda.mutate, así que también avisa a la lista. */
   const waitlist = createWaitlist({ agenda, pro, admin, clock, mailer: agendaMailer, logger, frontUrl, adminInbox });
   const waitlistRouters = createWaitlistRouters({ waitlist, logger, bookingLimiter });
-  /* RN-26 + SPEC-52 RN-12: al eliminar la cuenta se cancelan sus citas futuras y se ocultan sus reseñas. */
+  /* RN-26 + SPEC-52 RN-12 + SPEC-56: al eliminar la cuenta se cancelan sus citas futuras, sus señas y se ocultan sus reseñas. */
   const onAccountDeleted = async (user) => {
     await agenda.onAccountDeleted(user);
+    await deposits.onAccountDeleted(user);
     await reviews.hideForUser(user._id).catch((err) => logger.error('[reseñas] ocultar por cuenta eliminada:', err.message));
   };
   const authRouter = createAuthRouter({ env, clock, mailer: agendaMailer, logger, facebook, google, frontUrl, secret, loginLimit, onAccountDeleted, onBarberFacebook: pro.ensureBarber });
@@ -264,7 +278,7 @@ export function createApp({
   app.use('/api/wstyle/waitlist', needsDb, withSession, waitlistRouters.client);
   app.use('/api/pro/waitlist', needsDb, withSession, waitlistRouters.pro);
   app.use('/api/admin/waitlist', needsDb, withSession, waitlistRouters.admin);
-  app.use('/api/wstyle', needsDb, withSession, createWstyleRouter({ agenda, payments, reviews, logger, bookingLimiter, reviewLimiter, giftCards, giftCardLimiter }));
+  app.use('/api/wstyle', needsDb, withSession, createWstyleRouter({ agenda, payments, deposits, reviews, logger, bookingLimiter, reviewLimiter, giftCards, giftCardLimiter }));
   /* Webhook de Mercado Pago: público (lo llama Mercado Pago, sin Origin ni cookie); la
      autenticidad la da la firma x-signature. */
   app.post(WEBHOOK_PATH, needsDb, handle(async (req, res) => {
@@ -273,7 +287,7 @@ export function createApp({
   }, logger));
   app.use('/api/pro', needsDb, withSession, createProRouter({ pro, env, clock, mailer: agendaMailer, logger, frontUrl, loginLimiter: authRouter.loginLimiter, billing }));
   app.use('/api/admin', needsDb, withSession, createAdminRouter({ admin, logger, giftCards }));
-  Object.assign(app.locals, { agenda, pro, admin, waitlist, payments, billing, reviews, giftCards, giftCardLimiter, agendaMailer, bookingLimiter, reviewLimiter, loginLimiter: authRouter.loginLimiter });
+  Object.assign(app.locals, { agenda, pro, admin, waitlist, payments, billing, deposits, receipts, reviews, giftCards, giftCardLimiter, agendaMailer, bookingLimiter, reviewLimiter, loginLimiter: authRouter.loginLimiter });
 
   app.get('/api/health', (_req, res) => {
     /* 'unconfigured' y no 'dry-run' en Render: ahí sin mailer el envío es un 503,

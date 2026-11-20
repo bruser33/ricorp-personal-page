@@ -1,6 +1,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { groupByCategory } from '../../content';
-import { agenda, API_BASE, ApiError, auth, giftCards, type Appointment, type Catalog, type Quote, type Slot } from '../api';
+import { agenda, API_BASE, ApiError, auth, giftCards, type Appointment, type Catalog, type DepositPreview, type Quote, type Slot } from '../api';
+import { DepositNotice } from '../components/DepositBox';
 import type { AgendaCtx } from '../ctx';
 import AuthPanel from '../components/AuthPanel';
 import PriceBreakdown from '../components/PriceBreakdown';
@@ -50,6 +51,9 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
   const [busy, setBusy] = useState(false);
   const [phone, setPhone] = useState('');
   const [accept, setAccept] = useState(false);
+  // SPEC-56: seña por transferencia (solo si el local la pide a este cliente y paga en el local).
+  const [depositInfo, setDepositInfo] = useState<DepositPreview | null>(null);
+  const [acceptDeposit, setAcceptDeposit] = useState(false);
   const [website, setWebsite] = useState('');
   // SPEC-34 RN-08: formas de pago que habilitó el admin (sin datos del catálogo: solo en el local).
   const [payPick, setPayPick] = useState<'local' | 'online' | null>(null);
@@ -217,6 +221,21 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
     }
   }
 
+  // SPEC-56: en el paso 4, ¿esta hora pide seña? (el server decide según la regla del local y el historial del cliente).
+  const depositOn = Boolean(catalog?.business.deposit?.enabled);
+  useEffect(() => {
+    if (step !== 4 || !depositOn || pay !== 'local' || !user || !sel.startsAt) return;
+    let alive = true;
+    // Otra hora / servicio / barbero → otra seña: la casilla se vuelve a marcar.
+    Promise.resolve().then(() => { if (alive) { setDepositInfo(null); setAcceptDeposit(false); } });
+    agenda.depositPreview({ serviceId: sel.serviceId, professionalId: sel.professionalId, startsAt: sel.startsAt, mode })
+      .then((r) => alive && setDepositInfo(r))
+      .catch(() => alive && setDepositInfo(null));
+    return () => { alive = false; };
+  }, [step, depositOn, pay, user, sel.serviceId, sel.professionalId, sel.startsAt, mode]);
+  // SPEC-60: con gift card no se pide seña (el server tampoco la exige).
+  const needsDeposit = pay === 'local' && depositOn && !gift && Boolean(depositInfo?.required);
+
   async function submit(e: FormEvent) {
     e.preventDefault();
     if (!user || busy) return;
@@ -225,6 +244,7 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
     if (needPhone && !clMobile(phone)) errs.phone = fieldMessage('invalid_phone');
     if ((sel.note ?? '').length > MAX_NOTE) errs.note = fieldMessage('too_long');
     if (!accept) errs.acceptPolicies = 'Debes aceptar las políticas para agendar.';
+    if (needsDeposit && !acceptDeposit) errs.acceptDeposit = 'Marca que entiendes las condiciones de la seña.';
     setErrors(errs);
     if (Object.values(errs).some(Boolean)) return;
     setBusy(true);
@@ -235,6 +255,7 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
         address: mode === 'home' ? sel.address : undefined, phone: needPhone ? phone : undefined, note: sel.note ?? '',
         acceptPolicies: accept, paymentMethod: covered ? (payments.local ? 'local' : 'online') : pay, idempotencyKey: idem.current, website,
         giftCardCode: gift?.code,
+        ...(needsDeposit ? { acceptDeposit } : {}),
         // SPEC-58: canal del link (sin UTM → el server guarda "directo").
         origin: sel.origin,
       });
@@ -250,6 +271,13 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
         } catch {
           location.assign(`/wstyle/cita/?id=${encodeURIComponent(r.id)}&pago=error`);
         }
+        return;
+      }
+      // SPEC-56: con seña, directo a la página de la cita ("Deja tu seña", con la cuenta regresiva).
+      if (r.appointment.status === 'pendiente_sena') {
+        setRedirecting(true);
+        saveSelection({});
+        location.assign(`/wstyle/cita/?id=${encodeURIComponent(r.id)}`);
         return;
       }
       setDone({ appt: r.appointment, mailOk: r.mailOk });
@@ -271,7 +299,13 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
       // SPEC-60 RN-05: otra reserva usó el saldo (o la tarjeta ya no vale): se quita y se avisa.
       if (err.code === 'giftcard_invalid' || err.code === 'giftcard_insufficient') { setGift(null); setGiftErr(err.message); return; }
       if (err.code === 'out_of_range' || err.code === 'address_not_found') { setQuote(null); setQuoteErr(err.message); setStep(3); return; }
-      if (Object.keys(err.fields).length) { setErrors(Object.fromEntries(Object.entries(err.fields).map(([k, v]) => [k, k === 'acceptPolicies' ? 'Debes aceptar las políticas para agendar.' : fieldMessage(v)]))); return; }
+      // La seña se pide pero el aviso no está en pantalla (falló la vista previa): se muestra el motivo y se reintenta.
+      if (err.fields.acceptDeposit && !needsDeposit) {
+        setSubmitError(err.message);
+        agenda.depositPreview({ serviceId: sel.serviceId, professionalId: sel.professionalId, startsAt: sel.startsAt, mode }).then(setDepositInfo, () => {});
+        return;
+      }
+      if (Object.keys(err.fields).length) { setErrors(Object.fromEntries(Object.entries(err.fields).map(([k, v]) => [k, k === 'acceptPolicies' ? 'Debes aceptar las políticas para agendar.' : k === 'acceptDeposit' ? 'Marca que entiendes las condiciones de la seña.' : fieldMessage(v)]))); return; }
       setSubmitError(err.message);
     } finally {
       setBusy(false);
@@ -518,6 +552,12 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
                     )}
                   </fieldset>
                   )}
+                  {needsDeposit && depositInfo && (
+                    depositInfo.tooSoon
+                      ? <Notice tone="error">Esta hora es muy pronto para pagar la seña. Elige otra{payments.online ? ' o paga en línea' : ''}.</Notice>
+                      : <DepositNotice amountCLP={depositInfo.amountCLP ?? 0} restCLP={depositInfo.restCLP ?? 0} minutes={depositInfo.minutes ?? 30} accepted={acceptDeposit} error={errors.acceptDeposit}
+                          onAccept={(v) => { setAcceptDeposit(v); setErrors((x) => ({ ...x, acceptDeposit: undefined })); }} />
+                  )}
                   <div className={`ag-field ag-check${errors.acceptPolicies ? ' has-error' : ''}`}>
                     <label>
                       <input type="checkbox" checked={accept} onChange={(e) => { setAccept(e.target.checked); setErrors((x) => ({ ...x, acceptPolicies: undefined })); }} aria-invalid={errors.acceptPolicies ? true : undefined} aria-describedby={errors.acceptPolicies ? 'ag-pol-err' : undefined} />
@@ -530,8 +570,8 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
                   {submitError && <Notice tone="error">{submitError}</Notice>}
                   <div className="ag-actions">
                     <button type="button" className="btn btn--ghost" onClick={() => setStep(3)}>Volver</button>
-                    <button className="btn btn--primary" disabled={busy || redirecting || giftBusy} aria-busy={busy || redirecting} data-pay={covered ? 'giftcard' : pay}>
-                      {redirecting ? 'Abriendo Mercado Pago…' : busy ? 'Agendando…' : covered ? 'Confirmar reserva' : pay === 'online' ? `Ir a pagar ${clp.format(due)}` : 'Agendar cita'}
+                    <button className="btn btn--primary" disabled={busy || redirecting || giftBusy || Boolean(needsDeposit && depositInfo?.tooSoon)} aria-busy={busy || redirecting} data-pay={covered ? 'giftcard' : pay}>
+                      {redirecting ? (needsDeposit ? 'Abriendo tu cita…' : 'Abriendo Mercado Pago…') : busy ? 'Agendando…' : covered ? 'Confirmar reserva' : pay === 'online' ? `Ir a pagar ${clp.format(due)}` : 'Agendar cita'}
                     </button>
                   </div>
                 </form>

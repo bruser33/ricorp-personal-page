@@ -6,6 +6,7 @@ import { admin, type RuleKey, type Settings } from '../api';
 import { Loaded } from '../components/common';
 import WaitlistSetting from '../components/WaitlistSetting';
 import { useLoad } from '../hooks';
+import DepositSettingsSection from '../components/DepositSettings';
 import { GiftSettings } from './GiftCardsPage';
 
 const RULES: { key: RuleKey; label: string; unit: string; hint: string }[] = [
@@ -25,6 +26,7 @@ export default function SettingsPage({ user }: { user: User }) {
     <>
       <h1 className="ag-h1">Configuración</h1>
       <Loaded state={st} label="Cargando la configuración…">{(s) => <><SettingsForm settings={s} onSaved={(n) => st.setData(n)} /><WaitlistSetting settings={s} onSaved={(n) => st.setData(n)} /></>}</Loaded>
+      <DepositSettingsSection />
       <GiftSettings />
       <Account user={user} />
     </>

@@ -206,6 +206,29 @@
 .pay-boleta { margin-top: 10px; }
 .pay-boleta input, .pay-collect input[inputmode] { max-width: 220px; }
 
+/* ─── SPEC-56: seña por transferencia */
+.ag-deposit-notice { margin: 18px 0; padding: 14px 16px; border: 1px solid var(--brass-line); border-left: 3px solid var(--brass); background: rgba(184, 135, 90, .06); }
+.ag-deposit-notice p { margin: 0 0 10px; line-height: 1.5; }
+.ag-deposit__chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 12px; }
+.ag-deposit__chips .ag-pill { font-weight: 600; letter-spacing: .04em; }
+.ag-deposit__timer { font-size: 17px; margin: 0 0 12px; }
+.ag-deposit__timer strong[data-countdown] { font-variant-numeric: tabular-nums; color: var(--brass); }
+.ag-deposit__label { margin: 16px 0 6px; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--brass); }
+.ag-deposit__code { display: flex; align-items: center; gap: 12px; margin: 0; font-family: Anton, Impact, sans-serif; font-size: 30px; letter-spacing: .08em; }
+.ag-deposit__bank dl { display: grid; gap: 6px; margin: 0 0 10px; }
+.ag-deposit__bank dl > div { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; border-bottom: 1px solid rgba(237, 230, 218, .08); }
+.ag-deposit__bank dt { color: rgba(237, 230, 218, .65); flex: none; }
+.ag-deposit__bank dd { margin: 0; display: flex; align-items: center; gap: 8px; text-align: right; overflow-wrap: anywhere; min-width: 0; }
+.ag-copy { min-height: 32px; padding: 0 10px; border: 1px solid var(--brass-line); border-radius: 999px; background: none; color: var(--brass); font: inherit; font-size: 13px; cursor: pointer; flex: none; }
+.ag-copy:hover { border-color: var(--brass); }
+.ag-deposit__preview { display: block; max-width: 100%; max-height: 260px; margin-top: 10px; border: 1px solid var(--brass-line); }
+.ag-deposit__amounts { margin: 6px 0 0; }
+@media (max-width: 480px) {
+  .ag-deposit__bank dl > div { flex-direction: column; align-items: flex-start; gap: 2px; }
+  .ag-deposit__bank dd { text-align: left; }
+  .ag-deposit__code { font-size: 26px; }
+}
+.ag-deposit__code .ag-copy { font-family: var(--font-body); font-size: 13px; letter-spacing: 0; }
 /* SPEC-54: lista de espera. Día lleno: tocable, con borde punteado latón (distinto de "Sin disp."). */
 .ag-cal__day.is-full { border-style: dashed; border-color: rgba(184, 135, 90, .55); background: rgba(184, 135, 90, .06); color: #d9cfc1; }
 .ag-cal__day.is-full.is-selected { background: var(--brass); border-style: solid; color: var(--ink); }
