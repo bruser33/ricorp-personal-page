@@ -25,6 +25,7 @@ const BusinessSchema = new Schema(
     location: PointSchema,
     /* weekday ISO 1..7; opens/closes null = cerrado. SPEC-34 RN-05: un día puede tener
        varios rangos (una entrada por rango, p.ej. 10–14 y 15–20). */
+    publicDetailsVersion: String,
     hours: [{ _id: false, weekday: Number, opens: String, closes: String }],
     /* Feriados / cierres del local: fechas locales 'YYYY-MM-DD' (una entrada por día; un
        cierre de varios días comparte `groupId`). */

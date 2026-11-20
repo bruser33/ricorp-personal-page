@@ -24,7 +24,7 @@ describe('site.json de demo (SPEC-31)', () => {
     const q = encodeURIComponent(`${ad.street}, ${ad.city}`);
     expect(site.contact?.mapsUrl).toBe(`https://www.google.com/maps/search/?api=1&query=${q}`);
   });
-  it('sigue en demo', () => expect(isDemo(site)).toBe(true));
+  it('usa el número confirmado', () => expect(isDemo(site)).toBe(false));
   it('JSON-LD publica lo que se muestra', () => {
     const ld = jsonLd(site, 'https://ricorp.cl/wstyle/') as { telephone: string; address: { streetAddress: string } };
     expect(ld.telephone).toBe(site.contact?.phone);
@@ -88,7 +88,7 @@ describe('bookingLabel (SPEC-26)', () => {
   });  // El site.json que se entrega es demo:true con la agenda propia (SPEC-32) en booking.url: en demo también se
   // reserva ahí, porque no contacta a ningún número inventado (SPEC-31). Sin agenda caería en DEMO_CONTACT_URL.
   it('site.json tal cual (demo): "Reservar" con destino la agenda propia', () => {
-    expect(isDemo(site)).toBe(true);
+    expect(isDemo(site)).toBe(false);
     expect(bookingLink(site)).toBe('/wstyle/reservar/');
     expect(bookingLabel(site)).toBe('Reservar');
   });

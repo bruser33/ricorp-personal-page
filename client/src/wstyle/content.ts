@@ -16,6 +16,7 @@ export interface SiteContent {
   stat?: { value?: string; label?: string; note?: string };
   marquee?: string[];
   booking?: { provider?: string; url?: string };
+  plans?: { id: string; name: string; subtitle: string; price: number; perks: string[] }[];
   membership?: { name?: string; priceCLP?: unknown; period?: string; perks?: string[]; note?: string };
   // Bloque que solo se publica con datos reales (enabled:true); mientras tanto no se muestra relleno. Las reseñas ya no
   // viven acá: salen de la BD (SPEC-52, reviews.ts).
@@ -88,7 +89,7 @@ export function buildChapters(site: SiteContent, hasReviews: boolean): Chapter[]
   const showBarbers = !!site.barbers?.enabled && (site.barbers.items ?? []).some((b) => str(b?.name));
   const list: [string, string, boolean][] = [
     ['hero', 'Inicio', true], ['reyes', 'El local', true], ['linea', 'El oficio', true], ['afilado', 'El espejo', true], ['trono', 'Tu trono', true],
-    ['servicios', 'La carta', true], ['membresia', 'Membresía', !!str(site.membership?.name)], ['barberos', 'Los barberos', showBarbers],
+    ['servicios', 'La carta', true], ['membresia', 'Membresía', !!site.plans?.length || !!str(site.membership?.name)], ['barberos', 'Los barberos', showBarbers],
     ['resenas', 'Lo que dicen', hasReviews], ['politicas', 'Antes de venir', (site.policies ?? []).some((p) => str(p?.title))], ['llega', 'Llega', true],
   ];
   let n = 0;

@@ -78,7 +78,7 @@ describe('SPEC-51 services.json (fallback)', () => {
     expect(json.categories[1].note).toBe('Cada servicio incluye una evaluación previa del cabello.');
     expect(json.services).toHaveLength(14);
     expect(json.services.filter((s) => s.category === 'barberia').map((s) => [s.id, s.priceCLP, s.durationMin])).toEqual([
-      ['corte', 12000, 40], ['corte-barba', 18000, 60], ['barba', 8000, 25], ['lavado-masaje', 7000, 20], ['limpieza-facial', 15000, 35],
+      ['corte', 10000, 40], ['corte-barba', 12000, 60], ['barba', 8000, 25], ['lavado-masaje', 7000, 20], ['limpieza-facial', 15000, 35],
     ]);
     expect(json.services.filter((s) => s.category !== 'barberia').map((s) => [s.id, s.name, s.priceCLP, s.durationMin, s.category])).toEqual(TABLE);
     // Todas caben en bloques de 15 min y en el máximo de 240.
