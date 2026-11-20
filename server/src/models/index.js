@@ -3,6 +3,7 @@
    User, Professional y SlotLock son globales a propósito (ver la tabla
    "Modelo de datos y consideraciones para escalar" de la spec). */
 import mongoose from 'mongoose';
+import { LOYALTY_MODELS } from './loyalty.js';
 
 const { Schema } = mongoose;
 const ObjectId = Schema.Types.ObjectId;
@@ -632,4 +633,8 @@ export const ALL_MODELS = [
   GiftCard,
   WaitlistEntry,
   Review,
+  /* SPEC-57: puntos y canjes (models/loyalty.js). */
+  ...LOYALTY_MODELS,
 ];
+
+export * from './loyalty.js';

@@ -859,8 +859,9 @@ describe('AC-02 matriz de autorización', () => {
 
   /* Lista TODAS las rutas registradas en la app ("GET /api/admin/barbers/:id"). */
   function allRoutes(app) {
-    /* El primero que calza (SPEC-54 monta /api/<x>/waitlist como router aparte: van al final). */
-    const prefixes = ['/api/auth', '/api/wstyle', '/api/pro', '/api/admin', '/api/wstyle/waitlist', '/api/pro/waitlist', '/api/admin/waitlist'];
+    /* El primero que calza: '/api/wstyle/points' (SPEC-57) y '/api/<x>/waitlist' (SPEC-54) son routers aparte y van al
+       final, porque el router de /api/wstyle (o /api/pro, /api/admin) también calza con ellos. */
+    const prefixes = ['/api/auth', '/api/wstyle', '/api/pro', '/api/admin', '/api/wstyle/points', '/api/wstyle/waitlist', '/api/pro/waitlist', '/api/admin/waitlist'];
     const out = [];
     for (const layer of app._router.stack) {
       if (layer.route) {
@@ -971,6 +972,22 @@ describe('AC-02 matriz de autorización', () => {
       /* SPEC-37 regla 1: pagos y rendición solo para el super admin; el resto (también el visitante) → 403. */
       ['GET /api/admin/payments', { ...adminOnly, anon: 403 }], ['POST /api/admin/payments/:id/boleta', { ...adminOnly, anon: 403 }, { path: `/api/admin/payments/${appt}/boleta` }],
       ['GET /api/admin/rendicion', { ...adminOnly, anon: 403 }], ['GET /api/admin/rendicion.csv', { ...adminOnly, anon: 403 }],
+      /* SPEC-57: puntos y canjes. Catálogo público; saldo y canje con cualquier sesión; el ledger de otro → 404;
+         entregar/anular para el barbero aprobado y el admin; configuración, productos, ajustes y reversión solo admin. */
+      ['GET /api/wstyle/points/program', pub], ['GET /api/wstyle/points/products', pub],
+      ['GET /api/wstyle/points/me', logged], ['POST /api/wstyle/points/redeem', logged],
+      ['GET /api/wstyle/points/customers/:id/ledger', { anon: 401, client: 404, approved: 404, pending: 404, admin: OK }, { path: `/api/wstyle/points/customers/${owner.user._id}/ledger` }],
+      ['GET /api/wstyle/points/redemptions', { anon: 401, client: 403, approved: OK, pending: 403, admin: OK }],
+      ['POST /api/wstyle/points/redemptions/:id/deliver', { anon: 401, client: 403, approved: OK, pending: 403, admin: OK }, { path: `/api/wstyle/points/redemptions/${fake}/deliver` }],
+      ['POST /api/wstyle/points/redemptions/:id/cancel', { anon: 401, client: 403, approved: OK, pending: 403, admin: OK }, { path: `/api/wstyle/points/redemptions/${fake}/cancel` }],
+      ['GET /api/wstyle/points/admin/config', adminOnly], ['PUT /api/wstyle/points/admin/config', adminOnly],
+      ['GET /api/wstyle/points/admin/products', adminOnly], ['POST /api/wstyle/points/admin/products', adminOnly], ['PUT /api/wstyle/points/admin/products/order', adminOnly],
+      ['PATCH /api/wstyle/points/admin/products/:id', adminOnly, { path: `/api/wstyle/points/admin/products/${fake}` }],
+      ['DELETE /api/wstyle/points/admin/products/:id', adminOnly, { path: `/api/wstyle/points/admin/products/${fake}` }],
+      ['GET /api/wstyle/points/admin/customers', adminOnly],
+      ['POST /api/wstyle/points/admin/customers/:id/adjust', adminOnly, { path: `/api/wstyle/points/admin/customers/${owner.user._id}/adjust` }],
+      ['GET /api/wstyle/points/admin/appointments/:id', adminOnly, { path: `/api/wstyle/points/admin/appointments/${appt}` }],
+      ['POST /api/wstyle/points/admin/appointments/:id/revert', adminOnly, { path: `/api/wstyle/points/admin/appointments/${appt}/revert` }],
       /* SPEC-60: gift cards. Comprar y validar códigos exige sesión (cualquier rol, como cliente); la venta en línea
          está apagada en este panel → 409. La tarjeta pública se ve con su token. Emitir/listar/anular: solo super admin. */
       ['POST /api/wstyle/gift-cards', { anon: 401, client: 409, approved: 409, pending: 409, admin: 409 }],

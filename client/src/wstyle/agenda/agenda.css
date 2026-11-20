@@ -206,6 +206,9 @@
 .pay-boleta { margin-top: 10px; }
 .pay-boleta input, .pay-collect input[inputmode] { max-width: 220px; }
 
+/* SPEC-57: con "Puntos" el header tiene un enlace más; en 390 px se acomoda en dos líneas en vez de desbordar (CB-12). */
+.ag-header { flex-wrap: wrap; }
+.ag-nav { flex-wrap: wrap; justify-content: flex-end; row-gap: 6px; }
 /* SPEC-54: lista de espera. Día lleno: tocable, con borde punteado latón (distinto de "Sin disp."). */
 .ag-cal__day.is-full { border-style: dashed; border-color: rgba(184, 135, 90, .55); background: rgba(184, 135, 90, .06); color: #d9cfc1; }
 .ag-cal__day.is-full.is-selected { background: var(--brass); border-style: solid; color: var(--ink); }

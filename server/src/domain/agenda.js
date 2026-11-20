@@ -76,7 +76,7 @@ export const PAY_OPEN = ['pendiente', 'en_proceso', 'rechazado'];
 
 /* `onlinePayments.ready`: hay credenciales de Mercado Pago (SPEC-35). Sin ellas "Pagar en
    línea" no se ofrece aunque el admin lo habilite (CB-09). */
-export function createAgenda({ clock = Date.now, mailer, logger = console, frontUrl = 'http://localhost:5173', geocoder, businessSlug = 'ws-style', adminInbox = null, onlinePayments = { ready: false }, taxProvider = TAX_DOCUMENT_PROVIDERS.voucher, giftCards = null }) {
+export function createAgenda({ clock = Date.now, mailer, logger = console, frontUrl = 'http://localhost:5173', geocoder, businessSlug = 'ws-style', adminInbox = null, onlinePayments = { ready: false }, taxProvider = TAX_DOCUMENT_PROVIDERS.voucher, giftCards = null, loyalty = null }) {
   /* SPEC-54: enganches de la lista de espera (domain/waitlist.js los registra).
      released: una cita futura dejó de ocupar su hora · booked: el cliente reservó (ese día sale de la lista)
      · waitlistBooking: valida el token "Tomar esta hora" al crear la cita.
@@ -1002,9 +1002,12 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
          curso redondeado hacia arriba (nunca horas pasadas ni bloques de otra cita). */
       const freeFrom = ceilSlot(now);
       let freedLocks = 0;
-      const appt = await mutate(b, current._id, async (a) => {
+      /* SPEC-57 RN-01: los puntos se acreditan en la MISMA transacción que termina la cita. */
+      let earned = null;
+      const appt = await mutate(b, current._id, async (a, session) => {
         if (a.status !== need) throw invalid('stale');
         a.status = to;
+        earned = to === 'terminada' && loyalty ? await loyalty.earnForAppointment(b, a, session) : null;
         /* SPEC-60 RN-05: al terminar, lo aplicado de la gift card queda confirmado. */
         if (action === 'finish' && a.giftCard?.status === 'reservada') {
           a.giftCard.status = 'confirmada';
@@ -1022,8 +1025,12 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
         const r = await SlotLock.deleteMany({ appointmentId: appt._id, slotStart: { $gte: new Date(freeFrom) } });
         freedLocks = r.deletedCount || 0;
       }
-      /* SPEC-52: el "Gracias por venir" invita a dejar la reseña (solo si la cita tiene cuenta: RN-01). */
-      if (to === 'terminada') await notify(b, appt, 'client', 'finished', appt.customerUserId ? { reviewUrl: `${frontUrl}/wstyle/cuenta/resena/?cita=${appt._id}` } : {});
+      if (to === 'terminada') {
+        /* SPEC-57: puntos ganados en el "Gracias por venir". SPEC-52: invitación a reseñar (solo con cuenta: RN-01). */
+        const points = earned ? { earned: earned.points, balance: await loyalty.balanceOf(b._id, appt.customerUserId).catch(() => earned.points) } : null;
+        const reviewUrl = appt.customerUserId ? `${frontUrl}/wstyle/cuenta/resena/?cita=${appt._id}` : undefined;
+        await notify(b, appt, 'client', 'finished', { points, reviewUrl });
+      }
       if (to === 'no_asistio') await notify(b, appt, 'client', 'no_show');
       if (to === 'no_asistio' && appt.customerUserId) {
         await CustomerProfile.updateOne({ businessId: b._id, userId: appt.customerUserId }, { $inc: { 'counters.noShows': 1 } }, { upsert: true }).catch((err) => logger.error('[agenda] contador de inasistencias:', err.message));
@@ -1187,6 +1194,8 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
     notify,
     mutate,
     inviteLinks,
+    /* SPEC-57: la app inyecta el programa de puntos después de crearlo. */
+    setLoyalty: (l) => { loyalty = l; },
     /* SPEC-54 */
     emitRelease,
     waitlistOn,

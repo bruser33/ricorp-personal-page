@@ -53,6 +53,7 @@ const CLIENT_SUBJECTS = {
   refunded: (_b, appt) => `Te devolvimos ${money(paidCLP(appt))}`,
 };
 const money = (n) => `$${Number(n || 0).toLocaleString('es-CL')}`;
+const pts = (n) => `${Number(n || 0).toLocaleString('es-CL')} ${Math.abs(Number(n)) === 1 ? 'punto' : 'puntos'}`;
 /* SPEC-60: lo pagado aparte de la gift card (lo que se devuelve en Mercado Pago). */
 const paidCLP = (appt) => Math.max(0, Math.round(Number(appt?.pricing?.totalCLP) || 0) - (appt?.giftCard?.giftCardId ? Math.round(Number(appt.giftCard.amountCLP) || 0) : 0));
 const BARBER_SUBJECTS = {
@@ -71,7 +72,7 @@ const BARBER_SUBJECTS = {
 };
 export const BARBER_EVENT_TITLE = BARBER_SUBJECTS;
 
-export function appointmentMail({ kind, to, appt, when, proposalWhen, url, waUrl, cancelledBy, reason, reviewUrl }) {
+export function appointmentMail({ kind, to, appt, when, proposalWhen, url, waUrl, cancelledBy, reason, points = null, reviewUrl }) {
   const barber = appt.professionalSnapshot?.displayName || 'tu barbero';
   const client = appt.customerSnapshot?.name || 'Cliente';
   const service = appt.serviceSnapshot?.name || 'Servicio';
@@ -90,6 +91,8 @@ export function appointmentMail({ kind, to, appt, when, proposalWhen, url, waUrl
     if (kind === 'expired') lines.push(`${barber} no alcanzó a confirmar a tiempo, así que la hora se liberó. Puedes reservar otra.`);
     if (kind === 'invited') lines.push(`${barber} te agendó una cita. Confírmala desde el link (el pago es en el local, en efectivo).`);
     if (kind === 'finished') lines.push(`Gracias por atenderte con ${barber}. ¡Te esperamos de vuelta!`);
+    /* SPEC-57 (asunción 8): los puntos ganados van como una línea más del "Gracias por venir". */
+    if (kind === 'finished' && points?.earned > 0) lines.push(`Sumaste ${pts(points.earned)}. Tu saldo: ${pts(points.balance)}.`);
     /* SPEC-52: invitación a reseñar (toma un minuto y ayuda a otros a decidirse). */
     if (kind === 'finished' && reviewUrl) lines.push('¿Cómo te fue? Cuéntalo en una reseña: toma un minuto y ayuda a otros a decidirse.');
     if (kind === 'no_show') lines.push(`${barber} registró que no llegaste a tu cita. Si fue un error, escríbenos por WhatsApp.`);
@@ -157,6 +160,29 @@ export function reassignedMail({ appt, when, url, from, to }) {
     template: 'client_reassigned',
     ...layout('Cambió el barbero de tu cita', [`${from} no podrá atenderte; tu cita queda con ${to}.`, `${appt.serviceSnapshot?.name || 'Servicio'} · ${when}`, 'La hora y el precio no cambian.'], [['Ver la cita', url]]),
   };
+}
+
+/* ─── Puntos y canjes (SPEC-57) */
+export function pointsRedeemedMail({ name, product, cost, code, balance, url }) {
+  const subject = 'Tu canje está listo para retirar · WS Style';
+  const lines = [
+    `Hola ${name || ''}`.trim() + ',',
+    `Canjeaste ${pts(cost)} por: ${product}.`,
+    `Tu código de retiro: ${code}`,
+    'Muéstralo en el local y lo marcamos como entregado.',
+    `Tu saldo: ${pts(balance)}.`,
+  ];
+  return { subject, template: 'client_points_redeemed', ...layout('Tu canje está listo para retirar', lines, [['Ver mis puntos', url]]) };
+}
+
+export function pointsCancelledMail({ name, product, points, code, reason, balance, url }) {
+  const subject = 'Tu canje fue anulado · WS Style';
+  const lines = [
+    `Hola ${name || ''}`.trim() + ',',
+    `Anulamos tu canje ${code} (${product})${reason ? `. Motivo: ${reason}` : ''}.`,
+    `Te devolvimos ${pts(points)}. Tu saldo: ${pts(balance)}.`,
+  ];
+  return { subject, template: 'client_points_cancelled', ...layout('Tu canje fue anulado', lines, [['Ver mis puntos', url]]) };
 }
 
 /* SPEC-60: la gift card al correo de quien compra (asunción 11). El mensaje va como texto plano

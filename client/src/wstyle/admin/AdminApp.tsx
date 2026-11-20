@@ -13,6 +13,7 @@ import GiftCardsPage from './pages/GiftCardsPage';
 import DifusionPage from './pages/DifusionPage';
 import HomePage from './pages/HomePage';
 import PaymentsPage from './pages/PaymentsPage';
+import PointsAdminPage from './pages/PointsAdminPage';
 import RendicionPage from './pages/RendicionPage';
 import ReviewsPage from './pages/ReviewsPage';
 import SchedulePage from './pages/SchedulePage';
@@ -114,6 +115,7 @@ export default function AdminApp({ fbReturn }: { fbReturn: FacebookReturn | null
     resenas: <ReviewsPage />,
     horario: <SchedulePage />,
     estadisticas: <StatsPage />,
+    puntos: <PointsAdminPage />,
     difusion: <DifusionPage />,
     configuracion: <SettingsPage user={user} />,
     auditoria: <AuditPage />,
