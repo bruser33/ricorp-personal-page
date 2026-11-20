@@ -616,3 +616,53 @@ describe('SPEC-56 seña por transferencia', () => {
     });
   });
 });
+
+/* Convivencia con SPEC-60 (gift cards) y SPEC-54 (lista de espera), tras integrar main. */
+describe('SPEC-56 · convivencia con gift cards y lista de espera', () => {
+  const t = world();
+  before(connectDb);
+  after(async () => { await t.stop(); await disconnectDb(); });
+  beforeEach(() => t.boot());
+
+  const issue = async (amountCLP) => {
+    const r = await t.post('/api/admin/gift-cards', { kind: 'monto', amountCLP, from: 'Camila', to: 'Valentina', message: '', localMethod: 'efectivo' }, t.admin.cookie);
+    assert.equal(r.status, 201, JSON.stringify(r.json));
+    return r.json.code;
+  };
+  const bookGift = (c, code, time = '12:00') =>
+    t.post('/api/wstyle/appointments', { serviceId: 'corte', professionalId: String(t.pro(0)._id), startsAt: at(time), mode: 'shop', acceptPolicies: true, paymentMethod: 'local', giftCardCode: code }, c.cookie);
+
+  test('con gift card (parcial o total) no se pide seña: la cita queda pendiente del barbero, sin seña', async () => {
+    const c1 = await t.client('Parcial');
+    const partial = await bookGift(c1, await issue(5000));
+    assert.equal(partial.status, 201, JSON.stringify(partial.json));
+    const p = await Appointment.findById(partial.json.id).lean();
+    assert.equal(p.status, 'pendiente');
+    assert.equal(p.deposit?.status, undefined);
+    assert.ok(p.giftCard?.giftCardId);
+
+    const c2 = await t.client('Total');
+    const full = await bookGift(c2, await issue(100000), '14:00');
+    assert.equal(full.status, 201, JSON.stringify(full.json));
+    const f = await Appointment.findById(full.json.id).lean();
+    assert.equal(f.status, 'pendiente');
+    assert.equal(f.deposit?.status, undefined);
+    assert.equal(t.mails(/client_deposit_requested/).length, 0);
+
+    /* Sin gift card la regla de la seña sigue igual. */
+    const c3 = await t.client('Normal');
+    const normal = await t.book(c3, { time: '16:00' });
+    assert.equal(normal.status, 201, JSON.stringify(normal.json));
+    assert.equal((await Appointment.findById(normal.json.id).lean()).status, 'pendiente_sena');
+  });
+
+  test('una seña vencida avisa a la lista de espera (enganche "released" de la agenda)', async () => {
+    const seen = [];
+    t.ctx.app.locals.agenda.hooks.released.push(async (_b, freed, reason) => seen.push({ id: String(freed.appointmentId), reason }));
+    const c = await t.client('Lista');
+    const id = (await t.book(c)).json.id;
+    t.ctx.clock.now = SUNDAY_9AM + 2 * 60 * MIN;
+    assert.equal((await t.run()).expired, 1);
+    assert.deepEqual(seen, [{ id, reason: 'expirada' }]);
+  });
+});

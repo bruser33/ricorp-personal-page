@@ -18,7 +18,8 @@
      calza, o hay algo raro (respaldo sobre un pago no aprobado, boleta sobre un voucher, voucher en
      un cobro del local, reembolso de una venta con boleta → nota de crédito), se lista. */
 import mongoose from 'mongoose';
-import { Appointment } from '../models/index.js';
+import { Appointment, GiftCard } from '../models/index.js';
+import { payableCLP } from './giftcards.js';
 import { HttpError } from '../lib/errors.js';
 import { csvDocument } from '../lib/csv.js';
 import { emitterInfo, TAX_DOCUMENT_PROVIDERS } from '../lib/taxDocuments.js';
@@ -41,6 +42,8 @@ const DIFF_MESSAGE = {
 };
 const MODEL_LABEL = { ...Object.fromEntries(Object.values(TAX_DOCUMENT_PROVIDERS).map((p) => [p.id, p.declaredModel])), sin_dato: 'Sin dato' };
 
+/* SPEC-60: la parte cubierta por gift card se resta en el detalle (las líneas suman lo cobrado). */
+const withGiftLine = (lines, a) => (a.giftCard?.giftCardId && a.giftCard.amountCLP ? [...lines, { kind: 'gift_card', label: `Gift card ${a.giftCard.code || ''}`.trim(), amountCLP: -Math.round(Number(a.giftCard.amountCLP) || 0) }] : lines);
 const sum = (list, f) => list.reduce((acc, x) => acc + (f(x) || 0), 0);
 
 export function createBilling({ agenda, env = {}, clock = Date.now, logger = console, taxProvider }) {
@@ -88,7 +91,8 @@ export function createBilling({ agenda, env = {}, clock = Date.now, logger = con
       const status = duplicate
         ? src.status === 'reembolsado' ? 'reembolsado' : 'reembolso_pendiente'
         : p.method === 'online' ? ONLINE_STATUS[p.status] || 'pendiente' : 'rechazado';
-      const amount = duplicate ? Number(src.amountCLP) || 0 : a.pricing?.totalCLP || 0;
+      /* SPEC-60 regla 10: lo cubierto por gift card no es una venta nueva (ya se contó al vender la tarjeta). */
+      const amount = duplicate ? Number(src.amountCLP) || 0 : payableCLP(a);
       const paidAt = src.paidAt || (COUNTED.has(status) ? a.updatedAt : null);
       const refundAt = status === 'reembolsado' ? src.refundedAt || a.updatedAt : status === 'contracargo' ? src.chargebackAt || a.updatedAt : null;
       const fee = COUNTED.has(status) ? Number(src.mpFeeCLP) || 0 : 0;
@@ -102,7 +106,7 @@ export function createBilling({ agenda, env = {}, clock = Date.now, logger = con
         date: iso(COUNTED.has(status) ? paidAt : p.holdStartedAt || a.createdAt),
         method: 'mercadopago',
         amountCLP: amount,
-        lines: duplicate ? [{ kind: 'service', label: `${a.serviceSnapshot?.name || 'Servicio'} (pago duplicado)`, amountCLP: amount }] : saleLines(a.pricing, a.serviceSnapshot?.name),
+        lines: duplicate ? [{ kind: 'service', label: `${a.serviceSnapshot?.name || 'Servicio'} (pago duplicado)`, amountCLP: amount }] : withGiftLine(saleLines(a.pricing, a.serviceSnapshot?.name), a),
         status,
         refundedAt: iso(refundAt),
         mp,
@@ -139,10 +143,12 @@ export function createBilling({ agenda, env = {}, clock = Date.now, logger = con
     for (const d of p.duplicates || []) if (d?.mpPaymentId) online(d, true);
     if ((p.method || 'local') === 'local') {
       const status = p.status === 'cobrado' ? 'aprobado' : ['pendiente', 'pago_pendiente'].includes(p.status || 'pendiente') && a.status === 'terminada' ? 'por_cobrar' : null;
-      if (status) {
-        const localAmount = Number.isFinite(p.collectedCLP) && status === 'aprobado' ? p.collectedCLP : Math.max(0, (a.pricing?.totalCLP || 0) - depositPaid);
-        const localLines = saleLines(a.pricing, a.serviceSnapshot?.name);
-        const credited = (a.pricing?.totalCLP || 0) - localAmount;
+      /* SPEC-60: cubierta entera por gift card → no hay cobro propio en la cita. */
+      if (status && payableCLP(a) > 0) {
+        /* SPEC-56: con seña confirmada, en el local se cobra solo el resto. */
+        const localAmount = Number.isFinite(p.collectedCLP) && status === 'aprobado' ? p.collectedCLP : Math.max(0, payableCLP(a) - depositPaid);
+        const localLines = withGiftLine(saleLines(a.pricing, a.serviceSnapshot?.name), a);
+        const credited = payableCLP(a) - localAmount;
         if (credited > 0) localLines.push({ kind: 'deposit', label: 'Seña ya pagada por transferencia', amountCLP: -credited });
         rows.push(finish({
           id: `${a._id}:local`,
@@ -150,7 +156,6 @@ export function createBilling({ agenda, env = {}, clock = Date.now, logger = con
           duplicate: false,
           date: iso(status === 'aprobado' ? p.collectedAt || a.updatedAt : a.startsAt),
           method: p.localMethod || 'local',
-          /* SPEC-56: con seña confirmada, en el local se cobra solo el resto. */
           amountCLP: localAmount,
           lines: localLines,
           status,
@@ -162,6 +167,64 @@ export function createBilling({ agenda, env = {}, clock = Date.now, logger = con
       }
     }
     return rows.map((r) => ({ ...r, _refundAt: r.refundedAt ? local(r.refundedAt) : null }));
+  }
+
+  /* SPEC-60 regla 10: la venta de una gift card es el ingreso (en línea: valor + tarifa; en el local: lo cobrado). */
+  function giftRowsOf(g, tz) {
+    const p = g.payment || {};
+    const iso = (d) => (d ? new Date(d).toISOString() : null);
+    const local = (d) => (d ? wallClock(new Date(d).getTime(), tz).date : null);
+    const online = g.origin === 'online';
+    if (online ? !p.paidAt : !p.collectedAt) return [];
+    const status = online ? (p.chargebackAt ? 'contracargo' : p.refundedAt ? 'reembolsado' : 'aprobado') : 'aprobado';
+    const amount = online ? Number(p.amountCLP) || g.pricing?.totalCLP || 0 : Number(p.amountCLP) || g.amountCLP || 0;
+    const date = online ? p.paidAt : p.collectedAt;
+    const refundAt = p.chargebackAt || p.refundedAt || null;
+    const doc = p.taxDoc?.kind ? p.taxDoc : null;
+    const backing = doc?.kind || 'sin_respaldo';
+    const tb = taxBreakdown(amount);
+    const fee = online && COUNTED.has(status) ? Number(p.mpFeeCLP) || 0 : 0;
+    const label = g.kind === 'servicio' ? `Gift card ${g.service?.name || 'servicio'} (${g.code})` : `Gift card ${g.code}`;
+    const lines = online && g.pricing?.serviceFeeCLP ? [{ kind: 'service', label, amountCLP: g.pricing.priceCLP }, { kind: 'service_fee', label: 'Tarifa de servicio', amountCLP: g.pricing.serviceFeeCLP }] : [{ kind: 'service', label, amountCLP: amount }];
+    return [{
+      id: `gc:${g._id}`,
+      appointmentId: null,
+      giftCardId: String(g._id),
+      appointment: null,
+      customer: { name: g.from || '', email: g.buyerEmail || null, phone: null },
+      professional: { id: null, name: '' },
+      service: { name: label },
+      kind: online ? 'online' : 'local',
+      giftCard: true,
+      duplicate: false,
+      date: iso(date),
+      method: online ? 'mercadopago' : p.localMethod || 'local',
+      methodLabel: METHOD_LABEL[online ? 'mercadopago' : p.localMethod || 'local'] || p.localMethod,
+      amountCLP: amount,
+      lines,
+      status,
+      statusLabel: PAY_STATUS_LABEL[status] || status,
+      refundedAt: iso(refundAt),
+      mp: online ? { paymentId: String(p.mpPaymentId || ''), status: p.mpStatus || null, paymentType: null, feeCLP: fee, netReceivedCLP: COUNTED.has(status) ? Number(p.mpNetCLP ?? amount - fee) : 0 } : null,
+      localDate: local(date),
+      tax: { netCLP: tb.netCLP, ivaCLP: tb.ivaCLP, estimated: !emitter().configured },
+      backing,
+      backingLabel: BACKING_LABEL[backing],
+      boletaNumber: doc?.kind === 'boleta_sii' ? doc.number : null,
+      taxModel: p.taxModel || null,
+      canRegisterBoleta: false,
+      _doc: doc,
+      _channel: online ? 'online' : 'local',
+      _fee: fee,
+      _net: online && COUNTED.has(status) ? Number(p.mpNetCLP ?? amount - fee) : 0,
+      _refundAt: refundAt ? local(refundAt) : null,
+    }];
+  }
+
+  async function loadGifts(b, { from, to }) {
+    const tz = b.timezone;
+    const range = { $gte: new Date(zonedToUtc(from, '00:00', tz)), $lt: new Date(zonedToUtc(addDays(to, 1), '00:00', tz)) };
+    return GiftCard.find({ businessId: b._id, $or: [{ 'payment.paidAt': range }, { 'payment.collectedAt': range }, { 'payment.refundedAt': range }, { 'payment.chargebackAt': range }] }).limit(5000).lean();
   }
 
   const strip = (r) => Object.fromEntries(Object.entries(r).filter(([k]) => !k.startsWith('_')));
@@ -199,7 +262,9 @@ export function createBilling({ agenda, env = {}, clock = Date.now, logger = con
       if (!pid) throw new HttpError(400, 'invalid_professional', 'Barbero inválido');
     }
     const appts = await load(b, { from, to, professionalId: pid });
-    let rows = appts.flatMap((a) => rowsOf(a, b.timezone, role)).filter((r) => r.localDate >= from && r.localDate <= to);
+    let rows = appts.flatMap((a) => rowsOf(a, b.timezone, role));
+    if (role === 'admin' && !pid) rows = rows.concat((await loadGifts(b, { from, to })).flatMap((g) => giftRowsOf(g, b.timezone)));
+    rows = rows.filter((r) => r.localDate >= from && r.localDate <= to);
     const method = String(q.method || '');
     if (method) rows = rows.filter((r) => (method === 'online' || method === 'mercadopago' ? r.kind === 'online' : method === 'local' ? r.kind === 'local' : method === 'sena' ? r.kind === 'deposit' : r.method === method));
     if (q.status) {
@@ -241,7 +306,7 @@ export function createBilling({ agenda, env = {}, clock = Date.now, logger = con
   async function rendicion(b, q = {}) {
     const { month, from, to } = parseMonth(q.month, clock(), b.timezone);
     const appts = await load(b, { from, to, withRefunds: true });
-    const rows = appts.flatMap((a) => rowsOf(a, b.timezone, 'admin'));
+    const rows = appts.flatMap((a) => rowsOf(a, b.timezone, 'admin')).concat((await loadGifts(b, { from, to })).flatMap((g) => giftRowsOf(g, b.timezone)));
     const inMonth = (d) => Boolean(d) && d >= from && d <= to;
     const sales = rows.filter((r) => COUNTED.has(r.status) && inMonth(r.localDate));
     const refunds = rows.filter((r) => REFUNDED.has(r.status) && inMonth(r._refundAt));
@@ -323,7 +388,7 @@ export function createBilling({ agenda, env = {}, clock = Date.now, logger = con
         refund ? r.refundedAt && wallClock(Date.parse(r.refundedAt), b.timezone).date : r.localDate,
         refund ? 'Reembolso' : 'Venta',
         r.mp?.paymentId || '',
-        r.appointmentId,
+        r.appointmentId || (r.giftCardId ? `gift card ${r.giftCardId}` : ""),
         r.customer?.name || '',
         r.professional?.name || '',
         r.service?.name || '',

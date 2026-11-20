@@ -101,10 +101,12 @@ describe('SPEC-51 mergeCatalog con categorías', () => {
     expect(out.services.map((s) => [s.id, s.category, s.durationMin])).toEqual([['decoloracion-global', 'decoloracion', 165], ['corte', 'barberia', 40]]);
     expect(out.categories?.[1]).toEqual({ id: 'decoloracion', name: 'Coloración', note: 'Nota nueva' });
   });
-  it('API antigua sin categorías: quedan las del JSON y los servicios caen en Barbería', () => {
+  it('una API antigua conserva los 14 servicios publicados y actualiza el horario', () => {
     const out = mergeCatalog(withCats, catalog);
     expect(out.categories).toBe(json.categories);
-    expect(groupByCategory(out.services, out.categories).map((g) => [g.id, g.items.length])).toEqual([['barberia', 2]]);
+    expect(out.services).toEqual(json.services);
+    expect(groupByCategory(out.services, out.categories).map((g) => g.items.length)).toEqual([5, 7, 1, 1]);
+    expect(out.site.hours).toEqual(catalog.business.hoursRows);
   });
 });
 

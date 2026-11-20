@@ -24,6 +24,12 @@ export default function PriceBreakdown({ pricing, serviceName, totalLabel = 'Tot
         </>
       )}
       <div className="ag-breakdown__total" data-line="total"><dt>{totalLabel}</dt><dd>{clp.format(pricing.totalCLP)}</dd></div>
+      {(pricing.giftCardCLP ?? 0) > 0 && (
+        <>
+          <div data-line="gift-card" className="ag-breakdown__gift"><dt>Gift card</dt><dd>−{clp.format(pricing.giftCardCLP ?? 0)}</dd></div>
+          <div className="ag-breakdown__total" data-line="due"><dt>Total a pagar</dt><dd>{clp.format(pricing.dueCLP ?? Math.max(0, pricing.totalCLP - (pricing.giftCardCLP ?? 0)))}</dd></div>
+        </>
+      )}
       {barberShare && fee > 0 && <div data-line="barber"><dt>Tu parte (servicio{pricing.surchargeCLP > 0 ? ' + domicilio' : ''})</dt><dd>{clp.format(pricing.barberCLP ?? pricing.priceCLP + pricing.surchargeCLP)}</dd></div>}
     </>
   );

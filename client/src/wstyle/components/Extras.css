@@ -81,3 +81,7 @@
 /* P3 (ronda 4): en compacto el texto corto, en una línea (sin «EJEMPLO» huérfano). */
 .compact .demo-strip__long { display: none; }
 .compact .demo-strip__short { display: inline; }
+/* SPEC-60: enlace discreto a las gift cards. */
+.policies__gift { margin: 22px 0 0; font: 500 13px/1.4 var(--font-body); letter-spacing: .12em; text-transform: uppercase; }
+.policies__gift a { color: var(--brass); text-decoration: none; border-bottom: 1px solid currentColor; padding-bottom: 2px; }
+.policies__gift a:hover, .policies__gift a:focus-visible { color: var(--bone); }

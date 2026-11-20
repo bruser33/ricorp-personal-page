@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bankText, countdown, depositChips, depositTag, receiptProblem, restLine, serverOffset } from './deposit';
+import { amountToCollect, bankText, countdown, depositChips, depositTag, receiptProblem, restLine, serverOffset } from './deposit';
 import type { Deposit } from './api';
 
 const dep = (over: Partial<Deposit> = {}): Deposit => ({ amountCLP: 5000, status: 'por_pagar', statusLabel: '', deadlineAt: '2026-11-02T15:42:00.000Z', deadlineLabel: '12:42', restCLP: 18000, restIfPaidCLP: 13000, hasReceipt: false, ...over });
@@ -37,5 +37,13 @@ describe('SPEC-56 seña', () => {
     expect(receiptProblem({ size: 100, type: 'application/x-msdownload', name: 'a.exe' })).toMatch(/captura/);
     expect(receiptProblem({ size: 100, type: '', name: 'IMG_1.HEIC' })).toBeNull();
     expect(receiptProblem({ size: 100, type: 'application/pdf', name: 'c.pdf' })).toBeNull();
+  });
+
+  it('monto a cobrar en el local: descuenta la seña confirmada y lo que cubrió la gift card', () => {
+    expect(amountToCollect({ totalCLP: 18000 }, null)).toBe(18000);
+    expect(amountToCollect({ totalCLP: 18000 }, dep({ status: 'confirmada' }))).toBe(13000);
+    expect(amountToCollect({ totalCLP: 18000 }, dep({ status: 'en_revision' }))).toBe(18000);
+    expect(amountToCollect({ totalCLP: 18000, dueCLP: 8000 }, null)).toBe(8000);
+    expect(amountToCollect({ totalCLP: 18000, dueCLP: 3000 }, dep({ status: 'confirmada' }))).toBe(0);
   });
 });

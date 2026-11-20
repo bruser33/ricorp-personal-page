@@ -27,7 +27,8 @@ export interface Service { id?: string; name?: string; description?: string; pri
 // SPEC-51: categoría de la carta (Barbería, Decoloración capilar…). `note` va una vez bajo el título del grupo.
 export interface Category { id?: string; name?: string; note?: string }
 export interface Config { poweredBy?: boolean }
-export interface Content { site: SiteContent; services: Service[]; categories?: Category[]; config: Config }
+// giftCardsOnline (SPEC-60): viene del catálogo de la API; sin API (o apagada) no hay enlace "Regala WS Style".
+export interface Content { site: SiteContent; services: Service[]; categories?: Category[]; config: Config; giftCardsOnline?: boolean }
 
 // services.json es { categories, services } (SPEC-51). Se acepta también el formato antiguo (array de servicios).
 export function normalizeServicesJson(raw: unknown): { services: Service[]; categories: Category[] } {
@@ -121,6 +122,8 @@ export interface LandingCatalog {
   business: {
     hoursRows?: Hours[];
     contact?: { whatsapp?: string | null; phone?: string | null };
+    // SPEC-60: el enlace "Regala WS Style" solo aparece si la venta en línea está activa.
+    giftCards?: { online?: boolean };
   };
 }
 
@@ -128,9 +131,9 @@ export interface LandingCatalog {
 // filas; del contacto solo teléfono y WhatsApp (dirección, mapa y textos siguen en site.json, asunción 9).
 export function mergeCatalog(content: Content, catalog: LandingCatalog | null): Content {
   if (!catalog || !Array.isArray(catalog.services)) return content;
-  const services: Service[] = catalog.services.map((s) => ({ id: s.id, name: s.name, description: s.description ?? '', priceCLP: s.priceCLP, durationMin: s.durationMin, ...(s.category ? { category: s.category } : {}) }));
-  // SPEC-51: las categorías (nombre, nota y orden) también mandan desde la BD; una API sin categorías deja las del JSON
-  // (sus servicios, sin categoría, caen en "Barbería").
+  // Una API anterior a SPEC-51 no conoce la carta agrupada publicada.
+  const legacyCatalog = !Array.isArray(catalog.categories) && Boolean(content.categories?.length);
+  const services: Service[] = legacyCatalog ? content.services : catalog.services.map((s) => ({ id: s.id, name: s.name, description: s.description ?? '', priceCLP: s.priceCLP, durationMin: s.durationMin, ...(s.category ? { category: s.category } : {}) }));
   const categories = Array.isArray(catalog.categories) ? catalog.categories : content.categories;
   const site: SiteContent = { ...content.site };
   const rows = catalog.business?.hoursRows;
@@ -139,7 +142,7 @@ export function mergeCatalog(content: Content, catalog: LandingCatalog | null): 
   if (c && (str(c.phone) || str(c.whatsapp))) {
     site.contact = { ...(site.contact ?? {}), ...(str(c.phone) ? { phone: c.phone as string } : {}), ...(str(c.whatsapp) ? { whatsapp: c.whatsapp as string } : {}) };
   }
-  return { ...content, site, services, categories };
+  return { ...content, site, services, categories, giftCardsOnline: catalog.business?.giftCards?.online === true };
 }
 
 // GET /api/wstyle/catalog con tope de 4 s. null = usar el JSON (API caída, dormida, lenta o sin negocio configurado).

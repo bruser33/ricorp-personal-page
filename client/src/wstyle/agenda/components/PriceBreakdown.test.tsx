@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import PriceBreakdown from './PriceBreakdown';
-import { quote } from '../pricing';
+import { quote, withGiftCard } from '../pricing';
 
 // SPEC-38 "como Uber": el cliente ve UNA tarifa de servicio; el admin, sus dos partes.
 const p = quote(12000, 0, { platformFeePercent: 10, paymentFeePercent: 3.19, paymentFeeVat: true });
@@ -25,5 +25,18 @@ describe('PriceBreakdown', () => {
     const t = text(renderToStaticMarkup(<dl><PriceBreakdown pricing={{ priceCLP: 12000, surchargeCLP: 0, totalCLP: 12000, platformFeeCLP: 1200 }} /></dl>));
     expect(t).not.toContain('Tarifa');
     expect(t).toMatch(/Total \$\s?12\.000/);
+  });
+  // SPEC-60 AC-08: con gift card, "Gift card −$X" y "Total a pagar".
+  it('gift card: Total $13.721 · Gift card −$13.721 · Total a pagar $0', () => {
+    const t = text(renderToStaticMarkup(<dl><PriceBreakdown pricing={withGiftCard(p, 13721)} serviceName="Corte" /></dl>));
+    expect(t).toMatch(/Total \$\s?13\.721 Gift card −\$\s?13\.721 Total a pagar \$\s?0/);
+  });
+  it('gift card parcial: Total a pagar = total − gift card', () => {
+    const t = text(renderToStaticMarkup(<dl><PriceBreakdown pricing={withGiftCard(p, 3000)} /></dl>));
+    expect(t).toMatch(/Gift card −\$\s?3\.000 Total a pagar \$\s?10\.721/);
+  });
+  it('sin gift card no aparece la línea', () => {
+    const t = text(renderToStaticMarkup(<dl><PriceBreakdown pricing={withGiftCard(p, 0)} /></dl>));
+    expect(t).not.toMatch(/Gift card|Total a pagar/);
   });
 });

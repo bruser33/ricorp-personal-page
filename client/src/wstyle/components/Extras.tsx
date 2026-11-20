@@ -108,7 +108,7 @@ export function Membership({ site, booking, label }: { site: SiteContent; bookin
   );
 }
 
-export function Policies({ site, label }: { site: SiteContent; label: string }) {
+export function Policies({ site, label, giftCards = false }: { site: SiteContent; label: string; giftCards?: boolean }) {
   const list = (site.policies ?? []).filter((p) => p && str(p.title) && str(p.text));
   if (!list.length) return null;
   return (
@@ -116,6 +116,8 @@ export function Policies({ site, label }: { site: SiteContent; label: string }) 
       <dl className="policies reveal">
         {list.map((p, i) => <div key={i}><dt>{p.title}</dt><dd>{p.text}</dd></div>)}
       </dl>
+      {/* SPEC-60: enlace discreto, solo si la venta de gift cards en línea está activa (AC-10). */}
+      {giftCards && <p className="policies__gift reveal"><a href="/wstyle/regalar/" data-gift-link="">Regala WS Style · gift cards</a></p>}
     </Extra>
   );
 }

@@ -3,6 +3,7 @@ import { agenda, ApiError, auth, type Appointment } from '../api';
 import type { AgendaCtx } from '../ctx';
 import AuthPanel from '../components/AuthPanel';
 import Shell from '../components/Shell';
+import WaitlistMine from '../components/WaitlistMine';
 import { Field, Notice, PasswordField, Spinner, StatusPill, Unavailable } from '../components/ui';
 import { clMobile, clp, fieldMessage, prettyPhone, weakPassword } from '../util';
 import { starsLabel, starsText } from '../../reviews';
@@ -137,6 +138,7 @@ export function MyAppointmentsPage({ ctx }: { ctx: AgendaCtx }) {
         <div className="ag-card">
           <h2 className="ag-h3">Próximas</h2>
           {list(data.upcoming, 'No tienes citas próximas.')}
+          <WaitlistMine />
           <h2 className="ag-h3">Pasadas</h2>
           {list(data.past, 'Aún no hay citas pasadas.')}
           <div className="ag-actions"><a className="btn btn--primary" href="/wstyle/reservar/">Reservar otra hora</a></div>

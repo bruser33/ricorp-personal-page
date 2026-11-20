@@ -9,6 +9,7 @@ import { LoadError } from './components/common';
 import AppointmentsPage from './pages/AppointmentsPage';
 import AuditPage from './pages/AuditPage';
 import BarbersPage from './pages/BarbersPage';
+import GiftCardsPage from './pages/GiftCardsPage';
 import DifusionPage from './pages/DifusionPage';
 import HomePage from './pages/HomePage';
 import PaymentsPage from './pages/PaymentsPage';
@@ -110,6 +111,7 @@ export default function AdminApp({ fbReturn }: { fbReturn: FacebookReturn | null
     citas: <AppointmentsPage />,
     pagos: <PaymentsPage onDepositCounts={(c) => setDepositsDue(c.review)} />,
     rendicion: <RendicionPage />,
+    'gift-cards': <GiftCardsPage />,
     carta: <ServicesPage />,
     resenas: <ReviewsPage />,
     horario: <SchedulePage />,

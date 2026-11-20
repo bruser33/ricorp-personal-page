@@ -73,3 +73,9 @@ export function restLine(d: Deposit | null | undefined): string | null {
   if (d.status === 'en_revision') return `Seña sin revisar: si se confirma, resta ${clp.format(d.restIfPaidCLP)}`;
   return null;
 }
+
+// Lo que queda por cobrar en el local: el total (o lo que no cubrió la gift card, SPEC-60) menos la seña confirmada.
+export function amountToCollect(pricing: { totalCLP: number; dueCLP?: number }, d: Deposit | null | undefined): number {
+  const base = pricing.dueCLP ?? pricing.totalCLP;
+  return Math.max(0, base - (d?.status === 'confirmada' ? d.amountCLP : 0));
+}
