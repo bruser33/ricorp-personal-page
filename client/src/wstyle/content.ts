@@ -122,7 +122,7 @@ export interface LandingCatalog {
   services: { id: string; name: string; description?: string; priceCLP: number; durationMin: number; category?: string }[];
   business: {
     hoursRows?: Hours[];
-    contact?: { whatsapp?: string | null; phone?: string | null };
+    contact?: { whatsapp?: string | null; phone?: string | null; address?: { street?: string } };
     // SPEC-60: el enlace "Regala WS Style" solo aparece si la venta en línea está activa.
     giftCards?: { online?: boolean };
   };
@@ -138,9 +138,13 @@ export function mergeCatalog(content: Content, catalog: LandingCatalog | null): 
   const categories = Array.isArray(catalog.categories) ? catalog.categories : content.categories;
   const site: SiteContent = { ...content.site };
   const rows = catalog.business?.hoursRows;
-  if (Array.isArray(rows) && rows.some((h) => h && str(h.days))) site.hours = rows;
+  // During a relocation the previous premises can still be served by an older API.
+  const apiStreet = str(catalog.business?.contact?.address?.street);
+  const publishedStreet = str(site.contact?.address?.street);
+  const samePremises = !apiStreet || !publishedStreet || apiStreet === publishedStreet;
+  if (samePremises && Array.isArray(rows) && rows.some((h) => h && str(h.days))) site.hours = rows;
   const c = catalog.business?.contact;
-  if (c && (str(c.phone) || str(c.whatsapp))) {
+  if (samePremises && c && (str(c.phone) || str(c.whatsapp))) {
     site.contact = { ...(site.contact ?? {}), ...(str(c.phone) ? { phone: c.phone as string } : {}), ...(str(c.whatsapp) ? { whatsapp: c.whatsapp as string } : {}) };
   }
   return { ...content, site, services, categories, giftCardsOnline: catalog.business?.giftCards?.online === true };

@@ -101,6 +101,12 @@ describe('SPEC-51 mergeCatalog con categorías', () => {
     expect(out.services.map((s) => [s.id, s.category, s.durationMin])).toEqual([['decoloracion-global', 'decoloracion', 165], ['corte', 'barberia', 40]]);
     expect(out.categories?.[1]).toEqual({ id: 'decoloracion', name: 'Coloración', note: 'Nota nueva' });
   });
+  it('conserva contacto y horario publicados si la API aún identifica el local anterior', () => {
+    const stale = { ...catalog.business, contact: { phone: 'anterior', address: { street: 'Otra dirección' } } };
+    const result = mergeCatalog(content, { ...catalog, business: stale });
+    expect(result.site.contact).toEqual(content.site.contact);
+    expect(result.site.hours).toEqual(content.site.hours);
+  });
   it('una API antigua conserva los 14 servicios publicados y actualiza el horario', () => {
     const out = mergeCatalog(withCats, catalog);
     expect(out.categories).toBe(json.categories);
