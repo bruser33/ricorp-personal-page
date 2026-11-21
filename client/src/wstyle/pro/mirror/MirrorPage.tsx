@@ -101,7 +101,7 @@ export default function MirrorPage() {
           return { ...prev, [target]: { ...active, mask: active.mask ?? result.mask, tone: active.tone ?? result.tone } };
         });
       } catch {
-        if (current()) setNotices(prev => ({ ...prev, [target]: 'La detección automática no está disponible. Puedes marcar el pelo y tomar el tono de piel en la foto.' }));
+        if (current()) setNotices(prev => ({ ...prev, [target]: 'La detección automática no está disponible. Marca la zona de cabello en esta foto.' }));
       }
     } catch (err) {
       if (current()) setNotices(prev => ({ ...prev, [target]: err instanceof Error && err.message.includes('30 MB') ? err.message : 'No pudimos abrir esa foto. Prueba con una imagen JPG o PNG.' }));
@@ -170,7 +170,7 @@ export default function MirrorPage() {
         </div></div>{!fixed && !comparing && <details className="mirror-replace"><summary>Cambiar foto de esta vista</summary><p>Al cambiarla se eliminan las líneas dibujadas sobre ella en A y B.</p>{capture}</details>}</>}
     <div hidden={!assistant}>
       <MirrorAssistant key={consultation} photos={photos} view={view} reading={views.some(v => !!busy[v])}
-        onMask={(v, corrected) => setPhotos(prev => ({ ...prev, [v]: corrected }))} />
+        onMask={(v, corrected) => { setPhotos(prev => ({ ...prev, [v]: corrected })); setNotices(prev => ({ ...prev, [v]: '' })); }} />
     </div>
     <p className="mirror-foot">Vista previa orientativa. Al terminar la consulta se borran las fotos de esta pantalla.</p>
   </section>;
