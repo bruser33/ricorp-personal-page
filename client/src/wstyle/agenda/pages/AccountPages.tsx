@@ -7,6 +7,7 @@ import WaitlistMine from '../components/WaitlistMine';
 import { Field, Notice, PasswordField, Spinner, StatusPill, Unavailable } from '../components/ui';
 import { clMobile, clp, fieldMessage, prettyPhone, weakPassword } from '../util';
 import { starsLabel, starsText } from '../../reviews';
+import { ACCOUNT_ENTRY_URL, staffPanel } from '../../links';
 
 // /wstyle/cuenta/: entrar / crear cuenta (sin sesión) o "Mi cuenta" (con sesión).
 export function AccountPage({ ctx }: { ctx: AgendaCtx }) {
@@ -17,10 +18,17 @@ export function AccountPage({ ctx }: { ctx: AgendaCtx }) {
   const [phoneErr, setPhoneErr] = useState<string | undefined>();
   const [sent, setSent] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const deleted = new URLSearchParams(location.search).has('eliminada');
+  const params = new URLSearchParams(location.search);
+  const deleted = params.has('eliminada');
+  const fromHeader = params.get('acceso') === '1';
+  const panel = fromHeader && user ? staffPanel(user.roles) : null;
+  useEffect(() => {
+    if (panel) location.replace(panel);
+  }, [panel]);
 
   if (session.status === 'loading') return <Shell user={null} current="cuenta"><Spinner label="Cargando tu cuenta…" /></Shell>;
   if (session.status === 'offline') return <Shell user={null} current="cuenta"><Unavailable whatsapp={whatsapp} onRetry={() => session.refresh()} /></Shell>;
+  if (panel) return <Shell user={user} current="cuenta"><Spinner label="Abriendo tu panel…" /></Shell>;
 
   if (!user) {
     return (
@@ -28,7 +36,7 @@ export function AccountPage({ ctx }: { ctx: AgendaCtx }) {
         <h1 className="ag-h1">Tu cuenta</h1>
         <div className="ag-card ag-narrow">
           {deleted && <Notice tone="ok">Tu cuenta fue eliminada.</Notice>}
-          <AuthPanel facebook={session.facebook} google={session.google} returnTo="/wstyle/cuenta/" fbReturn={fbReturn}
+          <AuthPanel facebook={session.facebook} google={session.google} returnTo={fromHeader ? ACCOUNT_ENTRY_URL : '/wstyle/cuenta/'} fbReturn={fbReturn}
             onAuthed={(u, info) => { session.setUser(u); if (info.created) setWelcome(`¡Listo, ${u.name.split(' ')[0]}! Te enviamos un correo para confirmar tu email.`); }} />
           <p className="ag-fine"><a href="/wstyle/pro/registro/">¿Eres barbero? Trabaja con nosotros</a></p>
         </div>
