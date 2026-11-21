@@ -37,3 +37,12 @@ describe('Espejo WS', () => {
     expect(newDesign('Bajo').lines.left).toHaveLength(0);
   });
 });
+
+describe('composición del corte con IA', () => {
+  it('preserva los píxeles de la foto fuera del cabello, incluido el canal alfa', async () => {
+    const { blendHair } = await import('./aiSheet');
+    const original = new Uint8ClampedArray([12, 34, 56, 255, 2, 4, 6, 255, 0, 0, 0, 255]);
+    blendHair(original, new Uint8ClampedArray(12).fill(200), new Uint8Array([0, 255, 128]));
+    expect([...original]).toEqual([12, 34, 56, 255, 200, 200, 200, 255, 100, 100, 100, 255]);
+  });
+});
