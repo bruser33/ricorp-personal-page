@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import Portrait, { type Tool } from './Portrait';
 import { referenceImage } from './export';
 import { manualMask, newDesign, readPhoto, sampleTone, viewLabels, views, type Design, type Height, type Photo, type Point, type Stroke, type View } from './photo';
+import MirrorAssistant from './MirrorAssistant';
 import './mirror.css';
 
 type Option = 'A' | 'B';
@@ -15,6 +16,8 @@ const hints: Record<Tool, string> = {
   tono: 'Toca un punto de piel cerca de la sien, con luz parecida a la del cabello.',
 };
 export default function MirrorPage() {
+  const [assistant, setAssistant] = useState(true);
+  const [consultation, setConsultation] = useState(0);
   const [photos, setPhotos] = useState<Partial<Record<View, Photo>>>({});
   const [view, setView] = useState<View>('front');
   const [styles, setStyles] = useState(initialOptions);
@@ -42,6 +45,7 @@ export default function MirrorPage() {
   function clear() {
     release.current?.();
     for (const v of views) sequence.current[v]++;
+    setConsultation(n => n + 1); setAssistant(true);
     setPhotos({}); setStyles(initialOptions()); setView('front'); setOption('A'); setTool('ver');
     setMode('edit'); setBusy({}); setNotices({}); setOutline([]); setHideLines(false);
     setPermission(false); setConfirmEnd(false); setZoom(false); setThickness(1.2);
@@ -78,6 +82,7 @@ export default function MirrorPage() {
     try {
       const next = await readPhoto(file);
       if (!current()) return;
+      if (photos[target]) setConsultation(n => n + 1);
       setPhotos(prev => ({ ...prev, [target]: next }));
       setStyles(prev => {
         const clean = (s: Design) => ({ ...s, lines: { ...s.lines, [target]: [] } });
@@ -122,15 +127,20 @@ export default function MirrorPage() {
   }
   const capture = <div className="mirror-actions"><button type="button" className="mirror-primary" onClick={() => camera.current?.click()}>{photo ? 'Repetir foto' : 'Tomar foto'}</button><button type="button" onClick={() => gallery.current?.click()}>Elegir de galería</button></div>;
   return <section className="mirror">
-    <header className="mirror-heading"><div><h1 className="ag-h1">Espejo WS</h1><p>{fixed ? 'Referencia elegida para este corte.' : 'Prueba el degradado y dibuja el diseño sobre las fotos del cliente.'}</p></div>
+    <header className="mirror-heading"><div><h1 className="ag-h1">Espejo WS</h1><p>{assistant ? 'Fotografía al cliente de frente y de ambos lados para probar un corte.' : fixed ? 'Referencia elegida para este corte.' : 'Prueba el degradado y dibuja el diseño sobre las fotos del cliente.'}</p></div>
       {(present.length > 0 || views.some(v => busy[v])) && <button onClick={() => setConfirmEnd(true)}>Terminar sesión de fotos</button>}</header>
     {confirmEnd && <div className="mirror-alert" role="group" aria-label="Descartar sesión"><strong>¿Descartar las fotos y los diseños de esta consulta?</strong><div className="mirror-actions"><button className="mirror-primary" onClick={clear}>Sí, descartar</button><button onClick={() => setConfirmEnd(false)}>Seguir con el cliente</button></div></div>}
+    <div className="mirror-actions mirror-modes" role="group" aria-label="Herramienta de consulta">
+      <button aria-pressed={assistant} onClick={() => setAssistant(true)}>Asistente IA</button>
+      <button aria-pressed={!assistant} onClick={() => setAssistant(false)}>Editor manual</button>
+    </div>
     <input ref={camera} hidden type="file" accept="image/*" capture="environment" aria-label="Tomar foto con cámara" onChange={load} />
     <input ref={gallery} hidden type="file" accept="image/*" aria-label="Elegir archivo de foto" onChange={load} />
-    <div className="mirror-tabs" role="group" aria-label="Vista del cliente">{views.map(v => <button key={v} aria-pressed={v === view} disabled={fixed && !photos[v]} onClick={() => selectView(v)}>{viewLabels[v]}{photos[v] && <span aria-label="Foto lista"> ✓</span>}</button>)}</div>
+    <div className="mirror-tabs" role="group" aria-label="Vista del cliente">{views.map(v => <button key={v} aria-pressed={v === view} disabled={!assistant && fixed && !photos[v]} onClick={() => selectView(v)}>{viewLabels[v]}{photos[v] && <span aria-label="Foto lista"> ✓</span>}</button>)}</div>
     <div className="mirror-status" aria-live="polite">{busy[view] || notices[view] || ''}</div>
     {!photo ? <div className="mirror-empty"><div className="mirror-frame" aria-hidden="true"><svg viewBox="0 0 170 150" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M10 42V15h28m94 0h28v27M10 109v26h28m94 0h28v-26"/>{view === 'front' ? <path d="M59 63c0-39 52-39 52 0 0 19-8 36-26 36S59 82 59 63zm-17 58c8-18 23-20 29-23m57 23c-8-18-23-20-29-23"/> : <g transform={view === 'right' ? 'translate(170 0) scale(-1 1)' : undefined}><path d="M60 112l6-29c-11-10-15-26-10-38 5-18 24-25 40-20 12 4 18 15 18 30l8 13-8 4c-2 13-5 19-15 19l-2 19"/><path d="M78 61c-7-4-10 8-3 13"/></g>}</svg></div>
-      <h2>{viewLabels[view]}</h2><p>{view === 'front' ? 'Centra la cara y deja visible todo el cabello.' : 'Encuadra la sien, la oreja y la coronilla de este lado.'}</p>{capture}<small>Pide permiso para tomar las fotos. Se procesan en este dispositivo.</small></div> :
+      <h2>{viewLabels[view]}</h2><p>{view === 'front' ? 'Centra la cara y deja visible todo el cabello.' : 'Encuadra la sien, la oreja y la coronilla de este lado.'}</p>{capture}<small>Pide permiso para tomar las fotos. Se preparan en este dispositivo.</small></div> :
+      assistant ? <details className="mirror-replace"><summary>Cambiar foto de esta vista</summary><p>Al reemplazar una foto se reinicia el diseño con IA.</p>{capture}</details> :
       <><div className={'mirror-workspace' + (comparing ? ' is-comparing' : '')}>
         {comparing ? <div className="mirror-pair">{options.map(o => <div key={o}><h2>Opción {o} · {styles[o].height}</h2><Portrait photo={photo} view={view} design={styles[o]} label={'Comparación ' + o} /><button className="mirror-primary" disabled={!canFix} onClick={() => choose(o)}>Elegir {o}</button></div>)}</div> :
         <div className="mirror-image-panel"><div className={'mirror-scroll' + (zoom ? ' is-zoomed' : '')}><Portrait key={view + option + mode + tool} photo={photo} view={view} design={design} label={viewLabels[view] + ' · opción ' + option} tool={fixed ? 'ver' : tool}
@@ -158,6 +168,10 @@ export default function MirrorPage() {
             <button className="mirror-primary" onClick={() => { setMode('compare'); resetEditor(); }}>Comparar A y B</button><button disabled={!canFix} onClick={() => choose(option)}>Fijar este diseño</button>
           </>}
         </div></div>{!fixed && !comparing && <details className="mirror-replace"><summary>Cambiar foto de esta vista</summary><p>Al cambiarla se eliminan las líneas dibujadas sobre ella en A y B.</p>{capture}</details>}</>}
-    <p className="mirror-foot">Vista previa orientativa. Las fotos se descartan al terminar la consulta.</p>
+    <div hidden={!assistant}>
+      <MirrorAssistant key={consultation} photos={photos} view={view} reading={views.some(v => !!busy[v])}
+        onMask={(v, corrected) => setPhotos(prev => ({ ...prev, [v]: corrected }))} />
+    </div>
+    <p className="mirror-foot">Vista previa orientativa. Al terminar la consulta se borran las fotos de esta pantalla.</p>
   </section>;
 }

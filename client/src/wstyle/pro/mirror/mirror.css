@@ -39,3 +39,10 @@
 .mirror-replace, .mirror-foot { margin-top: 1rem; }
 .mirror-replace summary { width: fit-content; }
 @media (max-width: 750px) { .mirror-workspace { grid-template-columns: minmax(0, 1fr); } .mirror-heading { align-items: start; } .mirror-controls { gap: .8rem; } }
+.mirror-modes { margin: 0 0 .85rem; }
+.mirror-assistant { margin-top: 1rem; }
+.mirror-assistant textarea, .mirror-assistant select {
+  display: block; width: 100%; margin: .4rem 0 0; padding: .7rem; border: 1px solid var(--mirror-line);
+  border-radius: .35rem; background: #110f0d; color: var(--bone); font: inherit;
+}
+.mirror-assistant textarea { resize: vertical; font-size: 1rem; }
