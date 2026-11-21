@@ -1,7 +1,9 @@
 /* Comprobantes de la seña por transferencia (SPEC-56 §10). NUNCA en Mongo: en la BD solo van
    los metadatos (clave, tipo, tamaño, hash). Dos drivers:
    - fs: disco local (desarrollo y tests), en RECEIPTS_DIR (por defecto server/uploads/receipts).
-   - s3: almacenamiento de objetos compatible con S3 (producción: Cloudflare R2, bucket PRIVADO).
+   - s3: almacenamiento de objetos compatible con S3, bucket PRIVADO. Sirve cualquier proveedor
+     S3: Backblaze B2 (gratis sin tarjeta), Cloudflare R2, AWS S3, o SeaweedFS en CI. Cambiar de
+     proveedor = cambiar las variables S3_* (ver docs/almacenamiento-comprobantes.md).
      Firma SigV4 a mano con fetch: sin SDK extra para tres operaciones (PUT/GET/DELETE).
    El tipo se valida por CONTENIDO (firma de bytes + decodificación), no por la extensión. */
 import crypto from 'node:crypto';
@@ -136,13 +138,32 @@ function s3Driver({ endpoint, bucket, region, accessKeyId, secretAccessKey, fetc
   };
 }
 
+/* La región firma la petición (SigV4): R2 usa "auto", pero B2 y AWS rechazan una región distinta
+   a la del endpoint. Con S3_REGION vacía o "auto" se deduce del endpoint conocido. */
+export function inferS3Region(endpoint, region) {
+  const r = String(region || '').trim();
+  if (r && r.toLowerCase() !== 'auto') return r;
+  let host = '';
+  try {
+    host = new URL(String(endpoint)).hostname;
+  } catch {
+    return 'auto';
+  }
+  const b2 = host.match(/(?:^|\.)s3\.([a-z0-9-]+)\.backblazeb2\.com$/i);
+  if (b2) return b2[1];
+  const aws = host.match(/(?:^|\.)s3[.-]([a-z0-9-]+)\.amazonaws\.com$/i);
+  if (aws) return aws[1];
+  if (/(?:^|\.)s3\.amazonaws\.com$/i.test(host)) return 'us-east-1';
+  return 'auto';
+}
+
 /* `configured` = hay un driver usable. RN-10: en producción solo cuenta el driver s3. */
 export function createReceiptStore(env = {}, { fetchImpl = fetch, clock = Date.now } = {}) {
   const want = String(env.RECEIPTS_STORAGE || 'fs').toLowerCase();
   /* Render define RENDER=true: cuenta como producción aunque no haya NODE_ENV. */
   const production = env.NODE_ENV === 'production' || Boolean(env.RENDER);
   if (want === 's3') {
-    const cfg = { endpoint: env.S3_ENDPOINT, bucket: env.S3_BUCKET, region: env.S3_REGION || 'auto', accessKeyId: env.S3_ACCESS_KEY_ID, secretAccessKey: env.S3_SECRET_ACCESS_KEY };
+    const cfg = { endpoint: env.S3_ENDPOINT, bucket: env.S3_BUCKET, region: inferS3Region(env.S3_ENDPOINT, env.S3_REGION), accessKeyId: env.S3_ACCESS_KEY_ID, secretAccessKey: env.S3_SECRET_ACCESS_KEY };
     const missing = ['endpoint', 'bucket', 'accessKeyId', 'secretAccessKey'].filter((k) => !cfg[k]);
     if (missing.length) return { driver: 's3', configured: false, production, reason: 'Faltan las credenciales del almacenamiento de comprobantes (S3_*).' };
     return { ...s3Driver({ ...cfg, fetchImpl, clock }), configured: true, production };
