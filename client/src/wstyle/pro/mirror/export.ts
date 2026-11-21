@@ -1,5 +1,5 @@
 import { canvasOf, fadePhoto, paintLines, views, viewLabels, type Design, type Photo, type View } from './photo';
-export function exportReference(photos: Partial<Record<View, Photo>>, design: Design) {
+export function referenceImage(photos: Partial<Record<View, Photo>>, design: Design) {
   const present = views.filter(v => photos[v]);
   const w = 720, row = 760;
   const sheet = canvasOf(w, 108 + row * present.length);
@@ -18,6 +18,5 @@ export function exportReference(photos: Partial<Record<View, Photo>>, design: De
     ctx.fillStyle = '#f1e9dc'; ctx.font = '26px sans-serif'; ctx.fillText(viewLabels[v], 24, top + 39);
     ctx.drawImage(ref, (w - ref.width * scale) / 2, top + 54, ref.width * scale, ref.height * scale);
   });
-  const a = document.createElement('a');
-  a.download = 'espejo-ws-referencia.jpg'; a.href = sheet.toDataURL('image/jpeg', 0.9); a.click();
+  return sheet.toDataURL('image/jpeg', 0.9);
 }

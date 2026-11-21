@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState, type ChangeEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import Portrait, { type Tool } from './Portrait';
-import { exportReference } from './export';
+import { referenceImage } from './export';
 import { manualMask, newDesign, readPhoto, sampleTone, viewLabels, views, type Design, type Height, type Photo, type Point, type Stroke, type View } from './photo';
 import './mirror.css';
 
@@ -36,6 +36,7 @@ export default function MirrorPage() {
   const photo = photos[view], design = styles[option], lines = design.lines[view];
   const present = views.filter(v => photos[v]);
   const fixed = mode === 'fixed', comparing = mode === 'compare';
+  const downloadUrl = useMemo(() => fixed && permission ? referenceImage(photos, design) : null, [fixed, permission, photos, design]);
   const canFix = present.length > 0 && !views.some(v => busy[v]) && present.every(v => photos[v]?.tone && photos[v]?.mask);
 
   function clear() {
@@ -141,7 +142,7 @@ export default function MirrorPage() {
         <div className="mirror-controls">
           {fixed ? <><h2>Diseño elegido</h2><p>Opción {option} · Degradado {design.height.toLowerCase()}</p><button onClick={() => { setMode('edit'); setPermission(false); }}>Volver a editar</button>
             <label className="mirror-permission"><input type="checkbox" checked={permission} onChange={e => setPermission(e.target.checked)} /> El cliente autoriza guardar la referencia en este dispositivo.</label>
-            <button className="mirror-primary" disabled={!permission} onClick={() => exportReference(photos, design)}>Descargar referencia</button></> :
+            {downloadUrl ? <a className="mirror-save mirror-primary" href={downloadUrl} download="espejo-ws-referencia.jpg">Descargar referencia</a> : <button className="mirror-primary" disabled>Descargar referencia</button>}</> :
           comparing ? <><h2>Comparar opciones</h2><p>Puedes elegir una opción completa o probar el degradado de una con las líneas de la otra.</p>
             {options.map(o => { const other = o === 'A' ? 'B' : 'A'; return <button key={o} onClick={() => { setStyles(prev => ({ ...prev, [o]: { ...prev[o], lines: prev[other].lines } })); setOption(o); setMode('edit'); resetEditor(); }}>Usar degradado {o} con líneas {other}</button>; })}
             <button onClick={() => setMode('edit')}>Seguir editando</button></> :

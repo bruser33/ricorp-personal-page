@@ -4,8 +4,9 @@
 .mirror .ag-h1 { margin-bottom: .6rem; }
 .mirror p, .mirror small { color: #cec4b7; line-height: 1.55; margin: .35rem 0 .85rem; }
 .mirror h2 { margin: 0 0 .45rem; font: 500 1.65rem/1.2 var(--font-serif), serif; }
-.mirror button, .mirror summary { cursor: pointer; color: #f0e9df; border: 1px solid var(--mirror-line); border-radius: .35rem; background: #211d19; min-height: 44px; padding: .55rem .85rem; font: 600 .9rem/1.25 var(--font-body), sans-serif; }
-.mirror button:focus-visible, .mirror input:focus-visible, .mirror summary:focus-visible { outline: 2px solid #ffca8c; outline-offset: 2px; }
+.mirror button, .mirror summary, .mirror-save { cursor: pointer; color: #f0e9df; border: 1px solid var(--mirror-line); border-radius: .35rem; background: #211d19; min-height: 44px; padding: .55rem .85rem; font: 600 .9rem/1.25 var(--font-body), sans-serif; }
+.mirror-save { display: grid; place-items: center; text-decoration: none; }
+.mirror-save:focus-visible, .mirror button:focus-visible, .mirror input:focus-visible, .mirror summary:focus-visible { outline: 2px solid #ffca8c; outline-offset: 2px; }
 .mirror button:disabled { opacity: .45; cursor: default; }
 .mirror button[aria-pressed=true] { border-color: #d5a875; color: #ffd4a2; background: #33271e; }
 .mirror .mirror-primary { background: #d6a16f; border-color: #d6a16f; color: #22170e; }
