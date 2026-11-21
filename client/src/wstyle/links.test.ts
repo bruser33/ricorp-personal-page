@@ -1,11 +1,21 @@
 import { describe, expect, it } from 'vitest';
-import { bookingLabel, bookingLink, ctaLinks, DEMO_CONTACT_URL, isDemo } from './links';
+import { bookingLabel, bookingLink, ctaLinks, DEMO_CONTACT_URL, isDemo, staffPanel } from './links';
 import { clPhone } from './lib';
 import { jsonLd, type SiteContent } from './content';
 import siteJson from '../../public/wstyle/content/site.json';
 
 // SPEC-31: datos de demo verosímiles y CTAs que en demo no contactan al número ficticio.
 const site = siteJson as SiteContent;
+
+describe('acceso desde la cabecera de WS Style', () => {
+  it('mantiene al cliente en su cuenta', () => expect(staffPanel(['client'])).toBeNull());
+  it('abre el panel del barbero aunque también sea cliente', () => {
+    expect(staffPanel(['client', 'barber'])).toBe('/wstyle/pro/');
+  });
+  it('prioriza administración cuando la cuenta tiene varios roles', () => {
+    expect(staffPanel(['client', 'barber', 'superadmin'])).toBe('/wstyle/admin/');
+  });
+});
 
 describe('site.json de demo (SPEC-31)', () => {
   it('no trae los datos delatores', () => {
