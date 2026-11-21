@@ -1,0 +1,40 @@
+.mirror { --mirror-line: #534639; color: var(--bone, #efe8de); }
+.mirror-heading, .mirror-actions, .mirror-caption, .mirror-options, .mirror-tabs { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+.mirror-heading { justify-content: space-between; gap: 1rem; margin-bottom: 1.25rem; }
+.mirror .ag-h1 { margin-bottom: .6rem; }
+.mirror p, .mirror small { color: #cec4b7; line-height: 1.55; margin: .35rem 0 .85rem; }
+.mirror h2 { margin: 0 0 .45rem; font: 500 1.65rem/1.2 var(--font-serif), serif; }
+.mirror button, .mirror summary { cursor: pointer; color: #f0e9df; border: 1px solid var(--mirror-line); border-radius: .35rem; background: #211d19; min-height: 44px; padding: .55rem .85rem; font: 600 .9rem/1.25 var(--font-body), sans-serif; }
+.mirror button:focus-visible, .mirror input:focus-visible, .mirror summary:focus-visible { outline: 2px solid #ffca8c; outline-offset: 2px; }
+.mirror button:disabled { opacity: .45; cursor: default; }
+.mirror button[aria-pressed=true] { border-color: #d5a875; color: #ffd4a2; background: #33271e; }
+.mirror .mirror-primary { background: #d6a16f; border-color: #d6a16f; color: #22170e; }
+.mirror-tabs { background: #191715; border-radius: .45rem; padding: .35rem; flex-wrap: nowrap; }
+.mirror-tabs button { flex: 1; padding: .5rem .3rem; }
+.mirror-status:not(:empty), .mirror-alert { padding: .85rem 1rem; background: #2c241c; border-left: 3px solid #c49c70; margin: .85rem 0; }
+.mirror-alert .mirror-actions { margin-top: .55rem; }
+.mirror-empty { margin-top: .85rem; display: grid; justify-items: center; text-align: center; padding: clamp(1.25rem,5vw,3rem) 1rem; border: 1px solid var(--mirror-line); border-radius: .5rem; background: radial-gradient(ellipse at 50% 36%, #332d26, #171513 68%); }
+.mirror-frame { width: clamp(120px,25vw,200px); color: #c89d72; }
+.mirror-empty small { margin-top: 1.25rem; }
+.mirror-workspace { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(16rem, 1fr); gap: 1rem; align-items: start; margin-top: 1rem; }
+.mirror-controls, .mirror-image-panel, .mirror-pair > div { min-width: 0; background: #191715; padding: .85rem; border: 1px solid var(--mirror-line); border-radius: .45rem; }
+.mirror-controls { display: grid; gap: .7rem; }
+.mirror-controls fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+.mirror-controls legend, .mirror-controls label { font-size: .94rem; line-height: 1.5; }
+.mirror-controls legend { margin-bottom: .35rem; }
+.mirror-controls input[type=range] { width: 100%; accent-color: #d6a16f; min-height: 32px; margin: 0; }
+.mirror-controls .mirror-permission { display: flex; align-items: flex-start; gap: .5rem; }
+.mirror-permission input { margin-top: .35rem; accent-color: #d6a16f; }
+.mirror-scroll { width: 100%; overflow: auto; max-height: 70svh; background: #100e0d; }
+.mirror-photo { display: block; width: auto; max-width: 100%; max-height: 64svh; margin: auto; }
+.mirror-photo.is-editing { touch-action: none; cursor: crosshair; }
+.mirror-scroll.is-zoomed .mirror-photo { width: 165%; max-width: none; max-height: none; }
+.mirror-caption { justify-content: space-between; margin-top: .55rem; font-size: .9rem; }
+.mirror-pair { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: .45rem; }
+.mirror-pair > div { padding: .45rem; }
+.mirror-pair h2 { font-size: 1.1rem; }
+.mirror-pair button { width: 100%; margin-top: .5rem; }
+.mirror .mirror-warn { color: #f2bf82; margin: 0; }
+.mirror-replace, .mirror-foot { margin-top: 1rem; }
+.mirror-replace summary { width: fit-content; }
+@media (max-width: 750px) { .mirror-workspace { grid-template-columns: minmax(0, 1fr); } .mirror-heading { align-items: start; } .mirror-controls { gap: .8rem; } }
