@@ -12,7 +12,11 @@ const OUT = resolve(ROOT, 'dist/wstyle/index.html');
 const json = (p, fallback) => { try { return JSON.parse(readFileSync(resolve(PUB, p), 'utf8')); } catch (e) { if (fallback !== undefined) return fallback; throw e; } };
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-const content = { site: json('content/site.json'), services: json('content/services.json'), config: json('config.json', {}) };
+// SPEC-51: services.json es { categories, services } (también se acepta el array antiguo, sin categorías). Mismo
+// criterio que normalizeServicesJson (content.ts): así #wstyle-data lleva las categorías y la hidratación no difiere.
+const carta = json('content/services.json');
+const { services, categories } = Array.isArray(carta) ? { services: carta, categories: [] } : { services: carta?.services ?? [], categories: carta?.categories ?? [] };
+const content = { site: json('content/site.json'), services, categories, config: json('config.json', {}) };
 const vite = await createServer({ root: ROOT, logLevel: 'error', server: { middlewareMode: true }, appType: 'custom' });
 try {
   const { render } = await vite.ssrLoadModule('/src/wstyle/ssr.tsx');
@@ -53,7 +57,7 @@ const waDigits = (() => {
 })();
 const waText = content.site?.contact?.whatsappText;
 const wa = waDigits ? `https://wa.me/${waDigits}${waText ? `?text=${encodeURIComponent(waText)}` : ''}` : null;
-for (const r of ['reservar', 'cita', 'cuenta', 'cuenta/mis-citas', 'cuenta/recuperar', 'cuenta/confirmar', 'cuenta/resena']) {
+for (const r of ['reservar', 'cita', 'cuenta', 'cuenta/mis-citas', 'cuenta/recuperar', 'cuenta/confirmar', 'cuenta/resena', 'regalar', 'regalo']) {
   const file = resolve(ROOT, `dist/wstyle/${r}/index.html`);
   const html = readFileSync(file, 'utf8');
   if (!html.includes('data-wa href="/wstyle/#llega"')) throw new Error(`prerender: falta el link data-wa en dist/wstyle/${r}/index.html`);

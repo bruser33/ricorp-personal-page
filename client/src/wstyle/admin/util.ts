@@ -1,7 +1,7 @@
 // Funciones puras del panel del super admin (probadas en util.test.ts).
 import type { AdminService, ExportContent, MembershipStatus, WeekDay } from './api';
 
-export type AdminSection = 'inicio' | 'barberos' | 'citas' | 'pagos' | 'rendicion' | 'carta' | 'estilos' | 'resenas' | 'horario' | 'estadisticas' | 'difusion' | 'configuracion' | 'auditoria';
+export type AdminSection = 'inicio' | 'barberos' | 'citas' | 'pagos' | 'rendicion' | 'gift-cards' | 'carta' | 'estilos' | 'resenas' | 'horario' | 'estadisticas' | 'difusion' | 'configuracion' | 'auditoria';
 export const SECTIONS: { key: AdminSection; label: string; path: string }[] = [
   { key: 'inicio', label: 'Inicio', path: '/wstyle/admin/' },
   { key: 'barberos', label: 'Barberos', path: '/wstyle/admin/barberos/' },
@@ -9,6 +9,8 @@ export const SECTIONS: { key: AdminSection; label: string; path: string }[] = [
   // SPEC-37: pagos con su respaldo tributario y la rendición mensual.
   { key: 'pagos', label: 'Pagos', path: '/wstyle/admin/pagos/' },
   { key: 'rendicion', label: 'Rendición', path: '/wstyle/admin/rendicion/' },
+  // SPEC-60: gift cards (emitir, saldo, anular).
+  { key: 'gift-cards', label: 'Gift cards', path: '/wstyle/admin/gift-cards/' },
   { key: 'carta', label: 'Carta', path: '/wstyle/admin/carta/' },
   // SPEC-59: catálogo de fotos de estilos que el cliente ve al reservar.
   { key: 'estilos', label: 'Estilos', path: '/wstyle/admin/estilos/' },
@@ -24,7 +26,7 @@ export const SECTIONS: { key: AdminSection; label: string; path: string }[] = [
 
 /* /wstyle/admin/carta/ → 'carta'. Cualquier otra cosa bajo /wstyle/admin/ → 'inicio'. */
 export function sectionFromPath(pathname: string): AdminSection {
-  const m = (pathname.replace(/\/+$/, '') + '/').match(/\/wstyle\/admin\/([a-z]+)\/$/);
+  const m = (pathname.replace(/\/+$/, '') + '/').match(/\/wstyle\/admin\/([a-z-]+)\/$/);
   const key = m?.[1] as AdminSection | undefined;
   return key && SECTIONS.some((s) => s.key === key) ? key : 'inicio';
 }
@@ -42,7 +44,7 @@ export const paymentLabel = (p: { method: string; status: string }) =>
   p.method === 'online' && p.status === 'pendiente' ? 'Esperando el pago' : PAYMENT_STATUS_LABEL[p.status] ?? p.status;
 export const STATUS_OPTIONS: [string, string][] = [
   ['pendiente', 'Esperando confirmación'], ['confirmada', 'Confirmada'], ['propuesta_cambio', 'Propuesta de cambio'], ['invitacion_enviada', 'Invitación enviada'],
-  ['en_curso', 'En curso'], ['terminada', 'Terminada'], ['cancelada', 'Cancelada'], ['expirada', 'Expirada'], ['no_asistio', 'No asistió'], ['pendiente_pago', 'Esperando el pago'],
+  ['en_curso', 'En curso'], ['terminada', 'Terminada'], ['cancelada', 'Cancelada'], ['expirada', 'Expirada'], ['no_asistio', 'No asistió'], ['pendiente_pago', 'Esperando el pago'], ['pendiente_sena', 'Pendiente de seña'],
 ];
 
 export const WEEKDAY_NAMES = ['', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
@@ -61,11 +63,13 @@ export function publishedDiff(published: { id?: string; name?: string; priceCLP?
   return out;
 }
 
-/* "Exportar a JSON": services.json con el mismo formato (una línea por servicio, como el archivo del repo). */
-export function servicesJsonText(services: ExportContent['services']): string {
-  const line = (s: ExportContent['services'][number]) =>
-    '  { ' + Object.entries({ id: s.id, name: s.name, description: s.description, priceCLP: s.priceCLP, durationMin: s.durationMin }).map(([k, v]) => `${JSON.stringify(k)}: ${JSON.stringify(v)}`).join(', ') + ' }';
-  return '[\n' + services.map(line).join(',\n') + '\n]\n';
+/* "Exportar a JSON": services.json con el mismo formato que el archivo del repo (SPEC-51: { categories, services },
+   una línea por categoría y por servicio). */
+export function servicesJsonText(content: Pick<ExportContent, 'categories' | 'services'>): string {
+  const line = (o: object) => '    { ' + Object.entries(o).filter(([, v]) => v !== undefined).map(([k, v]) => `${JSON.stringify(k)}: ${JSON.stringify(v)}`).join(', ') + ' }';
+  const cats = (content.categories ?? []).map((c) => line({ id: c.id, name: c.name, note: c.note }));
+  const svcs = content.services.map((s) => line({ id: s.id, name: s.name, description: s.description, priceCLP: s.priceCLP, durationMin: s.durationMin, category: s.category, homeServiceAllowed: s.homeServiceAllowed }));
+  return '{\n  "categories": [\n' + cats.join(',\n') + (cats.length ? '\n' : '') + '  ],\n  "services": [\n' + svcs.join(',\n') + (svcs.length ? '\n' : '') + '  ]\n}\n';
 }
 export const hoursJsonText = (hours: ExportContent['hours']) => JSON.stringify(hours, null, 2) + '\n';
 
@@ -111,11 +115,13 @@ export function durationProblem(v: string): string | null {
 
 /* Nombre legible de una acción de auditoría. */
 export const AUDIT_LABEL: Record<string, string> = {
+  'giftcard.issue': 'Emitió gift card', 'giftcard.void': 'Anuló gift card', 'giftcard.extend': 'Extendió gift card', 'giftcard.resend': 'Reenvió gift card',
   'barber.approve': 'Aprobó barbero', 'barber.reject': 'Rechazó barbero', 'barber.suspend': 'Suspendió barbero', 'barber.reactivate': 'Reactivó barbero', 'barber.reopen': 'Reabrió postulación',
   'barber.profile': 'Editó perfil de barbero', 'barber.services': 'Editó servicios de barbero', 'barber.availability': 'Editó disponibilidad de barbero', 'barber.home-service': 'Editó domicilio de barbero',
   'appointment.confirm': 'Confirmó cita', 'appointment.reject': 'Rechazó cita', 'appointment.cancel': 'Canceló cita', 'appointment.propose': 'Propuso cambio', 'appointment.start': 'Inició cita',
   'appointment.finish': 'Terminó cita', 'appointment.no_show': 'Marcó inasistencia', 'appointment.collect': 'Marcó cobrado', 'appointment.reassign': 'Reasignó cita', 'appointment.create': 'Agendó cita',
   'appointments.export': 'Exportó CSV', 'service.create': 'Creó servicio', 'service.update': 'Editó servicio', 'service.price': 'Cambió precio', 'service.archive': 'Archivó servicio', 'service.delete': 'Borró servicio',
+  'service.category': 'Cambió categoría de servicio', 'service.category.create': 'Creó categoría', 'service.category.update': 'Editó categoría', 'service.category.reorder': 'Reordenó categorías', 'service.category.delete': 'Borró categoría',
   'content.export': 'Exportó JSON', 'schedule.hours': 'Cambió horario', 'schedule.closure_add': 'Agregó cierre', 'schedule.closure_remove': 'Quitó cierre', 'settings.update': 'Cambió configuración', 'account.password': 'Cambió su contraseña',
   'review.hide': 'Ocultó reseña', 'review.show': 'Mostró reseña',
   'payment.boleta': 'Registró N° de boleta', 'rendicion.export': 'Exportó rendición', 'appointment.refund': 'Reembolsó pago', 'appointment.refund_failed': 'Reembolso fallido',

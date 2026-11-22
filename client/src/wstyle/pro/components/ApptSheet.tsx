@@ -2,6 +2,7 @@ import PriceBreakdown from '../../agenda/components/PriceBreakdown';
 import { useState, type FormEvent } from 'react';
 import { MotoIcon, Notice, StatusPill } from '../../agenda/components/ui';
 import { ReferenceSummary } from '../../agenda/components/StylePhotos';
+import { depositTag } from '../../agenda/deposit';
 import { localDate, localTime, longDay, prettyPhone } from '../../agenda/util';
 import type { ProAppointment } from '../api';
 import { useProActions } from '../useActions';
@@ -64,6 +65,7 @@ export default function ApptSheet({ appt: initial, mode: initialMode = 'detail',
       {mode === 'detail' && (
         <div className="pro-detail">
           <p className="pro-detail__status"><StatusPill status={appt.status} label={appt.status === 'propuesta_cambio' ? 'Esperando respuesta del cliente' : appt.statusLabel} /></p>
+          {depositTag(appt.deposit, appt.status) && <p className="pro-card__deposit" data-deposit-tag="">{depositTag(appt.deposit, appt.status)}</p>}
           <p className="ag-appt__when">{longDay(localDate(appt.startsAt))}, {localTime(appt.startsAt)}–{localTime(appt.endsAt)}</p>
           {appt.proposal && <p className="ag-muted">Propuesta: {appt.proposal.when}</p>}
           <dl className="ag-breakdown">

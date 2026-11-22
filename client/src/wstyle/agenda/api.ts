@@ -1,4 +1,4 @@
-import type { PricingView, Rates } from './pricing';
+import type { GiftCardInfo, PricingView, Rates } from './pricing';
 import type { Reference } from './styles';
 // Cliente HTTP de la agenda (SPEC-32). Misma base que Contacto (VITE_API_URL). La sesión viaja en una cookie
 // httpOnly: front y API tienen que estar en el MISMO host (localhost ↔ localhost; 127.0.0.1 es otro sitio y la
@@ -47,6 +47,26 @@ export async function api<T>(path: string, init: { method?: string; body?: unkno
   return data as T;
 }
 
+/* SPEC-56: subida de un archivo (multipart, campo `file`). Mismo manejo de errores que `api`. */
+export async function upload<T>(path: string, file: File, { timeoutMs = 60_000 }: { timeoutMs?: number } = {}): Promise<T> {
+  const fd = new FormData();
+  fd.append('file', file, file.name || 'comprobante');
+  let res: Response;
+  try {
+    res = await fetch(API_BASE + path, { method: 'POST', credentials: 'include', body: fd, signal: AbortSignal.timeout(timeoutMs) });
+  } catch {
+    throw new ApiError(0, 'network', 'No pudimos conectar con la agenda');
+  }
+  let data: Record<string, unknown> = {};
+  try {
+    data = await res.json();
+  } catch {
+    /* sin JSON */
+  }
+  if (!res.ok) throw new ApiError(res.status, String(data.error ?? 'error'), String(data.message ?? 'Algo salió mal'), data);
+  return data as T;
+}
+
 /* CB-15: Render free "duerme" la API; el primer pedido puede tardar. Reintenta hasta `windowMs` (30 s) mientras no
    haya respuesta, avisando con onWaking para mostrar "Despertando la agenda…". Un error con respuesta no se reintenta. */
 export async function wakeAndGet<T>(path: string, { windowMs = 30_000, onWaking }: { windowMs?: number; onWaking?: () => void } = {}): Promise<T> {
@@ -69,7 +89,9 @@ export async function wakeAndGet<T>(path: string, { windowMs = 30_000, onWaking 
 
 // ─── Tipos de la API
 export interface User { id: string; name: string; email: string | null; emailVerified: boolean; phone: string | null; roles: string[]; providers: string[] }
-export interface CatalogService { id: string; name: string; description: string; priceCLP: number; durationMin: number; homeServiceAllowed: boolean }
+export interface CatalogService { id: string; name: string; description: string; priceCLP: number; durationMin: number; homeServiceAllowed: boolean; category?: string }
+// SPEC-51: categorías con servicios activos, en orden y con su nota (una API anterior no las trae).
+export interface CatalogCategory { id: string; name: string; note: string }
 export interface CatalogPro { id: string; name: string; specialty: string; photo: string | null; homeService: { surchargeCLP: number; radiusKm: number } | null; serviceIds: string[] }
 export interface Catalog {
   business: {
@@ -79,24 +101,52 @@ export interface Catalog {
     hoursRows?: { days: string; dayCodes: string; opens: string | null; closes: string | null }[];
     contact?: { whatsapp: string | null; phone: string | null; address?: { street?: string; city?: string; region?: string } };
     payments?: { online: boolean; local: boolean };
+    // SPEC-56: si el local pide seña (sin datos bancarios: esos solo van en la cita del cliente).
+    deposit?: DepositConfig;
     // SPEC-38: tasas vigentes de la tarifa de servicio (el resumen usa la misma fórmula que el server).
     pricing?: Rates;
+    // SPEC-60: venta de gift cards en línea (la landing y /wstyle/regalar/ la usan).
+    giftCards?: GiftCardsPublic;
   };
+  categories?: CatalogCategory[];
   services: CatalogService[];
   professionals: CatalogPro[];
 }
 export interface Slot { startsAt: string; label: string; professionalIds: string[] }
-export interface Availability { timezone: string; days: { date: string; slots: Slot[] }[] }
+// SPEC-54: waitlist = lista de espera encendida; full = día con horario pero sin horas libres (lleno).
+export interface Availability { timezone: string; waitlist?: boolean; days: { date: string; slots: Slot[]; full?: boolean }[] }
+// SPEC-54: lista de espera. pref: todo el día / mañana (antes de 14:00) / tarde (desde 14:00).
+export type WaitPref = 'all' | 'am' | 'pm';
+export type WaitStatus = 'waiting' | 'notified' | 'booked' | 'ended' | 'removed';
+export interface WaitlistEntry {
+  id: string; date: string; service: { id: string; name: string }; professional: { id: string | null; name: string };
+  pref: WaitPref; status: WaitStatus; statusLabel: string; createdAt: string; notifiedAt: string | null;
+}
+export interface WaitlistOffer {
+  entry: WaitlistEntry; service: { id: string; name: string; durationMin: number; priceCLP: number };
+  professional: { id: string; name: string }; slots: Slot[];
+}
 export interface Quote { distanceKm: number; formatted: string; priceCLP: number; professionals: { id: string; surchargeCLP: number; totalCLP: number }[] }
-export type Action = 'cancel' | 'accept' | 'counter' | 'confirm' | 'propose' | 'start' | 'finish' | 'no_show' | 'pay' | 'pay_local';
+export type Action = 'cancel' | 'accept' | 'counter' | 'confirm' | 'propose' | 'start' | 'finish' | 'no_show' | 'pay' | 'pay_local' | 'deposit_upload' | 'deposit_pay_online';
 // SPEC-35: pago de la cita. method 'local' | 'online'; holdUntil = hasta cuándo se retiene la hora mientras se paga.
 // SPEC-37: forma de cobro en el local y respaldo tributario (voucher MP o boleta SII) cuando existe.
 export interface Payment {
   method: string; status: string; holdUntil?: string; paidAt?: string; refundedAt?: string; collectedAt?: string;
   localMethod?: string; backing?: { kind: 'voucher_mp' | 'boleta_sii'; label: string; number: string | null };
 }
+// SPEC-56: seña por transferencia. `bank` solo llega al dueño de la cita con la seña pendiente; el barbero no ve
+// la referencia ni el comprobante.
+export interface DepositBank { holder: string; rut: string; bank: string; accountType: string; accountTypeLabel: string; accountNumber: string; email: string }
+export interface Deposit {
+  amountCLP: number; status: 'por_pagar' | 'en_revision' | 'confirmada' | 'rechazada' | 'vencida' | 'por_devolver' | 'devuelta' | 'anulada';
+  statusLabel: string; deadlineAt: string | null; deadlineLabel: string | null; restCLP: number; restIfPaidCLP: number; hasReceipt: boolean;
+  reference?: string; uploadedAt?: string | null; receiptType?: string | null; rejectReason?: string | null; bank?: DepositBank;
+}
+export interface DepositConfig { enabled: boolean; kind: 'fixed' | 'percent'; fixedCLP: number; percent: number; minutes: number; appliesTo: 'all' | 'new' | 'no_show' }
+export interface DepositPreview { required: boolean; amountCLP?: number; restCLP?: number; totalCLP?: number; minutes?: number; deadlineAt?: string; tooSoon?: boolean }
 export interface Appointment {
   id: string; status: string; statusLabel: string;
+  deposit?: Deposit | null; now?: string;
   service: { id: string; name: string; durationMin: number };
   professional: { id: string; name: string };
   startsAt: string; endsAt: string; when: string; timezone: string;
@@ -111,6 +161,8 @@ export interface Appointment {
   actions: Action[];
   role: 'client' | 'barber' | 'admin';
   whatsapp: string | null; shopWhatsapp: string | null;
+  // SPEC-60: gift card aplicada (código, de quién, monto cubierto).
+  giftCard?: { code: string; from: string; amountCLP: number; status: string } | null;
   // SPEC-52 (solo en "Mis citas", citas terminadas): estrellas de su reseña o si todavía puede dejarla.
   review?: { rating: number } | null;
   canReview?: boolean;
@@ -124,6 +176,21 @@ export interface ReviewEligibility {
   review: { rating: number; comment: string; createdAt: string } | null;
   deadline: string | null;
 }
+
+// ─── SPEC-60: gift cards
+export interface GiftCardsPublic { online: boolean; quickAmounts?: number[]; minCLP?: number; maxCLP?: number; maxMessage?: number }
+export interface GiftCardView {
+  code: string; kind: 'monto' | 'servicio'; amountCLP: number; balanceCLP: number; service: { name: string } | null;
+  from: string; to: string; message: string; expiresAt: string | null; status: string; statusLabel: string; url: string;
+}
+export interface GiftPurchaseInput { kind: 'monto' | 'servicio'; amountCLP?: number; serviceId?: string; from: string; to: string; message: string; email: string }
+export const giftCards = {
+  purchase: (body: GiftPurchaseInput) => api<{ id: string; initPoint: string; preferenceId: string; pricing: { totalCLP: number } }>('/api/wstyle/gift-cards', { method: 'POST', body }),
+  status: (id: string) => api<{ id: string; status: string; statusLabel: string; url: string | null; token: string | null; discarded: boolean }>(`/api/wstyle/gift-cards/${encodeURIComponent(id)}`),
+  retry: (id: string) => api<{ initPoint: string }>(`/api/wstyle/gift-cards/${encodeURIComponent(id)}/checkout`, { method: 'POST', body: {} }),
+  card: (t: string) => api<GiftCardView>(`/api/wstyle/gift-cards/card?t=${encodeURIComponent(t)}`),
+  check: (code: string) => api<GiftCardInfo>('/api/wstyle/gift-cards/check', { method: 'POST', body: { code } }),
+};
 
 export const auth = {
   config: () => api<{ facebook: boolean; google?: boolean }>('/api/auth/config'),
@@ -159,8 +226,19 @@ export const agenda = {
   act: (id: string, action: Action, body: Record<string, unknown> = {}) =>
     api<Appointment>(`/api/wstyle/appointments/${encodeURIComponent(id)}/${action === 'no_show' ? 'no-show' : action === 'pay_local' ? 'pay-local' : action}`, { method: 'POST', body }),
   // SPEC-35: el server crea la preferencia de Checkout Pro y devuelve a dónde redirigir (el token nunca pasa por acá).
+  // SPEC-56: ¿esta hora pide seña? (paso "Revisar"), subir el comprobante (multipart) y cambiar a pagar en línea.
+  depositPreview: (body: { serviceId?: string; professionalId?: string; startsAt?: string; mode: string }) => api<DepositPreview>('/api/wstyle/deposit/preview', { method: 'POST', body }),
+  uploadReceipt: (id: string, file: File) => upload<{ ok: boolean; replay: boolean; appointment: Appointment }>(`/api/wstyle/appointments/${encodeURIComponent(id)}/deposit/receipt`, file),
+  depositPayOnline: (id: string) => api<Appointment>(`/api/wstyle/appointments/${encodeURIComponent(id)}/deposit/pay-online`, { method: 'POST', body: {} }),
+  receiptUrl: (id: string) => `${API_BASE}/api/wstyle/appointments/${encodeURIComponent(id)}/deposit/receipt`,
   // SPEC-52: reseñas del cliente.
   reviewEligibility: (cita: string) => api<ReviewEligibility>(`/api/wstyle/reviews/eligibility?cita=${encodeURIComponent(cita)}`),
   createReview: (body: { appointmentId: string; rating: number; comment: string }) => api<{ ok: boolean; review: { id: string; rating: number } }>('/api/wstyle/reviews', { method: 'POST', body }),
   checkout: (id: string) => api<{ initPoint: string; preferenceId: string; holdUntil: string }>(`/api/wstyle/appointments/${encodeURIComponent(id)}/checkout`, { method: 'POST', body: {} }),
+  // SPEC-54: lista de espera del cliente.
+  joinWaitlist: (body: { date: string; serviceId: string; professionalId: string; pref: WaitPref }) =>
+    api<{ entry: WaitlistEntry }>('/api/wstyle/waitlist', { method: 'POST', body }),
+  myWaitlist: () => api<{ entries: WaitlistEntry[] }>('/api/wstyle/waitlist/mine'),
+  leaveWaitlist: (id: string) => api<{ ok: boolean }>(`/api/wstyle/waitlist/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  waitlistOffer: (token: string) => api<WaitlistOffer>(`/api/wstyle/waitlist/offer?t=${encodeURIComponent(token)}`),
 };

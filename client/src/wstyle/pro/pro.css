@@ -8,7 +8,7 @@
 .pro-main { padding-bottom: calc(var(--pro-tabbar) + 72px); }
 
 /* Pestañas: barra fija abajo en móvil, en el header en escritorio. */
-.pro-tabs { position: fixed; z-index: 6; left: 0; right: 0; bottom: 0; display: grid; grid-template-columns: repeat(4, 1fr); height: calc(var(--pro-tabbar) + env(safe-area-inset-bottom));
+.pro-tabs { position: fixed; z-index: 6; left: 0; right: 0; bottom: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); height: calc(var(--pro-tabbar) + env(safe-area-inset-bottom));
   padding-bottom: env(safe-area-inset-bottom); background: rgba(14, 13, 12, .97); border-top: 1px solid var(--brass-line); }
 .pro-tabs a { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: #b3ab9f; text-decoration: none;
   font: 600 11px/1 var(--font-body); letter-spacing: var(--tracking-caps-tight); text-transform: uppercase; }
@@ -211,6 +211,27 @@
 .pro-pay__amount { font-variant-numeric: tabular-nums; white-space: nowrap; font-weight: 600; }
 .pro-pay__meta { margin: 6px 0 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; color: #b3ab9f; font-size: 14px; }
 .pro-pay .ag-link { margin-top: 8px; }
+/* SPEC-56: seña en la agenda del barbero y del admin. */
+.pro-block--pendiente_sena { background: #3a3024; border-color: #e2bf98; border-style: dotted; }
+.pro-card__deposit { margin: 4px 0; font-size: 13px; font-weight: 600; color: #e2bf98; }
+.pay-collect__rest { margin: 0 0 10px; padding: 8px 10px; border-left: 3px solid #8fbf8a; background: rgba(143, 191, 138, .1); font-weight: 600; }
+.pro-block__dep { display: block; font-size: 11px; color: #e2bf98; }
+
+
+/* SPEC-54: lista de espera (chip del día + hoja). Compartido con el admin. */
+.pro-wait-chip { display: inline-flex; align-items: center; gap: 3px; min-height: 26px; margin-top: 3px; padding: 2px 8px; border: 1px solid rgba(184, 135, 90, .6); border-radius: 999px;
+  background: rgba(14, 13, 12, .7); color: #e2bf98; font: 700 11px/1 var(--font-body); letter-spacing: .02em; cursor: pointer; }
+.pro-wait-chip:hover, .pro-wait-chip:focus-visible { border-color: var(--brass); color: var(--bone); }
+.pro-grid__day.is-today .pro-wait-chip { background: var(--ink); color: var(--brass); }
+.pro-wait li > div:first-child { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.pro-wait time { font-size: 13px; color: #b3ab9f; }
+.pro-wait__actions { display: flex; flex-direction: column; gap: 6px; flex: 0 0 auto; }
+.pro-wait__actions .btn { min-height: 40px; padding: 0 14px; font-size: 13px; }
+.pro-wait-days { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+@media (max-width: 420px) {
+  .pro-wait li { flex-direction: column; }
+  .pro-wait__actions { flex-direction: row; }
+}
 
 /* ─── SPEC-55: agenda ágil (huecos reservables, bloqueos, "no vino" con deshacer) */
 .pro-free { position: absolute; left: 2px; right: 2px; border: 1px dashed rgba(184, 135, 90, .55); border-radius: 3px; background: rgba(184, 135, 90, .05); }

@@ -1,7 +1,24 @@
-[
-  { "id": "corte", "name": "Corte", "description": "Corte clásico o degradado, con lavado rápido y terminación a navaja.", "priceCLP": 12000, "durationMin": 40, "placeholder": true },
-  { "id": "corte-barba", "name": "Corte + barba", "description": "Corte completo más perfilado y arreglo de barba con toalla caliente.", "priceCLP": 18000, "durationMin": 60, "placeholder": true },
-  { "id": "barba", "name": "Perfilado de barba", "description": "Diseño de líneas, rebaje y aceite para barba.", "priceCLP": 8000, "durationMin": 25, "placeholder": true },
-  { "id": "lavado-masaje", "name": "Lavado + masaje", "description": "Lavado en el lavacabezas con masaje capilar relajante.", "priceCLP": 7000, "durationMin": 20, "placeholder": true },
-  { "id": "limpieza-facial", "name": "Limpieza facial (vapor)", "description": "Vapor facial, exfoliación y mascarilla.", "priceCLP": 15000, "durationMin": 35, "placeholder": true }
-]
+{
+  "categories": [
+    { "id": "barberia", "name": "Barbería", "note": "" },
+    { "id": "decoloracion", "name": "Decoloración capilar", "note": "Cada servicio incluye una evaluación previa del cabello." },
+    { "id": "ondulacion", "name": "Ondulación permanente", "note": "" },
+    { "id": "tratamientos", "name": "Tratamientos capilares", "note": "" }
+  ],
+  "services": [
+    { "id": "corte", "name": "Corte", "description": "Corte clásico o degradado, con lavado rápido y terminación a navaja.", "priceCLP": 10000, "durationMin": 40, "category": "barberia", "placeholder": true },
+    { "id": "corte-barba", "name": "Corte + barba", "description": "Corte completo más perfilado y arreglo de barba con toalla caliente.", "priceCLP": 12000, "durationMin": 60, "category": "barberia", "placeholder": true },
+    { "id": "barba", "name": "Perfilado de barba", "description": "Diseño de líneas, rebaje y aceite para barba.", "priceCLP": 8000, "durationMin": 25, "category": "barberia", "placeholder": true },
+    { "id": "lavado-masaje", "name": "Lavado + masaje", "description": "Lavado en el lavacabezas con masaje capilar relajante.", "priceCLP": 7000, "durationMin": 20, "category": "barberia", "placeholder": true },
+    { "id": "limpieza-facial", "name": "Limpieza facial (vapor)", "description": "Vapor facial, exfoliación y mascarilla.", "priceCLP": 15000, "durationMin": 35, "category": "barberia", "placeholder": true },
+    { "id": "decoloracion-global", "name": "Global", "description": "", "priceCLP": 50000, "durationMin": 150, "category": "decoloracion", "homeServiceAllowed": false },
+    { "id": "decoloracion-bloque", "name": "Bloque de color", "description": "", "priceCLP": 25000, "durationMin": 90, "category": "decoloracion", "homeServiceAllowed": false },
+    { "id": "decoloracion-superior", "name": "Superior", "description": "", "priceCLP": 40000, "durationMin": 120, "category": "decoloracion", "homeServiceAllowed": false },
+    { "id": "decoloracion-mechas-puntas", "name": "Mechas y puntas", "description": "", "priceCLP": 45000, "durationMin": 150, "category": "decoloracion", "homeServiceAllowed": false },
+    { "id": "decoloracion-platinado", "name": "Rubio platinado, beige y ceniza", "description": "", "priceCLP": 50000, "durationMin": 180, "category": "decoloracion", "homeServiceAllowed": false },
+    { "id": "decoloracion-matizacion", "name": "Matización y tonos fantasía", "description": "", "priceCLP": 30000, "durationMin": 60, "category": "decoloracion", "homeServiceAllowed": false },
+    { "id": "decoloracion-diseno", "name": "Diseños de color personalizados", "description": "", "priceCLP": 70000, "durationMin": 180, "category": "decoloracion", "homeServiceAllowed": false },
+    { "id": "ondulacion-permanente", "name": "Ondulación permanente", "description": "Diseño de rizos y ondas para un estilo con personalidad.", "priceCLP": 45000, "durationMin": 120, "category": "ondulacion", "homeServiceAllowed": false },
+    { "id": "tratamientos-capilares", "name": "Tratamientos capilares", "description": "Cuida tu cabello con tratamientos personalizados para mejorar su apariencia y mantenerlo saludable.", "priceCLP": 15000, "durationMin": 45, "category": "tratamientos", "homeServiceAllowed": false }
+  ]
+}

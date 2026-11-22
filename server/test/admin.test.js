@@ -548,8 +548,10 @@ describe('AC-07 migración de la carta y exportación', () => {
     const r = await t.get('/api/admin/export');
     assert.equal(r.status, 200);
     const original = JSON.parse(readFileSync(resolve(import.meta.dirname, '../../client/public/wstyle/content/services.json'), 'utf8'));
-    const keys = Object.keys(original[0]).filter((k) => k !== 'placeholder');
+    /* SPEC-51: services.json es { categories, services }; cada servicio lleva su categoría. */
+    const keys = Object.keys(original.services[0]).filter((k) => k !== 'placeholder');
     for (const s of r.json.services) assert.deepEqual(Object.keys(s), keys);
+    assert.deepEqual(Object.keys(r.json.categories[0]), Object.keys(original.categories[0]));
     assert.deepEqual(r.json.services.map((s) => s.id), ['corte', 'corte-barba']);
     assert.deepEqual(Object.keys(r.json.hours[0]), ['days', 'dayCodes', 'opens', 'closes']);
     assert.deepEqual(r.json.hours[0], { days: 'Lunes a viernes', dayCodes: 'Mo-Fr', opens: '10:00', closes: '20:00' });
@@ -857,14 +859,15 @@ describe('AC-02 matriz de autorización', () => {
 
   /* Lista TODAS las rutas registradas en la app ("GET /api/admin/barbers/:id"). */
   function allRoutes(app) {
-    const prefixes = ['/api/auth', '/api/wstyle', '/api/pro', '/api/admin'];
+    /* El primero que calza (SPEC-54 monta /api/<x>/waitlist como router aparte: van al final). */
+    const prefixes = ['/api/auth', '/api/wstyle', '/api/pro', '/api/admin', '/api/wstyle/waitlist', '/api/pro/waitlist', '/api/admin/waitlist'];
     const out = [];
     for (const layer of app._router.stack) {
       if (layer.route) {
         for (const m of Object.keys(layer.route.methods)) out.push(`${m.toUpperCase()} ${layer.route.path}`);
       } else if (layer.name === 'router') {
         const prefix = prefixes.find((p) => layer.regexp.test(p));
-        for (const l of layer.handle.stack) if (l.route) for (const m of Object.keys(l.route.methods)) out.push(`${m.toUpperCase()} ${prefix}${l.route.path}`);
+        for (const l of layer.handle.stack) if (l.route) for (const m of Object.keys(l.route.methods)) out.push(`${m.toUpperCase()} ${prefix}${l.route.path === '/' ? '' : l.route.path}`);
       }
     }
     return [...new Set(out)];
@@ -918,6 +921,12 @@ describe('AC-02 matriz de autorización', () => {
       ...['cancel', 'accept', 'counter', 'confirm', 'propose', 'start', 'finish', 'no-show', 'pay-local'].map((a) => [`POST /api/wstyle/appointments/:id/${a}`, ownAppt, { path: `/api/wstyle/appointments/${appt}/${a}` }]),
       /* SPEC-35: sin credenciales de Mercado Pago (este panel no las tiene) → 503 con sesión. Con credenciales: test/payments.test.js. */
       ['POST /api/wstyle/appointments/:id/checkout', { anon: 401, client: 503, approved: 503, pending: 503, admin: 503 }, { path: `/api/wstyle/appointments/${appt}/checkout` }],
+      /* SPEC-56: seña. Subir y cambiar a pagar en línea: solo el dueño (otros → 404); ver el comprobante:
+         dueño o super admin (barbero / otro cliente → 403; esta cita no tiene comprobante → 404 al admin). */
+      ['POST /api/wstyle/deposit/preview', pub],
+      ['POST /api/wstyle/appointments/:id/deposit/receipt', { anon: 401, client: 404, approved: 404, pending: 404, admin: 404 }, { path: `/api/wstyle/appointments/${appt}/deposit/receipt` }],
+      ['GET /api/wstyle/appointments/:id/deposit/receipt', { anon: 401, client: 403, approved: 403, pending: 403, admin: 404 }, { path: `/api/wstyle/appointments/${appt}/deposit/receipt` }],
+      ['POST /api/wstyle/appointments/:id/deposit/pay-online', { anon: 401, client: 404, approved: 404, pending: 404, admin: 404 }, { path: `/api/wstyle/appointments/${appt}/deposit/pay-online` }],
       /* Webhook público: lo autentica la firma x-signature (sin firma → 401 para todos). */
       ['POST /api/payments/mp/webhook', { anon: 401, client: 401, approved: 401, pending: 401, admin: 401 }, { path: '/api/payments/mp/webhook?data.id=1&type=payment' }],
       /* Barbero: registro (anónimo), perfil propio (aprobado y pendiente), operación (solo aprobado) */
@@ -956,6 +965,9 @@ describe('AC-02 matriz de autorización', () => {
       ...['confirm', 'reject', 'cancel', 'propose', 'start', 'finish', 'no-show'].map((a) => [`POST /api/admin/appointments/:id/${a}`, adminOnly, { path: `/api/admin/appointments/${appt}/${a}` }]),
       ['GET /api/admin/services', adminOnly], ['POST /api/admin/services', adminOnly],
       ['PATCH /api/admin/services/:id', adminOnly, { path: `/api/admin/services/${fake}` }], ['DELETE /api/admin/services/:id', adminOnly, { path: `/api/admin/services/${fake}` }],
+      /* SPEC-51: categorías de la carta */
+      ['GET /api/admin/service-categories', adminOnly], ['POST /api/admin/service-categories', adminOnly], ['PUT /api/admin/service-categories/order', adminOnly],
+      ['PATCH /api/admin/service-categories/:id', adminOnly, { path: `/api/admin/service-categories/${fake}` }], ['DELETE /api/admin/service-categories/:id', adminOnly, { path: `/api/admin/service-categories/${fake}` }],
       ['GET /api/admin/export', adminOnly],
       ['GET /api/admin/schedule', adminOnly], ['PUT /api/admin/schedule/hours', adminOnly], ['POST /api/admin/schedule/closures', adminOnly],
       ['DELETE /api/admin/schedule/closures/:id', adminOnly, { path: `/api/admin/schedule/closures/${fake}` }],
@@ -975,6 +987,23 @@ describe('AC-02 matriz de autorización', () => {
       ['GET /api/admin/styles', adminOnly], ['POST /api/admin/styles', adminOnly], ['POST /api/admin/styles/reorder', adminOnly],
       ['PATCH /api/admin/styles/:id', adminOnly, { path: `/api/admin/styles/${fake}` }], ['DELETE /api/admin/styles/:id', adminOnly, { path: `/api/admin/styles/${fake}` }],
       ['POST /api/admin/appointments/:id/remove-photo', adminOnly, { path: `/api/admin/appointments/${appt}/remove-photo` }],
+      /* SPEC-56 RN-09: configurar, revisar y marcar devuelta la seña → solo super admin. */
+      ['GET /api/admin/deposit-settings', adminOnly], ['PUT /api/admin/deposit-settings', adminOnly], ['GET /api/admin/deposits', adminOnly],
+      ...['confirm', 'reject', 'refunded'].map((a) => [`POST /api/admin/deposits/:id/${a}`, adminOnly, { path: `/api/admin/deposits/${appt}/${a}` }]),
+      /* SPEC-60: gift cards. Comprar y validar códigos exige sesión (cualquier rol, como cliente); la venta en línea
+         está apagada en este panel → 409. La tarjeta pública se ve con su token. Emitir/listar/anular: solo super admin. */
+      ['POST /api/wstyle/gift-cards', { anon: 401, client: 409, approved: 409, pending: 409, admin: 409 }],
+      ['GET /api/wstyle/gift-cards/card', pub, { path: '/api/wstyle/gift-cards/card?t=token-que-no-existe-0000' }],
+      ['POST /api/wstyle/gift-cards/check', logged, { body: { code: 'WS-ZZZZ-ZZZZ' } }],
+      ['GET /api/wstyle/gift-cards/:id', logged, { path: `/api/wstyle/gift-cards/${fake}` }],
+      ['POST /api/wstyle/gift-cards/:id/checkout', logged, { path: `/api/wstyle/gift-cards/${fake}/checkout` }],
+      ['GET /api/admin/gift-cards', adminOnly], ['POST /api/admin/gift-cards', adminOnly],
+      ['GET /api/admin/gift-cards/:id', adminOnly, { path: `/api/admin/gift-cards/${fake}` }],
+      ...['void', 'extend', 'resend'].map((a) => [`POST /api/admin/gift-cards/:id/${a}`, adminOnly, { path: `/api/admin/gift-cards/${fake}/${a}` }]),
+      /* SPEC-54: lista de espera. Cliente: solo lo suyo; barbero aprobado: su lista; admin: todo. */
+      ...[['POST', ''], ['GET', '/mine'], ['GET', '/offer'], ['DELETE', '/:id']].map(([m, p]) => [`${m} /api/wstyle/waitlist${p}`, { anon: 401, client: OK, approved: 403, pending: 403, admin: 403 }, { path: `/api/wstyle/waitlist${p.replace(':id', fake)}` }]),
+      ...[['GET', ''], ['POST', '/:id/notify'], ['DELETE', '/:id']].map(([m, p]) => [`${m} /api/pro/waitlist${p}`, barberOperate, { path: `/api/pro/waitlist${p.replace(':id', fake)}` }]),
+      ...[['GET', ''], ['POST', '/:id/notify'], ['DELETE', '/:id']].map(([m, p]) => [`${m} /api/admin/waitlist${p}`, adminOnly, { path: `/api/admin/waitlist${p.replace(':id', fake)}` }]),
       /* Al final: agregan roles a la cuenta (cliente → barbero, barbero → cliente) y cambiarían las filas anteriores. */
       ['POST /api/auth/me/client-role', logged],
       ['POST /api/pro/join', { anon: 401, client: OK, approved: OK, pending: OK, admin: OK }],

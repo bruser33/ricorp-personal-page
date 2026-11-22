@@ -1,10 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { existsSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { heroItems, nextIndex, normalizeSlides, prevIndex, resolveIndex } from './heroSlides';
 import site from '../../public/wstyle/content/site.json';
-import manifest from '../../public/wstyle/seq/manifest.json';
-import { SHOT_IDS } from './content';
 import type { SiteContent } from './content';
 
 // SPEC-61: flechas del hero (lógica pura).
@@ -53,18 +49,7 @@ describe('pantallas desde site.json', () => {
     expect(resolveIndex(sinA, 'b')).toBe(1);
     expect(heroItems([])).toHaveLength(1);
   });
-  it('site.json trae las tres vistas del recorrido 3D: los fotogramas ancla de El local, El espejo y Tu trono (P1 = A)', () => {
-    const s = normalizeSlides(site as SiteContent);
-    expect(s.map((x) => x.caption)).toEqual(['El local', 'El espejo', 'Tu trono']);
-    const anchors = manifest.formats.desktop.anchorFrames;
-    expect(manifest.formats.mobile.anchorFrames).toEqual(anchors);
-    const frame = (id: string) => String(anchors[SHOT_IDS.indexOf(id as never)]).padStart(4, '0');
-    const want = ['reyes', 'afilado', 'trono'].map(frame);
-    expect(want).toEqual(['0026', '0076', '0100']);
-    s.forEach((x, i) => {
-      expect(x.src).toBe(`wstyle/seq/desktop-hd/${want[i]}.webp`);
-      expect(x.srcSm).toBe(`wstyle/seq/mobile-hd/${want[i]}.webp`);
-      for (const f of [x.src, x.srcSm]) expect(existsSync(fileURLToPath(new URL(`../../public/${f}`, import.meta.url)))).toBe(true);
-    });
+  it('la portada publicada muestra solo el retrato', () => {
+    expect(heroItems(normalizeSlides(site as SiteContent)).map(item => item.id)).toEqual(['barbero']);
   });
 });

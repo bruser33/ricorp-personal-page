@@ -258,6 +258,39 @@ button.adm-row:hover { border-color: var(--brass-soft); }
   .pay-table td[data-label="Fecha"], .pay-table th[data-label="Cliente"], .pay-table td[data-label="Respaldo"] .ag-pill { white-space: nowrap; }
 }
 
+/* ─── SPEC-56: seña por transferencia */
+.adm-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 18px; }
+.adm-tabs--sub { margin-bottom: 14px; }
+.adm-fieldset { margin: 14px 0; padding: 0; border: 0; }
+.adm-fieldset > legend { margin-bottom: 8px; font-weight: 600; }
+.adm-radio-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 10px; padding: 0; border: 0; }
+.adm-radio-row input[type="radio"], .adm-tabs input[type="radio"] { position: absolute; opacity: 0; pointer-events: none; }
+.adm-radio-row .ag-chip { display: inline-flex; align-items: center; cursor: pointer; }
+.adm-deposit__preview { margin: 14px 0; padding: 12px 14px; border-left: 3px solid var(--brass); background: rgba(184, 135, 90, .06); }
+.adm-deposit__preview p { margin: 0 0 6px; }
+.adm-deposit-detail__grid { display: grid; gap: 18px; }
+@media (min-width: 760px) { .adm-deposit-detail__grid { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); } }
+.adm-receipt { display: grid; gap: 8px; }
+.adm-receipt__img { padding: 0; border: 1px solid var(--brass-line); background: none; cursor: zoom-in; max-height: 420px; overflow: hidden; }
+.adm-receipt__img img { display: block; width: 100%; height: auto; }
+.adm-receipt__img.is-zoom { max-height: none; cursor: zoom-out; }
+.adm-receipt__pdf { width: 100%; height: 420px; border: 1px solid var(--brass-line); }
+.adm-checklist { margin: 0 0 14px; padding: 0; list-style: none; display: grid; gap: 6px; }
+.adm-checklist li { padding: 8px 10px; border: 1px solid rgba(237, 230, 218, .12); }
+.adm-checklist li::before { content: '☐ '; color: var(--brass); }
+.adm-fieldset > .pro-check { display: flex; align-items: center; gap: 8px; margin: 8px 0; }
+/* SPEC-54: resumen de la lista de espera en Citas. */
+.adm-wait-summary { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; min-height: 44px; margin: 0 0 14px; padding: 8px 14px; border: 1px dashed rgba(184, 135, 90, .6);
+  border-radius: 4px; background: rgba(184, 135, 90, .08); color: #e2bf98; font: 600 14px/1.3 var(--font-body); text-align: left; cursor: pointer; }
+.adm-wait-summary:hover, .adm-wait-summary:focus-visible { border-color: var(--brass); color: var(--bone); }
+
+/* SPEC-51: bloque de categorías y carta agrupada por categoría. */
+.adm-cats { margin: 0 0 22px; }
+.adm-svc-group { margin: 0 0 22px; }
+.adm-svc-group > .ag-h3 { margin: 0 0 4px; }
+.adm-svc-group > .ag-muted { margin: 0 0 8px; }
+.adm-row__btns .ag-link:disabled { opacity: .35; cursor: default; }
+
 /* SPEC-52: reseñas (lista con estrellas latón; las ocultas atenuadas). */
 .adm-reviews { list-style: none; margin: 16px 0 0; padding: 0; display: grid; gap: 10px; }
 .adm-review { padding: 16px; border: 1px solid rgba(237, 230, 218, .16); border-radius: 4px; }

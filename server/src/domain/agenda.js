@@ -19,18 +19,22 @@ import {
   SlotLock,
   TimeOff,
   User,
+  WaitlistEntry,
 } from '../models/index.js';
 import { HttpError } from '../lib/errors.js';
 import { isDuplicateKey, withTransaction } from '../lib/db.js';
 import { clMobile, MAX_NOTE } from '../lib/validate.js';
 import { appointmentMail, BARBER_EVENT_TITLE, waLink } from '../lib/emails.js';
-import { daySlots, distanceKm, slotsFor } from './availability.js';
+import { daySlots, distanceKm, slotsFor, workWindows } from './availability.js';
 import { addDays, ceilSlot, formatLong, isDate, isoWeekday, wallClock, zonedToUtc } from './time.js';
 import { entriesToWeek, weekToSiteRows } from './hours.js';
+import { categoriesOf, categoryView } from './categories.js';
 import { applyLocalCollection, boletaClash, isBoletaClash, parseCollectInput } from './tax.js';
 import { TAX_DOCUMENT_PROVIDERS } from '../lib/taxDocuments.js';
 import { currentRates, pricingView, quote, ratesView } from './pricing.js';
 import { attachPhoto, referenceView, resolveReference } from './styles.js';
+import { depositConfig, depositView, publicDepositConfig } from './deposits.js';
+import { coverage, payableCLP } from './giftcards.js';
 import { canReview } from './reviews.js';
 import { normalizeOrigin } from './origin.js';
 
@@ -40,6 +44,7 @@ const { ObjectId } = mongoose.Types;
 
 export const STATUS_LABEL = {
   pendiente_pago: 'Esperando el pago',
+  pendiente_sena: 'Pendiente de seña',
   pendiente: 'Esperando confirmación',
   invitacion_enviada: 'Invitación enviada',
   confirmada: 'Confirmada',
@@ -74,9 +79,23 @@ export const PAY_OPEN = ['pendiente', 'en_proceso', 'rechazado'];
 
 /* `onlinePayments.ready`: hay credenciales de Mercado Pago (SPEC-35). Sin ellas "Pagar en
    línea" no se ofrece aunque el admin lo habilite (CB-09). */
-export function createAgenda({ clock = Date.now, mailer, logger = console, frontUrl = 'http://localhost:5173', geocoder, businessSlug = 'ws-style', adminInbox = null, onlinePayments = { ready: false }, taxProvider = TAX_DOCUMENT_PROVIDERS.voucher }) {
-  /* SPEC-55: enchufes para otras specs. `onSlotFreed` = lista de espera (SPEC-54) cuando se libera un rato. */
-  const hooks = { onSlotFreed: null };
+export function createAgenda({ clock = Date.now, mailer, logger = console, frontUrl = 'http://localhost:5173', geocoder, businessSlug = 'ws-style', adminInbox = null, onlinePayments = { ready: false }, taxProvider = TAX_DOCUMENT_PROVIDERS.voucher, giftCards = null, depositRule = null }) {
+  /* SPEC-54: enganches de la lista de espera (domain/waitlist.js los registra).
+     released: una cita futura dejó de ocupar su hora · booked: el cliente reservó (ese día sale de la lista)
+     · waitlistBooking: valida el token "Tomar esta hora" al crear la cita.
+     SPEC-55: `onSlotFreed` = enchufe externo del rato liberado por "El cliente no vino" (además de `released`).
+     SPEC-56: app.js engancha `depositCreated` para el correo de instrucciones de la seña (deposits.onCreated). */
+  const hooks = { released: [], booked: [], waitlistBooking: null, onSlotFreed: null, depositCreated: null };
+  async function emitRelease(b, freed, reason) {
+    for (const fn of hooks.released) {
+      try {
+        await fn(b, freed, reason);
+      } catch (err) {
+        logger.error('[agenda] lista de espera (liberación):', err.message);
+      }
+    }
+  }
+  const waitlistOn = (b) => b.settings?.waitlistEnabled !== false;
 
   async function business() {
     const b = await Business.findOne({ slug: businessSlug }).lean();
@@ -132,7 +151,9 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
 
   async function catalog() {
     const b = await business();
-    const [services, pros, rates] = await Promise.all([Service.find({ businessId: b._id, active: true }).sort({ order: 1 }).lean(), professionals(b), currentRates()]);
+    const [services, pros, rates, cats] = await Promise.all([Service.find({ businessId: b._id, active: true }).sort({ order: 1 }).lean(), professionals(b), currentRates(), categoriesOf(b._id)]);
+    /* SPEC-51: categorías con servicios activos (en orden, con su nota) y la categoría de cada servicio. */
+    const { categories, slugOf } = categoryView(cats, services);
     return {
       business: {
         name: b.name,
@@ -147,10 +168,15 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
         contact: { whatsapp: b.contact?.whatsapp || null, phone: b.contact?.phone || null, address: b.address || {} },
         settings: { minLeadMinutes: b.settings.minLeadMinutes, horizonDays: b.settings.horizonDays, cancelUntilMinutes: b.settings.cancelUntilMinutes },
         payments: paymentOptions(b),
+        /* SPEC-60: venta de gift cards en línea (la landing muestra el enlace solo si está activa). */
+        giftCards: giftCards ? giftCards.publicInfo(b) : { online: false },
         /* SPEC-38 RN-20: tasas vigentes; el resumen de la reserva usa la misma fórmula que el server. */
         pricing: ratesView(rates),
+        /* SPEC-56: si se pide seña y a quién (sin datos bancarios: RN-08). */
+        deposit: publicDepositConfig(depositConfig(b)),
       },
-      services: services.map((s) => ({ id: s.slug, name: s.name, description: s.description || '', priceCLP: s.priceCLP, durationMin: s.durationMin, homeServiceAllowed: s.homeServiceAllowed !== false })),
+      categories,
+      services: services.map((s) => ({ id: s.slug, name: s.name, description: s.description || '', priceCLP: s.priceCLP, durationMin: s.durationMin, homeServiceAllowed: s.homeServiceAllowed !== false, category: slugOf(s) })),
       professionals: pros.map((p) => {
         const slugs = new Map(services.map((x) => [String(x._id), x.slug]));
         return { ...publicPro(p), serviceIds: p.serviceIds.map((id) => slugs.get(id)).filter(Boolean) };
@@ -189,7 +215,14 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
       const wd = isoWeekday(date);
       const shopHours = (b.hours || []).filter((h) => h.weekday === wd);
       const merged = new Map();
+      /* SPEC-54: ¿hay horario de atención (alguna ventana donde todavía quepa el servicio)? */
+      let open = false;
+      const earliest = ceilSlot(now + minLeadMin * MIN);
       for (const p of pros) {
+        if (!open) {
+          const ws = workWindows({ date, tz, shopHours, closures, rules: p.rules.filter((r) => r.weekday === wd), timeOffs: offs.filter((o) => String(o.professionalId) === String(p._id)) });
+          open = ws.some(([s, e]) => e - Math.max(s, earliest) >= service.durationMin * MIN);
+        }
         const slots = daySlots({
           date,
           tz,
@@ -209,7 +242,10 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
           merged.get(s.startsAt).professionalIds.push(String(p._id));
         }
       }
-      days.push({ date, slots: [...merged.values()].sort((a, c) => a.startsAt - c.startsAt).map((s) => ({ ...s, startsAt: new Date(s.startsAt).toISOString() })) });
+      const day = { date, slots: [...merged.values()].sort((a, c) => a.startsAt - c.startsAt).map((s) => ({ ...s, startsAt: new Date(s.startsAt).toISOString() })) };
+      /* Lleno = hay horario para ese servicio y barbero, pero no quedan horas (un día cerrado no lo es). */
+      if (open && !day.slots.length) day.full = true;
+      days.push(day);
     }
     return days;
   }
@@ -223,7 +259,7 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
     let pros = await professionals(b, { service, mode });
     if (userId) pros = pros.filter((p) => String(p.userId || '') !== String(userId));
     if (professionalId && professionalId !== 'any') pros = pros.filter((p) => String(p._id) === String(professionalId));
-    return { timezone: b.timezone, days: await availabilityFor(b, { service, pros, from, to, mode, now: clock(), exclude }) };
+    return { timezone: b.timezone, waitlist: waitlistOn(b), days: await availabilityFor(b, { service, pros, from, to, mode, now: clock(), exclude }) };
   }
 
   /* Dirección → punto, distancia al local y recargo por profesional (RN-07). */
@@ -283,10 +319,20 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
     return false;
   }
 
+  /* SPEC-56 §9: seña confirmada de una cita que se cae por el local → por devolver. */
+  function markDepositRefundDue(a, now) {
+    if (a.deposit?.status === 'confirmada') {
+      a.deposit.status = 'por_devolver';
+      a.deposit.refundDueAt = new Date(now);
+      return true;
+    }
+    return false;
+  }
+
   async function alertRefundDue(b, appt, why) {
     await adminInbox?.notify({
       kind: 'refund_due',
-      title: `Reembolso pendiente: ${appt.customerSnapshot?.name || 'Cliente'} · $${Number(appt.pricing?.totalCLP || 0).toLocaleString('es-CL')}`,
+      title: `Reembolso pendiente: ${appt.customerSnapshot?.name || 'Cliente'} · $${payableCLP(appt).toLocaleString('es-CL')}`,
       body: `${appt.serviceSnapshot?.name || ''} · ${formatLong(appt.startsAt.getTime(), b.timezone)} · ${why}. Reembólsalo desde la ficha de la cita.`,
       appointmentId: appt._id,
       professionalId: appt.professionalId,
@@ -319,11 +365,18 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
     if (input.acceptPolicies !== true) fields.acceptPolicies = 'required';
     const payMethod = input.paymentMethod === undefined ? 'local' : input.paymentMethod;
     const payOpts = paymentOptions(b);
+    /* SPEC-60: código de gift card (una por cita). Se valida antes de todo lo caro y se descuenta
+       dentro de la transacción que crea la cita (RN-05). */
+    const giftCode = typeof input.giftCardCode === 'string' && input.giftCardCode.trim() ? input.giftCardCode.trim().slice(0, 40) : null;
+    const giftCard = giftCode && giftCards ? await giftCards.findUsable(b, giftCode, now) : null;
+    if (giftCode && !giftCard) throw new HttpError(409, 'giftcard_invalid', 'Código no válido', { fields: { giftCardCode: 'giftcard_invalid' } });
+    /* Si la gift card cubre todo, no se pide forma de pago: la validación de la forma de pago espera. */
+    let payProblem = null;
     if (!['local', 'online'].includes(payMethod)) fields.paymentMethod = 'invalid_payment';
     /* SPEC-34 AC-09: una forma de pago deshabilitada por el admin se rechaza aunque el front la mande.
        "En línea" además necesita SPEC-35 (hasta entonces nunca se acepta). */
-    else if (payMethod === 'local' && !payOpts.local) fields.paymentMethod = 'payment_unavailable';
-    else if (payMethod === 'online' && !payOpts.online) fields.paymentMethod = 'payment_unavailable';
+    else if ((payMethod === 'local' && !payOpts.local) || (payMethod === 'online' && !payOpts.online)) payProblem = 'payment_unavailable';
+    if (payProblem && !giftCard) fields.paymentMethod = payProblem;
     if (Object.keys(fields).length) throw new HttpError(400, Object.values(fields)[0], 'Revisa los datos', { fields });
     /* SPEC-59: estilo del catálogo y/o foto propia provisional (opcionales, RN-01). */
     const { reference, photo: refPhoto } = await resolveReference(b, user, input);
@@ -352,6 +405,12 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
       location = { kind: 'home', address: { street: loc.street, commune: loc.commune, details: loc.details, formatted: loc.formatted }, point: loc.point, distanceKm: loc.distanceKm };
     }
 
+    /* SPEC-56 RN-01/RN-04: reserva web con pago en el local → ¿pide seña a este cliente?
+       Con gift card (SPEC-60) no se pide: el cliente ya dejó plata adelantada. */
+    const depositReq = payMethod === 'local' && depositRule && !giftCard ? await depositRule.check(b, user, { startsAt, now }) : null;
+    if (depositReq?.tooSoon) throw new HttpError(422, 'deposit_too_soon', 'Esta hora es muy pronto para pagar la seña. Elige otra o paga en línea.');
+    if (depositReq && input.acceptDeposit !== true) throw new HttpError(400, 'deposit_terms_required', 'Marca "Entiendo las condiciones de la seña" para reservar', { fields: { acceptDeposit: 'required' } });
+
     /* RN-14 / CB-10: máx. 2 citas activas futuras por cuenta y por celular. */
     const active = await Appointment.countDocuments({
       status: { $in: BLOCKING },
@@ -362,9 +421,18 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
 
     /* Revalida la hora contra la disponibilidad real de ese día (CB-02). */
     const date = wallClock(startsAt, b.timezone).date;
-    const [day] = await availabilityFor(b, { service, pros, from: date, to: date, mode, now });
-    const slot = day?.slots.find((s) => Date.parse(s.startsAt) === startsAt);
-    if (!slot) throw new HttpError(409, 'slot_unavailable', 'Esa hora ya no está disponible. Elige otra.');
+    /* SPEC-54: "Tomar esta hora" desde un aviso de la lista de espera. RN-06: anticipación de 30 min. */
+    const wait = typeof input.waitlistToken === 'string' && input.waitlistToken && hooks.waitlistBooking ? await hooks.waitlistBooking(b, user, input.waitlistToken) : null;
+    const takenMsg = wait ? 'Alguien tomó esta hora antes. Sigues en la lista de espera.' : null;
+    if (wait && (wait.date !== date || String(wait.serviceId) !== String(service._id) || mode !== 'shop')) throw new HttpError(409, 'slot_unavailable', 'Esa hora no corresponde a tu aviso de la lista de espera.');
+    /* El token vale para el barbero y la preferencia horaria de la entrada (los 30 min no son para cualquier hora). */
+    if (wait?.professionalId) pros = pros.filter((p) => String(p._id) === String(wait.professionalId));
+    const [day] = await availabilityFor(b, { service, pros, from: date, to: date, mode, now, ...(wait ? { minLeadMin: wait.minLeadMin } : {}) });
+    const slot = day?.slots.find((s) => Date.parse(s.startsAt) === startsAt && (!wait || wait.fits(s.label)));
+    if (!slot) {
+      await wait?.lost();
+      throw new HttpError(409, wait ? 'slot_taken' : 'slot_unavailable', takenMsg || 'Esa hora ya no está disponible. Elige otra.');
+    }
     let candidates = pros.filter((p) => slot.professionalIds.includes(String(p._id)));
     if (wanted === 'any' && candidates.length > 1) {
       /* RN-06: el que tenga menos citas ese día; empate: orden de la lista. */
@@ -385,9 +453,14 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
       const surcharge = mode === 'home' ? pro.homeService.surchargeCLP : 0;
       const pricing = quote({ priceCLP: service.priceCLP, surchargeCLP: surcharge, method: payMethod, ...rates });
       const endsAt = startsAt + service.durationMin * MIN;
+      /* SPEC-60 RN-07: con gift card se paga solo el resto; si el resto es $0 no hay pago que hacer. */
+      const covered = giftCard ? coverage(giftCard, pricing, service._id).amountCLP >= pricing.totalCLP : false;
+      if (payProblem && !covered) throw new HttpError(400, payProblem, 'Revisa los datos', { fields: { paymentMethod: payProblem } });
       /* SPEC-35 RN-03: "Pagar en línea" crea la cita esperando el pago (ocupa la hora 15 min). */
-      const online = payMethod === 'online';
-      const firstStatus = online ? 'pendiente_pago' : 'pendiente';
+      const online = payMethod === 'online' && !covered;
+      if (covered) pricing.paymentMethod = 'local';
+      const deposit = depositReq && !covered ? await depositRule.initial(b, depositReq, pricing) : undefined;
+      const firstStatus = online ? 'pendiente_pago' : deposit ? 'pendiente_sena' : 'pendiente';
       const doc = {
         _id: new ObjectId(),
         businessId: b._id,
@@ -400,11 +473,14 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
         endsAt: new Date(endsAt),
         location: { ...location, travelBufferMin: buffer },
         pricing,
-        payment: online ? { method: 'online', status: 'pendiente', holdStartedAt: new Date(now) } : { method: 'local', status: 'pendiente' },
+        payment: online ? { method: 'online', status: 'pendiente', holdStartedAt: new Date(now) } : covered ? { method: 'local', status: 'cobrado', collectedAt: new Date(now) } : { method: 'local', status: 'pendiente' },
         note: note || undefined,
         reference,
         status: firstStatus,
-        expiresAt: new Date(online ? now + PAYMENT_HOLD_MIN * MIN : confirmDeadline(b, startsAt, now)),
+        /* SPEC-54: una hora tomada de la lista puede empezar en 30 min: el barbero tiene hasta 15 min antes.
+           SPEC-56: con seña, el plazo es el de la seña. */
+        expiresAt: new Date(online ? now + PAYMENT_HOLD_MIN * MIN : deposit ? deposit.deadlineAt.getTime() : wait ? Math.max(confirmDeadline(b, startsAt, now), Math.min(now + b.settings.confirmWithinMinutes * MIN, startsAt - START_WINDOW_MIN * MIN)) : confirmDeadline(b, startsAt, now)),
+        deposit,
         history: [{ at: new Date(now), from: null, to: firstStatus, by: 'client', byUserId: user._id }],
         source: 'web',
         origin: normalizeOrigin(input.origin),
@@ -412,23 +488,37 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
       };
       try {
         const appt = await withTransaction(async (session, { transactional }) => {
+          let applied = null;
           try {
             await SlotLock.insertMany(
               slotsFor(startsAt, service.durationMin, buffer).map((t) => ({ businessId: b._id, professionalId: pro._id, slotStart: new Date(t), appointmentId: doc._id, kind: 'main' })),
               { session, ordered: true }
             );
+            if (giftCard) {
+              applied = await giftCards.reserve(session, { b, code: giftCard.code, pricing, serviceId: service._id, apptId: doc._id, user, now });
+              doc.giftCard = applied;
+              /* El saldo cambió entre la validación y la transacción: ya no cubre lo que se calculó. */
+              if ((covered && applied.amountCLP < pricing.totalCLP) || (!covered && applied.amountCLP >= pricing.totalCLP)) throw new HttpError(409, 'giftcard_insufficient', 'Esta gift card ya no tiene saldo suficiente');
+            }
             const [created] = await Appointment.create([doc], { session });
             return created;
           } catch (err) {
-            if (!transactional) await SlotLock.deleteMany({ appointmentId: doc._id });
+            if (!transactional) {
+              await SlotLock.deleteMany({ appointmentId: doc._id });
+              if (applied) await giftCards.undoReserve(applied, doc._id).catch(() => {});
+            }
             throw err;
           }
         }, logger);
         if (!(await attachPhoto(refPhoto, appt._id)) && appt.reference) appt.reference.clientPhotoId = undefined;
         if (!user.phoneE164 || user.phoneE164 !== phone) await User.updateOne({ _id: user._id }, { phoneE164: phone });
         await CustomerProfile.updateOne({ businessId: b._id, userId: user._id }, { $inc: { 'counters.appointments': 1 } }, { upsert: true }).catch(() => {});
+        /* SPEC-54 (8, CB-05): reservó ese día → su entrada de la lista pasa a "Tomaste la hora". */
+        for (const fn of hooks.booked) await fn(b, user, appt).catch((err) => logger.error('[agenda] lista de espera (reserva):', err.message));
         /* En línea: los correos de "reserva recibida" salen cuando se aprueba el pago (RN-04). */
         if (online) return { appt, mailOk: true };
+        /* SPEC-56: con seña, el correo es de instrucciones; el barbero se entera cuando llega el comprobante. */
+        if (deposit) return { appt, mailOk: (await hooks.depositCreated?.(b, appt)) !== false };
         const mail = await Promise.all([notify(b, appt, 'client', 'received'), notify(b, appt, 'barber', 'new')]);
         return { appt, mailOk: mail.every(Boolean) };
       } catch (err) {
@@ -440,7 +530,8 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
         /* Con "Sin preferencia" se prueba el siguiente libre. */
       }
     }
-    throw new HttpError(409, 'slot_taken', 'Esa hora se acaba de ocupar. Elige otra.');
+    await wait?.lost();
+    throw new HttpError(409, 'slot_taken', takenMsg || 'Esa hora se acaba de ocupar. Elige otra.');
   }
 
   /* ─── Notificaciones (RN-17). No transaccionales: si fallan, la cita sigue. */
@@ -534,6 +625,13 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
         if (opts.online) a.push('pay');
         if (opts.local) a.push('pay_local');
       }
+      /* SPEC-56: subir (o reemplazar) el comprobante; CB-08: cambiar a pagar en línea durante el plazo. */
+      const dep = appt.deposit?.status;
+      if (s === 'pendiente_sena' && dep === 'por_pagar' && appt.deposit.deadlineAt?.getTime() > now) {
+        a.push('deposit_upload');
+        if (paymentOptions(b).online) a.push('deposit_pay_online');
+      }
+      if (dep === 'en_revision' && !FINAL.includes(s)) a.push('deposit_upload');
       if (cancellable && appt.startsAt.getTime() - now >= b.settings.cancelUntilMinutes * MIN) a.push('cancel');
       if (s === 'propuesta_cambio' && appt.proposal?.expiresAt?.getTime() > now) a.push('accept', 'counter');
       if (s === 'invitacion_enviada') a.push('confirm');
@@ -598,8 +696,14 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
       timezone: tz,
       location: { kind: appt.location?.kind || 'shop', address: appt.location?.kind === 'home' ? appt.location.address?.formatted : [b.address?.street, b.address?.city].filter(Boolean).join(', '), distanceKm: appt.location?.distanceKm },
       /* SPEC-38: desglose (servicio, domicilio, administración, procesamiento, total). */
-      pricing: pricingView(appt.pricing),
+      pricing: withGift(pricingView(appt.pricing), appt),
       payment: paymentView(appt),
+      /* SPEC-56: seña (el barbero nunca ve el comprobante ni los datos bancarios). */
+      deposit: depositView(appt, role, b),
+      /* Hora del server: la cuenta regresiva no depende del reloj del teléfono. */
+      now: new Date(now).toISOString(),
+      /* SPEC-60: gift card aplicada (también la ve el barbero en la ficha, asunción 8). */
+      giftCard: appt.giftCard?.giftCardId ? { code: appt.giftCard.code, from: appt.giftCard.from || '', amountCLP: appt.giftCard.amountCLP, status: appt.giftCard.status } : null,
       note: appt.note || '',
       /* SPEC-59: estilo elegido y foto propia (privada: la URL exige sesión). */
       reference: await referenceView(appt),
@@ -620,6 +724,12 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
       out.noShows = counts.get(String(appt._id)) ?? 0;
     }
     return out;
+  }
+
+  /* SPEC-60: la parte cubierta por gift card y lo que queda por pagar. */
+  function withGift(view, appt) {
+    if (!appt.giftCard?.giftCardId) return view;
+    return { ...view, giftCardCLP: Math.round(Number(appt.giftCard.amountCLP) || 0), dueCLP: payableCLP(appt) };
   }
 
   /* SPEC-35: el pago hacia afuera (sin campos internos como el bloqueo de reembolso). */
@@ -731,16 +841,28 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
 
   /* Aplica `fn` a la cita dentro de una transacción y registra el historial. */
   async function mutate(b, apptId, fn) {
+    let before = null;
     try {
-      return await withTransaction(async (session) => {
+      const saved = await withTransaction(async (session) => {
         const appt = await Appointment.findById(apptId).session(session);
         if (!appt) throw notFound();
         const from = appt.status;
+        before = { status: from, professionalId: appt.professionalId, startsAt: appt.startsAt, endsAt: appt.endsAt };
         const entry = await fn(appt, session);
         appt.history.push({ at: new Date(clock()), from, to: appt.status, ...entry });
         await appt.save({ session });
         return appt;
       }, logger);
+      /* SPEC-60 RN-06: cita caída → la gift card recupera lo aplicado (una vez). */
+      if (giftCards && (await giftCards.afterChange(saved))) saved.giftCard.status = 'revertida';
+      /* SPEC-54: la cita dejó de ocupar su hora (cancelación, expiración, rechazo, reasignación, cambio de
+         hora, inasistencia que libera sus bloques…) → la lista de espera de ese día puede llenar el hueco. */
+      if (before && BLOCKING.includes(before.status)) {
+        const left = !BLOCKING.includes(saved.status);
+        const moved = String(saved.professionalId) !== String(before.professionalId) || saved.startsAt.getTime() !== before.startsAt.getTime();
+        if (left || moved) await emitRelease(b, { professionalId: before.professionalId, startsAt: before.startsAt, endsAt: before.endsAt, appointmentId: saved._id }, left ? saved.status : 'moved');
+      }
+      return saved;
     } catch (err) {
       if (err?.name === 'VersionError') throw invalid('stale');
       if (isBoletaClash(err)) throw boletaClash();
@@ -884,6 +1006,10 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
         a.expiresAt = undefined;
         /* SPEC-35 RN-09: pagada en línea → queda marcada para reembolso. */
         markRefundDue(a);
+        /* SPEC-56 RN-07: si cancela el local, la seña confirmada se devuelve; si cancela el cliente, no. */
+        if (role !== 'client') markDepositRefundDue(a, now);
+        /* Seña aún sin comprobante: queda anulada (sin datos bancarios ni referencia tomada). */
+        if (a.deposit?.status === 'por_pagar') a.deposit.status = 'anulada';
         return { by, byUserId, reason };
       });
       const who = { client: 'el cliente', barber: appt.professionalSnapshot?.displayName || 'el barbero', admin: 'WS Style' }[role];
@@ -912,7 +1038,8 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
       if (action === 'no_show' && now < current.startsAt.getTime() + START_WINDOW_MIN * MIN) throw invalid('too_early', 'Aún no pasa la hora de inicio + 15 min');
       if (action === 'start' && now < current.startsAt.getTime() - START_WINDOW_MIN * MIN) throw invalid('too_early', 'Puedes iniciar desde 15 minutos antes de la hora');
       /* SPEC-33 RN-10: al terminar una cita con pago en el local se registra si se cobró. */
-      const localPay = (current.payment?.method || 'local') === 'local';
+      /* SPEC-60: una cita cubierta entera por gift card ya está cobrada (no se pregunta "¿Cobraste?"). */
+      const localPay = (current.payment?.method || 'local') === 'local' && payableCLP(current) > 0;
       if (action === 'finish' && role === 'barber' && localPay && typeof payload.collected !== 'boolean') {
         throw new HttpError(400, 'collected_required', '¿Cobraste la cita?', { fields: { collected: 'required' } });
       }
@@ -927,6 +1054,11 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
       const appt = await mutate(b, current._id, async (a) => {
         if (a.status !== need) throw invalid('stale');
         a.status = to;
+        /* SPEC-60 RN-05: al terminar, lo aplicado de la gift card queda confirmado. */
+        if (action === 'finish' && a.giftCard?.status === 'reservada') {
+          a.giftCard.status = 'confirmada';
+          a.giftCard.confirmedAt = new Date(now);
+        }
         if (action === 'finish' && localPay && typeof payload.collected === 'boolean') {
           if (payload.collected) applyLocalCollection(a, { ...collect, provider: taxProvider, now });
           else a.payment.status = 'pago_pendiente';
@@ -946,12 +1078,16 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
         await CustomerProfile.updateOne({ businessId: b._id, userId: appt.customerUserId }, { $inc: { 'counters.noShows': 1 } }, { upsert: true }).catch((err) => logger.error('[agenda] contador de inasistencias:', err.message));
       }
       /* SPEC-55: el rato liberado va a la lista de espera (SPEC-54) si existe. Un error ahí no deshace nada. */
-      if (to === 'no_asistio' && freedLocks && hooks.onSlotFreed) {
+      if (to === 'no_asistio' && freedLocks) {
         const end = appt.endsAt.getTime() + (appt.location?.travelBufferMin || 0) * MIN;
-        try {
-          await hooks.onSlotFreed({ businessId: b._id, professionalId: appt.professionalId, appointmentId: appt._id, startsAt: new Date(freeFrom), endsAt: new Date(Math.max(end, freeFrom)) });
-        } catch (err) {
-          logger.error('[agenda] lista de espera:', err.message);
+        const freed = { businessId: b._id, professionalId: appt.professionalId, appointmentId: appt._id, startsAt: new Date(freeFrom), endsAt: new Date(Math.max(end, freeFrom)) };
+        await emitRelease(b, freed, 'no_asistio');
+        if (hooks.onSlotFreed) {
+          try {
+            await hooks.onSlotFreed(freed);
+          } catch (err) {
+            logger.error('[agenda] lista de espera:', err.message);
+          }
         }
       }
       return serialize(appt, role, b, now);
@@ -972,17 +1108,23 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
       if (current.payment?.status === 'en_proceso') throw invalid('payment_in_process', 'Tu pago está en proceso. Espera la respuesta de Mercado Pago.');
       throw invalid('bad_state');
     }
+    /* SPEC-56 RN-01: pasar a pagar en el local no salta la seña (si la regla aplica a este cliente). */
+    const depositReq = depositRule && !current.giftCard?.giftCardId ? await depositRule.check(b, user, { startsAt: current.startsAt.getTime(), now }) : null;
+    if (depositReq?.tooSoon) throw invalid('deposit_too_soon', 'Esta hora es muy pronto para pagar la seña. Paga en línea o elige otra hora.');
+    const deposit = depositReq ? await depositRule.initial(b, depositReq, current.pricing) : null;
     const appt = await mutate(b, current._id, (a) => {
       if (!ok(a)) throw invalid('stale');
-      a.status = 'pendiente';
+      a.status = deposit ? 'pendiente_sena' : 'pendiente';
       a.payment.method = 'local';
       a.payment.status = 'pendiente';
-      a.expiresAt = new Date(confirmDeadline(b, a.startsAt.getTime(), now));
+      if (deposit) a.deposit = deposit;
+      a.expiresAt = new Date(deposit ? deposit.deadlineAt.getTime() : confirmDeadline(b, a.startsAt.getTime(), now));
       /* SPEC-38: la tarifa de servicio no depende de la forma de pago: el total no cambia. */
       a.pricing.paymentMethod = 'local';
       return { by: 'client', byUserId: user._id, reason: 'Cambió a pagar en el local' };
     });
-    await Promise.all([notify(b, appt, 'client', 'received'), notify(b, appt, 'barber', 'new')]);
+    if (deposit) await hooks.depositCreated?.(b, appt);
+    else await Promise.all([notify(b, appt, 'client', 'received'), notify(b, appt, 'barber', 'new')]);
     return serialize(appt, role, b, now);
   }
 
@@ -1001,6 +1143,7 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
           await SlotLock.deleteMany({ appointmentId: a._id }, { session });
           a.status = 'expirada';
           markRefundDue(a);
+          markDepositRefundDue(a, now);
           return { by: 'system', reason: 'Sin confirmación del barbero a tiempo' };
         });
         expired++;
@@ -1061,10 +1204,13 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
         await SlotLock.deleteMany({ appointmentId: x._id }, { session });
         x.status = 'cancelada';
         x.proposal = undefined;
+        if (x.deposit?.status === 'por_pagar') x.deposit.status = 'anulada';
         if (markRefundDue(x)) alertRefundDue(b, x, 'El cliente eliminó su cuenta').catch(() => {});
         return { by: 'client', byUserId: user._id, reason: 'Cuenta eliminada' };
       }).catch((err) => logger.error('[agenda] cancelar por cuenta eliminada:', err.message));
     }
+    /* SPEC-54 CB-09: sus entradas de la lista de espera se borran. */
+    await WaitlistEntry.deleteMany({ customerUserId: user._id }).catch(() => {});
     await Appointment.updateMany({ customerUserId: user._id }, { $set: { 'customerSnapshot.name': 'Cliente eliminado', 'customerSnapshot.phoneE164': null, 'customerSnapshot.email': null } });
   }
 
@@ -1098,5 +1244,10 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
     notify,
     mutate,
     inviteLinks,
+    /* SPEC-56 */
+    markDepositRefundDue,
+    /* SPEC-54 */
+    emitRelease,
+    waitlistOn,
   };
 }

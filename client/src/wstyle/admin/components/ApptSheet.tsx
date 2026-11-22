@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { ApiError } from '../../agenda/api';
 import { CollectFields } from '../../agenda/components/CollectFields';
 import { useCollect } from '../../agenda/useCollect';
+import { amountToCollect, depositTag, restLine } from '../../agenda/deposit';
 import { Notice, StatusPill } from '../../agenda/components/ui';
 import { ReferenceSummary } from '../../agenda/components/StylePhotos';
 import { clp, dayMonthTime, localDate, localTime, prettyPhone } from '../../agenda/util';
@@ -77,6 +78,7 @@ export default function ApptSheet({ id, onClose, onChanged }: { id: string; onCl
     <Sheet title="Cita" onClose={onClose} wide>
       <div className="adm-appt" data-appt={appt.id}>
         <p className="adm-appt__status"><StatusPill status={appt.status} label={appt.statusLabel} /> <span className="ag-muted">{appt.source === 'admin' ? 'Agendada por WS Style' : appt.source === 'pro_invite' ? 'Invitación del barbero' : appt.source === 'pro_direct' ? 'Confirmada por el barbero' : 'Reserva web'}</span></p>
+        {depositTag(appt.deposit, appt.status) && <p className="pro-card__deposit" data-deposit-tag="">{depositTag(appt.deposit, appt.status)} {appt.deposit?.status === 'en_revision' && <a href="/wstyle/admin/pagos/?vista=senas">Revisar</a>}</p>}
         <dl className="adm-dl">
           <dt>Cuándo</dt><dd>{appt.when}</dd>
           <dt>Servicio</dt><dd>{appt.service.name} · {appt.service.durationMin} min</dd>
@@ -153,7 +155,7 @@ export default function ApptSheet({ id, onClose, onChanged }: { id: string; onCl
             }}>{pending ? 'Marcando que no vino…' : 'El cliente no vino'}</button>}
             {appt.canRevertNoShow && <button type="button" className="btn btn--ghost" disabled={busy} onClick={() => setMode('revert')}>Sí vino (corregir)</button>}
             {appt.canCollect && <button type="button" className="btn btn--ghost" disabled={busy} onClick={() => setMode('collect')}>Marcar cobrado en el local</button>}
-            {appt.canRefund && <button type="button" className="btn btn--primary" disabled={busy} onClick={() => setMode({ refund: null })}>{pay.refundError ? 'Reintentar reembolso' : 'Reembolsar'} {clp.format(appt.pricing.totalCLP)}</button>}
+            {appt.canRefund && <button type="button" className="btn btn--primary" disabled={busy} onClick={() => setMode({ refund: null })}>{pay.refundError ? 'Reintentar reembolso' : 'Reembolsar'} {clp.format(appt.pricing.dueCLP ?? appt.pricing.totalCLP)}</button>}
             {has('reject') && <button type="button" className="btn btn--ghost" disabled={busy} onClick={() => setMode('reject')}>Rechazar</button>}
             {has('cancel') && <button type="button" className="btn btn--danger" disabled={busy} onClick={() => setMode('cancel')}>Cancelar cita</button>}
           </div>
@@ -172,7 +174,7 @@ export default function ApptSheet({ id, onClose, onChanged }: { id: string; onCl
 
         {typeof mode === 'object' && mode !== null && (
           <div className="adm-inline" role="group" aria-label="Confirmar reembolso">
-            <p>Se devolverá el total ({clp.format(appt.pricing.totalCLP)}) en Mercado Pago{mode.refund ? ` del pago ${mode.refund}` : ''}. El cliente recibe un correo. No se puede deshacer.</p>
+            <p>Se devolverá el total pagado ({clp.format(appt.pricing.dueCLP ?? appt.pricing.totalCLP)}) en Mercado Pago{mode.refund ? ` del pago ${mode.refund}` : ''}. El cliente recibe un correo. No se puede deshacer.</p>
             <div className="ag-actions ag-actions--wrap">
               <button type="button" className="btn btn--danger" disabled={busy} aria-busy={busy} onClick={async () => {
                 // CB-11: si Mercado Pago falla, se recarga la ficha para ver el error guardado y poder reintentar.
@@ -204,9 +206,9 @@ export default function ApptSheet({ id, onClose, onChanged }: { id: string; onCl
             const c = col.check();
             if (c) run(() => admin.collect(id, { method: c.localMethod, boletaNumber: c.boletaNumber ?? undefined }));
           }}>
-            <CollectFields method={col.method} onMethod={col.setMethod} boleta={col.boleta} onBoleta={col.setBoleta} error={col.error} />
+            <CollectFields method={col.method} onMethod={col.setMethod} boleta={col.boleta} onBoleta={col.setBoleta} error={col.error} rest={restLine(appt.deposit)} />
             <div className="ag-actions ag-actions--wrap">
-              <button type="submit" className="btn btn--primary" disabled={busy}>Marcar cobrado {clp.format(appt.pricing.totalCLP)}</button>
+              <button type="submit" className="btn btn--primary" disabled={busy}>Marcar cobrado {clp.format(amountToCollect(appt.pricing, appt.deposit))}</button>
               <button type="button" className="btn btn--ghost" onClick={() => setMode(null)}>Volver</button>
             </div>
           </form>
@@ -223,7 +225,7 @@ export default function ApptSheet({ id, onClose, onChanged }: { id: string; onCl
             {pay.method === 'local' && (
               <label className="pro-check"><input type="checkbox" checked={collected} onChange={(e) => setCollected(e.target.checked)} /> <span>Se cobró en el local</span></label>
             )}
-            {pay.method === 'local' && collected && <CollectFields method={col.method} onMethod={col.setMethod} boleta={col.boleta} onBoleta={col.setBoleta} error={col.error} />}
+            {pay.method === 'local' && collected && <CollectFields method={col.method} onMethod={col.setMethod} boleta={col.boleta} onBoleta={col.setBoleta} error={col.error} rest={restLine(appt.deposit)} />}
             <div className="ag-actions ag-actions--wrap">
               <button type="submit" className="btn btn--primary" disabled={busy}>Terminar la cita</button>
               <button type="button" className="btn btn--ghost" onClick={() => setMode(null)}>Volver</button>

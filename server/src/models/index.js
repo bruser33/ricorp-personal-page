@@ -25,6 +25,7 @@ const BusinessSchema = new Schema(
     location: PointSchema,
     /* weekday ISO 1..7; opens/closes null = cerrado. SPEC-34 RN-05: un día puede tener
        varios rangos (una entrada por rango, p.ej. 10–14 y 15–20). */
+    publicDetailsVersion: String,
     hours: [{ _id: false, weekday: Number, opens: String, closes: String }],
     /* Feriados / cierres del local: fechas locales 'YYYY-MM-DD' (una entrada por día; un
        cierre de varios días comparte `groupId`). */
@@ -40,11 +41,36 @@ const BusinessSchema = new Schema(
       maxActivePerCustomer: { type: Number, default: 2 },
       /* SPEC-33 RN-12 / SPEC-34 RN-08: vigencia de una invitación del barbero. */
       inviteTtlHours: { type: Number, default: 24 },
+      /* SPEC-54: lista de espera de días llenos (encendida por defecto; ausente = encendida). */
+      waitlistEnabled: { type: Boolean, default: true },
     },
     /* SPEC-34 RN-08: formas de pago habilitadas. Las credenciales NUNCA viven acá (server/.env). */
     payments: {
       onlineEnabled: { type: Boolean, default: false },
       localEnabled: { type: Boolean, default: true },
+    },
+    /* SPEC-56: seña por transferencia al reservar. Los datos bancarios NO son públicos (RN-08):
+       nunca van al catálogo, al JSON-LD ni al HTML prerenderizado. */
+    deposit: {
+      enabled: { type: Boolean, default: false },
+      kind: { type: String, enum: ['fixed', 'percent'], default: 'fixed' },
+      fixedCLP: { type: Number, default: 5000 },
+      percent: { type: Number, default: 30 },
+      appliesTo: { type: String, enum: ['all', 'new', 'no_show'], default: 'new' },
+      minutes: { type: Number, enum: [15, 30, 60], default: 30 },
+      bank: {
+        holder: String,
+        rut: String,
+        bank: String,
+        accountType: { type: String, enum: ['corriente', 'vista', 'rut', 'ahorro'] },
+        accountNumber: String,
+        email: String,
+      },
+    },
+    /* SPEC-60: venta de gift cards en línea (apagada por defecto) y vigencia por defecto en meses. */
+    giftCards: {
+      onlineEnabled: { type: Boolean, default: false },
+      validityMonths: { type: Number, default: 12 },
     },
   },
   { timestamps: true }
@@ -99,6 +125,23 @@ const MembershipSchema = new Schema(
 MembershipSchema.index({ businessId: 1, professionalId: 1 }, { unique: true });
 export const Membership = model('Membership', MembershipSchema);
 
+/* SPEC-51: categoría de la carta (Barbería, Decoloración capilar…). `note` = texto bajo el título del grupo
+   (landing y reserva). `slug` = id de la categoría en services.json. */
+const ServiceCategorySchema = new Schema(
+  {
+    businessId: { type: ObjectId, required: true },
+    slug: { type: String, required: true },
+    name: { type: String, required: true },
+    note: { type: String, default: '' },
+    order: { type: Number, default: 0 },
+  },
+  { timestamps: true }
+);
+ServiceCategorySchema.index({ businessId: 1, slug: 1 }, { unique: true });
+export const ServiceCategory = model('ServiceCategory', ServiceCategorySchema);
+/* SPEC-51 RN-01: un servicio sin categoría se muestra en "Barbería". */
+export const DEFAULT_CATEGORY = { slug: 'barberia', name: 'Barbería' };
+
 /* professionalId null = carta del local. `slug` = id de services.json. */
 const ServiceSchema = new Schema(
   {
@@ -112,6 +155,8 @@ const ServiceSchema = new Schema(
     homeServiceAllowed: { type: Boolean, default: true },
     active: { type: Boolean, default: true },
     order: { type: Number, default: 0 },
+    /* SPEC-51: categoría (null = "Barbería", RN-01). */
+    categoryId: { type: ObjectId, default: null },
     /* SPEC-34 RN-04: un servicio con citas no se borra, se archiva (deja de ofrecerse). */
     archivedAt: { type: Date, default: null },
   },
@@ -212,6 +257,8 @@ export const CustomerProfile = model('CustomerProfile', CustomerProfileSchema);
 /* ─── Citas */
 export const STATUSES = [
   'pendiente_pago',
+  /* SPEC-56: esperando que el cliente suba el comprobante de la seña (ocupa la hora). */
+  'pendiente_sena',
   'pendiente',
   'invitacion_enviada',
   'confirmada',
@@ -223,8 +270,13 @@ export const STATUSES = [
   'no_asistio',
 ];
 /* Estados que ocupan agenda (RN-02). */
-export const BLOCKING = ['pendiente', 'pendiente_pago', 'invitacion_enviada', 'confirmada', 'propuesta_cambio', 'en_curso'];
+export const BLOCKING = ['pendiente', 'pendiente_pago', 'pendiente_sena', 'invitacion_enviada', 'confirmada', 'propuesta_cambio', 'en_curso'];
 export const FINAL = ['terminada', 'cancelada', 'expirada', 'no_asistio'];
+
+/* SPEC-56: estados de la seña. `anulada` = el cliente cambió a pagar en línea (CB-08). */
+export const DEPOSIT_STATUSES = ['por_pagar', 'en_revision', 'confirmada', 'rechazada', 'vencida', 'por_devolver', 'devuelta', 'anulada'];
+/* Señas que aún pueden cambiar: su referencia tiene que ser única entre ellas (RN-03). */
+export const DEPOSIT_OPEN = ['por_pagar', 'en_revision'];
 
 const AppointmentSchema = new Schema(
   {
@@ -269,6 +321,8 @@ const AppointmentSchema = new Schema(
       method: { type: String, default: 'local' },
       status: { type: String, default: 'pendiente' },
       collectedAt: Date,
+      /* SPEC-56: monto cobrado en el local (total − seña confirmada al momento de cobrar). */
+      collectedCLP: Number,
       /* SPEC-35: inicio de la retención (RN-03) y datos del pago en línea. */
       holdStartedAt: Date,
       preferenceId: String,
@@ -296,6 +350,28 @@ const AppointmentSchema = new Schema(
       localMethod: { type: String, enum: ['efectivo', 'transferencia', 'tarjeta'] },
       taxModel: String,
       taxDoc: { kind: { type: String, enum: ['voucher_mp', 'boleta_sii'] }, number: String, provider: String, at: Date, byUserId: ObjectId },
+    },
+    /* SPEC-56: seña por transferencia. Monto y plazo congelados al reservar. El comprobante vive
+       en el almacenamiento de objetos (lib/receipts.js): acá solo sus metadatos. */
+    deposit: {
+      type: new Schema(
+        {
+          amountCLP: Number,
+          reference: String,
+          status: { type: String, enum: DEPOSIT_STATUSES },
+          deadlineAt: Date,
+          receipt: { key: String, contentType: String, size: Number, hash: String, kind: String, uploadedAt: Date, purgedAt: Date },
+          reviewedAt: Date,
+          reviewedByUserId: ObjectId,
+          rejectReason: String,
+          confirmedAt: Date,
+          refundDueAt: Date,
+          refundedAt: Date,
+          refundedByUserId: ObjectId,
+        },
+        { _id: false }
+      ),
+      default: undefined,
     },
     /* Invitación del barbero (SPEC-33 RN-12): el token va en el link que se manda por WhatsApp. */
     invite: { token: String, sentAt: Date },
@@ -338,6 +414,21 @@ const AppointmentSchema = new Schema(
        y no cambia. Las citas pro_invite/admin no lo llevan. Nunca se muestra al cliente. */
     origin: { type: String, maxlength: 40 },
     idempotencyKey: String,
+    /* SPEC-60: gift card aplicada a la cita. `amountCLP` = descuento sobre el total (lo que no se
+       cobra); `debitCLP` = lo que se descontó del saldo de la tarjeta (vuelve si la cita se cae).
+       status: reservada (al crear) → confirmada (pagada en línea o terminada) | revertida. */
+    giftCard: {
+      giftCardId: ObjectId,
+      code: String,
+      from: String,
+      kind: String,
+      amountCLP: Number,
+      debitCLP: Number,
+      status: { type: String, enum: ['reservada', 'confirmada', 'revertida'] },
+      appliedAt: Date,
+      confirmedAt: Date,
+      revertedAt: Date,
+    },
   },
   /* optimisticConcurrency: dos pestañas (o cliente y barbero) que cambian la misma
      cita a la vez → la segunda falla con VersionError → 409 (CB-14). */
@@ -351,6 +442,12 @@ AppointmentSchema.index(
   { unique: true, partialFilterExpression: { idempotencyKey: { $type: 'string' } } }
 );
 AppointmentSchema.index({ 'location.point': '2dsphere' }, { sparse: true });
+/* SPEC-56 RN-03: referencia única entre las señas no finalizadas. */
+AppointmentSchema.index(
+  { businessId: 1, 'deposit.reference': 1 },
+  { unique: true, name: 'sena_referencia_abierta', partialFilterExpression: { 'deposit.status': { $in: ['por_pagar', 'en_revision'] } } }
+);
+AppointmentSchema.index({ businessId: 1, 'deposit.status': 1 }, { sparse: true });
 /* SPEC-37: un folio de boleta SII respalda una sola venta. */
 AppointmentSchema.index(
   { businessId: 1, 'payment.taxDoc.number': 1 },
@@ -450,6 +547,8 @@ const PaymentEventSchema = new Schema(
     status: { type: String, required: true },
     amount: Number,
     currency: String,
+    /* SPEC-60: pago de la compra de una gift card (external_reference = gc:<id>). */
+    giftCardId: ObjectId,
     via: { type: String, enum: ['webhook', 'reconcile', 'view'] },
     outcome: String,
   },
@@ -496,6 +595,102 @@ ClientPhotoSchema.index({ userId: 1, appointmentId: 1 });
 ClientPhotoSchema.index({ fileId: 1 }, { unique: true });
 ClientPhotoSchema.index({ appointmentId: 1, uploadedAt: 1 });
 export const ClientPhoto = model('ClientPhoto', ClientPhotoSchema);
+/* SPEC-60: gift cards. `code` (WS-XXXX-XXXX) se canjea al reservar; `token` (distinto) abre la
+   página pública de la tarjeta. El saldo solo cambia con updates atómicos condicionales. */
+export const GIFT_CARD_STATUSES = ['pendiente_pago', 'activa', 'usada', 'vencida', 'anulada'];
+const GiftCardSchema = new Schema(
+  {
+    businessId: { type: ObjectId, required: true },
+    code: { type: String, required: true, unique: true },
+    token: { type: String, required: true, unique: true },
+    kind: { type: String, enum: ['monto', 'servicio'], required: true },
+    service: { serviceId: ObjectId, slug: String, name: String, priceCLP: Number },
+    amountCLP: { type: Number, required: true },
+    balanceCLP: { type: Number, required: true, min: 0 },
+    from: String,
+    to: String,
+    message: String,
+    buyerEmail: String,
+    buyerUserId: ObjectId,
+    status: { type: String, enum: GIFT_CARD_STATUSES, required: true },
+    origin: { type: String, enum: ['online', 'local'], required: true },
+    validityMonths: Number,
+    activatedAt: Date,
+    expiresAt: Date,
+    /* Compra en línea: desglose de SPEC-38 (valor + tarifa de servicio) congelado. */
+    pricing: { priceCLP: Number, platformFeeCLP: Number, paymentFeeCLP: Number, serviceFeeCLP: Number, totalCLP: Number, platformFeeRate: Number, paymentFeeRate: Number, paymentFeeVat: Boolean },
+    /* Cobro: en línea (Mercado Pago) o en el local (forma de cobro). */
+    payment: {
+      preferenceId: String,
+      attempts: { type: Number, default: 0 },
+      mpPaymentId: String,
+      mpStatus: String,
+      paidAt: Date,
+      amountCLP: Number,
+      mpFeeCLP: Number,
+      mpNetCLP: Number,
+      refundedAt: Date,
+      chargebackAt: Date,
+      localMethod: { type: String, enum: ['efectivo', 'transferencia', 'tarjeta'] },
+      collectedAt: Date,
+      taxModel: String,
+      taxDoc: { kind: { type: String, enum: ['voucher_mp', 'boleta_sii'] }, number: String, provider: String, at: Date },
+    },
+    /* RN-08: reembolsada después de usarse → bloqueada (no se canjea) y alerta al admin. */
+    blocked: Boolean,
+    discardedAt: Date,
+    voidReason: String,
+    mailedAt: Date,
+    movements: [
+      {
+        _id: false,
+        kind: { type: String, enum: ['emision', 'canje', 'reversion', 'anulacion', 'extension', 'activacion', 'reembolso'] },
+        amountCLP: Number,
+        balanceCLP: Number,
+        appointmentId: ObjectId,
+        byUserId: ObjectId,
+        by: String,
+        reason: String,
+        at: { type: Date, required: true },
+      },
+    ],
+    createdByUserId: ObjectId,
+  },
+  { timestamps: true }
+);
+GiftCardSchema.index({ businessId: 1, status: 1, createdAt: -1 });
+export const GiftCard = model('GiftCard', GiftCardSchema);
+/* SPEC-54: lista de espera de un día lleno. Una entrada por cliente y día (activa). `active`
+   duplica "status ∈ {waiting, notified}" para el índice único parcial. El `token` va en el link
+   del aviso ("Tomar esta hora"); sirve solo para ese cliente y ese día (RN-05). */
+export const WAIT_ACTIVE = ['waiting', 'notified'];
+const WaitlistEntrySchema = new Schema(
+  {
+    businessId: { type: ObjectId, required: true },
+    customerUserId: { type: ObjectId, required: true },
+    customerSnapshot: { name: String, phoneE164: String, email: String },
+    date: { type: String, required: true },
+    serviceId: { type: ObjectId, required: true },
+    /* null = "Cualquiera". */
+    professionalId: { type: ObjectId, default: null },
+    pref: { type: String, enum: ['all', 'am', 'pm'], default: 'all' },
+    status: { type: String, enum: ['waiting', 'notified', 'booked', 'ended', 'removed'], default: 'waiting' },
+    active: { type: Boolean, default: true },
+    token: { type: String, required: true },
+    lastNotifiedAt: Date,
+    autoNotices: { type: Number, default: 0 },
+    notices: [{ _id: false, at: Date, kind: { type: String, enum: ['auto', 'manual'] }, startsAt: Date, byUserId: ObjectId }],
+    appointmentId: ObjectId,
+    endedReason: String,
+    endedAt: Date,
+  },
+  { timestamps: true }
+);
+WaitlistEntrySchema.index({ businessId: 1, customerUserId: 1, date: 1 }, { unique: true, name: 'una_por_dia', partialFilterExpression: { active: true } });
+WaitlistEntrySchema.index({ businessId: 1, date: 1, active: 1, createdAt: 1 });
+WaitlistEntrySchema.index({ token: 1 }, { unique: true });
+export const WaitlistEntry = model('WaitlistEntry', WaitlistEntrySchema);
+
 /* SPEC-52: reseña de un cliente sobre una cita `terminada`. El índice único por cita es la garantía de "una por
    cita" (RN-02, también con dos pestañas a la vez). Nombre, servicio y barbero se copian al crearla (RN-06, CB-12). */
 const ReviewSchema = new Schema(
@@ -523,6 +718,7 @@ export const ALL_MODELS = [
   Business,
   Professional,
   Membership,
+  ServiceCategory,
   Service,
   ProfessionalService,
   AvailabilityRule,
@@ -539,5 +735,7 @@ export const ALL_MODELS = [
   PaymentEvent,
   Style,
   ClientPhoto,
+  GiftCard,
+  WaitlistEntry,
   Review,
 ];

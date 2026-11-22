@@ -9,6 +9,8 @@ import { Notice, Spinner, StatusPill, Unavailable } from '../components/ui';
 import { ReferenceEditor, ReferenceSummary } from '../components/StylePhotos';
 import { addDays, clp, localDate, localTime, longDay } from '../util';
 import { payTotalLabel, payView } from '../pay';
+import { DepositBox } from '../components/DepositBox';
+import { depositTag } from '../deposit';
 
 const FINAL = ['terminada', 'cancelada', 'expirada', 'no_asistio'];
 
@@ -72,7 +74,7 @@ export default function AppointmentPage({ ctx }: { ctx: AgendaCtx }) {
     }
   }
 
-  async function act(action: Action, body: Record<string, unknown> = {}, okText?: string) {
+  async function act(action: Action, body: Record<string, unknown> = {}, okText?: string | ((next: Appointment) => string | undefined)) {
     setBusy(true);
     setMsg(null);
     try {
@@ -80,7 +82,8 @@ export default function AppointmentPage({ ctx }: { ctx: AgendaCtx }) {
       setAppt(next);   // el estado cambia sin recargar (AC-16)
       setCounter(false);
       setConfirmCancel(false);
-      if (okText) setMsg({ tone: 'ok', text: okText });
+      const text = typeof okText === 'function' ? okText(next) : okText;
+      if (text) setMsg({ tone: 'ok', text });
     } catch (e) {
       // CB-14: otra pestaña cambió la cita o la propuesta caducó → estado real + aviso.
       const text = e instanceof ApiError && e.status ? e.message : 'No pudimos conectar con la agenda. Inténtalo de nuevo.';
@@ -135,8 +138,14 @@ export default function AppointmentPage({ ctx }: { ctx: AgendaCtx }) {
 
         {isClient && view !== 'none' && (
           <PayBox appt={appt} view={view} busy={busy || paying} canPay={can('pay')} canLocal={can('pay_local')}
-            onPay={payOnline} onLocal={() => act('pay_local', {}, `Listo: pagas en el local. ${appt.professional.name} tiene que confirmar tu cita.`)} />
+            onPay={payOnline} onLocal={() => act('pay_local', {}, (next) => (next.status === 'pendiente_sena' ? undefined : `Listo: pagas en el local. ${appt.professional.name} tiene que confirmar tu cita.`))} />
         )}
+
+        {/* SPEC-56: "Deja tu seña" (cuenta regresiva, referencia, datos bancarios y comprobante). */}
+        {isClient && appt.deposit && appt.deposit.status !== 'anulada' && (
+          <DepositBox appt={appt} busy={busy} onChange={(a) => { setAppt(a); setMsg(null); }} onCancel={() => setConfirmCancel(true)} />
+        )}
+        {!isClient && depositTag(appt.deposit, appt.status) && <p className="ag-muted" data-deposit-tag="">{depositTag(appt.deposit, appt.status)}</p>}
 
         {appt.proposal && appt.status === 'propuesta_cambio' ? (
           <div className="ag-proposal" data-proposal="">
@@ -166,7 +175,7 @@ export default function AppointmentPage({ ctx }: { ctx: AgendaCtx }) {
             {can('accept') && <button type="button" className="btn btn--primary" disabled={busy} onClick={() => act('accept', {}, 'Listo: tu cita quedó en la nueva hora.')}>Aceptar</button>}
             {can('counter') && <button type="button" className="btn btn--ghost" disabled={busy} aria-expanded={counter} onClick={() => setCounter(!counter)}>Proponer otra hora</button>}
             {can('confirm') && <button type="button" className="btn btn--primary" disabled={busy} onClick={() => act('confirm', {}, 'Cita confirmada.')}>Confirmar</button>}
-            {can('cancel') && !confirmCancel && <button type="button" className="btn btn--ghost" disabled={busy} onClick={() => setConfirmCancel(true)}>Cancelar cita</button>}
+            {can('cancel') && !confirmCancel && appt.status !== 'pendiente_sena' && <button type="button" className="btn btn--ghost" disabled={busy} onClick={() => setConfirmCancel(true)}>Cancelar cita</button>}
             {!can('cancel') && open && appt.status !== 'en_curso' && appt.whatsapp && (
               <a className="btn btn--ghost" href={appt.whatsapp} target="_blank" rel="noopener">Escríbenos por WhatsApp</a>
             )}
@@ -197,7 +206,8 @@ export default function AppointmentPage({ ctx }: { ctx: AgendaCtx }) {
 function PayBox({ appt, view, busy, canPay, canLocal, onPay, onLocal }: {
   appt: Appointment; view: ReturnType<typeof payView>; busy: boolean; canPay: boolean; canLocal: boolean; onPay: () => void; onLocal: () => void;
 }) {
-  const total = clp.format(appt.pricing.totalCLP);
+  // SPEC-60: con gift card se paga solo el resto.
+  const total = clp.format(appt.pricing.dueCLP ?? appt.pricing.totalCLP);
   const until = appt.payment.holdUntil ? localTime(appt.payment.holdUntil) : null;
   const actions = (retry: boolean) => (canPay || canLocal) && (
     <div className="ag-actions ag-actions--wrap">

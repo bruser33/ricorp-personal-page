@@ -46,10 +46,10 @@ describe('Política de privacidad', () => {
     for (const s of ['Inicio con Google', 'openid', 'ws_gg_nonce', 'myaccount.google.com/permissions']) expect(html).toContain(s);
     expect(html).toMatch(/nunca pasan por nuestros servidores/);
   });
-  it('responsable Ricorp; en demo el WhatsApp del local lleva al contacto de Ricorp', () => {
+  it('responsable Ricorp y contacto directo del local', () => {
     expect(html).toContain('Ricorp');
     expect(html).toContain(`href="${DEMO_CONTACT_URL}"`);
-    expect(html).not.toContain('wa.me/');
+    expect(html).toContain('wa.me/56927454681');
   });
 });
 

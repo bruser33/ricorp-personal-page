@@ -17,6 +17,7 @@ import {
   TimeOff,
   User,
 } from '../models/index.js';
+import { categoriesOf, categoryView } from './categories.js';
 import { HttpError } from '../lib/errors.js';
 import { isDuplicateKey, withTransaction } from '../lib/db.js';
 import { cleanName, clMobile, MAX_NOTE } from '../lib/validate.js';
@@ -226,15 +227,18 @@ export function createPro({ agenda, clock = Date.now, mailer, logger = console, 
   /* ─── Lectura del perfil */
   async function me(user) {
     const { b, pro, m } = await context(user);
-    const [services, links, rules, offs, unread, rates] = await Promise.all([
+    const [services, links, rules, offs, unread, rates, cats] = await Promise.all([
       Service.find({ businessId: b._id, active: true }).sort({ order: 1 }).lean(),
       ProfessionalService.find({ businessId: b._id, professionalId: pro._id }).lean(),
       AvailabilityRule.find({ businessId: b._id, professionalId: pro._id }).sort({ weekday: 1, start: 1 }).lean(),
       TimeOff.find({ businessId: b._id, professionalId: pro._id, endsAt: { $gt: new Date(clock()) } }).sort({ startsAt: 1 }).lean(),
       PanelNotification.countDocuments({ userId: user._id, readAt: null }),
       currentRates(),
+      categoriesOf(b._id),
     ]);
     const mine = new Set(links.map((l) => String(l.serviceId)));
+    /* SPEC-51 asunción 7: el barbero ve sus servicios agrupados por categoría. */
+    const { categories, slugOf } = categoryView(cats, services);
     return {
       user: publicUser(user),
       needsCompletion: needsCompletion(user, pro),
@@ -242,7 +246,8 @@ export function createPro({ agenda, clock = Date.now, mailer, logger = console, 
       professional: serializePro(pro),
       membership: { status: m.status, reason: m.reason || null, submittedAt: m.submittedAt ? m.submittedAt.toISOString() : null },
       business: { name: b.name, timezone: b.timezone, hours: b.hours, address: b.address },
-      services: services.map((s) => ({ id: s.slug, name: s.name, priceCLP: s.priceCLP, durationMin: s.durationMin, homeServiceAllowed: s.homeServiceAllowed !== false, selected: mine.has(String(s._id)) })),
+      categories,
+      services: services.map((s) => ({ id: s.slug, name: s.name, priceCLP: s.priceCLP, durationMin: s.durationMin, homeServiceAllowed: s.homeServiceAllowed !== false, selected: mine.has(String(s._id)), category: slugOf(s) })),
       rules: rules.map((r) => ({ weekday: r.weekday, start: r.start, end: r.end })),
       timeOffs: offs.map(serializeOff),
       /* SPEC-38 RN-10: la administración la paga el cliente aparte; el barbero gana servicio + domicilio. */

@@ -376,7 +376,7 @@ function Onboarding({ me, setMe, notice }: { me: ProMe; setMe: (m: ProMe) => voi
           <h1 className="ag-h1 pro-h1--long" tabIndex={-1}>¿Qué servicios haces?</h1>
           <div className="ag-card">
             <p className="ag-muted">Elige de la carta de WS Style. El precio y la duración los define el local.</p>
-            <ServicesEditor services={me.services} value={services} onChange={(v) => { setServices(v); setError(null); }} error={error} />
+            <ServicesEditor services={me.services} categories={me.categories} value={services} onChange={(v) => { setServices(v); setError(null); }} error={error} />
             {me.platformFeeRate > 0 && <p className="ag-fine">El cliente paga aparte una tarifa de servicio (administración de la plataforma {Math.round(me.platformFeeRate * 10000) / 100} % + costo de pagos). Tu parte es el precio del servicio más el domicilio.</p>}
             <div className="ag-actions">
               <button type="button" className="btn btn--ghost" onClick={() => go(1)}>Atrás</button>

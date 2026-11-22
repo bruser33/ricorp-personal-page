@@ -5,7 +5,7 @@ import { handle, HttpError } from '../lib/errors.js';
 import { imageUpload } from '../lib/photos.js';
 import { MAX_STYLES_PER_UPLOAD } from '../domain/styles.js';
 
-export function createAdminRouter({ admin, logger, styles = null }) {
+export function createAdminRouter({ admin, logger, giftCards = null, styles = null }) {
   const r = express.Router();
   const h = (fn) => handle(fn, logger);
   const u = (req) => req.user;
@@ -93,6 +93,12 @@ export function createAdminRouter({ admin, logger, styles = null }) {
   r.post('/services', h(async (req, res) => res.status(201).json(await admin.createService(u(req), req.body || {}))));
   r.patch('/services/:id', h(async (req, res) => res.json(await admin.updateService(u(req), req.params.id, req.body || {}))));
   r.delete('/services/:id', h(async (req, res) => res.json(await admin.removeService(u(req), req.params.id))));
+  /* SPEC-51: categorías de la carta */
+  r.get('/service-categories', h(async (req, res) => res.json(await admin.listCategories(u(req)))));
+  r.post('/service-categories', h(async (req, res) => res.status(201).json(await admin.createCategory(u(req), req.body || {}))));
+  r.put('/service-categories/order', h(async (req, res) => res.json(await admin.reorderCategories(u(req), req.body || {}))));
+  r.patch('/service-categories/:id', h(async (req, res) => res.json(await admin.updateCategory(u(req), req.params.id, req.body || {}))));
+  r.delete('/service-categories/:id', h(async (req, res) => res.json(await admin.removeCategory(u(req), req.params.id))));
   r.get('/export', h(async (req, res) => res.json(await admin.exportContent(u(req)))));
 
   /* Reseñas (SPEC-52): todas (incluye ocultas), ocultar y volver a mostrar. */
@@ -111,6 +117,24 @@ export function createAdminRouter({ admin, logger, styles = null }) {
   r.get('/settings', h(async (req, res) => res.json(await admin.getSettings(u(req)))));
   r.put('/settings', h(async (req, res) => res.json(await admin.setSettings(u(req), req.body || {}))));
   r.get('/audit', h(async (req, res) => res.json(await admin.auditList(u(req), req.query))));
+
+  /* SPEC-56: seña por transferencia (solo super admin: el guard de arriba ya lo exige). */
+  r.get('/deposit-settings', h(async (req, res) => res.json(await admin.depositSettings(u(req)))));
+  r.put('/deposit-settings', h(async (req, res) => res.json(await admin.setDepositSettings(u(req), req.body || {}))));
+  r.get('/deposits', h(async (req, res) => res.json(await admin.listDeposits(u(req), req.query))));
+  for (const action of ['confirm', 'reject', 'refunded']) {
+    r.post(`/deposits/:id/${action}`, h(async (req, res) => res.json(await admin.reviewDeposit(u(req), req.params.id, action, req.body || {}))));
+  }
+
+  /* Gift cards (SPEC-60): solo el super admin (el guard de arriba ya respondió 401/403). */
+  if (giftCards) {
+    r.get('/gift-cards', h(async (req, res) => res.json(await giftCards.list(req.query))));
+    r.post('/gift-cards', h(async (req, res) => res.status(201).json(await giftCards.issue(u(req), req.body || {}))));
+    r.get('/gift-cards/:id', h(async (req, res) => res.json(await giftCards.detail(req.params.id))));
+    r.post('/gift-cards/:id/void', h(async (req, res) => res.json(await giftCards.voidCard(u(req), req.params.id, req.body || {}))));
+    r.post('/gift-cards/:id/extend', h(async (req, res) => res.json(await giftCards.extend(u(req), req.params.id, req.body || {}))));
+    r.post('/gift-cards/:id/resend', h(async (req, res) => res.json(await giftCards.resend(u(req), req.params.id, req.body || {}))));
+  }
 
   return r;
 }
