@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react';
 import NotificationsSheet from './NotificationsSheet';
 import { UndoHost } from './UndoHost';
 
-export type ProTab = 'hoy' | 'agenda' | 'pagos' | 'perfil' | 'registro' | 'entrar' | 'espejo';
+export type ProTab = 'hoy' | 'agenda' | 'pagos' | 'canjes' | 'perfil' | 'registro' | 'entrar' | 'espejo';
 
 // Marco del panel: marca, pestañas (Hoy · Agenda · Pagos · Perfil) y la campana con las no leídas (RN-16). En móvil las
 // pestañas van en una barra fija abajo, al alcance del pulgar.
@@ -29,6 +29,8 @@ export default function ProShell({ tab, children, operative = false, unread = 0,
             {link('/wstyle/pro/agenda/', 'Agenda', 'agenda', <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="1.5" fill="none" stroke="currentColor" strokeWidth="1.6" /><path d="M3.5 10h17M8 3v4M16 3v4" stroke="currentColor" strokeWidth="1.6" /></svg>)}
             {link('/wstyle/pro/espejo/', 'Espejo WS', 'espejo', <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><g fill="none" stroke="currentColor" strokeWidth="1.6"><ellipse cx="12" cy="9" rx="6.5" ry="7.5" /><path d="M12 16.5V22M9 21.8h6M9.5 10.5l4-4" /></g></svg>)}
             {link('/wstyle/pro/pagos/', 'Pagos', 'pagos', <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="1.5" fill="none" stroke="currentColor" strokeWidth="1.6" /><path d="M3 10h18M7 14.5h4" stroke="currentColor" strokeWidth="1.6" /></svg>)}
+            {/* SPEC-57: canjes de puntos por entregar en el local. */}
+            {link('/wstyle/pro/canjes/', 'Canjes', 'canjes', <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><rect x="4" y="9" width="16" height="11" rx="1.5" fill="none" stroke="currentColor" strokeWidth="1.6" /><path d="M3 9h18M12 9v11M12 9c-1.5-3-5-3.5-5-1s3.5 1 5 1c1.5 0 5 1.5 5-1s-3.5-2-5 1" fill="none" stroke="currentColor" strokeWidth="1.6" /></svg>)}
             {link('/wstyle/pro/perfil/', 'Perfil', 'perfil', <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><circle cx="12" cy="8.5" r="3.8" fill="none" stroke="currentColor" strokeWidth="1.6" /><path fill="none" stroke="currentColor" strokeWidth="1.6" d="M4.5 20c1.2-3.6 4-5.4 7.5-5.4s6.3 1.8 7.5 5.4" /></svg>)}
           </nav>
         )}

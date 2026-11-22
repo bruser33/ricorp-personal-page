@@ -20,6 +20,8 @@ import { createAdminInbox } from './lib/adminInbox.js';
 import { createAdmin } from './domain/admin.js';
 import { createReviews } from './domain/reviews.js';
 import { createAdminRouter } from './routes/admin.js';
+import { createLoyalty } from './domain/loyalty.js';
+import { createLoyaltyRouter } from './routes/loyalty.js';
 import { createPayments, WEBHOOK_PATH } from './domain/payments.js';
 import { createBilling } from './domain/billing.js';
 import { CHECK_LIMIT, createGiftCards, createKeyedLimiter } from './domain/giftcards.js';
@@ -243,7 +245,10 @@ export function createApp({
   const deposits = createDeposits({ agenda, rule: depositRule, store: receipts, clock, logger, mailer: agendaMailer, adminInbox, frontUrl, onSlotReleased });
   agenda.hooks.depositCreated = deposits.onCreated;
   /* Pago en línea (SPEC-35). */
-  const payments = createPayments({ agenda, env, clock, logger, adminInbox, frontUrl, fetchImpl: mercadoPagoFetch, taxProvider, giftCards });
+  /* Puntos por cita y canje de productos (SPEC-57): la agenda acredita al terminar y los pagos revierten. */
+  const loyalty = createLoyalty({ agenda, clock, mailer: agendaMailer, logger, frontUrl });
+  agenda.setLoyalty(loyalty);
+  const payments = createPayments({ agenda, env, clock, logger, adminInbox, frontUrl, fetchImpl: mercadoPagoFetch, taxProvider, loyalty, giftCards });
   /* Pagos en el panel y rendición mensual (SPEC-37). */
   const billing = createBilling({ agenda, env, clock, logger, taxProvider });
   const bookingLimiter = createRateLimiter(bookingRateLimit);
@@ -275,6 +280,7 @@ export function createApp({
       if (!res.headersSent) res.status(500).json({ ok: false, error: 'server_error' });
     });
   });
+  app.use('/api/wstyle/points', needsDb, withSession, createLoyaltyRouter({ loyalty, logger }));
   app.use('/api/wstyle/waitlist', needsDb, withSession, waitlistRouters.client);
   app.use('/api/pro/waitlist', needsDb, withSession, waitlistRouters.pro);
   app.use('/api/admin/waitlist', needsDb, withSession, waitlistRouters.admin);
@@ -287,7 +293,7 @@ export function createApp({
   }, logger));
   app.use('/api/pro', needsDb, withSession, createProRouter({ pro, env, clock, mailer: agendaMailer, logger, frontUrl, loginLimiter: authRouter.loginLimiter, billing }));
   app.use('/api/admin', needsDb, withSession, createAdminRouter({ admin, logger, giftCards }));
-  Object.assign(app.locals, { agenda, pro, admin, waitlist, payments, billing, deposits, receipts, reviews, giftCards, giftCardLimiter, agendaMailer, bookingLimiter, reviewLimiter, loginLimiter: authRouter.loginLimiter });
+  Object.assign(app.locals, { agenda, pro, admin, waitlist, payments, billing, deposits, receipts, reviews, loyalty, giftCards, giftCardLimiter, agendaMailer, bookingLimiter, reviewLimiter, loginLimiter: authRouter.loginLimiter });
 
   app.get('/api/health', (_req, res) => {
     /* 'unconfigured' y no 'dry-run' en Render: ahí sin mailer el envío es un 503,
