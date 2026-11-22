@@ -1,0 +1,23 @@
+[Script Info]
+ScriptType: v4.00+
+PlayResX: 1920
+PlayResY: 1080
+WrapStyle: 0
+ScaledBorderAndShadow: yes
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Sub,Inter SemiBold,46,&H00F2F5FA,&H000000FF,&H40080A0D,&H40080A0D,0,0,0,0,100,100,0,0,3,14,0,2,200,200,92,1
+Style: Wm,Inter SemiBold,28,&H30DCE8EF,&H000000FF,&H8C080A0D,&H8C080A0D,0,0,0,0,100,100,1,0,3,8,0,2,40,40,26,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 1,0:00:03.30,0:00:12.42,Sub,,0,0,0,,{\fad(150,150)}Muéstrale el corte antes de cortar. Con Espejo WS, tu cliente ve el diseño sobre sus propias fotos.
+Dialogue: 1,0:00:12.95,0:00:20.49,Sub,,0,0,0,,{\fad(150,150)}Toma una foto de frente y otra de cada perfil. Si alguna no sirve, la repites.
+Dialogue: 1,0:00:23.10,0:00:29.05,Sub,,0,0,0,,{\fad(150,150)}Si no reconoce el pelo, márcalo con unos toques y toma el tono de piel.
+Dialogue: 1,0:00:32.35,0:00:38.64,Sub,,0,0,0,,{\fad(150,150)}Prueba un degradado bajo, medio o alto, y ajusta qué tan al ras queda.
+Dialogue: 1,0:00:40.60,0:00:46.36,Sub,,0,0,0,,{\fad(150,150)}Dibuja las líneas del diseño con el dedo, muévelas y cambia su grosor.
+Dialogue: 1,0:00:48.85,0:00:55.28,Sub,,0,0,0,,{\fad(150,150)}Compara dos opciones lado a lado y combina el degradado de una con las líneas de la otra.
+Dialogue: 1,0:00:57.50,0:01:02.23,Sub,,0,0,0,,{\fad(150,150)}Fija el diseño elegido y tenlo a mano mientras cortas.
+Dialogue: 1,0:01:04.35,0:01:10.90,Sub,,0,0,0,,{\fad(150,150)}Espejo WS. Un producto elaborado por ricorp.cl
+Dialogue: 0,0:00:02.85,0:01:04.10,Wm,,0,0,0,,{\fad(400,300)}Un producto elaborado por ricorp.cl

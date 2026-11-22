@@ -1,0 +1,110 @@
+<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;background:#000}canvas{display:block}</style></head><body>
+<script type="module">
+import * as THREE from './three.module.js';
+const W=960,H=960;
+const q=new URLSearchParams(location.search); const MASK=q.get('mask')==='1'; const view=q.get('v')||'front'; const yaw=parseFloat(q.get('yaw')||'0');
+const r=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true}); r.setSize(W,H); r.setPixelRatio(1);
+r.toneMapping=THREE.ACESFilmicToneMapping; r.toneMappingExposure=1.05; r.outputColorSpace=THREE.SRGBColorSpace;
+document.body.appendChild(r.domElement);
+const scene=new THREE.Scene();
+// Fondo de estudio: degradado gris cálido
+const bg=document.createElement('canvas'); bg.width=8; bg.height=256; const g=bg.getContext('2d');
+const gr=g.createLinearGradient(0,0,0,256); gr.addColorStop(0,'#8a8580'); gr.addColorStop(.55,'#6e6964'); gr.addColorStop(1,'#46423e'); g.fillStyle=gr; g.fillRect(0,0,8,256);
+const bgt=new THREE.CanvasTexture(bg); bgt.colorSpace=THREE.SRGBColorSpace; scene.background=bgt;
+const sm=(a,b,x)=>{const t=Math.min(1,Math.max(0,(x-a)/(b-a)));return t*t*(3-2*t)};
+const gauss=(dx,dy,dz,sx,sy,sz)=>Math.exp(-(dx*dx/(2*sx*sx)+dy*dy/(2*sy*sy)+dz*dz/(2*sz*sz)));
+// Cabeza: esfera deformada
+function headPoint(d){
+  let x=d.x*0.80, y=d.y*1.02, z=d.z>0? 0.93*Math.pow(d.z,0.62) : d.z*0.97;
+  x=Math.sign(d.x)*0.80*Math.pow(Math.abs(d.x),0.85);
+  // cráneo un poco más atrás y arriba
+  z-=0.06*sm(0,1,y); 
+  if(y<0){ const k=sm(0,-1,y); x*=1-0.30*k; z=z>0? z*(1-0.06*k)+0.0 : z*(1-0.40*k); }
+  // aplanar laterales
+  x*=1-0.06*sm(0.2,0.9,Math.abs(d.x));
+  const front=Math.max(0,d.z);
+  let n=0;
+  n+=0.21*gauss(x,y+0.10,0,0.055,0.15,1)*front**8;        // nariz
+  n+=0.05*gauss(x,y+0.24,0,0.075,0.045,1)*front**8;       // base nariz
+  n+=0.035*gauss(0,y-0.16,0,1,0.06,1)*gauss(x,0,0,0.40,1,1)*front**3; // ceja
+  n-=0.035*gauss(Math.abs(x)-0.26,y-0.04,0,0.09,0.06,1)*front**3;     // cuencas
+  n+=0.012*gauss(x,y+0.47,0,0.11,0.03,1)*front**8;        // labios (sutil)
+  n+=0.045*gauss(x,y+0.80,0,0.14,0.08,1)*front**4;         // mentón
+  const p=new THREE.Vector3(x,y,z); const len=p.length(); p.multiplyScalar((len+n)/len); return p;
+}
+function buildHead(seg){
+  const geo=new THREE.SphereGeometry(1,seg,seg); const pos=geo.attributes.position; const v=new THREE.Vector3();
+  for(let i=0;i<pos.count;i++){ v.fromBufferAttribute(pos,i).normalize(); const p=headPoint(v); pos.setXYZ(i,p.x,p.y,p.z); }
+  geo.computeVertexNormals(); return geo;
+}
+const headGeo=buildHead(320);
+const skin=new THREE.MeshPhysicalMaterial({color:new THREE.Color('#e6c9ad'),roughness:0.5,clearcoat:0.25,clearcoatRoughness:0.5,sheen:0.3,sheenColor:new THREE.Color('#f3d9c4')});
+const head=new THREE.Mesh(headGeo,skin); scene.add(head);
+// Orejas
+for(const s of [-1,1]){
+  const e=new THREE.Mesh(new THREE.SphereGeometry(1,64,64),skin); e.scale.set(0.075,0.23,0.14); e.position.set(s*0.75,0.02,-0.08); e.rotation.set(0,s*-0.35,s*0.12); scene.add(e);
+}
+// Cuello y base
+const neck=new THREE.Mesh(new THREE.CylinderGeometry(0.40,0.50,1.5,96,1,true),skin); neck.position.set(0,-1.35,-0.12); scene.add(neck);
+const sh=new THREE.Mesh(new THREE.SphereGeometry(1,96,48,0,Math.PI*2,0,Math.PI/2),skin); sh.scale.set(1.25,0.35,0.7); sh.position.set(0,-2.1,-0.1); scene.add(sh);
+const base=new THREE.Mesh(new THREE.CylinderGeometry(0.5,0.5,0.25,96),new THREE.MeshStandardMaterial({color:'#24201c',roughness:0.4,metalness:0.2})); base.position.set(0,-1.95,-0.12); base.visible=false; scene.add(base);
+// Pelo por capas (shell texturing)
+const hairUniforms=(t)=>({uT:{value:t},uLight:{value:new THREE.Vector3(-0.5,0.7,0.8).normalize()}});
+const hairVS=`
+uniform float uT; varying vec3 vBase; varying vec3 vN; varying float vMask; varying vec3 vView;
+float sm(float a,float b,float x){float t=clamp((x-a)/(b-a),0.,1.);return t*t*(3.-2.*t);}
+float hairline(vec3 p){
+  float phi=abs(atan(p.x,p.z));
+  // altura de la línea del pelo según el ángulo (0 frente, pi nuca)
+  float y=mix(0.60,0.46,sm(0.2,0.85,phi));
+  y=mix(y,0.02,sm(0.9,1.12,phi));     // patilla
+  y=mix(y,0.30,sm(1.16,1.30,phi));    // sobre la oreja
+  y=mix(y,-0.05,sm(1.72,2.0,phi));    // detrás de la oreja
+  y=mix(y,-0.60,sm(2.0,2.7,phi));     // nuca
+  return y;
+}
+void main(){
+  vec3 p=position; float hl=hairline(p);
+  vMask=sm(hl-0.015,hl+0.06,p.y);
+  float phi=abs(atan(p.x,p.z));
+  float L=mix(0.10,0.22,sm(0.25,0.9,p.y))*mix(1.0,0.75,sm(1.0,1.6,phi)*(1.0-sm(0.3,0.8,p.y)));
+  vec3 comb=normalize(vec3(p.x*0.4,-1.0,-0.55));
+  vec3 disp=normal*uT*L*0.75 + comb*uT*uT*L*0.55;
+  vBase=p; vN=normalize(normalMatrix*normal);
+  vec4 mv=modelViewMatrix*vec4(p+disp*vMask,1.); vView=-mv.xyz; gl_Position=projectionMatrix*mv;
+}`;
+const hairFS=`
+uniform float uT; uniform vec3 uLight; varying vec3 vBase; varying vec3 vN; varying float vMask; varying vec3 vView;
+float h(vec3 c){return fract(sin(dot(c,vec3(12.9898,78.233,37.719)))*43758.5453);}
+void main(){
+  if(vMask<0.02) discard;
+  float F=170.0; vec3 q=vBase*F; vec3 ci=floor(q); float best=9.0; vec3 c=ci;
+  for(int i=-1;i<=1;i++)for(int j=-1;j<=1;j++)for(int k=-1;k<=1;k++){ vec3 cc=ci+vec3(i,j,k); vec3 pt=cc+vec3(h(cc),h(cc+1.7),h(cc+4.1)); float dd=length(q-pt); if(dd<best){best=dd;c=cc;} }
+  float rnd=h(c); float len=0.55+0.45*h(c+7.1);
+  float t=uT/len;
+  if(t>1.0) discard;
+  float rad=0.62*(1.0-t*0.8);
+  if(best>rad && uT>0.0) discard;
+  if(vMask<h(c+3.3)*0.9+0.05 && uT>0.0) discard;
+  vec3 base=vec3(0.050,0.036,0.027); vec3 tip=vec3(0.13,0.092,0.065);
+  vec3 col=mix(base,tip,t)*(0.75+0.5*rnd);
+  float ao=mix(0.35,1.0,uT);
+  vec3 N=normalize(vN); vec3 V=normalize(vView); float dif=max(0.0,dot(N,uLight))*0.8+0.35;
+  vec3 Hh=normalize(uLight+V); float spec=pow(max(0.0,dot(N,Hh)),40.0)*0.25*t;
+  gl_FragColor=vec4(col*dif*ao+vec3(spec*0.6,spec*0.5,spec*0.4),1.0);
+  #include <colorspace_fragment>
+}`;
+const NS=56;
+for(let i=0;i<=NS;i++){ const m=new THREE.ShaderMaterial({uniforms:hairUniforms(i/NS),vertexShader:hairVS,fragmentShader:hairFS}); const mesh=new THREE.Mesh(headGeo,m); mesh.renderOrder=1+i; scene.add(mesh); }
+// Luces
+scene.add(new THREE.HemisphereLight('#fff4e8','#3a3028',0.9));
+const key=new THREE.DirectionalLight('#fff1e2',2.2); key.position.set(-2.5,3,4); scene.add(key);
+const fill=new THREE.DirectionalLight('#dfe8ff',0.7); fill.position.set(3,0.5,2.5); scene.add(fill);
+const rim=new THREE.DirectionalLight('#ffffff',1.2); rim.position.set(0,2,-4); scene.add(rim);
+// Cámara
+const cam=new THREE.PerspectiveCamera(19,W/H,0.1,100);
+const ang={front:0,left:Math.PI/2-0.42,right:-Math.PI/2+0.42}[view]+yaw;
+const D=8.6; cam.position.set(Math.sin(ang)*D,0.3,Math.cos(ang)*D); cam.lookAt(0,0.02,0);
+if(MASK){ scene.background=new THREE.Color(0); scene.traverse(o=>{ if(o.isMesh && !(o.material instanceof THREE.ShaderMaterial)) o.material=new THREE.MeshBasicMaterial({color:0}); }); r.toneMapping=THREE.NoToneMapping; scene.traverse(o=>{ if(o.material instanceof THREE.ShaderMaterial){ o.material.fragmentShader=o.material.fragmentShader.replace('gl_FragColor=vec4(col*dif*ao+vec3(spec*0.6,spec*0.5,spec*0.4),1.0);','gl_FragColor=vec4(1.0);'); o.material.needsUpdate=true; } }); }
+r.render(scene,cam); window.__done=true;
+</script></body></html>

@@ -1,0 +1,26 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>
+@font-face{font-family:Anton;src:url(../fonts/f1.ttf)}
+@font-face{font-family:Inter;font-weight:600;src:url(../fonts/f2.ttf)}
+@font-face{font-family:Inter;font-weight:700;src:url(../fonts/f3.ttf)}
+html,body{margin:0;height:100%;background:#0d0b0a;color:#efe8dc;font-family:Inter;overflow:hidden}
+body{display:flex;align-items:center;justify-content:center;text-align:center;
+ background:radial-gradient(ellipse at 50% 60%,#2a1c12 0%,#0d0b0a 65%)}
+.w{opacity:0;transform:translateY(18px) scale(.98);transition:all 1.1s cubic-bezier(.2,.7,.2,1)}
+.on .w{opacity:1;transform:none}
+.k{color:#B8875A;letter-spacing:.32em;font-size:var(--s1);text-transform:uppercase;font-weight:700}
+h1{font-family:Anton;font-weight:400;font-size:var(--h);line-height:.95;margin:.25em 0 .2em;letter-spacing:.01em}
+.l{width:90px;height:2px;background:#B8875A;margin:22px auto}
+.d{font-size:var(--s2);opacity:.75;letter-spacing:.06em}
+img{width:var(--logo)}
+.by{font-size:var(--s2);opacity:.85;margin-top:26px;letter-spacing:.04em}
+.by b{color:#B8875A}
+</style></head><body><div class="w" id="c"></div>
+<script>
+const q=new URLSearchParams(location.search); const v=q.get('v')==='1';
+const r=document.documentElement.style;
+r.setProperty('--h',v?'60px':'96px'); r.setProperty('--s1',v?'12px':'17px'); r.setProperty('--s2',v?'16px':'22px'); r.setProperty('--logo',v?'240px':'340px');
+const c=document.getElementById('c');
+if(q.get('t')==='intro') c.innerHTML=`<div class="k">WS Style · Panel del barbero</div><h1>ESPEJO WS</h1><div class="l"></div><div class="d">Muéstrale el corte antes de cortar</div>`;
+else c.innerHTML=`<img src="ricorp-logo.svg" alt="Ricorp"><div class="by">Un producto elaborado por <b>ricorp.cl</b></div>`;
+document.fonts.ready.then(()=>window.__ready=true);
+</script></body></html>
