@@ -16,6 +16,7 @@ export interface SiteContent {
   stat?: { value?: string; label?: string; note?: string };
   marquee?: string[];
   booking?: { provider?: string; url?: string };
+  plans?: { id: string; name: string; subtitle: string; price: number; perks: string[] }[];
   membership?: { name?: string; priceCLP?: unknown; period?: string; perks?: string[]; note?: string };
   // Bloque que solo se publica con datos reales (enabled:true); mientras tanto no se muestra relleno. Las reseñas ya no
   // viven acá: salen de la BD (SPEC-52, reviews.ts).
@@ -88,7 +89,7 @@ export function buildChapters(site: SiteContent, hasReviews: boolean): Chapter[]
   const showBarbers = !!site.barbers?.enabled && (site.barbers.items ?? []).some((b) => str(b?.name));
   const list: [string, string, boolean][] = [
     ['hero', 'Inicio', true], ['reyes', 'El local', true], ['linea', 'El oficio', true], ['afilado', 'El espejo', true], ['trono', 'Tu trono', true],
-    ['servicios', 'La carta', true], ['membresia', 'Membresía', !!str(site.membership?.name)], ['barberos', 'Los barberos', showBarbers],
+    ['servicios', 'La carta', true], ['membresia', 'Membresía', !!site.plans?.length || !!str(site.membership?.name)], ['barberos', 'Los barberos', showBarbers],
     ['resenas', 'Lo que dicen', hasReviews], ['politicas', 'Antes de venir', (site.policies ?? []).some((p) => str(p?.title))], ['llega', 'Llega', true],
   ];
   let n = 0;
@@ -121,7 +122,7 @@ export interface LandingCatalog {
   services: { id: string; name: string; description?: string; priceCLP: number; durationMin: number; category?: string }[];
   business: {
     hoursRows?: Hours[];
-    contact?: { whatsapp?: string | null; phone?: string | null };
+    contact?: { whatsapp?: string | null; phone?: string | null; address?: { street?: string } };
     // SPEC-60: el enlace "Regala WS Style" solo aparece si la venta en línea está activa.
     giftCards?: { online?: boolean };
   };
@@ -137,9 +138,13 @@ export function mergeCatalog(content: Content, catalog: LandingCatalog | null): 
   const categories = Array.isArray(catalog.categories) ? catalog.categories : content.categories;
   const site: SiteContent = { ...content.site };
   const rows = catalog.business?.hoursRows;
-  if (Array.isArray(rows) && rows.some((h) => h && str(h.days))) site.hours = rows;
+  // During a relocation the previous premises can still be served by an older API.
+  const apiStreet = str(catalog.business?.contact?.address?.street);
+  const publishedStreet = str(site.contact?.address?.street);
+  const samePremises = !apiStreet || !publishedStreet || apiStreet === publishedStreet;
+  if (samePremises && Array.isArray(rows) && rows.some((h) => h && str(h.days))) site.hours = rows;
   const c = catalog.business?.contact;
-  if (c && (str(c.phone) || str(c.whatsapp))) {
+  if (samePremises && c && (str(c.phone) || str(c.whatsapp))) {
     site.contact = { ...(site.contact ?? {}), ...(str(c.phone) ? { phone: c.phone as string } : {}), ...(str(c.whatsapp) ? { whatsapp: c.whatsapp as string } : {}) };
   }
   return { ...content, site, services, categories, giftCardsOnline: catalog.business?.giftCards?.online === true };

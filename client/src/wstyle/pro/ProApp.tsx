@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { ApiError } from '../agenda/api';
 import AuthPanel, { type FacebookReturn } from '../agenda/components/AuthPanel';
 import { Spinner, Unavailable } from '../agenda/components/ui';
@@ -15,6 +15,8 @@ import RedemptionsPage from './pages/RedemptionsPage';
 import ProfilePage from './pages/ProfilePage';
 import RegisterPage from './pages/RegisterPage';
 import TodayPage from './pages/TodayPage';
+
+const MirrorPage = lazy(() => import('./mirror/MirrorPage'));
 
 // Panel del barbero (SPEC-33): /wstyle/pro/ (Hoy), /wstyle/pro/agenda/, /wstyle/pro/perfil/ y /wstyle/pro/registro/.
 // Cada ruta es una carpeta real en dist/ con su index.html; el enrutado es por location.pathname.
@@ -60,7 +62,7 @@ export default function ProApp({ fbReturn }: { fbReturn: FacebookReturn | null }
   const ctx: ProCtx = { session, me, meState, setMe, reloadMe, fbReturn, whatsapp };
   const path = location.pathname.replace(/\/+$/, '/');
   if (path.endsWith('/wstyle/pro/registro/')) return <RegisterPage ctx={ctx} />;
-  const tab = path.endsWith('/wstyle/pro/agenda/') ? 'agenda' : path.endsWith('/wstyle/pro/pagos/') ? 'pagos' : path.endsWith('/wstyle/pro/canjes/') ? 'canjes' : path.endsWith('/wstyle/pro/perfil/') ? 'perfil' : 'hoy';
+  const tab = path.endsWith('/wstyle/pro/espejo/') ? 'espejo' : path.endsWith('/wstyle/pro/agenda/') ? 'agenda' : path.endsWith('/wstyle/pro/pagos/') ? 'pagos' : path.endsWith('/wstyle/pro/canjes/') ? 'canjes' : path.endsWith('/wstyle/pro/perfil/') ? 'perfil' : 'hoy';
 
   if (session.status === 'loading' || (user && (meState === 'loading' || meState === 'idle'))) return <ProShell tab="entrar"><Spinner label="Cargando tu panel…" /></ProShell>;
   if (session.status === 'offline' || meState === 'error') return <ProShell tab="entrar"><Unavailable whatsapp={whatsapp} onRetry={() => (user ? reloadMe() : session.refresh())} /></ProShell>;
@@ -116,6 +118,7 @@ export default function ProApp({ fbReturn }: { fbReturn: FacebookReturn | null }
     );
   }
 
+  if (tab === 'espejo') return <ProShell tab="espejo" operative><Suspense fallback={<Spinner label="Abriendo Espejo WS…" />}><MirrorPage /></Suspense></ProShell>;
   if (tab === 'perfil') return <ProfilePage ctx={ctx} />;
   if (tab === 'agenda') return <AgendaPage ctx={ctx} />;
   if (tab === 'pagos') return <PaymentsPage ctx={ctx} />;

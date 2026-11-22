@@ -108,6 +108,7 @@ export function PrivacyPage({ site }: { site: SiteContent }) {
       <Section id="terceros" title="4. Con quién los compartimos">
         <p>Solo con proveedores que necesitamos para que el servicio funcione:</p>
         <ul className="lg-list">
+          <li><strong>OpenAI</strong> recibe las tres vistas del cliente, la zona de cabello y la instrucción del barbero cuando el cliente autoriza generar un corte con Espejo WS. El servidor de WS Style procesa la consulta en memoria.</li>
           <li><strong>MongoDB Atlas</strong> (base de datos en la nube), donde se guardan la cuenta, las citas y los pagos.</li>
           <li><strong>Render</strong> (alojamiento del servidor, en Estados Unidos).</li>
           <li><strong>GitHub Pages</strong> (alojamiento de las páginas del sitio).</li>

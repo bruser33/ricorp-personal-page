@@ -3,8 +3,10 @@ import { LOCAL_METHODS, parseBoleta, type LocalMethod } from '../../payments';
 
 // SPEC-37 flujo 2: al marcar "cobrada" una cita en el local se elige cómo se pagó y, si ya se emitió en la app del
 // SII, el N° de la boleta (opcional: sin él la venta queda "sin respaldo" y se registra después).
-export function CollectFields({ method, onMethod, boleta, onBoleta, error }: {
+export function CollectFields({ method, onMethod, boleta, onBoleta, error, rest }: {
   method: LocalMethod | '';
+  // SPEC-56: "Resta por cobrar $13.000 (seña de $5.000 ya pagada)".
+  rest?: string | null;
   onMethod: (m: LocalMethod) => void;
   boleta: string;
   onBoleta: (v: string) => void;
@@ -13,6 +15,7 @@ export function CollectFields({ method, onMethod, boleta, onBoleta, error }: {
   const uid = useId();
   return (
     <div className="pay-collect">
+      {rest && <p className="pay-collect__rest" data-deposit-rest="">{rest}</p>}
       <fieldset className="pay-collect__methods">
         <legend>¿Cómo pagó?</legend>
         {LOCAL_METHODS.map(([v, l]) => (

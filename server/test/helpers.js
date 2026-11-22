@@ -102,6 +102,9 @@ export async function start({ now, geocoder, facebookFetch, googleFetch, env = {
     onlinePayments: opts.onlinePayments,
     /* SPEC-35: borde HTTP de Mercado Pago (servicio externo) → doble en test/mp-fake.js. */
     mercadoPagoFetch: opts.mercadoPagoFetch,
+    /* SPEC-56: comprobantes en un directorio temporal y aviso a la lista de espera. */
+    receiptStore: opts.receiptStore,
+    onSlotReleased: opts.onSlotReleased,
     /* SPEC-60: limitador de validación de códigos (alto por defecto para no interferir). */
     giftCardCheckLimit: opts.giftCardCheckLimit || { max: 1000, windowMs: 10 * MIN },
   });

@@ -10,6 +10,13 @@ export const DEMO_CONTACT_URL = 'https://ricorp.cl/contacto';
 export const PRIVACY_URL = '/wstyle/privacidad/';
 export const TERMS_URL = '/wstyle/terminos/';
 export const DATA_DELETION_ANCHOR = 'eliminar-datos';
+export const ACCOUNT_ENTRY_URL = '/wstyle/cuenta/?acceso=1';
+
+export function staffPanel(roles: readonly string[]) {
+  if (roles.includes('superadmin')) return '/wstyle/admin/';
+  if (roles.includes('barber')) return '/wstyle/pro/';
+  return null;
+}
 
 // demo: true o "true" (editado a mano, sin importar mayúsculas ni espacios) ⇒ modo demostración.
 export const isDemo = (site: SiteContent) => site.demo === true || String(site.demo).trim().toLowerCase() === 'true';

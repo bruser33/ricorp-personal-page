@@ -46,6 +46,26 @@ export async function api<T>(path: string, init: { method?: string; body?: unkno
   return data as T;
 }
 
+/* SPEC-56: subida de un archivo (multipart, campo `file`). Mismo manejo de errores que `api`. */
+export async function upload<T>(path: string, file: File, { timeoutMs = 60_000 }: { timeoutMs?: number } = {}): Promise<T> {
+  const fd = new FormData();
+  fd.append('file', file, file.name || 'comprobante');
+  let res: Response;
+  try {
+    res = await fetch(API_BASE + path, { method: 'POST', credentials: 'include', body: fd, signal: AbortSignal.timeout(timeoutMs) });
+  } catch {
+    throw new ApiError(0, 'network', 'No pudimos conectar con la agenda');
+  }
+  let data: Record<string, unknown> = {};
+  try {
+    data = await res.json();
+  } catch {
+    /* sin JSON */
+  }
+  if (!res.ok) throw new ApiError(res.status, String(data.error ?? 'error'), String(data.message ?? 'Algo salió mal'), data);
+  return data as T;
+}
+
 /* CB-15: Render free "duerme" la API; el primer pedido puede tardar. Reintenta hasta `windowMs` (30 s) mientras no
    haya respuesta, avisando con onWaking para mostrar "Despertando la agenda…". Un error con respuesta no se reintenta. */
 export async function wakeAndGet<T>(path: string, { windowMs = 30_000, onWaking }: { windowMs?: number; onWaking?: () => void } = {}): Promise<T> {
@@ -80,6 +100,8 @@ export interface Catalog {
     hoursRows?: { days: string; dayCodes: string; opens: string | null; closes: string | null }[];
     contact?: { whatsapp: string | null; phone: string | null; address?: { street?: string; city?: string; region?: string } };
     payments?: { online: boolean; local: boolean };
+    // SPEC-56: si el local pide seña (sin datos bancarios: esos solo van en la cita del cliente).
+    deposit?: DepositConfig;
     // SPEC-38: tasas vigentes de la tarifa de servicio (el resumen usa la misma fórmula que el server).
     pricing?: Rates;
     // SPEC-60: venta de gift cards en línea (la landing y /wstyle/regalar/ la usan).
@@ -104,15 +126,26 @@ export interface WaitlistOffer {
   professional: { id: string; name: string }; slots: Slot[];
 }
 export interface Quote { distanceKm: number; formatted: string; priceCLP: number; professionals: { id: string; surchargeCLP: number; totalCLP: number }[] }
-export type Action = 'cancel' | 'accept' | 'counter' | 'confirm' | 'propose' | 'start' | 'finish' | 'no_show' | 'pay' | 'pay_local';
+export type Action = 'cancel' | 'accept' | 'counter' | 'confirm' | 'propose' | 'start' | 'finish' | 'no_show' | 'pay' | 'pay_local' | 'deposit_upload' | 'deposit_pay_online';
 // SPEC-35: pago de la cita. method 'local' | 'online'; holdUntil = hasta cuándo se retiene la hora mientras se paga.
 // SPEC-37: forma de cobro en el local y respaldo tributario (voucher MP o boleta SII) cuando existe.
 export interface Payment {
   method: string; status: string; holdUntil?: string; paidAt?: string; refundedAt?: string; collectedAt?: string;
   localMethod?: string; backing?: { kind: 'voucher_mp' | 'boleta_sii'; label: string; number: string | null };
 }
+// SPEC-56: seña por transferencia. `bank` solo llega al dueño de la cita con la seña pendiente; el barbero no ve
+// la referencia ni el comprobante.
+export interface DepositBank { holder: string; rut: string; bank: string; accountType: string; accountTypeLabel: string; accountNumber: string; email: string }
+export interface Deposit {
+  amountCLP: number; status: 'por_pagar' | 'en_revision' | 'confirmada' | 'rechazada' | 'vencida' | 'por_devolver' | 'devuelta' | 'anulada';
+  statusLabel: string; deadlineAt: string | null; deadlineLabel: string | null; restCLP: number; restIfPaidCLP: number; hasReceipt: boolean;
+  reference?: string; uploadedAt?: string | null; receiptType?: string | null; rejectReason?: string | null; bank?: DepositBank;
+}
+export interface DepositConfig { enabled: boolean; kind: 'fixed' | 'percent'; fixedCLP: number; percent: number; minutes: number; appliesTo: 'all' | 'new' | 'no_show' }
+export interface DepositPreview { required: boolean; amountCLP?: number; restCLP?: number; totalCLP?: number; minutes?: number; deadlineAt?: string; tooSoon?: boolean }
 export interface Appointment {
   id: string; status: string; statusLabel: string;
+  deposit?: Deposit | null; now?: string;
   service: { id: string; name: string; durationMin: number };
   professional: { id: string; name: string };
   startsAt: string; endsAt: string; when: string; timezone: string;
@@ -189,6 +222,11 @@ export const agenda = {
   act: (id: string, action: Action, body: Record<string, unknown> = {}) =>
     api<Appointment>(`/api/wstyle/appointments/${encodeURIComponent(id)}/${action === 'no_show' ? 'no-show' : action === 'pay_local' ? 'pay-local' : action}`, { method: 'POST', body }),
   // SPEC-35: el server crea la preferencia de Checkout Pro y devuelve a dónde redirigir (el token nunca pasa por acá).
+  // SPEC-56: ¿esta hora pide seña? (paso "Revisar"), subir el comprobante (multipart) y cambiar a pagar en línea.
+  depositPreview: (body: { serviceId?: string; professionalId?: string; startsAt?: string; mode: string }) => api<DepositPreview>('/api/wstyle/deposit/preview', { method: 'POST', body }),
+  uploadReceipt: (id: string, file: File) => upload<{ ok: boolean; replay: boolean; appointment: Appointment }>(`/api/wstyle/appointments/${encodeURIComponent(id)}/deposit/receipt`, file),
+  depositPayOnline: (id: string) => api<Appointment>(`/api/wstyle/appointments/${encodeURIComponent(id)}/deposit/pay-online`, { method: 'POST', body: {} }),
+  receiptUrl: (id: string) => `${API_BASE}/api/wstyle/appointments/${encodeURIComponent(id)}/deposit/receipt`,
   // SPEC-52: reseñas del cliente.
   reviewEligibility: (cita: string) => api<ReviewEligibility>(`/api/wstyle/reviews/eligibility?cita=${encodeURIComponent(cita)}`),
   createReview: (body: { appointmentId: string; rating: number; comment: string }) => api<{ ok: boolean; review: { id: string; rating: number } }>('/api/wstyle/reviews', { method: 'POST', body }),

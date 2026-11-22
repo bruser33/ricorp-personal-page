@@ -2,6 +2,7 @@
    disponibilidad, domicilio, fotos y el panel de trabajo. La lógica vive en
    domain/pro.js; acá solo HTTP. */
 import express from 'express';
+import { createMirrorRouter } from './mirror.js';
 import multer from 'multer';
 import { User } from '../models/index.js';
 import { HttpError, handle } from '../lib/errors.js';
@@ -19,6 +20,7 @@ const fieldError = (fields) => new HttpError(400, Object.values(fields)[0], 'Rev
 export function createProRouter({ pro, env, clock, mailer, logger, frontUrl, loginLimiter, billing = null }) {
   const r = express.Router();
   const h = (fn) => handle(fn, logger);
+  r.use('/mirror', createMirrorRouter({ pro, env, logger }));
 
   const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_PHOTO_BYTES, files: MAX_PHOTOS, fields: 5 } });
   function receivePhotos(req, res, next) {

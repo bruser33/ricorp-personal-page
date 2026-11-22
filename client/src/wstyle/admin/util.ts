@@ -44,7 +44,7 @@ export const paymentLabel = (p: { method: string; status: string }) =>
   p.method === 'online' && p.status === 'pendiente' ? 'Esperando el pago' : PAYMENT_STATUS_LABEL[p.status] ?? p.status;
 export const STATUS_OPTIONS: [string, string][] = [
   ['pendiente', 'Esperando confirmación'], ['confirmada', 'Confirmada'], ['propuesta_cambio', 'Propuesta de cambio'], ['invitacion_enviada', 'Invitación enviada'],
-  ['en_curso', 'En curso'], ['terminada', 'Terminada'], ['cancelada', 'Cancelada'], ['expirada', 'Expirada'], ['no_asistio', 'No asistió'], ['pendiente_pago', 'Esperando el pago'],
+  ['en_curso', 'En curso'], ['terminada', 'Terminada'], ['cancelada', 'Cancelada'], ['expirada', 'Expirada'], ['no_asistio', 'No asistió'], ['pendiente_pago', 'Esperando el pago'], ['pendiente_sena', 'Pendiente de seña'],
 ];
 
 export const WEEKDAY_NAMES = ['', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];

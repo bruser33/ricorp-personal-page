@@ -15,7 +15,9 @@ export interface PaymentRow {
   customer: { name: string; email?: string | null; phone?: string | null };
   professional: { id: string; name: string };
   service: { name: string };
-  kind: 'online' | 'local';
+  // SPEC-56: 'deposit' = seña por transferencia confirmada (fila "Seña · transferencia").
+  kind: 'online' | 'local' | 'deposit';
+  reference?: string | null;
   duplicate: boolean;
   date: string;
   localDate: string;
@@ -69,7 +71,7 @@ export const STATUS_TONE: Record<PayStatus, 'ok' | 'wait' | 'warn' | 'off'> = {
   aprobado: 'ok', pendiente: 'wait', rechazado: 'off', reembolso_pendiente: 'wait', reembolsado: 'off', contracargo: 'warn', por_cobrar: 'warn',
 };
 export const LOCAL_METHODS: [LocalMethod, string][] = [['efectivo', 'Efectivo'], ['transferencia', 'Transferencia'], ['tarjeta', 'Tarjeta (POS del local)']];
-export const METHOD_FILTERS: [string, string][] = [['', 'Todos'], ['online', 'Mercado Pago'], ['local', 'En el local (todos)'], ...LOCAL_METHODS];
+export const METHOD_FILTERS: [string, string][] = [['', 'Todos'], ['online', 'Mercado Pago'], ['local', 'En el local (todos)'], ...LOCAL_METHODS, ['sena', 'Seña por transferencia']];
 export const STATUS_FILTERS: [string, string][] = [
   ['', 'Todos'], ['aprobado', 'Aprobado'], ['pendiente', 'Pendiente'], ['rechazado', 'Rechazado'], ['reembolso_pendiente', 'Reembolso pendiente'],
   ['reembolsado', 'Reembolsado'], ['contracargo', 'Contracargo'], ['por_cobrar', 'Por cobrar'],

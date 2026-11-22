@@ -26,6 +26,7 @@ const BusinessSchema = new Schema(
     location: PointSchema,
     /* weekday ISO 1..7; opens/closes null = cerrado. SPEC-34 RN-05: un día puede tener
        varios rangos (una entrada por rango, p.ej. 10–14 y 15–20). */
+    publicDetailsVersion: String,
     hours: [{ _id: false, weekday: Number, opens: String, closes: String }],
     /* Feriados / cierres del local: fechas locales 'YYYY-MM-DD' (una entrada por día; un
        cierre de varios días comparte `groupId`). */
@@ -48,6 +49,24 @@ const BusinessSchema = new Schema(
     payments: {
       onlineEnabled: { type: Boolean, default: false },
       localEnabled: { type: Boolean, default: true },
+    },
+    /* SPEC-56: seña por transferencia al reservar. Los datos bancarios NO son públicos (RN-08):
+       nunca van al catálogo, al JSON-LD ni al HTML prerenderizado. */
+    deposit: {
+      enabled: { type: Boolean, default: false },
+      kind: { type: String, enum: ['fixed', 'percent'], default: 'fixed' },
+      fixedCLP: { type: Number, default: 5000 },
+      percent: { type: Number, default: 30 },
+      appliesTo: { type: String, enum: ['all', 'new', 'no_show'], default: 'new' },
+      minutes: { type: Number, enum: [15, 30, 60], default: 30 },
+      bank: {
+        holder: String,
+        rut: String,
+        bank: String,
+        accountType: { type: String, enum: ['corriente', 'vista', 'rut', 'ahorro'] },
+        accountNumber: String,
+        email: String,
+      },
     },
     /* SPEC-60: venta de gift cards en línea (apagada por defecto) y vigencia por defecto en meses. */
     giftCards: {
@@ -239,6 +258,8 @@ export const CustomerProfile = model('CustomerProfile', CustomerProfileSchema);
 /* ─── Citas */
 export const STATUSES = [
   'pendiente_pago',
+  /* SPEC-56: esperando que el cliente suba el comprobante de la seña (ocupa la hora). */
+  'pendiente_sena',
   'pendiente',
   'invitacion_enviada',
   'confirmada',
@@ -250,8 +271,13 @@ export const STATUSES = [
   'no_asistio',
 ];
 /* Estados que ocupan agenda (RN-02). */
-export const BLOCKING = ['pendiente', 'pendiente_pago', 'invitacion_enviada', 'confirmada', 'propuesta_cambio', 'en_curso'];
+export const BLOCKING = ['pendiente', 'pendiente_pago', 'pendiente_sena', 'invitacion_enviada', 'confirmada', 'propuesta_cambio', 'en_curso'];
 export const FINAL = ['terminada', 'cancelada', 'expirada', 'no_asistio'];
+
+/* SPEC-56: estados de la seña. `anulada` = el cliente cambió a pagar en línea (CB-08). */
+export const DEPOSIT_STATUSES = ['por_pagar', 'en_revision', 'confirmada', 'rechazada', 'vencida', 'por_devolver', 'devuelta', 'anulada'];
+/* Señas que aún pueden cambiar: su referencia tiene que ser única entre ellas (RN-03). */
+export const DEPOSIT_OPEN = ['por_pagar', 'en_revision'];
 
 const AppointmentSchema = new Schema(
   {
@@ -296,6 +322,8 @@ const AppointmentSchema = new Schema(
       method: { type: String, default: 'local' },
       status: { type: String, default: 'pendiente' },
       collectedAt: Date,
+      /* SPEC-56: monto cobrado en el local (total − seña confirmada al momento de cobrar). */
+      collectedCLP: Number,
       /* SPEC-35: inicio de la retención (RN-03) y datos del pago en línea. */
       holdStartedAt: Date,
       preferenceId: String,
@@ -323,6 +351,28 @@ const AppointmentSchema = new Schema(
       localMethod: { type: String, enum: ['efectivo', 'transferencia', 'tarjeta'] },
       taxModel: String,
       taxDoc: { kind: { type: String, enum: ['voucher_mp', 'boleta_sii'] }, number: String, provider: String, at: Date, byUserId: ObjectId },
+    },
+    /* SPEC-56: seña por transferencia. Monto y plazo congelados al reservar. El comprobante vive
+       en el almacenamiento de objetos (lib/receipts.js): acá solo sus metadatos. */
+    deposit: {
+      type: new Schema(
+        {
+          amountCLP: Number,
+          reference: String,
+          status: { type: String, enum: DEPOSIT_STATUSES },
+          deadlineAt: Date,
+          receipt: { key: String, contentType: String, size: Number, hash: String, kind: String, uploadedAt: Date, purgedAt: Date },
+          reviewedAt: Date,
+          reviewedByUserId: ObjectId,
+          rejectReason: String,
+          confirmedAt: Date,
+          refundDueAt: Date,
+          refundedAt: Date,
+          refundedByUserId: ObjectId,
+        },
+        { _id: false }
+      ),
+      default: undefined,
     },
     /* Invitación del barbero (SPEC-33 RN-12): el token va en el link que se manda por WhatsApp. */
     invite: { token: String, sentAt: Date },
@@ -382,6 +432,12 @@ AppointmentSchema.index(
   { unique: true, partialFilterExpression: { idempotencyKey: { $type: 'string' } } }
 );
 AppointmentSchema.index({ 'location.point': '2dsphere' }, { sparse: true });
+/* SPEC-56 RN-03: referencia única entre las señas no finalizadas. */
+AppointmentSchema.index(
+  { businessId: 1, 'deposit.reference': 1 },
+  { unique: true, name: 'sena_referencia_abierta', partialFilterExpression: { 'deposit.status': { $in: ['por_pagar', 'en_revision'] } } }
+);
+AppointmentSchema.index({ businessId: 1, 'deposit.status': 1 }, { sparse: true });
 /* SPEC-37: un folio de boleta SII respalda una sola venta. */
 AppointmentSchema.index(
   { businessId: 1, 'payment.taxDoc.number': 1 },

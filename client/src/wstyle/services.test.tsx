@@ -30,7 +30,7 @@ describe('SPEC-51 carta agrupada', () => {
     expect(row('decoloracion-diseno')).toEqual(['Diseños de color personalizados', '$70.000', '180 min']);
     expect(row('ondulacion-permanente')).toEqual(['Ondulación permanente', '$45.000', '120 min']);
     expect(row('tratamientos-capilares')).toEqual(['Tratamientos capilares', '$15.000', '45 min']);
-    expect(row('corte')).toEqual(['Corte', '$12.000', '40 min']);
+    expect(row('corte')).toEqual(['Corte', '$10.000', '40 min']);
   });
   it('sin categorías (API antigua) todo cae en Barbería', () => {
     const g = groups(html(services.map((s) => ({ ...s, category: undefined })), undefined));

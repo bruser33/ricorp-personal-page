@@ -12,7 +12,7 @@ export const WEEKDAYS = [
 ];
 
 // Estados que ocupan agenda (los mismos del server).
-export const BLOCKING = ['pendiente', 'pendiente_pago', 'invitacion_enviada', 'confirmada', 'propuesta_cambio', 'en_curso'];
+export const BLOCKING = ['pendiente', 'pendiente_pago', 'pendiente_sena', 'invitacion_enviada', 'confirmada', 'propuesta_cambio', 'en_curso'];
 
 // Motivos de cancelación del barbero (RN-09). Las claves son las del server.
 export const CANCEL_REASONS: { code: string; label: string }[] = [

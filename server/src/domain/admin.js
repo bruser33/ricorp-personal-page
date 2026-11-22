@@ -92,7 +92,7 @@ export const CSV_COLUMNS = [
 ];
 
 
-export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = console, frontUrl = 'http://localhost:5173', env = {}, adminInbox, onlinePayments = { ready: false }, payments = null, billing = null, reviews = null, giftCards = null }) {
+export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = console, frontUrl = 'http://localhost:5173', env = {}, adminInbox, onlinePayments = { ready: false }, payments = null, billing = null, deposits = null, reviews = null, giftCards = null }) {
   /* ─── Acceso */
   function requireAdmin(user) {
     if (!user) throw new HttpError(401, 'unauthorized', 'Tu sesión venció. Inicia sesión para continuar.');
@@ -143,7 +143,7 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
     const dayStart = new Date(zonedToUtc(today, '00:00', tz));
     const dayEnd = new Date(zonedToUtc(addDays(today, 1), '00:00', tz));
     const month = monthRange(now, tz);
-    const [pendingBarbers, todayCount, pendingConfirm, refunds, monthStats, unread, alerts, reviewsLast7d] = await Promise.all([
+    const [pendingBarbers, todayCount, pendingConfirm, refunds, monthStats, unread, alerts, depositCounts, reviewsLast7d] = await Promise.all([
       Membership.countDocuments({ businessId: b._id, status: 'pending', submittedAt: { $ne: null } }),
       Appointment.countDocuments({ businessId: b._id, startsAt: { $gte: dayStart, $lt: dayEnd }, status: { $nin: ['cancelada', 'expirada'] } }),
       Appointment.countDocuments({ businessId: b._id, status: 'pendiente' }),
@@ -151,12 +151,14 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
       computeStats(b, month),
       PanelNotification.countDocuments({ userId: user._id, readAt: null }),
       suspendedAlerts(b, now),
+      /* SPEC-56: "3 señas por revisar". */
+      deposits ? deposits.counts(b) : { review: 0, refund: 0 },
       /* SPEC-52: reseñas nuevas de los últimos 7 días. */
       reviews ? reviews.countSince(b, 7) : 0,
     ]);
     return {
       today,
-      cards: { pendingBarbers, today: todayCount, pendingConfirm, refundsPending: refunds, monthRevenueCLP: monthStats.revenue.totalCLP, reviewsLast7d },
+      cards: { pendingBarbers, today: todayCount, pendingConfirm, refundsPending: refunds, monthRevenueCLP: monthStats.revenue.totalCLP, depositsToReview: depositCounts.review, depositsToRefund: depositCounts.refund, reviewsLast7d },
       alerts,
       unread,
       user: publicUser(user),
@@ -471,7 +473,8 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
     }
   }
 
-  const REASSIGNABLE = ['pendiente', 'pendiente_pago', 'confirmada', 'invitacion_enviada'];
+  /* SPEC-56 CB-06: una cita esperando la seña se puede reasignar (la seña y el plazo se conservan). */
+  const REASSIGNABLE = ['pendiente', 'pendiente_pago', 'pendiente_sena', 'confirmada', 'invitacion_enviada'];
   const canCollect = (a) => (a.payment?.method || 'local') === 'local' && ['pendiente', 'pago_pendiente'].includes(a.payment?.status || 'pendiente') && ['confirmada', 'en_curso', 'terminada'].includes(a.status);
 
   function buildFilter(b, q) {
@@ -1214,6 +1217,28 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
     return after;
   }
 
+  /* ─── Seña por transferencia (SPEC-56). La auditoría la escribe deposits.js. */
+  async function depositSettings(user) {
+    const b = await ctx(user);
+    return deposits.getSettings(b);
+  }
+
+  async function setDepositSettings(user, body = {}) {
+    const b = await ctx(user);
+    return deposits.setSettings(user, b, body);
+  }
+
+  async function listDeposits(user, q = {}) {
+    const b = await ctx(user);
+    return deposits.list(b, q);
+  }
+
+  async function reviewDeposit(user, id, action, body = {}) {
+    const b = await ctx(user);
+    const appt = action === 'confirm' ? await deposits.confirm(user, b, id) : action === 'reject' ? await deposits.reject(user, b, id, body) : await deposits.markRefunded(user, b, id);
+    return { appointment: await serializeAdmin(appt, b, clock()), counts: await deposits.counts(b) };
+  }
+
   /* ─── Mi cuenta */
   /* ─── Reseñas (SPEC-52 RN-09): ocultar y mostrar quedan en la auditoría. */
   async function listReviews(user, q = {}) {
@@ -1296,6 +1321,10 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
     setSettings,
     auditList,
     changePassword,
+    depositSettings,
+    setDepositSettings,
+    listDeposits,
+    reviewDeposit,
     listReviews,
     hideReview,
     showReview,

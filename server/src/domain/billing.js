@@ -114,20 +114,50 @@ export function createBilling({ agenda, env = {}, clock = Date.now, logger = con
         _net: COUNTED.has(status) ? Number(src.mpNetCLP ?? amount - fee) : 0,
       }, src, 'online'));
     };
+    /* SPEC-56 §8: la seña confirmada es un movimiento propio ("Seña · transferencia"); se devuelve
+       a mano si la cita se cae por el local (por_devolver → devuelta). Vencida, rechazada o sin
+       confirmar no suma nada. El respaldo tributario va por la venta completa (asunción 7). */
+    const d = a.deposit;
+    const depStatus = { confirmada: 'aprobado', por_devolver: 'reembolso_pendiente', devuelta: 'reembolsado' }[d?.status];
+    const depositPaid = depStatus ? Number(d.amountCLP) || 0 : 0;
+    if (depStatus) {
+      const r = finish({
+        id: `${a._id}:sena`,
+        kind: 'deposit',
+        duplicate: false,
+        date: iso(d.confirmedAt || d.reviewedAt || a.updatedAt),
+        method: 'transferencia',
+        amountCLP: depositPaid,
+        lines: [{ kind: 'deposit', label: `Seña · ${a.serviceSnapshot?.name || 'Servicio'}`, amountCLP: depositPaid }],
+        status: depStatus,
+        refundedAt: depStatus === 'reembolsado' ? iso(d.refundedAt || a.updatedAt) : null,
+        mp: null,
+        reference: d.reference || null,
+        _fee: 0,
+        _net: 0,
+        /* Asunción 7: la boleta va por la venta completa; cuando se registra, también respalda la seña. */
+      }, p.taxDoc?.kind ? p : {}, 'local');
+      rows.push({ ...r, methodLabel: 'Seña · transferencia', canRegisterBoleta: false, depositBacking: true });
+    }
     if (p.mpPaymentId) online(p, false);
     for (const d of p.duplicates || []) if (d?.mpPaymentId) online(d, true);
     if ((p.method || 'local') === 'local') {
       const status = p.status === 'cobrado' ? 'aprobado' : ['pendiente', 'pago_pendiente'].includes(p.status || 'pendiente') && a.status === 'terminada' ? 'por_cobrar' : null;
       /* SPEC-60: cubierta entera por gift card → no hay cobro propio en la cita. */
       if (status && payableCLP(a) > 0) {
+        /* SPEC-56: con seña confirmada, en el local se cobra solo el resto. */
+        const localAmount = Number.isFinite(p.collectedCLP) && status === 'aprobado' ? p.collectedCLP : Math.max(0, payableCLP(a) - depositPaid);
+        const localLines = withGiftLine(saleLines(a.pricing, a.serviceSnapshot?.name), a);
+        const credited = payableCLP(a) - localAmount;
+        if (credited > 0) localLines.push({ kind: 'deposit', label: 'Seña ya pagada por transferencia', amountCLP: -credited });
         rows.push(finish({
           id: `${a._id}:local`,
           kind: 'local',
           duplicate: false,
           date: iso(status === 'aprobado' ? p.collectedAt || a.updatedAt : a.startsAt),
           method: p.localMethod || 'local',
-          amountCLP: payableCLP(a),
-          lines: withGiftLine(saleLines(a.pricing, a.serviceSnapshot?.name), a),
+          amountCLP: localAmount,
+          lines: localLines,
           status,
           refundedAt: null,
           mp: null,
@@ -202,13 +232,13 @@ export function createBilling({ agenda, env = {}, clock = Date.now, logger = con
   async function load(b, { from, to, professionalId = null, withRefunds = false }) {
     const tz = b.timezone;
     const range = { $gte: new Date(zonedToUtc(from, '00:00', tz)), $lt: new Date(zonedToUtc(addDays(to, 1), '00:00', tz)) };
-    const when = ['payment.paidAt', 'payment.collectedAt', 'payment.duplicates.paidAt', 'payment.holdStartedAt', 'createdAt', 'startsAt'];
-    if (withRefunds) when.push('payment.refundedAt', 'payment.chargebackAt', 'payment.duplicates.refundedAt');
+    const when = ['payment.paidAt', 'payment.collectedAt', 'payment.duplicates.paidAt', 'payment.holdStartedAt', 'createdAt', 'startsAt', 'deposit.confirmedAt'];
+    if (withRefunds) when.push('payment.refundedAt', 'payment.chargebackAt', 'payment.duplicates.refundedAt', 'deposit.refundedAt');
     const q = {
       businessId: b._id,
       $and: [
         { $or: when.map((k) => ({ [k]: range })) },
-        { $or: [{ 'payment.mpPaymentId': { $type: 'string' } }, { 'payment.status': { $in: ['cobrado', 'pendiente', 'pago_pendiente'] }, 'payment.method': { $ne: 'online' } }] },
+        { $or: [{ 'payment.mpPaymentId': { $type: 'string' } }, { 'payment.status': { $in: ['cobrado', 'pendiente', 'pago_pendiente'] }, 'payment.method': { $ne: 'online' } }, { 'deposit.status': { $in: ['confirmada', 'por_devolver', 'devuelta'] } }] },
       ],
     };
     if (professionalId) q.professionalId = professionalId;
@@ -236,7 +266,7 @@ export function createBilling({ agenda, env = {}, clock = Date.now, logger = con
     if (role === 'admin' && !pid) rows = rows.concat((await loadGifts(b, { from, to })).flatMap((g) => giftRowsOf(g, b.timezone)));
     rows = rows.filter((r) => r.localDate >= from && r.localDate <= to);
     const method = String(q.method || '');
-    if (method) rows = rows.filter((r) => (method === 'online' || method === 'mercadopago' ? r.kind === 'online' : method === 'local' ? r.kind === 'local' : r.method === method));
+    if (method) rows = rows.filter((r) => (method === 'online' || method === 'mercadopago' ? r.kind === 'online' : method === 'local' ? r.kind === 'local' : method === 'sena' ? r.kind === 'deposit' : r.method === method));
     if (q.status) {
       const st = new Set(String(q.status).split(',').filter(Boolean));
       rows = rows.filter((r) => st.has(r.status));

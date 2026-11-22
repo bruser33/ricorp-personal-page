@@ -26,7 +26,7 @@ const NEW_SERVICES = {
   'ondulacion-permanente': ['Ondulación permanente', 45000, 120, 'ondulacion'],
   'tratamientos-capilares': ['Tratamientos capilares', 15000, 45, 'tratamientos'],
 };
-const BARBERIA = { corte: [12000, 40], 'corte-barba': [18000, 60], barba: [8000, 25], 'lavado-masaje': [7000, 20], 'limpieza-facial': [15000, 35] };
+const BARBERIA = { corte: [10000, 40], 'corte-barba': [12000, 60], barba: [8000, 25], 'lavado-masaje': [7000, 20], 'limpieza-facial': [15000, 35] };
 const NOTE = 'Cada servicio incluye una evaluación previa del cabello.';
 
 /* La carta "antes de SPEC-51": los 5 de barbería, sin categorías (formato array). */

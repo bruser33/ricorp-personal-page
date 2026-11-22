@@ -106,6 +106,14 @@ export function createAdminRouter({ admin, logger, giftCards = null }) {
   r.put('/settings', h(async (req, res) => res.json(await admin.setSettings(u(req), req.body || {}))));
   r.get('/audit', h(async (req, res) => res.json(await admin.auditList(u(req), req.query))));
 
+  /* SPEC-56: seña por transferencia (solo super admin: el guard de arriba ya lo exige). */
+  r.get('/deposit-settings', h(async (req, res) => res.json(await admin.depositSettings(u(req)))));
+  r.put('/deposit-settings', h(async (req, res) => res.json(await admin.setDepositSettings(u(req), req.body || {}))));
+  r.get('/deposits', h(async (req, res) => res.json(await admin.listDeposits(u(req), req.query))));
+  for (const action of ['confirm', 'reject', 'refunded']) {
+    r.post(`/deposits/:id/${action}`, h(async (req, res) => res.json(await admin.reviewDeposit(u(req), req.params.id, action, req.body || {}))));
+  }
+
   /* Gift cards (SPEC-60): solo el super admin (el guard de arriba ya respondió 401/403). */
   if (giftCards) {
     r.get('/gift-cards', h(async (req, res) => res.json(await giftCards.list(req.query))));

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { ext as linkAttrs } from '../links';
+import { ACCOUNT_ENTRY_URL, ext as linkAttrs } from '../links';
+import { useSession } from '../agenda/session';
 import './Nav.css';
 
 interface Props { name: string | null; booking: string | null; scrolled: boolean }
@@ -12,6 +13,12 @@ const LINKS: [string, string][] = [['#reyes', 'EL LOCAL'], ['#servicios', 'SERVI
 // incluye Reservar.
 export default function Nav({ name, booking, scrolled }: Props) {
   const [open, setOpen] = useState(false);
+  const { user, refresh } = useSession();
+  useEffect(() => {
+    const onRestore = (event: PageTransitionEvent) => { if (event.persisted) void refresh(); };
+    window.addEventListener('pageshow', onRestore);
+    return () => window.removeEventListener('pageshow', onRestore);
+  }, [refresh]);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
     addEventListener('keydown', onKey);
@@ -30,6 +37,13 @@ export default function Nav({ name, booking, scrolled }: Props) {
         </ul>
         {booking && <a className="btn btn--primary nav-cta" href={booking} {...ext}>Reservar</a>}
       </nav>
+      <a className="nav__account" href={ACCOUNT_ENTRY_URL} aria-label={user ? 'Mi cuenta' : 'Entrar a WS Style'}>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
+          <circle cx="12" cy="8" r="3.5" />
+          <path d="M4.5 21v-1.5a7.5 7.5 0 0 1 15 0V21" strokeLinecap="round" />
+        </svg>
+        <span>{user ? 'Mi cuenta' : 'Entrar'}</span>
+      </a>
       <button className="nav-toggle" type="button" aria-expanded={open} aria-controls="nav-links" aria-label={open ? 'Cerrar menú' : 'Abrir menú'} onClick={() => setOpen(!open)}><span></span></button>
     </header>
   );

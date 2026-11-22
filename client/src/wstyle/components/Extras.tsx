@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { toCLP } from '../lib';
-import { clp, ext } from '../links';
+import { clp, ctaLinks, ext } from '../links';
 import { str, type SiteContent } from '../content';
 import { Extra } from './Section';
 import { countLabel, formatAverage, hasVisibleReviews, reviewDate, roundHalf, starsLabel, type ReviewsPage } from '../reviews';
@@ -85,6 +85,27 @@ export function Barbers({ site, booking, label }: { site: SiteContent; booking: 
 // grande, beneficios en lista y nota + CTA al pie, todo dentro de la tarjeta. Lo que falte en el JSON no deja cajas
 // vacías.
 export function Membership({ site, booking, label }: { site: SiteContent; booking: string | null; label: string }) {
+  if (site.plans?.length) {
+    const whatsapp = ctaLinks(site).whatsapp;
+    return (
+      <Extra id="membresia" label={label} title="PLANES WS STYLE." className="panel--plans">
+        <p>Elige tu plan personal · Pago anticipado · 30 días de vigencia</p>
+        <div className="plans-grid">
+          {site.plans.map(plan => {
+            const url = whatsapp ? new URL(whatsapp) : null;
+            url?.searchParams.set('text', `Hola, quiero contratar el plan ${plan.name} de WS Style.`);
+            return <article className={`ws-plan ws-plan--${plan.id}`} key={plan.id}>
+              <p>{plan.subtitle}{plan.id === 'medium' && ' · Recomendado'}</p>
+              <h3>{plan.name}</h3>
+              <strong>{clp.format(plan.price)}</strong>
+              <ul>{plan.perks.map(perk => <li key={perk}>{perk}</li>)}</ul>
+              {url && <a className="btn btn--primary" data-own-cta="" href={url.href} {...ext(url.href)}>Quiero {plan.name}</a>}
+            </article>;
+          })}
+        </div>
+      </Extra>
+    );
+  }
   const m = site.membership; const price = toCLP(m?.priceCLP);
   if (!m || !str(m.name)) return null;
   const perks = (m.perks ?? []).filter((p): p is string => !!str(p));

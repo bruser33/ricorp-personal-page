@@ -922,6 +922,12 @@ describe('AC-02 matriz de autorización', () => {
       ...['cancel', 'accept', 'counter', 'confirm', 'propose', 'start', 'finish', 'no-show', 'pay-local'].map((a) => [`POST /api/wstyle/appointments/:id/${a}`, ownAppt, { path: `/api/wstyle/appointments/${appt}/${a}` }]),
       /* SPEC-35: sin credenciales de Mercado Pago (este panel no las tiene) → 503 con sesión. Con credenciales: test/payments.test.js. */
       ['POST /api/wstyle/appointments/:id/checkout', { anon: 401, client: 503, approved: 503, pending: 503, admin: 503 }, { path: `/api/wstyle/appointments/${appt}/checkout` }],
+      /* SPEC-56: seña. Subir y cambiar a pagar en línea: solo el dueño (otros → 404); ver el comprobante:
+         dueño o super admin (barbero / otro cliente → 403; esta cita no tiene comprobante → 404 al admin). */
+      ['POST /api/wstyle/deposit/preview', pub],
+      ['POST /api/wstyle/appointments/:id/deposit/receipt', { anon: 401, client: 404, approved: 404, pending: 404, admin: 404 }, { path: `/api/wstyle/appointments/${appt}/deposit/receipt` }],
+      ['GET /api/wstyle/appointments/:id/deposit/receipt', { anon: 401, client: 403, approved: 403, pending: 403, admin: 404 }, { path: `/api/wstyle/appointments/${appt}/deposit/receipt` }],
+      ['POST /api/wstyle/appointments/:id/deposit/pay-online', { anon: 401, client: 404, approved: 404, pending: 404, admin: 404 }, { path: `/api/wstyle/appointments/${appt}/deposit/pay-online` }],
       /* Webhook público: lo autentica la firma x-signature (sin firma → 401 para todos). */
       ['POST /api/payments/mp/webhook', { anon: 401, client: 401, approved: 401, pending: 401, admin: 401 }, { path: '/api/payments/mp/webhook?data.id=1&type=payment' }],
       /* Barbero: registro (anónimo), perfil propio (aprobado y pendiente), operación (solo aprobado) */
@@ -988,6 +994,9 @@ describe('AC-02 matriz de autorización', () => {
       ['POST /api/wstyle/points/admin/customers/:id/adjust', adminOnly, { path: `/api/wstyle/points/admin/customers/${owner.user._id}/adjust` }],
       ['GET /api/wstyle/points/admin/appointments/:id', adminOnly, { path: `/api/wstyle/points/admin/appointments/${appt}` }],
       ['POST /api/wstyle/points/admin/appointments/:id/revert', adminOnly, { path: `/api/wstyle/points/admin/appointments/${appt}/revert` }],
+      /* SPEC-56 RN-09: configurar, revisar y marcar devuelta la seña → solo super admin. */
+      ['GET /api/admin/deposit-settings', adminOnly], ['PUT /api/admin/deposit-settings', adminOnly], ['GET /api/admin/deposits', adminOnly],
+      ...['confirm', 'reject', 'refunded'].map((a) => [`POST /api/admin/deposits/:id/${a}`, adminOnly, { path: `/api/admin/deposits/${appt}/${a}` }]),
       /* SPEC-60: gift cards. Comprar y validar códigos exige sesión (cualquier rol, como cliente); la venta en línea
          está apagada en este panel → 409. La tarjeta pública se ve con su token. Emitir/listar/anular: solo super admin. */
       ['POST /api/wstyle/gift-cards', { anon: 401, client: 409, approved: 409, pending: 409, admin: 409 }],

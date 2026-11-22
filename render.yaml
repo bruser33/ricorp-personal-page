@@ -67,3 +67,18 @@ services:
         sync: false
       - key: GOOGLE_REDIRECT_URI
         sync: false
+      # Comprobantes de la seña por transferencia (SPEC-56): Cloudflare R2 (compatible S3), bucket
+      # PRIVADO. El disco de Render free es efímero: en Render (RENDER=true) la seña no se puede
+      # encender sin este driver (RN-10).
+      - key: RECEIPTS_STORAGE
+        value: s3
+      - key: S3_ENDPOINT
+        sync: false
+      - key: S3_BUCKET
+        value: wstyle-receipts
+      - key: S3_REGION
+        value: auto
+      - key: S3_ACCESS_KEY_ID
+        sync: false
+      - key: S3_SECRET_ACCESS_KEY
+        sync: false

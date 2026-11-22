@@ -30,6 +30,7 @@ export default function AdminApp({ fbReturn }: { fbReturn: FacebookReturn | null
   const [configured, setConfigured] = useState<boolean | null>(null);
   const [statusErr, setStatusErr] = useState<ApiError | null>(null);
   const [unread, setUnread] = useState(0);
+  const [depositsDue, setDepositsDue] = useState(0);
   const user = session.user;
   const isAdmin = Boolean(user?.roles.includes('superadmin'));
 
@@ -46,6 +47,7 @@ export default function AdminApp({ fbReturn }: { fbReturn: FacebookReturn | null
     if (!isAdmin) return;
     let alive = true;
     admin.notifications().then((n) => { if (alive) setUnread(n.unread); }, () => {});
+    admin.deposits('review').then((d) => { if (alive) setDepositsDue(d.counts.review); }, () => {});
     return () => { alive = false; };
   }, [isAdmin]);
   useEffect(() => {
@@ -108,7 +110,7 @@ export default function AdminApp({ fbReturn }: { fbReturn: FacebookReturn | null
     inicio: <HomePage onUnread={setUnread} />,
     barberos: <BarbersPage />,
     citas: <AppointmentsPage />,
-    pagos: <PaymentsPage />,
+    pagos: <PaymentsPage onDepositCounts={(c) => setDepositsDue(c.review)} />,
     rendicion: <RendicionPage />,
     'gift-cards': <GiftCardsPage />,
     carta: <ServicesPage />,
@@ -121,5 +123,5 @@ export default function AdminApp({ fbReturn }: { fbReturn: FacebookReturn | null
     auditoria: <AuditPage />,
   }[section];
 
-  return <AdminShell section={section} unread={unread} userLabel={user.email ?? user.name} onLogout={logout}>{page}</AdminShell>;
+  return <AdminShell section={section} unread={unread} depositsDue={depositsDue} userLabel={user.email ?? user.name} onLogout={logout}>{page}</AdminShell>;
 }
