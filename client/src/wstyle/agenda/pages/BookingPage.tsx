@@ -53,6 +53,8 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
   const [busy, setBusy] = useState(false);
   const [phone, setPhone] = useState('');
   const [accept, setAccept] = useState(false);
+  // SPEC-53: casilla de WhatsApp. La primera vez viene desmarcada; después recuerda la última elección (asunción 7).
+  const [waOptIn, setWaOptIn] = useState<boolean | null>(null);
   // SPEC-56: seña por transferencia (solo si el local la pide a este cliente y paga en el local).
   const [depositInfo, setDepositInfo] = useState<DepositPreview | null>(null);
   const [acceptDeposit, setAcceptDeposit] = useState(false);
@@ -87,6 +89,9 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
   const mode = sel.mode ?? 'shop';
   const lastDay = catalog ? addDays(today, catalog.business.settings.horizonDays) : addDays(today, 30);
   const user = session.user;
+  // SPEC-53: el WhatsApp va al celular de la cuenta o al que se escribe en este paso.
+  const waPhone = user?.phone ?? clMobile(phone);
+  const waChecked = waOptIn ?? user?.whatsappOptIn === true;
 
   const update = useCallback((patch: Partial<Selection>) => setSel((s) => ({ ...s, ...patch })), []);
   useEffect(() => { saveSelection(sel); }, [sel]);
@@ -259,6 +264,7 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
         address: mode === 'home' ? sel.address : undefined, phone: needPhone ? phone : undefined, note: sel.note ?? '',
         acceptPolicies: accept, paymentMethod: covered ? (payments.local ? 'local' : 'online') : pay, idempotencyKey: idem.current, website,
         giftCardCode: gift?.code,
+        whatsappOptIn: waPhone ? waChecked : undefined,
         ...(needsDeposit ? { acceptDeposit } : {}),
         styleId: styleChoice.style?.id, clientPhotoId: styleChoice.photo?.id,
         // SPEC-58: canal del link (sin UTM → el server guarda "directo").
@@ -572,6 +578,15 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
                       ? <Notice tone="error">Esta hora es muy pronto para pagar la seña. Elige otra{payments.online ? ' o paga en línea' : ''}.</Notice>
                       : <DepositNotice amountCLP={depositInfo.amountCLP ?? 0} restCLP={depositInfo.restCLP ?? 0} minutes={depositInfo.minutes ?? 30} accepted={acceptDeposit} error={errors.acceptDeposit}
                           onAccept={(v) => { setAcceptDeposit(v); setErrors((x) => ({ ...x, acceptDeposit: undefined })); }} />
+                  )}
+                  {waPhone && (
+                    <div className="ag-field ag-check" data-wa-optin="">
+                      <label>
+                        <input type="checkbox" checked={waChecked} onChange={(e) => setWaOptIn(e.target.checked)} />
+                        <span>Quiero recibir la confirmación y el recordatorio por WhatsApp al <span className="ag-nowrap">{prettyPhone(waPhone)}</span></span>
+                      </label>
+                      <p className="ag-field__hint">Solo avisos de tu hora, con un link para verla o cancelarla. Puedes darte de baja cuando quieras.</p>
+                    </div>
                   )}
                   <div className={`ag-field ag-check${errors.acceptPolicies ? ' has-error' : ''}`}>
                     <label>

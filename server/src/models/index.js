@@ -45,6 +45,16 @@ const BusinessSchema = new Schema(
       /* SPEC-54: lista de espera de días llenos (encendida por defecto; ausente = encendida). */
       waitlistEnabled: { type: Boolean, default: true },
     },
+    /* SPEC-53: avisos por WhatsApp. `reminder`: 2h | 4h | 1d (el día anterior, 18:00) | 2d | off.
+       Las credenciales de Meta NUNCA viven acá (server/.env). */
+    whatsapp: {
+      confirmEnabled: { type: Boolean, default: true },
+      reminder: { type: String, enum: ['2h', '4h', '1d', '2d', 'off'], default: '1d' },
+      /* CB-07: plantillas ya avisadas como no aprobadas (un solo aviso por plantilla). */
+      templateAlerts: { type: [String], default: undefined },
+      /* CB-08: Meta respondió 401 con el token actual (se limpia con el próximo envío exitoso). */
+      authFailedAt: Date,
+    },
     /* SPEC-34 RN-08: formas de pago habilitadas. Las credenciales NUNCA viven acá (server/.env). */
     payments: {
       onlineEnabled: { type: Boolean, default: false },
@@ -212,6 +222,9 @@ const UserSchema = new Schema(
     emailVerified: { type: Boolean, default: false },
     name: String,
     phoneE164: String,
+    /* SPEC-53 RN-02: consentimiento para recibir avisos por WhatsApp (aceptado o rechazado, cuándo,
+       a qué teléfono y desde dónde: reserva | cuenta | whatsapp). */
+    whatsappOptIn: { accepted: Boolean, at: Date, phoneE164: String, source: String },
     roles: { type: [String], default: ['client'] },
     identities: [IdentitySchema],
     status: { type: String, enum: ['active', 'deleted'], default: 'active' },
@@ -376,6 +389,9 @@ const AppointmentSchema = new Schema(
     },
     /* Invitación del barbero (SPEC-33 RN-12): el token va en el link que se manda por WhatsApp. */
     invite: { token: String, sentAt: Date },
+    /* SPEC-53: links "Ver o cancelar mi cita" de los WhatsApp. Solo el hash del token (cada
+       mensaje lleva el suyo); permiten ver y cancelar sin sesión, nada más. */
+    guestTokens: { type: [{ _id: false, hash: String, at: Date }], default: undefined },
     note: String,
     /* SPEC-59: referencia de estilo. Del catálogo se congela el nombre (RN-05); la foto propia
        del cliente es un id de GridFS (nunca el binario). `clientPhotoState` explica por qué ya
@@ -559,6 +575,54 @@ PaymentEventSchema.index({ mpPaymentId: 1, status: 1 }, { unique: true });
 PaymentEventSchema.index({ appointmentId: 1, createdAt: 1 });
 export const PaymentEvent = model('PaymentEvent', PaymentEventSchema);
 
+/* SPEC-53: cola de WhatsApp (confirmación y recordatorio de cada cita). El índice único
+   (cita, tipo, hora de la cita) es la garantía de "sin duplicados" (RN-06); un reintento reusa
+   el mismo registro. Se borran solos a los 180 días (asunción 10). */
+export const WA_STATUSES = ['por_salir', 'enviando', 'enviado', 'entregado', 'leido', 'fallido', 'frenado', 'no_aplica', 'simulado'];
+const OutboundMessageSchema = new Schema(
+  {
+    businessId: { type: ObjectId, required: true },
+    appointmentId: { type: ObjectId, required: true },
+    userId: ObjectId,
+    kind: { type: String, enum: ['confirmation', 'reminder'], required: true },
+    apptStartsAt: { type: Date, required: true },
+    channel: { type: String, default: 'whatsapp' },
+    template: String,
+    /* Teléfono al programarlo; al enviar se usa el vigente del usuario (CB-12). */
+    phoneE164: String,
+    params: [String],
+    renderedText: String,
+    sendAt: { type: Date, required: true },
+    status: { type: String, enum: WA_STATUSES, default: 'por_salir' },
+    attempts: { type: Number, default: 0 },
+    leaseUntil: Date,
+    lastError: String,
+    errorKind: String,
+    errorCode: Number,
+    reason: String,
+    waMessageId: String,
+    sentAt: Date,
+    deliveredAt: Date,
+    readAt: Date,
+    failedAt: Date,
+    stoppedBy: String,
+  },
+  { timestamps: true }
+);
+OutboundMessageSchema.index({ appointmentId: 1, kind: 1, apptStartsAt: 1 }, { unique: true });
+OutboundMessageSchema.index({ status: 1, sendAt: 1 });
+OutboundMessageSchema.index({ waMessageId: 1 }, { sparse: true });
+OutboundMessageSchema.index({ businessId: 1, createdAt: -1 });
+OutboundMessageSchema.index({ createdAt: 1 }, { expireAfterSeconds: 180 * 24 * 60 * 60 });
+export const OutboundMessage = model('OutboundMessage', OutboundMessageSchema);
+
+/* SPEC-53: mensajes entrantes ya procesados (Meta reintenta el webhook: idempotencia por id). */
+const WaInboundSchema = new Schema(
+  { waMessageId: { type: String, required: true, unique: true }, from: String, kind: String },
+  { timestamps: true }
+);
+WaInboundSchema.index({ createdAt: 1 }, { expireAfterSeconds: 30 * 24 * 60 * 60 });
+export const WaInbound = model('WaInbound', WaInboundSchema);
 /* ─── SPEC-59: catálogo de estilos (fotos de trabajos) y fotos de referencia de clientes. */
 const StyleSchema = new Schema(
   {
@@ -734,6 +798,8 @@ export const ALL_MODELS = [
   PlatformSettings,
   AuditLog,
   PaymentEvent,
+  OutboundMessage,
+  WaInbound,
   Style,
   ClientPhoto,
   GiftCard,

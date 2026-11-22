@@ -747,8 +747,9 @@ export function createPro({ agenda, clock = Date.now, mailer, logger = console, 
       throw err;
     }
     if (confirmed) {
-      /* Correo `confirmed` si tiene correo (cuenta). La confirmación por WhatsApp llegará con SPEC-53. */
+      /* Correo `confirmed` si tiene correo (cuenta). SPEC-53: WhatsApp si el cliente ya tiene opt-in guardado. */
       if (customer?.email) await agenda.notify(b, appt, 'client', 'confirmed');
+      await agenda.afterChange(appt, null);
       return { appointment: await agenda.serialize(appt, 'barber', b, now), whatsappUrl: null, inviteUrl: null, message: null };
     }
     if (customer) await agenda.notify(b, appt, 'client', 'invited');

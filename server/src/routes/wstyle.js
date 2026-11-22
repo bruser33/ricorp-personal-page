@@ -72,7 +72,8 @@ export function createWstyleRouter({ agenda, payments, deposits, reviews, logger
      `?pago=` de la vuelta del checkout no se cree; CB-03 / CB-05). */
   r.get('/appointments/:id', h(async (req, res) => {
     await payments?.syncForView(req.params.id, req.user);
-    res.json(await agenda.view(req.params.id, req.user, { inv: req.query.inv ? String(req.query.inv) : null }));
+    /* SPEC-53: ?t=<token> = link del WhatsApp (ver y cancelar sin sesión). */
+    res.json(await agenda.view(req.params.id, req.user, { inv: req.query.inv ? String(req.query.inv) : null, t: req.query.t ? String(req.query.t) : null }));
   }));
 
   /* SPEC-35: crear la preferencia de Checkout Pro (o reintentar) y pasar a pagar en el local. */
@@ -99,7 +100,10 @@ export function createWstyleRouter({ agenda, payments, deposits, reviews, logger
     ['no-show', 'no_show'],
   ]) {
     r.post(`/appointments/:id/${path}`, h(async (req, res) => {
-      res.json(await agenda.act(req.params.id, requireUser(req), action, req.body || {}));
+      /* SPEC-53: con el token del WhatsApp (sin sesión, o con la sesión de otra persona) → solo
+         cancelar (lo demás, 403). El dueño con sesión actúa normal. */
+      const t = req.body?.t ? String(req.body.t) : null;
+      res.json(await agenda.act(req.params.id, t && !req.user ? null : requireUser(req), action, req.body || {}, { t }));
     }));
   }
 

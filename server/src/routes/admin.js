@@ -118,6 +118,14 @@ export function createAdminRouter({ admin, logger, giftCards = null, styles = nu
   r.put('/settings', h(async (req, res) => res.json(await admin.setSettings(u(req), req.body || {}))));
   r.get('/audit', h(async (req, res) => res.json(await admin.auditList(u(req), req.query))));
 
+  /* WhatsApp (SPEC-53): mensajes programados/enviados/fallidos y configuración del canal. */
+  r.get('/messages', h(async (req, res) => res.json(await admin.listMessages(u(req), req.query))));
+  r.get('/messages/:id', h(async (req, res) => res.json(await admin.messageDetail(u(req), req.params.id))));
+  r.post('/messages/:id/stop', h(async (req, res) => res.json(await admin.stopMessage(u(req), req.params.id))));
+  r.post('/messages/:id/retry', h(async (req, res) => res.json(await admin.retryMessage(u(req), req.params.id))));
+  r.get('/whatsapp', h(async (req, res) => res.json(await admin.getWhatsapp(u(req)))));
+  r.put('/whatsapp', h(async (req, res) => res.json(await admin.setWhatsapp(u(req), req.body || {}))));
+
   /* SPEC-56: seña por transferencia (solo super admin: el guard de arriba ya lo exige). */
   r.get('/deposit-settings', h(async (req, res) => res.json(await admin.depositSettings(u(req)))));
   r.put('/deposit-settings', h(async (req, res) => res.json(await admin.setDepositSettings(u(req), req.body || {}))));

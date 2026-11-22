@@ -44,6 +44,8 @@ mongoose
       app.locals.agenda.runExpirations().catch(quiet('[agenda] expiraciones:'));
       /* SPEC-35 RN-03: citas que esperaban el pago y se les acabó la retención. */
       app.locals.payments.runHolds().catch(quiet('[mp] retención:'));
+      /* SPEC-53: despachador de WhatsApp (confirmaciones y recordatorios vencidos). */
+      app.locals.messaging.runDispatch().catch(quiet('[wa] despachador:'));
       /* SPEC-56 §11: señas sin comprobante a tiempo (y retención de 12 meses de comprobantes). */
       app.locals.deposits.runDeposits().catch(quiet('[seña] vencimiento:'));
       /* SPEC-60: gift cards vencidas y compras sin pagar de más de 24 h. */

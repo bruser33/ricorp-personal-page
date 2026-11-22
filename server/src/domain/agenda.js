@@ -79,7 +79,9 @@ export const PAY_OPEN = ['pendiente', 'en_proceso', 'rechazado'];
 
 /* `onlinePayments.ready`: hay credenciales de Mercado Pago (SPEC-35). Sin ellas "Pagar en
    línea" no se ofrece aunque el admin lo habilite (CB-09). */
-export function createAgenda({ clock = Date.now, mailer, logger = console, frontUrl = 'http://localhost:5173', geocoder, businessSlug = 'ws-style', adminInbox = null, onlinePayments = { ready: false }, taxProvider = TAX_DOCUMENT_PROVIDERS.voucher, giftCards = null, loyalty = null, depositRule = null }) {
+export function createAgenda({ clock = Date.now, mailer, logger = console, frontUrl = 'http://localhost:5173', geocoder, businessSlug = 'ws-style', adminInbox = null, onlinePayments = { ready: false }, taxProvider = TAX_DOCUMENT_PROVIDERS.voucher, giftCards = null, loyalty = null, depositRule = null, messaging = null }) {
+  /* SPEC-53: avisos por WhatsApp. Se llama después de cada cambio de una cita (nunca lanza). */
+  const afterChange = (appt, prev = null) => (messaging ? messaging.onAppointmentChanged(appt, prev) : Promise.resolve());
   /* SPEC-54: enganches de la lista de espera (domain/waitlist.js los registra).
      released: una cita futura dejó de ocupar su hora · booked: el cliente reservó (ese día sale de la lista)
      · waitlistBooking: valida el token "Tomar esta hora" al crear la cita.
@@ -512,6 +514,8 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
         }, logger);
         if (!(await attachPhoto(refPhoto, appt._id)) && appt.reference) appt.reference.clientPhotoId = undefined;
         if (!user.phoneE164 || user.phoneE164 !== phone) await User.updateOne({ _id: user._id }, { phoneE164: phone });
+        /* SPEC-53 RN-02: la casilla de WhatsApp del paso "Revisar" (se recuerda para la próxima reserva). */
+        if (typeof input.whatsappOptIn === 'boolean' && messaging) await messaging.setOptIn(user._id, input.whatsappOptIn, { phone, source: 'reserva' }).catch((err) => logger.error('[wa] opt-in:', err.message));
         await CustomerProfile.updateOne({ businessId: b._id, userId: user._id }, { $inc: { 'counters.appointments': 1 } }, { upsert: true }).catch(() => {});
         /* SPEC-54 (8, CB-05): reservó ese día → su entrada de la lista pasa a "Tomaste la hora". */
         for (const fn of hooks.booked) await fn(b, user, appt).catch((err) => logger.error('[agenda] lista de espera (reserva):', err.message));
@@ -590,8 +594,20 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
     return null;
   }
 
-  async function load(id, user, { inv = null } = {}) {
-    if (!user) throw new HttpError(401, 'unauthorized', 'Inicia sesión para ver tu cita');
+  /* SPEC-53: el link del WhatsApp (?t=<token>) deja ver y cancelar sin sesión. Token inválido,
+     de otra cita o vencido → 404 (el front lleva al login). */
+  async function loadGuest(id, t) {
+    const _id = oid(id);
+    const appt = _id ? await Appointment.findById(_id) : null;
+    if (!appt || !messaging?.validGuestToken(appt, t, clock())) throw notFound();
+    return { appt, role: 'client', guest: true };
+  }
+
+  async function load(id, user, { inv = null, t = null } = {}) {
+    if (!user) {
+      if (t) return loadGuest(id, t);
+      throw new HttpError(401, 'unauthorized', 'Inicia sesión para ver tu cita');
+    }
     const _id = oid(id);
     let appt = _id ? await Appointment.findById(_id) : null;
     if (!appt) throw notFound();
@@ -609,6 +625,8 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
       }
     }
     const role = await roleFor(user, appt);
+    /* Sesión de otra persona pero con el link del WhatsApp: se ve como invitado. */
+    if (!role && t) return loadGuest(id, t);
     /* Otro cliente → 404: no se revela que la cita existe. */
     if (!role) throw notFound();
     return { appt, role };
@@ -680,6 +698,7 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
 
   /* `extra.noShows` = Map precalculado con noShowsFor (listas); si no viene, se calcula para esta cita. */
   async function serialize(appt, role, b, now, extra = {}) {
+    const guest = Boolean(extra.guest);
     const pro = await Professional.findById(appt.professionalId).lean();
     const tz = b.timezone;
     const p = appt.proposal?.startsAt ? appt.proposal : null;
@@ -709,8 +728,10 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
       reference: await referenceView(appt),
       canChangeReference: role === 'client' && !FINAL.includes(appt.status),
       proposal: p ? { startsAt: p.startsAt.toISOString(), when: formatLong(p.startsAt.getTime(), tz), expiresAt: p.expiresAt?.toISOString() } : null,
-      actions: actionsFor(appt, role, b, now),
+      /* SPEC-53: con el link del WhatsApp (sin sesión) solo se puede cancelar. */
+      actions: guest ? actionsFor(appt, role, b, now).filter((x) => x === 'cancel') : actionsFor(appt, role, b, now),
       role,
+      guest: guest || undefined,
       whatsapp:
         role === 'client'
           ? waLink(pro?.phone || b.contact?.whatsapp, `Hola ${pro?.displayName || ''}, te escribo por mi cita del ${formatLong(appt.startsAt.getTime(), tz)}`)
@@ -790,8 +811,8 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
 
   async function view(id, user, opts = {}) {
     const b = await business();
-    const { appt, role } = await load(id, user, opts);
-    return serialize(appt, role, b, clock());
+    const { appt, role, guest } = await load(id, user, opts);
+    return serialize(appt, role, b, clock(), { guest });
   }
 
   async function mine(user) {
@@ -862,6 +883,8 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
         const moved = String(saved.professionalId) !== String(before.professionalId) || saved.startsAt.getTime() !== before.startsAt.getTime();
         if (left || moved) await emitRelease(b, { professionalId: before.professionalId, startsAt: before.startsAt, endsAt: before.endsAt, appointmentId: saved._id }, left ? saved.status : 'moved');
       }
+      /* SPEC-53: confirmación / recordatorio / "ya no aplica" según el nuevo estado. */
+      await afterChange(saved, before);
       return saved;
     } catch (err) {
       if (err?.name === 'VersionError') throw invalid('stale');
@@ -877,10 +900,12 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
     admin: ['confirm', 'reject', 'propose', 'start', 'finish', 'no_show', 'cancel'],
   };
 
-  async function act(id, user, action, payload = {}) {
+  async function act(id, user, action, payload = {}, { t = null } = {}) {
     const b = await business();
-    const { appt: current, role } = await load(id, user);
-    return actAs(b, current, role, action, payload, user);
+    const { appt: current, role, guest } = await load(id, user, { t });
+    /* SPEC-53 AC-07: con el link del WhatsApp solo se cancela; lo demás pide sesión. */
+    if (guest && action !== 'cancel') throw new HttpError(403, 'login_required', 'Inicia sesión para hacer esto');
+    return actAs(b, current, role, action, payload, guest ? null : user, { guest });
   }
 
   /* SPEC-33 RN-09: motivo de la lista; "Otro" exige texto. El cliente sigue con texto libre (SPEC-32). */
@@ -894,7 +919,7 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
   }
 
   /* Exportado para tests y para SPEC-33 (helper de barbero): `role` ya resuelto. */
-  async function actAs(b, current, role, action, payload = {}, user = null) {
+  async function actAs(b, current, role, action, payload = {}, user = null, { guest = false } = {}) {
     const now = clock();
     if (!ACTOR_CAN[role]?.includes(action)) throw invalid('forbidden_action');
     if (FINAL.includes(current.status)) throw invalid('final_state');
@@ -1029,7 +1054,7 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
         }));
       }
       await Promise.all(jobs);
-      return serialize(appt, role, b, now);
+      return serialize(appt, role, b, now, { guest });
     }
 
     if (action === 'start' || action === 'finish' || action === 'no_show') {
@@ -1240,6 +1265,7 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
     runExpirations,
     onAccountDeleted,
     serialize,
+    afterChange,
     noShowCounts,
     noShowsFor,
     hooks,

@@ -205,6 +205,9 @@
 .pay-collect .ag-field, .pay-boleta .ag-field { margin-bottom: 8px; }
 .pay-boleta { margin-top: 10px; }
 .pay-boleta input, .pay-collect input[inputmode] { max-width: 220px; }
+.ag-wa-pref { display: grid; gap: 10px; margin: 16px 0; }
+.ag-wa-pref p { margin: 0; }
+.ag-nowrap { white-space: nowrap; }
 
 /* ─── SPEC-59: fotos de estilos ("Noir de oficio": esquinas rectas, filete hueso, elegido en --brass). */
 .st-picker { margin-top: 22px; padding-top: 4px; border-top: 1px solid var(--brass-line); }

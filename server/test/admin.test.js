@@ -978,6 +978,13 @@ describe('AC-02 matriz de autorización', () => {
       /* SPEC-37 regla 1: pagos y rendición solo para el super admin; el resto (también el visitante) → 403. */
       ['GET /api/admin/payments', { ...adminOnly, anon: 403 }], ['POST /api/admin/payments/:id/boleta', { ...adminOnly, anon: 403 }, { path: `/api/admin/payments/${appt}/boleta` }],
       ['GET /api/admin/rendicion', { ...adminOnly, anon: 403 }], ['GET /api/admin/rendicion.csv', { ...adminOnly, anon: 403 }],
+      /* SPEC-53 RN-08: mensajes de WhatsApp y su configuración, solo el super admin. */
+      ['GET /api/admin/messages', adminOnly], ['GET /api/admin/messages/:id', adminOnly, { path: `/api/admin/messages/${fake}` }],
+      ['POST /api/admin/messages/:id/stop', adminOnly, { path: `/api/admin/messages/${fake}/stop` }], ['POST /api/admin/messages/:id/retry', adminOnly, { path: `/api/admin/messages/${fake}/retry` }],
+      ['GET /api/admin/whatsapp', adminOnly], ['PUT /api/admin/whatsapp', adminOnly],
+      /* Webhook de WhatsApp: público; el alta pide el verify token (403 sin él) y los avisos la firma (401 sin ella). */
+      ['GET /api/whatsapp/webhook', { anon: 403, client: 403, approved: 403, pending: 403, admin: 403 }],
+      ['POST /api/whatsapp/webhook', { anon: 401, client: 401, approved: 401, pending: 401, admin: 401 }],
       /* SPEC-59: catálogo de estilos (público), foto de referencia del cliente (privada) y gestión del catálogo. */
       ['GET /api/wstyle/styles', pub],
       ['POST /api/wstyle/reference-photo', logged], ['DELETE /api/wstyle/reference-photo/:id', logged, { path: `/api/wstyle/reference-photo/${fake}` }],

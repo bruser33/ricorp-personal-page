@@ -12,6 +12,7 @@ import BarbersPage from './pages/BarbersPage';
 import GiftCardsPage from './pages/GiftCardsPage';
 import DifusionPage from './pages/DifusionPage';
 import HomePage from './pages/HomePage';
+import MessagesPage from './pages/MessagesPage';
 import PaymentsPage from './pages/PaymentsPage';
 import PointsAdminPage from './pages/PointsAdminPage';
 import RendicionPage from './pages/RendicionPage';
@@ -113,6 +114,7 @@ export default function AdminApp({ fbReturn }: { fbReturn: FacebookReturn | null
     citas: <AppointmentsPage />,
     pagos: <PaymentsPage onDepositCounts={(c) => setDepositsDue(c.review)} />,
     rendicion: <RendicionPage />,
+    mensajes: <MessagesPage />,
     'gift-cards': <GiftCardsPage />,
     carta: <ServicesPage />,
     estilos: <StylesPage />,
