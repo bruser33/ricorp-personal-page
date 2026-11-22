@@ -51,6 +51,19 @@ jobs:
       AUTH_SECRET: solo-ci-no-es-un-secreto-real-0123456789
       MAIL_DRY_RUN: "1"
       OWORK_CI: "1"
+      # Comprobantes de la seña contra un S3 real de software libre (SeaweedFS, .github/ci/s3-local.sh):
+      # el server de pruebas y los tests suben archivos de verdad. Credenciales solo de CI.
+      S3_TEST_ENDPOINT: http://localhost:8333
+      S3_TEST_BUCKET: wstyle-receipts-test
+      S3_TEST_REGION: us-east-1
+      S3_TEST_ACCESS_KEY_ID: ci-access-key
+      S3_TEST_SECRET_ACCESS_KEY: ci-secret-key-no-es-real
+      RECEIPTS_STORAGE: s3
+      S3_ENDPOINT: http://localhost:8333
+      S3_BUCKET: wstyle-receipts-test
+      S3_REGION: us-east-1
+      S3_ACCESS_KEY_ID: ci-access-key
+      S3_SECRET_ACCESS_KEY: ci-secret-key-no-es-real
       GH_PROJECT_TOKEN: ${{ secrets.PROJECT_TOKEN }}
     steps:
       - uses: actions/checkout@v4
@@ -73,6 +86,9 @@ jobs:
             sleep 2
           done
           docker exec mongo mongosh --quiet --eval 'rs.initiate({_id:"rs0",members:[{_id:0,host:"localhost:27017"}]})'
+
+      - name: S3 de pruebas (SeaweedFS) para los comprobantes de la seña
+        run: bash .github/ci/s3-local.sh
 
       - name: Dependencias y navegador para la verificación
         run: |

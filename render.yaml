@@ -82,7 +82,8 @@ services:
         sync: false
       - key: WHATSAPP_DISPLAY_NUMBER
         sync: false
-      # Comprobantes de la seña por transferencia (SPEC-56): Cloudflare R2 (compatible S3), bucket
+      # Comprobantes de la seña por transferencia (SPEC-56): S3 compatible (B2 gratis o R2; ver
+      # docs/almacenamiento-comprobantes.md), bucket
       # PRIVADO. El disco de Render free es efímero: en Render (RENDER=true) la seña no se puede
       # encender sin este driver (RN-10).
       - key: RECEIPTS_STORAGE
