@@ -1,7 +1,7 @@
 // Funciones puras del panel del super admin (probadas en util.test.ts).
 import type { AdminService, ExportContent, MembershipStatus, WeekDay } from './api';
 
-export type AdminSection = 'inicio' | 'barberos' | 'citas' | 'pagos' | 'rendicion' | 'gift-cards' | 'carta' | 'resenas' | 'horario' | 'estadisticas' | 'puntos' | 'difusion' | 'configuracion' | 'auditoria';
+export type AdminSection = 'inicio' | 'barberos' | 'citas' | 'pagos' | 'rendicion' | 'gift-cards' | 'carta' | 'estilos' | 'resenas' | 'horario' | 'estadisticas' | 'puntos' | 'difusion' | 'configuracion' | 'auditoria';
 export const SECTIONS: { key: AdminSection; label: string; path: string }[] = [
   { key: 'inicio', label: 'Inicio', path: '/wstyle/admin/' },
   { key: 'barberos', label: 'Barberos', path: '/wstyle/admin/barberos/' },
@@ -12,6 +12,8 @@ export const SECTIONS: { key: AdminSection; label: string; path: string }[] = [
   // SPEC-60: gift cards (emitir, saldo, anular).
   { key: 'gift-cards', label: 'Gift cards', path: '/wstyle/admin/gift-cards/' },
   { key: 'carta', label: 'Carta', path: '/wstyle/admin/carta/' },
+  // SPEC-59: catálogo de fotos de estilos que el cliente ve al reservar.
+  { key: 'estilos', label: 'Estilos', path: '/wstyle/admin/estilos/' },
   // SPEC-52: reseñas de clientes (ocultar / mostrar).
   { key: 'resenas', label: 'Reseñas', path: '/wstyle/admin/resenas/' },
   { key: 'horario', label: 'Horario', path: '/wstyle/admin/horario/' },

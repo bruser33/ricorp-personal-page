@@ -32,6 +32,7 @@ import { categoriesOf, categoryView } from './categories.js';
 import { applyLocalCollection, boletaClash, isBoletaClash, parseCollectInput } from './tax.js';
 import { TAX_DOCUMENT_PROVIDERS } from '../lib/taxDocuments.js';
 import { currentRates, pricingView, quote, ratesView } from './pricing.js';
+import { attachPhoto, referenceView, resolveReference } from './styles.js';
 import { depositConfig, depositView, publicDepositConfig } from './deposits.js';
 import { coverage, payableCLP } from './giftcards.js';
 import { canReview } from './reviews.js';
@@ -377,6 +378,8 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
     else if ((payMethod === 'local' && !payOpts.local) || (payMethod === 'online' && !payOpts.online)) payProblem = 'payment_unavailable';
     if (payProblem && !giftCard) fields.paymentMethod = payProblem;
     if (Object.keys(fields).length) throw new HttpError(400, Object.values(fields)[0], 'Revisa los datos', { fields });
+    /* SPEC-59: estilo del catálogo y/o foto propia provisional (opcionales, RN-01). */
+    const { reference, photo: refPhoto } = await resolveReference(b, user, input);
 
     let pros = await professionals(b, { service, mode });
     const wanted = input.professionalId && input.professionalId !== 'any' ? String(input.professionalId) : 'any';
@@ -472,6 +475,7 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
         pricing,
         payment: online ? { method: 'online', status: 'pendiente', holdStartedAt: new Date(now) } : covered ? { method: 'local', status: 'cobrado', collectedAt: new Date(now) } : { method: 'local', status: 'pendiente' },
         note: note || undefined,
+        reference,
         status: firstStatus,
         /* SPEC-54: una hora tomada de la lista puede empezar en 30 min: el barbero tiene hasta 15 min antes.
            SPEC-56: con seña, el plazo es el de la seña. */
@@ -506,6 +510,7 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
             throw err;
           }
         }, logger);
+        if (!(await attachPhoto(refPhoto, appt._id)) && appt.reference) appt.reference.clientPhotoId = undefined;
         if (!user.phoneE164 || user.phoneE164 !== phone) await User.updateOne({ _id: user._id }, { phoneE164: phone });
         await CustomerProfile.updateOne({ businessId: b._id, userId: user._id }, { $inc: { 'counters.appointments': 1 } }, { upsert: true }).catch(() => {});
         /* SPEC-54 (8, CB-05): reservó ese día → su entrada de la lista pasa a "Tomaste la hora". */
@@ -700,6 +705,9 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
       /* SPEC-60: gift card aplicada (también la ve el barbero en la ficha, asunción 8). */
       giftCard: appt.giftCard?.giftCardId ? { code: appt.giftCard.code, from: appt.giftCard.from || '', amountCLP: appt.giftCard.amountCLP, status: appt.giftCard.status } : null,
       note: appt.note || '',
+      /* SPEC-59: estilo elegido y foto propia (privada: la URL exige sesión). */
+      reference: await referenceView(appt),
+      canChangeReference: role === 'client' && !FINAL.includes(appt.status),
       proposal: p ? { startsAt: p.startsAt.toISOString(), when: formatLong(p.startsAt.getTime(), tz), expiresAt: p.expiresAt?.toISOString() } : null,
       actions: actionsFor(appt, role, b, now),
       role,

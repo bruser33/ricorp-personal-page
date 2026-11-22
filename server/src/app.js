@@ -20,6 +20,7 @@ import { createAdminInbox } from './lib/adminInbox.js';
 import { createAdmin } from './domain/admin.js';
 import { createReviews } from './domain/reviews.js';
 import { createAdminRouter } from './routes/admin.js';
+import { createStyles } from './domain/styles.js';
 import { createLoyalty } from './domain/loyalty.js';
 import { createLoyaltyRouter } from './routes/loyalty.js';
 import { createPayments, WEBHOOK_PATH } from './domain/payments.js';
@@ -263,19 +264,26 @@ export function createApp({
      vencida o rechazada (SPEC-56) libera la hora vía agenda.mutate, así que también avisa a la lista. */
   const waitlist = createWaitlist({ agenda, pro, admin, clock, mailer: agendaMailer, logger, frontUrl, adminInbox });
   const waitlistRouters = createWaitlistRouters({ waitlist, logger, bookingLimiter });
-  /* RN-26 + SPEC-52 RN-12 + SPEC-56: al eliminar la cuenta se cancelan sus citas futuras, sus señas y se ocultan sus reseñas. */
+  /* Catálogo de estilos y foto de referencia del cliente (SPEC-59). */
+  const styles = createStyles({ agenda, pro, clock, logger });
+  /* RN-26 + SPEC-52 RN-12 + SPEC-56 + SPEC-59 RN-10: al eliminar la cuenta se cancelan sus citas futuras y sus
+     señas, se ocultan sus reseñas y se borran sus fotos de referencia. */
   const onAccountDeleted = async (user) => {
     await agenda.onAccountDeleted(user);
     await deposits.onAccountDeleted(user);
     await reviews.hideForUser(user._id).catch((err) => logger.error('[reseñas] ocultar por cuenta eliminada:', err.message));
+    await styles.onAccountDeleted(user).catch((err) => logger.error('[estilos] borrar fotos de la cuenta:', err.message));
   };
   const authRouter = createAuthRouter({ env, clock, mailer: agendaMailer, logger, facebook, google, frontUrl, secret, loginLimit, onAccountDeleted, onBarberFacebook: pro.ensureBarber });
   const withSession = sessionMiddleware({ clock });
   const needsDb = (_req, res, next) =>
     mongoose.connection.readyState === 1 ? next() : res.status(503).json({ ok: false, error: 'db_unavailable' });
   app.use('/api/auth', needsDb, withSession, authRouter);
-  app.get('/api/wstyle/photos/:id', needsDb, (req, res) => {
-    sendPhoto(req.params.id, res).catch((err) => {
+  /* Fotos públicas. SPEC-59: las de clientes nunca salen por acá y las de estilos ocultos solo
+     las ve el panel (super admin o el barbero que la subió). */
+  app.get('/api/wstyle/photos/:id', needsDb, withSession, (req, res) => {
+    const allow = (file) => (file.metadata?.kind === 'style' ? styles.canSeeStylePhoto(req.user, file._id) : true);
+    sendPhoto(req.params.id, res, { allow }).catch((err) => {
       logger.error('[photos]', err.message);
       if (!res.headersSent) res.status(500).json({ ok: false, error: 'server_error' });
     });
@@ -284,16 +292,16 @@ export function createApp({
   app.use('/api/wstyle/waitlist', needsDb, withSession, waitlistRouters.client);
   app.use('/api/pro/waitlist', needsDb, withSession, waitlistRouters.pro);
   app.use('/api/admin/waitlist', needsDb, withSession, waitlistRouters.admin);
-  app.use('/api/wstyle', needsDb, withSession, createWstyleRouter({ agenda, payments, deposits, reviews, logger, bookingLimiter, reviewLimiter, giftCards, giftCardLimiter }));
+  app.use('/api/wstyle', needsDb, withSession, createWstyleRouter({ agenda, payments, deposits, reviews, logger, bookingLimiter, reviewLimiter, giftCards, giftCardLimiter, styles }));
   /* Webhook de Mercado Pago: público (lo llama Mercado Pago, sin Origin ni cookie); la
      autenticidad la da la firma x-signature. */
   app.post(WEBHOOK_PATH, needsDb, handle(async (req, res) => {
     const [status, body] = await payments.webhook(req);
     res.status(status).json(body);
   }, logger));
-  app.use('/api/pro', needsDb, withSession, createProRouter({ pro, env, clock, mailer: agendaMailer, logger, frontUrl, loginLimiter: authRouter.loginLimiter, billing }));
-  app.use('/api/admin', needsDb, withSession, createAdminRouter({ admin, logger, giftCards }));
-  Object.assign(app.locals, { agenda, pro, admin, waitlist, payments, billing, deposits, receipts, reviews, loyalty, giftCards, giftCardLimiter, agendaMailer, bookingLimiter, reviewLimiter, loginLimiter: authRouter.loginLimiter });
+  app.use('/api/pro', needsDb, withSession, createProRouter({ pro, env, clock, mailer: agendaMailer, logger, frontUrl, loginLimiter: authRouter.loginLimiter, billing, styles }));
+  app.use('/api/admin', needsDb, withSession, createAdminRouter({ admin, logger, giftCards, styles }));
+  Object.assign(app.locals, { agenda, pro, admin, waitlist, styles, payments, billing, deposits, receipts, reviews, loyalty, giftCards, giftCardLimiter, agendaMailer, bookingLimiter, reviewLimiter, loginLimiter: authRouter.loginLimiter });
 
   app.get('/api/health', (_req, res) => {
     /* 'unconfigured' y no 'dry-run' en Render: ahí sin mailer el envío es un 503,

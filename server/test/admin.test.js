@@ -978,6 +978,16 @@ describe('AC-02 matriz de autorización', () => {
       /* SPEC-37 regla 1: pagos y rendición solo para el super admin; el resto (también el visitante) → 403. */
       ['GET /api/admin/payments', { ...adminOnly, anon: 403 }], ['POST /api/admin/payments/:id/boleta', { ...adminOnly, anon: 403 }, { path: `/api/admin/payments/${appt}/boleta` }],
       ['GET /api/admin/rendicion', { ...adminOnly, anon: 403 }], ['GET /api/admin/rendicion.csv', { ...adminOnly, anon: 403 }],
+      /* SPEC-59: catálogo de estilos (público), foto de referencia del cliente (privada) y gestión del catálogo. */
+      ['GET /api/wstyle/styles', pub],
+      ['POST /api/wstyle/reference-photo', logged], ['DELETE /api/wstyle/reference-photo/:id', logged, { path: `/api/wstyle/reference-photo/${fake}` }],
+      ['GET /api/wstyle/reference-photos/:id', { anon: 401, client: 404, approved: 404, pending: 404, admin: 404 }, { path: `/api/wstyle/reference-photos/${fake}` }],
+      ['PUT /api/wstyle/appointments/:id/reference', { anon: 401, client: 404, approved: 403, pending: 404, admin: 403 }, { path: `/api/wstyle/appointments/${appt}/reference` }],
+      ...['GET', 'POST'].map((m) => [`${m} /api/pro/styles`, { ...barberOperate, admin: OK }]),
+      ...['PATCH', 'DELETE'].map((m) => [`${m} /api/pro/styles/:id`, { ...barberOperate, admin: OK }, { path: `/api/pro/styles/${fake}` }]),
+      ['GET /api/admin/styles', adminOnly], ['POST /api/admin/styles', adminOnly], ['POST /api/admin/styles/reorder', adminOnly],
+      ['PATCH /api/admin/styles/:id', adminOnly, { path: `/api/admin/styles/${fake}` }], ['DELETE /api/admin/styles/:id', adminOnly, { path: `/api/admin/styles/${fake}` }],
+      ['POST /api/admin/appointments/:id/remove-photo', adminOnly, { path: `/api/admin/appointments/${appt}/remove-photo` }],
       /* SPEC-57: puntos y canjes. Catálogo público; saldo y canje con cualquier sesión; el ledger de otro → 404;
          entregar/anular para el barbero aprobado y el admin; configuración, productos, ajustes y reversión solo admin. */
       ['GET /api/wstyle/points/program', pub], ['GET /api/wstyle/points/products', pub],

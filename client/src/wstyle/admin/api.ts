@@ -171,6 +171,8 @@ export const admin = {
   appointments: (f: ApptFilters) => api<{ items: AdminAppointment[]; truncated: boolean }>(`/api/admin/appointments?${qs(f)}`),
   csvUrl: (f: ApptFilters) => `${API_BASE}/api/admin/appointments.csv?${qs(f)}`,
   appointment: (aid: string) => api<AdminAppointment>(`/api/admin/appointments/${id(aid)}`),
+  // SPEC-59: moderación de la foto que subió el cliente.
+  removeClientPhoto: (aid: string) => send<{ ok: boolean }>(`/api/admin/appointments/${id(aid)}/remove-photo`, 'POST', {}),
   act: (aid: string, action: string, body: Record<string, unknown> = {}) => send<AdminAppointment>(`/api/admin/appointments/${id(aid)}/${action === 'no_show' ? 'no-show' : action}`, 'POST', body),
   // SPEC-37: con la forma de pago y, si ya se emitió, el N° de boleta SII.
   collect: (aid: string, body: { method?: string; boletaNumber?: string } = {}) => send<AdminAppointment>(`/api/admin/appointments/${id(aid)}/collect`, 'POST', body),
