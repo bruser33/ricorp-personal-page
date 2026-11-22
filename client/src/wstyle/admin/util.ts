@@ -1,7 +1,7 @@
 // Funciones puras del panel del super admin (probadas en util.test.ts).
 import type { AdminService, ExportContent, MembershipStatus, WeekDay } from './api';
 
-export type AdminSection = 'inicio' | 'barberos' | 'citas' | 'pagos' | 'rendicion' | 'gift-cards' | 'carta' | 'estilos' | 'resenas' | 'horario' | 'estadisticas' | 'difusion' | 'configuracion' | 'auditoria';
+export type AdminSection = 'inicio' | 'barberos' | 'citas' | 'pagos' | 'rendicion' | 'gift-cards' | 'carta' | 'estilos' | 'resenas' | 'horario' | 'estadisticas' | 'puntos' | 'difusion' | 'configuracion' | 'auditoria';
 export const SECTIONS: { key: AdminSection; label: string; path: string }[] = [
   { key: 'inicio', label: 'Inicio', path: '/wstyle/admin/' },
   { key: 'barberos', label: 'Barberos', path: '/wstyle/admin/barberos/' },
@@ -18,6 +18,8 @@ export const SECTIONS: { key: AdminSection; label: string; path: string }[] = [
   { key: 'resenas', label: 'Reseñas', path: '/wstyle/admin/resenas/' },
   { key: 'horario', label: 'Horario', path: '/wstyle/admin/horario/' },
   { key: 'estadisticas', label: 'Estadísticas', path: '/wstyle/admin/estadisticas/' },
+  // SPEC-57: productos canjeables, canjes por entregar y saldos de clientes.
+  { key: 'puntos', label: 'Puntos', path: '/wstyle/admin/puntos/' },
   // SPEC-58: kit para compartir el link de reservas (QR, cartel, placa de Instagram y textos).
   { key: 'difusion', label: 'Difusión', path: '/wstyle/admin/difusion/' },
   { key: 'configuracion', label: 'Configuración', path: '/wstyle/admin/configuracion/' },
@@ -123,6 +125,11 @@ export const AUDIT_LABEL: Record<string, string> = {
   'appointments.export': 'Exportó CSV', 'service.create': 'Creó servicio', 'service.update': 'Editó servicio', 'service.price': 'Cambió precio', 'service.archive': 'Archivó servicio', 'service.delete': 'Borró servicio',
   'service.category': 'Cambió categoría de servicio', 'service.category.create': 'Creó categoría', 'service.category.update': 'Editó categoría', 'service.category.reorder': 'Reordenó categorías', 'service.category.delete': 'Borró categoría',
   'content.export': 'Exportó JSON', 'schedule.hours': 'Cambió horario', 'schedule.closure_add': 'Agregó cierre', 'schedule.closure_remove': 'Quitó cierre', 'settings.update': 'Cambió configuración', 'account.password': 'Cambió su contraseña',
+  // SPEC-57
+  'points.config': 'Cambió el programa de puntos', 'points.product_create': 'Creó producto canjeable', 'points.product_update': 'Editó producto canjeable',
+  'points.product_activate': 'Activó producto canjeable', 'points.product_deactivate': 'Desactivó producto canjeable', 'points.product_delete': 'Borró producto canjeable',
+  'points.product_reorder': 'Reordenó productos canjeables', 'points.redemption_deliver': 'Entregó canje', 'points.redemption_cancel': 'Anuló canje',
+  'points.adjust': 'Ajustó puntos', 'points.revert': 'Revirtió puntos',
   'review.hide': 'Ocultó reseña', 'review.show': 'Mostró reseña',
   'payment.boleta': 'Registró N° de boleta', 'rendicion.export': 'Exportó rendición', 'appointment.refund': 'Reembolsó pago', 'appointment.refund_failed': 'Reembolso fallido',
 };

@@ -256,6 +256,9 @@
   .st-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
   .st-list { grid-template-columns: 1fr; }
 }
+/* SPEC-57: con "Puntos" el header tiene un enlace más; en 390 px se acomoda en dos líneas en vez de desbordar (CB-12). */
+.ag-header { flex-wrap: wrap; }
+.ag-nav { flex-wrap: wrap; justify-content: flex-end; row-gap: 6px; }
 /* ─── SPEC-56: seña por transferencia */
 .ag-deposit-notice { margin: 18px 0; padding: 14px 16px; border: 1px solid var(--brass-line); border-left: 3px solid var(--brass); background: rgba(184, 135, 90, .06); }
 .ag-deposit-notice p { margin: 0 0 10px; line-height: 1.5; }

@@ -34,21 +34,21 @@ export default defineConfig({
         // Agenda (SPEC-32): cada ruta es una carpeta real con su index.html (Pages solo sirve carpetas que existen).
         // SPEC-60: /wstyle/regalar/ (comprar una gift card) y /wstyle/regalo/ (la tarjeta por su enlace secreto).
         ...Object.fromEntries(
-          ['reservar', 'cita', 'cuenta', 'cuenta/mis-citas', 'cuenta/recuperar', 'cuenta/confirmar', 'cuenta/resena', 'regalar', 'regalo'].map((r) => [
+          ['reservar', 'cita', 'cuenta', 'cuenta/mis-citas', 'cuenta/puntos', 'cuenta/recuperar', 'cuenta/confirmar', 'cuenta/resena', 'regalar', 'regalo'].map((r) => [
             `wstyle-${r.replace('/', '-')}`,
             resolve(import.meta.dirname, `wstyle/${r}/index.html`),
           ]),
         ),
         // Panel del barbero (SPEC-33): /wstyle/pro/, /pro/registro/, /pro/agenda/, /pro/pagos/ (SPEC-37) y /pro/perfil/.
         ...Object.fromEntries(
-          ['pro', 'pro/registro', 'pro/agenda', 'pro/pagos', 'pro/perfil', 'pro/espejo'].map((r) => [`wstyle-${r.replace('/', '-')}`, resolve(import.meta.dirname, `wstyle/${r}/index.html`)]),
+          ['pro', 'pro/registro', 'pro/agenda', 'pro/pagos', 'pro/canjes', 'pro/perfil', 'pro/espejo'].map((r) => [`wstyle-${r.replace('/', '-')}`, resolve(import.meta.dirname, `wstyle/${r}/index.html`)]),
         ),
         // Páginas legales (Política de privacidad y Términos, requeridas por Meta para el inicio con Facebook): HTML
         // prerenderizado en el build (scripts/prerender-wstyle.mjs).
         ...Object.fromEntries(['privacidad', 'terminos'].map((r) => [`wstyle-${r}`, resolve(import.meta.dirname, `wstyle/${r}/index.html`)])),
         // Panel del super admin (SPEC-34): /wstyle/admin/ y una carpeta por sección (recargar funciona). Sin enlace público, noindex.
         ...Object.fromEntries(
-          ['admin', ...['barberos', 'citas', 'pagos', 'rendicion', 'carta', 'estilos', 'horario', 'estadisticas', 'difusion', 'configuracion', 'auditoria', 'resenas', 'gift-cards'].map((s) => `admin/${s}`)].map((r) => [
+          ['admin', ...['barberos', 'citas', 'pagos', 'rendicion', 'carta', 'estilos', 'horario', 'estadisticas', 'puntos', 'difusion', 'configuracion', 'auditoria', 'resenas', 'gift-cards'].map((s) => `admin/${s}`)].map((r) => [
             `wstyle-${r.replace('/', '-')}`,
             resolve(import.meta.dirname, `wstyle/${r}/index.html`),
           ]),
