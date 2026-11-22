@@ -67,6 +67,21 @@ services:
         sync: false
       - key: GOOGLE_REDIRECT_URI
         sync: false
+      # Avisos por WhatsApp (SPEC-53, Meta Cloud API). Secretos solo acá (sync: false), nunca en el
+      # repo ni en el client. Sin WHATSAPP_TOKEN o WHATSAPP_PHONE_NUMBER_ID el canal queda en
+      # simulación (nada sale hacia Meta). Pasos en server/.env.example.
+      - key: WHATSAPP_TOKEN
+        sync: false
+      - key: WHATSAPP_PHONE_NUMBER_ID
+        sync: false
+      - key: WHATSAPP_BUSINESS_ACCOUNT_ID
+        sync: false
+      - key: WHATSAPP_APP_SECRET
+        sync: false
+      - key: WHATSAPP_VERIFY_TOKEN
+        sync: false
+      - key: WHATSAPP_DISPLAY_NUMBER
+        sync: false
       # Comprobantes de la seña por transferencia (SPEC-56): S3 compatible (B2 gratis o R2; ver
       # docs/almacenamiento-comprobantes.md), bucket
       # PRIVADO. El disco de Render free es efímero: en Render (RENDER=true) la seña no se puede

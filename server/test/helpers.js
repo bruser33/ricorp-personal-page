@@ -102,6 +102,8 @@ export async function start({ now, geocoder, facebookFetch, googleFetch, env = {
     onlinePayments: opts.onlinePayments,
     /* SPEC-35: borde HTTP de Mercado Pago (servicio externo) → doble en test/mp-fake.js. */
     mercadoPagoFetch: opts.mercadoPagoFetch,
+    /* SPEC-53: borde HTTP de la WhatsApp Cloud API (servicio externo) → doble en test/wa-fake.js. */
+    whatsappFetch: opts.whatsappFetch,
     /* SPEC-56: comprobantes en un directorio temporal y aviso a la lista de espera. */
     receiptStore: opts.receiptStore,
     onSlotReleased: opts.onSlotReleased,

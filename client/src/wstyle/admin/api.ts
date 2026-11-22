@@ -117,6 +117,26 @@ export interface Settings {
   giftCards?: { onlineEnabled: boolean; validityMonths: number };
   limits: { rules: Record<RuleKey, [number, number]>; platformFeePercent: [number, number]; paymentFeePercent: [number, number] };
 }
+// SPEC-53: WhatsApp a los clientes.
+export type MessageStatus = 'por_salir' | 'enviando' | 'enviado' | 'entregado' | 'leido' | 'fallido' | 'frenado' | 'no_aplica' | 'simulado';
+export interface WaMessage {
+  id: string; kind: 'confirmation' | 'reminder'; kindLabel: string; status: MessageStatus; statusLabel: string; appointmentId: string;
+  customer: string; phone: string; service: string; professional: string; apptStartsAt: string; sendAt: string;
+  sentAt: string | null; deliveredAt: string | null; readAt: string | null; attempts: number; error: string | null; reason: string | null;
+  canStop: boolean; canRetry: boolean;
+  text?: string; template?: string; preview?: boolean;
+}
+export interface WaChannel { mode: 'live' | 'dry-run' | 'incomplete' | 'auth_failed'; label: string; missing: string[]; webhookMissing: string[] }
+export interface WaMessages {
+  kpis: { pending: number; delivered7d: number; failed7d: number; nextSendAt: string | null; monthSent: number };
+  channel: WaChannel; page: number; pages: number; total: number; items: WaMessage[];
+}
+export type ReminderOption = '2h' | '4h' | '1d' | '2d' | 'off';
+export interface WaConfig {
+  channel: WaChannel; confirmEnabled: boolean; reminder: ReminderOption; options: { id: ReminderOption; label: string }[];
+  preview: { confirmation: string; reminder: string }; monthSent: number; rescheduled?: number;
+}
+export interface MessageFilters { status?: string; kind?: string; q?: string; page?: string }
 // SPEC-56: seña por transferencia.
 export type DepositAppliesTo = 'all' | 'new' | 'no_show';
 export interface DepositBankInput { holder: string; rut: string; bank: string; accountType: string; accountNumber: string; email: string }
@@ -171,6 +191,8 @@ export const admin = {
   appointments: (f: ApptFilters) => api<{ items: AdminAppointment[]; truncated: boolean }>(`/api/admin/appointments?${qs(f)}`),
   csvUrl: (f: ApptFilters) => `${API_BASE}/api/admin/appointments.csv?${qs(f)}`,
   appointment: (aid: string) => api<AdminAppointment>(`/api/admin/appointments/${id(aid)}`),
+  // SPEC-59: moderación de la foto que subió el cliente.
+  removeClientPhoto: (aid: string) => send<{ ok: boolean }>(`/api/admin/appointments/${id(aid)}/remove-photo`, 'POST', {}),
   act: (aid: string, action: string, body: Record<string, unknown> = {}) => send<AdminAppointment>(`/api/admin/appointments/${id(aid)}/${action === 'no_show' ? 'no-show' : action}`, 'POST', body),
   // SPEC-37: con la forma de pago y, si ya se emitió, el N° de boleta SII.
   collect: (aid: string, body: { method?: string; boletaNumber?: string } = {}) => send<AdminAppointment>(`/api/admin/appointments/${id(aid)}/collect`, 'POST', body),
@@ -216,6 +238,13 @@ export const admin = {
   voidGiftCard: (gid: string, reason: string) => send<GiftCardDetail>(`/api/admin/gift-cards/${id(gid)}/void`, 'POST', { reason }),
   extendGiftCard: (gid: string, months: number) => send<GiftCardDetail>(`/api/admin/gift-cards/${id(gid)}/extend`, 'POST', { months }),
   resendGiftCard: (gid: string, email?: string) => send<{ ok: boolean; to: string }>(`/api/admin/gift-cards/${id(gid)}/resend`, 'POST', { email }),
+  // SPEC-53: WhatsApp a los clientes.
+  messages: (f: MessageFilters) => api<WaMessages>(`/api/admin/messages?${qs(f)}`),
+  message: (mid: string) => api<WaMessage>(`/api/admin/messages/${id(mid)}`),
+  stopMessage: (mid: string) => send<WaMessage>(`/api/admin/messages/${id(mid)}/stop`, 'POST'),
+  retryMessage: (mid: string) => send<WaMessage>(`/api/admin/messages/${id(mid)}/retry`, 'POST'),
+  whatsapp: () => api<WaConfig>('/api/admin/whatsapp'),
+  saveWhatsapp: (body: { confirmEnabled?: boolean; reminder?: ReminderOption }) => send<WaConfig>('/api/admin/whatsapp', 'PUT', body),
   // SPEC-52: reseñas (filtros: visibles/ocultas, estrellas, búsqueda por cliente o texto), ocultar y mostrar.
   reviews: (q: { status?: string; rating?: string; q?: string; page?: number }) => api<AdminReviewList>(`/api/admin/reviews?${qs({ status: q.status ?? '', rating: q.rating ?? '', q: q.q ?? '', page: String(q.page ?? 1) })}`),
   hideReview: (rid: string, reason = '') => send<{ ok: boolean; status: string }>(`/api/admin/reviews/${id(rid)}/hide`, 'POST', { reason }),

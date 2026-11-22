@@ -2,10 +2,12 @@ import { useState, type FormEvent } from 'react';
 import { ApiError, type User } from '../../agenda/api';
 import { Notice, PasswordField } from '../../agenda/components/ui';
 import { weakPassword } from '../../agenda/util';
-import { admin, type RuleKey, type Settings } from '../api';
+import { admin, type ReminderOption, type RuleKey, type Settings, type WaConfig } from '../api';
 import { Loaded } from '../components/common';
 import WaitlistSetting from '../components/WaitlistSetting';
 import { useLoad } from '../hooks';
+import { WaBubble } from './MessagesPage';
+import PointsSettings from '../components/PointsSettings';
 import DepositSettingsSection from '../components/DepositSettings';
 import { GiftSettings } from './GiftCardsPage';
 
@@ -28,6 +30,9 @@ export default function SettingsPage({ user }: { user: User }) {
       <Loaded state={st} label="Cargando la configuración…">{(s) => <><SettingsForm settings={s} onSaved={(n) => st.setData(n)} /><WaitlistSetting settings={s} onSaved={(n) => st.setData(n)} /></>}</Loaded>
       <DepositSettingsSection />
       <GiftSettings />
+      <WhatsappSettings />
+      {/* SPEC-57: Configuración → Puntos */}
+      <PointsSettings />
       <Account user={user} />
     </>
   );
@@ -123,6 +128,60 @@ function SettingsForm({ settings, onSaved }: { settings: Settings; onSaved: (s: 
       {msg && <Notice tone={msg.tone}>{msg.text}</Notice>}
       <button type="submit" className="btn btn--primary" disabled={busy}>{busy ? 'Guardando…' : 'Guardar configuración'}</button>
     </form>
+  );
+}
+
+// SPEC-53: avisos por WhatsApp. Las credenciales de Meta viven solo en el servidor; acá se ve si están y se elige
+// cuándo sale el recordatorio. Cambiar la anticipación re-programa los recordatorios que están por salir.
+function WhatsappSettings() {
+  const st = useLoad(() => admin.whatsapp(), 'whatsapp');
+  const [msg, setMsg] = useState<{ tone: 'ok' | 'error'; text: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+  async function save(body: { confirmEnabled?: boolean; reminder?: ReminderOption }) {
+    setBusy(true);
+    setMsg(null);
+    try {
+      const c: WaConfig = await admin.saveWhatsapp(body);
+      st.setData(c);
+      const n = c.rescheduled ?? 0;
+      setMsg({ tone: 'ok', text: body.reminder ? `Guardado.${n ? ` ${n} recordatorio${n === 1 ? '' : 's'} re-programado${n === 1 ? '' : 's'}.` : ''}` : 'Guardado.' });
+    } catch (e) {
+      setMsg({ tone: 'error', text: e instanceof ApiError ? e.message : 'No se pudo guardar' });
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <section className="adm-section" aria-labelledby="cfg-wa-title" id="cfg-wa">
+      <h2 className="ag-h3" id="cfg-wa-title">WhatsApp</h2>
+      <Loaded state={st} label="Cargando WhatsApp…">
+        {(c) => (
+          <div className="adm-form adm-wa-cfg">
+            <p className="adm-mp" data-wa-channel={c.channel.mode}>
+              <strong>{c.channel.label}.</strong>
+              {c.channel.mode !== 'live' && <> Las credenciales de Meta se cargan en el servidor (nunca desde el panel). Mientras tanto todo funciona igual, pero los mensajes quedan "Simulados".</>}
+              {c.channel.mode === 'live' && c.channel.webhookMissing.length > 0 && <> Falta {c.channel.webhookMissing.join(' y ')}: no se sabrá si los mensajes se entregaron ni se podrán recibir las bajas.</>}
+            </p>
+            <label className="pro-check"><input type="checkbox" checked={c.confirmEnabled} disabled={busy} onChange={(e) => save({ confirmEnabled: e.target.checked })} /> <span>Confirmar cuando la cita queda confirmada</span></label>
+            <fieldset className="adm-wa-chips">
+              <legend>Recordarle antes de su hora</legend>
+              <div className="adm-tabs" role="radiogroup" aria-label="Recordarle antes de su hora">
+                {c.options.map((o) => (
+                  <button key={o.id} type="button" role="radio" aria-checked={c.reminder === o.id} className={`ag-chip${c.reminder === o.id ? ' is-selected' : ''}`} disabled={busy} onClick={() => c.reminder !== o.id && save({ reminder: o.id })}>{o.label}</button>
+                ))}
+              </div>
+              <p className="ag-field__hint">"El día anterior" y "Dos días antes" salen a las 18:00. Entre las 22:00 y las 08:00 no sale ningún recordatorio: se adelanta o se atrasa a la hora más cercana.</p>
+            </fieldset>
+            {msg && <Notice tone={msg.tone}>{msg.text}</Notice>}
+            <div className="adm-wa-preview" aria-label="Vista previa">
+              <div><p className="adm-card__l">Confirmación</p><WaBubble text={c.preview.confirmation} /></div>
+              <div><p className="adm-card__l">Recordatorio</p><WaBubble text={c.preview.reminder} /></div>
+            </div>
+            <p className="ag-muted">Este mes salieron {c.monthSent} mensaje{c.monthSent === 1 ? '' : 's'}. <a href="/wstyle/admin/mensajes/">Ver los mensajes</a></p>
+          </div>
+        )}
+      </Loaded>
+    </section>
   );
 }
 

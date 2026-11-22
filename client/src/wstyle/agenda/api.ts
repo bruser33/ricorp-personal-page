@@ -1,4 +1,5 @@
 import type { GiftCardInfo, PricingView, Rates } from './pricing';
+import type { Reference } from './styles';
 // Cliente HTTP de la agenda (SPEC-32). Misma base que Contacto (VITE_API_URL). La sesión viaja en una cookie
 // httpOnly: front y API tienen que estar en el MISMO host (localhost ↔ localhost; 127.0.0.1 es otro sitio y la
 // cookie no viaja). Todo error vuelve como ApiError con el código estable del server.
@@ -87,7 +88,8 @@ export async function wakeAndGet<T>(path: string, { windowMs = 30_000, onWaking 
 }
 
 // ─── Tipos de la API
-export interface User { id: string; name: string; email: string | null; emailVerified: boolean; phone: string | null; roles: string[]; providers: string[] }
+// SPEC-53: whatsappOptIn = última elección sobre los avisos por WhatsApp (null = nunca eligió).
+export interface User { id: string; name: string; email: string | null; emailVerified: boolean; phone: string | null; roles: string[]; providers: string[]; whatsappOptIn?: boolean | null }
 export interface CatalogService { id: string; name: string; description: string; priceCLP: number; durationMin: number; homeServiceAllowed: boolean; category?: string }
 // SPEC-51: categorías con servicios activos, en orden y con su nota (una API anterior no las trae).
 export interface CatalogCategory { id: string; name: string; note: string }
@@ -153,10 +155,15 @@ export interface Appointment {
   pricing: PricingView;
   payment: Payment;
   note: string;
+  // SPEC-59: estilo del catálogo y/o foto propia del cliente (privada).
+  reference?: Reference | null;
+  canChangeReference?: boolean;
   proposal: { startsAt: string; when: string; expiresAt?: string } | null;
   actions: Action[];
   role: 'client' | 'barber' | 'admin';
   whatsapp: string | null; shopWhatsapp: string | null;
+  // SPEC-53: abierta con el link del WhatsApp, sin sesión (solo se puede cancelar).
+  guest?: boolean;
   // SPEC-60: gift card aplicada (código, de quién, monto cubierto).
   giftCard?: { code: string; from: string; amountCLP: number; status: string } | null;
   // SPEC-52 (solo en "Mis citas", citas terminadas): estrellas de su reseña o si todavía puede dejarla.
@@ -195,7 +202,7 @@ export const auth = {
   register: (body: { email: string; name: string; phone: string; password: string }) => api<{ user: User; verificationSent: boolean }>('/api/auth/register', { method: 'POST', body }),
   login: (email: string, password: string) => api<{ user: User }>('/api/auth/login', { method: 'POST', body: { email, password } }).then((r) => r.user),
   logout: () => api<{ ok: boolean }>('/api/auth/logout', { method: 'POST', body: {} }),
-  update: (body: { name?: string; phone?: string }) => api<{ user: User }>('/api/auth/me', { method: 'PATCH', body }).then((r) => r.user),
+  update: (body: { name?: string; phone?: string; whatsappOptIn?: boolean }) => api<{ user: User }>('/api/auth/me', { method: 'PATCH', body }).then((r) => r.user),
   addClientRole: () => api<{ user: User }>('/api/auth/me/client-role', { method: 'POST', body: {} }).then((r) => r.user),
   resendVerification: () => api<{ ok: boolean }>('/api/auth/resend-verification', { method: 'POST', body: {} }),
   verifyEmail: (token: string) => api<{ ok: boolean }>('/api/auth/verify-email', { method: 'POST', body: { token } }),
@@ -218,7 +225,11 @@ export const agenda = {
   create: (body: Record<string, unknown>) => api<{ ok: boolean; id: string; mailOk?: boolean; appointment: Appointment }>('/api/wstyle/appointments', { method: 'POST', body }),
   mine: () => api<{ upcoming: Appointment[]; past: Appointment[] }>('/api/wstyle/appointments/mine'),
   // inv: token del link de una invitación del barbero (SPEC-33 RN-12); asocia la cita a quien la abre.
-  get: (id: string, inv?: string | null) => api<Appointment>(`/api/wstyle/appointments/${encodeURIComponent(id)}${inv ? `?inv=${encodeURIComponent(inv)}` : ''}`),
+  // t: token del link "Ver o cancelar mi cita" del WhatsApp (SPEC-53): ver y cancelar sin sesión.
+  get: (id: string, inv?: string | null, t?: string | null) => {
+    const q = new URLSearchParams(Object.entries({ inv, t }).filter(([, v]) => v) as [string, string][]).toString();
+    return api<Appointment>(`/api/wstyle/appointments/${encodeURIComponent(id)}${q ? `?${q}` : ''}`);
+  },
   act: (id: string, action: Action, body: Record<string, unknown> = {}) =>
     api<Appointment>(`/api/wstyle/appointments/${encodeURIComponent(id)}/${action === 'no_show' ? 'no-show' : action === 'pay_local' ? 'pay-local' : action}`, { method: 'POST', body }),
   // SPEC-35: el server crea la preferencia de Checkout Pro y devuelve a dónde redirigir (el token nunca pasa por acá).

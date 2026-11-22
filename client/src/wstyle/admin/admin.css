@@ -258,6 +258,25 @@ button.adm-row:hover { border-color: var(--brass-soft); }
   .pay-table td[data-label="Fecha"], .pay-table th[data-label="Cliente"], .pay-table td[data-label="Respaldo"] .ag-pill { white-space: nowrap; }
 }
 
+/* SPEC-53: WhatsApp (sección "Mensajes" y Configuración → WhatsApp) */
+.adm-card__n--sm { font-size: clamp(20px, 4.4vw, 26px); line-height: 1.15; }
+.adm-wa-kpis { margin-bottom: 8px; }
+.adm-wa { display: flex; flex-direction: column; gap: 4px; padding: 14px 16px; border: 1px solid var(--brass-line); border-radius: 4px; background: var(--graphite); min-width: 0; }
+.adm-wa > p { margin: 0; overflow-wrap: anywhere; }
+.adm-wa__head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.adm-wa__kind { font: 700 11px/1 var(--font-body); letter-spacing: var(--tracking-caps-tight); color: var(--brass); }
+.adm-wa__why { color: #f2b3a4; font-size: 14px; }
+.adm-wa .adm-row__btns { flex-wrap: wrap; margin-top: 4px; }
+.adm-wa__detail { margin-top: 8px; }
+.adm-wa-bubble { position: relative; max-width: 420px; padding: 10px 12px 12px; border-radius: 4px 12px 12px 12px; background: #1f2c25; color: #ece6da; font-size: 14px; line-height: 1.45; overflow-wrap: anywhere; }
+.adm-wa-bubble p { margin: 0 0 6px; }
+.adm-wa-bubble__foot { color: #a9b3ad; font-size: 12px; }
+.adm-wa-bubble__btn { display: block; margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(236, 230, 218, .14); color: #8fd1ff; text-align: center; font-weight: 600; }
+.adm-wa-cfg { display: grid; gap: 14px; }
+.adm-wa-chips { margin: 0; padding: 0; border: 0; min-width: 0; }
+.adm-wa-chips legend { margin-bottom: 8px; font-weight: 600; }
+.adm-wa-preview { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+.adm-wa-preview .adm-card__l { display: block; margin: 0 0 6px; }
 /* ─── SPEC-56: seña por transferencia */
 .adm-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 18px; }
 .adm-tabs--sub { margin-bottom: 14px; }

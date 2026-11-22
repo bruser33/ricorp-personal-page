@@ -97,6 +97,14 @@ export function PrivacyPage({ site }: { site: SiteContent }) {
         <ul className="lg-list">
           <li>Crear y administrar tu cuenta e iniciar sesión.</li>
           <li>Agendar, confirmar, reprogramar o cancelar tus citas y avisarte por correo de cada cambio.</li>
+          <li id="whatsapp">
+            <strong>Avisos por WhatsApp (opcional):</strong> si lo aceptas al reservar o en Mi cuenta, usamos tu celular para
+            mandarte por WhatsApp la confirmación de tu hora y un recordatorio antes, con un link para verla o cancelarla.
+            Los mensajes llevan solo tu nombre de pila, el servicio, el barbero, la fecha y la hora (nunca tu correo, el
+            precio ni datos de pago). Puedes darte de baja cuando quieras: desactívalo en{' '}
+            <a href="/wstyle/cuenta/">Mi cuenta</a> o responde <strong>BAJA</strong> a cualquiera de esos mensajes. El
+            correo sigue llegando igual.
+          </li>
           <li>Que el barbero que te atiende y la administración del local vean los datos necesarios para tu cita (nombre, celular, servicio, horario y, si corresponde, la dirección).</li>
           <li>Procesar pagos en línea, reembolsos y la rendición contable y tributaria del local.</li>
           <li>Revisar y aprobar los perfiles de los barberos.</li>
@@ -115,6 +123,7 @@ export function PrivacyPage({ site }: { site: SiteContent }) {
           <li><strong>Resend</strong> (envío de correos: confirmación de cuenta, recuperación de contraseña y avisos de citas).</li>
           <li><strong>Mercado Pago</strong> (pagos en línea): recibe el monto, el detalle de la cita y tu correo para el comprobante.</li>
           <li><strong>Meta (Facebook)</strong>, solo si eliges iniciar sesión con Facebook.</li>
+          <li><strong>Meta (WhatsApp Business Platform)</strong>, como encargado del envío de los avisos por WhatsApp, solo si los aceptas: recibe tu celular y el texto del aviso.</li>
           <li><strong>Google</strong>, solo si eliges iniciar sesión con Google.</li>
           <li><strong>OpenStreetMap (Nominatim)</strong>, para ubicar la dirección de una atención a domicilio (se envía solo la calle y la comuna).</li>
           <li><strong>Google Fonts</strong>, que entrega las tipografías del sitio (tu navegador se conecta a Google para descargarlas).</li>

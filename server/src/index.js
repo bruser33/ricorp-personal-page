@@ -44,6 +44,8 @@ mongoose
       app.locals.agenda.runExpirations().catch(quiet('[agenda] expiraciones:'));
       /* SPEC-35 RN-03: citas que esperaban el pago y se les acabó la retención. */
       app.locals.payments.runHolds().catch(quiet('[mp] retención:'));
+      /* SPEC-53: despachador de WhatsApp (confirmaciones y recordatorios vencidos). */
+      app.locals.messaging.runDispatch().catch(quiet('[wa] despachador:'));
       /* SPEC-56 §11: señas sin comprobante a tiempo (y retención de 12 meses de comprobantes). */
       app.locals.deposits.runDeposits().catch(quiet('[seña] vencimiento:'));
       /* SPEC-60: gift cards vencidas y compras sin pagar de más de 24 h. */
@@ -53,7 +55,11 @@ mongoose
     }, 60_000).unref();
     /* SPEC-35: conciliación con Mercado Pago al arrancar (Render free "despierta" sin los
        webhooks que llegaron mientras dormía) y cada 5 min mientras esté despierto. */
-    const reconcile = () => app.locals.payments.reconcile().catch(quiet('[mp] conciliación:'));
+    const reconcile = () => {
+      app.locals.payments.reconcile().catch(quiet('[mp] conciliación:'));
+      /* SPEC-59: fotos provisionales de más de 24 h y de citas finalizadas hace más de 90 días. */
+      app.locals.styles.runCleanup().catch(quiet('[estilos] limpieza:'));
+    };
     setTimeout(reconcile, 5_000).unref();
     setInterval(reconcile, 5 * 60_000).unref();
   })

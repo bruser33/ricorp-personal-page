@@ -9,6 +9,8 @@ import { giftCoverage, NO_FEES, pct, quote as priceQuote, withGiftCard, type Gif
 import Calendar, { TimeChips } from '../components/Calendar';
 import Shell from '../components/Shell';
 import { Field, MotoIcon, Notice, Spinner, Unavailable } from '../components/ui';
+import { ReferenceSummary, StylePicker, Thumb } from '../components/StylePhotos';
+import { NO_CHOICE, type StyleChoice } from '../styles';
 import WaitlistCard from '../components/WaitlistCard';
 import WaitlistTake from './WaitlistTake';
 import {
@@ -51,6 +53,8 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
   const [busy, setBusy] = useState(false);
   const [phone, setPhone] = useState('');
   const [accept, setAccept] = useState(false);
+  // SPEC-53: casilla de WhatsApp. La primera vez viene desmarcada; después recuerda la última elección (asunción 7).
+  const [waOptIn, setWaOptIn] = useState<boolean | null>(null);
   // SPEC-56: seña por transferencia (solo si el local la pide a este cliente y paga en el local).
   const [depositInfo, setDepositInfo] = useState<DepositPreview | null>(null);
   const [acceptDeposit, setAcceptDeposit] = useState(false);
@@ -63,6 +67,8 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
   const [gateNotice, setGateNotice] = useState<string | null>(null);
   const [done, setDone] = useState<{ appt: Appointment; mailOk?: boolean } | null>(null);
   const [redirecting, setRedirecting] = useState(false);
+  // SPEC-59: "Tu estilo" (opcional). La foto propia ya está subida (provisional) cuando se elige.
+  const [styleChoice, setStyleChoice] = useState<StyleChoice>(NO_CHOICE);
   // SPEC-60: gift card aplicada en "Confirmar" (el server vuelve a validar y descuenta el saldo al crear la cita).
   const [gift, setGift] = useState<GiftCardInfo | null>(null);
   // El QR de la tarjeta trae ?giftcard=WS-… para dejar el código listo.
@@ -83,6 +89,9 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
   const mode = sel.mode ?? 'shop';
   const lastDay = catalog ? addDays(today, catalog.business.settings.horizonDays) : addDays(today, 30);
   const user = session.user;
+  // SPEC-53: el WhatsApp va al celular de la cuenta o al que se escribe en este paso.
+  const waPhone = user?.phone ?? clMobile(phone);
+  const waChecked = waOptIn ?? user?.whatsappOptIn === true;
 
   const update = useCallback((patch: Partial<Selection>) => setSel((s) => ({ ...s, ...patch })), []);
   useEffect(() => { saveSelection(sel); }, [sel]);
@@ -147,7 +156,7 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
   useEffect(() => { heading.current?.focus(); }, [step]);
 
   // ─── Acciones de cada paso
-  const pickService = (id: string) => { update({ serviceId: id, startsAt: undefined }); setQuote(null); };
+  const pickService = (id: string) => { if (id !== sel.serviceId) setStyleChoice((c) => ({ ...c, style: null })); update({ serviceId: id, startsAt: undefined }); setQuote(null); };
   const pickPro = (id: string) => { update({ professionalId: id, startsAt: undefined }); setQuote(null); };
   const pickDay = (date: string) => update({ date, startsAt: undefined });
   const pickSlot = (s: Slot) => { update({ startsAt: s.startsAt }); setSlotPros(s.professionalIds); setNotice(null); };
@@ -255,7 +264,9 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
         address: mode === 'home' ? sel.address : undefined, phone: needPhone ? phone : undefined, note: sel.note ?? '',
         acceptPolicies: accept, paymentMethod: covered ? (payments.local ? 'local' : 'online') : pay, idempotencyKey: idem.current, website,
         giftCardCode: gift?.code,
+        whatsappOptIn: waPhone ? waChecked : undefined,
         ...(needsDeposit ? { acceptDeposit } : {}),
+        styleId: styleChoice.style?.id, clientPhotoId: styleChoice.photo?.id,
         // SPEC-58: canal del link (sin UTM → el server guarda "directo").
         origin: sel.origin,
       });
@@ -281,6 +292,7 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
         return;
       }
       setDone({ appt: r.appointment, mailOk: r.mailOk });
+      setStyleChoice(NO_CHOICE);
       setSel({});
       setStep(5);
     } catch (err) {
@@ -299,6 +311,12 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
       // SPEC-60 RN-05: otra reserva usó el saldo (o la tarjeta ya no vale): se quita y se avisa.
       if (err.code === 'giftcard_invalid' || err.code === 'giftcard_insufficient') { setGift(null); setGiftErr(err.message); return; }
       if (err.code === 'out_of_range' || err.code === 'address_not_found') { setQuote(null); setQuoteErr(err.message); setStep(3); return; }
+      // SPEC-59 CB-08: el estilo o la foto ya no están → se quita la referencia y se puede confirmar sin ella.
+      if (err.fields.styleId || err.fields.clientPhotoId) {
+        setStyleChoice((c) => ({ style: err.fields.styleId ? null : c.style, photo: err.fields.clientPhotoId ? null : c.photo }));
+        setSubmitError(err.message);
+        return;
+      }
       // La seña se pide pero el aviso no está en pantalla (falló la vista previa): se muestra el motivo y se reintenta.
       if (err.fields.acceptDeposit && !needsDeposit) {
         setSubmitError(err.message);
@@ -420,6 +438,9 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
                     </button>
                   )}
                 </fieldset>
+              )}
+              {service && sel.professionalId && (sel.professionalId === 'any' || pro) && (
+                <StylePicker serviceId={service.id} serviceName={service.name} value={styleChoice} onChange={setStyleChoice} />
               )}
               <div className="ag-actions">
                 <button type="button" className="btn btn--primary" disabled={!service || !sel.professionalId || !(sel.professionalId === 'any' || pro)} onClick={() => { setNotice(null); setStep(2); }}>Continuar</button>
@@ -558,6 +579,15 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
                       : <DepositNotice amountCLP={depositInfo.amountCLP ?? 0} restCLP={depositInfo.restCLP ?? 0} minutes={depositInfo.minutes ?? 30} accepted={acceptDeposit} error={errors.acceptDeposit}
                           onAccept={(v) => { setAcceptDeposit(v); setErrors((x) => ({ ...x, acceptDeposit: undefined })); }} />
                   )}
+                  {waPhone && (
+                    <div className="ag-field ag-check" data-wa-optin="">
+                      <label>
+                        <input type="checkbox" checked={waChecked} onChange={(e) => setWaOptIn(e.target.checked)} />
+                        <span>Quiero recibir la confirmación y el recordatorio por WhatsApp al <span className="ag-nowrap">{prettyPhone(waPhone)}</span></span>
+                      </label>
+                      <p className="ag-field__hint">Solo avisos de tu hora, con un link para verla o cancelarla. Puedes darte de baja cuando quieras.</p>
+                    </div>
+                  )}
                   <div className={`ag-field ag-check${errors.acceptPolicies ? ' has-error' : ''}`}>
                     <label>
                       <input type="checkbox" checked={accept} onChange={(e) => { setAccept(e.target.checked); setErrors((x) => ({ ...x, acceptPolicies: undefined })); }} aria-invalid={errors.acceptPolicies ? true : undefined} aria-describedby={errors.acceptPolicies ? 'ag-pol-err' : undefined} />
@@ -588,7 +618,16 @@ export default function BookingPage({ ctx }: { ctx: AgendaCtx }) {
             {service && <div><dt>Duración</dt><dd data-summary="duration">{service.durationMin} min</dd></div>}
             <div><dt>Fecha y hora</dt><dd>{sel.startsAt ? `${longDay(localDate(sel.startsAt))}, ${dayMonthTime(sel.startsAt).split(', ')[1]}` : '—'}</dd></div>
             <div><dt>Dónde</dt><dd>{step >= 3 ? (mode === 'home' ? `A domicilio${where ? ` · ${where}` : ''}` : `En el local · ${where}`) : '—'}</dd></div>
+            {(styleChoice.style || styleChoice.photo) && (
+              <div data-summary-style=""><dt>Estilo</dt><dd>{styleChoice.style?.name ?? 'Tu foto'}</dd></div>
+            )}
           </dl>
+          {(styleChoice.style || styleChoice.photo) && (
+            <div className="st-ref__thumbs st-summary-thumbs">
+              {styleChoice.style && <Thumb src={styleChoice.style.photoUrl} alt={`Estilo ${styleChoice.style.name}`} size={56} />}
+              {styleChoice.photo && (styleChoice.photo.preview ? <Thumb src={styleChoice.photo.preview} alt="Tu foto" size={56} /> : <Thumb privatePath={styleChoice.photo.url} alt="Tu foto" size={56} />)}
+            </div>
+          )}
           {service && (
             <>
               <dl className="ag-breakdown ag-summary__breakdown" data-breakdown="summary" aria-live="polite">
@@ -619,6 +658,7 @@ function Success({ appt, mailOk }: { appt: Appointment; mailOk?: boolean }) {
     <section className="ag-card ag-success" aria-labelledby="ag-ok">
       <h1 className="ag-h1" id="ag-ok" data-success="">NUEVA CITA — esperando confirmación de {appt.professional.name} — {dayMonthTime(appt.startsAt)}</h1>
       <p className="ag-muted">{appt.service.name} · {appt.location.kind === 'home' ? `A domicilio · ${appt.location.address}` : 'En el local'} · {appt.pricing.giftCardCLP ? `Total a pagar ${clp.format(appt.pricing.dueCLP ?? 0)} (gift card −${clp.format(appt.pricing.giftCardCLP)})` : `Total ${clp.format(appt.pricing.totalCLP)}`}</p>
+      <ReferenceSummary reference={appt.reference} />
       <p>Te avisaremos por correo cuando {appt.professional.name} la confirme.</p>
       {mailOk === false && <Notice>No pudimos enviarte el correo. Guarda este link de tu cita: <a href={url}>{url}</a></Notice>}
       <div className="ag-actions ag-actions--wrap">

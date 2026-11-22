@@ -18,6 +18,8 @@ export function AccountPage({ ctx }: { ctx: AgendaCtx }) {
   const [phoneErr, setPhoneErr] = useState<string | undefined>();
   const [sent, setSent] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [waBusy, setWaBusy] = useState(false);
+  const [waMsg, setWaMsg] = useState<{ tone: 'ok' | 'error'; text: string } | null>(null);
   const params = new URLSearchParams(location.search);
   const deleted = params.has('eliminada');
   const fromHeader = params.get('acceso') === '1';
@@ -55,6 +57,20 @@ export function AccountPage({ ctx }: { ctx: AgendaCtx }) {
     }
   }
 
+  // SPEC-53 RN-02: activar o desactivar los avisos por WhatsApp (desactivar frena los que estaban por salir).
+  async function setWhatsapp(on: boolean) {
+    setWaBusy(true);
+    setWaMsg(null);
+    try {
+      session.setUser(await auth.update({ whatsappOptIn: on }));
+      setWaMsg({ tone: 'ok', text: on ? 'Listo: te avisaremos por WhatsApp cuando tu hora quede confirmada y antes de tu cita.' : 'Listo: ya no te enviaremos avisos por WhatsApp. Los correos siguen igual.' });
+    } catch (err) {
+      setWaMsg({ tone: 'error', text: err instanceof ApiError ? err.message : 'No pudimos guardar. Inténtalo de nuevo.' });
+    } finally {
+      setWaBusy(false);
+    }
+  }
+
   return (
     <Shell user={user} current="cuenta">
       <h1 className="ag-h1">Mi cuenta</h1>
@@ -72,8 +88,18 @@ export function AccountPage({ ctx }: { ctx: AgendaCtx }) {
           <div><dt>Nombre</dt><dd>{user.name}</dd></div>
           <div><dt>Email</dt><dd>{user.email}</dd></div>
           {user.phone && <div><dt>Celular</dt><dd>{prettyPhone(user.phone)}</dd></div>}
+          {user.phone && <div data-wa-optin={user.whatsappOptIn ? 'on' : 'off'}><dt>Avisos por WhatsApp</dt><dd>{user.whatsappOptIn ? 'Activados' : 'Desactivados'}</dd></div>}
           <div><dt>Entras con</dt><dd>{user.providers.map((p) => (p === 'email' ? 'correo y contraseña' : p === 'google' ? 'Google' : 'Facebook')).join(' · ')}</dd></div>
         </dl>
+        {user.phone && (
+          <div className="ag-wa-pref">
+            <p className="ag-muted">{user.whatsappOptIn ? `Te mandamos la confirmación y un recordatorio de tus horas al ${prettyPhone(user.phone)}. También puedes responder BAJA a cualquiera de esos mensajes.` : `Recibe la confirmación y un recordatorio de tus horas por WhatsApp al ${prettyPhone(user.phone)}.`}</p>
+            <button type="button" className="btn btn--ghost" disabled={waBusy} onClick={() => setWhatsapp(!user.whatsappOptIn)}>
+              {waBusy ? 'Guardando…' : user.whatsappOptIn ? 'Desactivar avisos por WhatsApp' : 'Activar avisos por WhatsApp'}
+            </button>
+            {waMsg && <Notice tone={waMsg.tone}>{waMsg.text}</Notice>}
+          </div>
+        )}
         {!user.emailVerified && (
           <Notice>
             Aún no confirmas tu correo.{' '}
@@ -83,6 +109,7 @@ export function AccountPage({ ctx }: { ctx: AgendaCtx }) {
         <div className="ag-actions ag-actions--wrap">
           <a className="btn btn--primary" href="/wstyle/reservar/">Reservar</a>
           <a className="btn btn--ghost" href="/wstyle/cuenta/mis-citas/">Mis citas</a>
+          <a className="btn btn--ghost" href="/wstyle/cuenta/puntos/">Mis puntos</a>
           <button type="button" className="btn btn--ghost" onClick={() => session.logout()}>Cerrar sesión</button>
         </div>
         <p className="ag-fine">{user.roles.includes('barber') ? <a href="/wstyle/pro/">Ir a mi panel de barbero</a> : <a href="/wstyle/pro/registro/">¿Eres barbero? Trabaja con nosotros</a>}</p>

@@ -2,8 +2,10 @@
    autorización (sesión + rol superadmin, en el server) viven en domain/admin.js. */
 import express from 'express';
 import { handle, HttpError } from '../lib/errors.js';
+import { imageUpload } from '../lib/photos.js';
+import { MAX_STYLES_PER_UPLOAD } from '../domain/styles.js';
 
-export function createAdminRouter({ admin, logger, giftCards = null }) {
+export function createAdminRouter({ admin, logger, giftCards = null, styles = null }) {
   const r = express.Router();
   const h = (fn) => handle(fn, logger);
   const u = (req) => req.user;
@@ -76,6 +78,16 @@ export function createAdminRouter({ admin, logger, giftCards = null }) {
     r.post(`/appointments/:id/${path}`, h(async (req, res) => res.json(await admin.actOnAppointment(u(req), req.params.id, action, req.body || {}))));
   }
 
+  /* SPEC-59: catálogo de estilos y moderación de la foto del cliente. */
+  if (styles) {
+    r.get('/styles', h(async (req, res) => res.json(await styles.panelList(u(req)))));
+    r.post('/styles', imageUpload({ field: 'photos', max: MAX_STYLES_PER_UPLOAD }), h(async (req, res) => res.status(201).json(await styles.upload(u(req), req.files || [], req.body || {}))));
+    r.post('/styles/reorder', h(async (req, res) => res.json(await styles.reorder(u(req), req.body?.ids))));
+    r.patch('/styles/:id', h(async (req, res) => res.json(await styles.update(u(req), req.params.id, req.body || {}))));
+    r.delete('/styles/:id', h(async (req, res) => res.json(await styles.remove(u(req), req.params.id))));
+    r.post('/appointments/:id/remove-photo', h(async (req, res) => res.json(await styles.moderateRemove(u(req), req.params.id))));
+  }
+
   /* Carta */
   r.get('/services', h(async (req, res) => res.json(await admin.listServices(u(req)))));
   r.post('/services', h(async (req, res) => res.status(201).json(await admin.createService(u(req), req.body || {}))));
@@ -105,6 +117,14 @@ export function createAdminRouter({ admin, logger, giftCards = null }) {
   r.get('/settings', h(async (req, res) => res.json(await admin.getSettings(u(req)))));
   r.put('/settings', h(async (req, res) => res.json(await admin.setSettings(u(req), req.body || {}))));
   r.get('/audit', h(async (req, res) => res.json(await admin.auditList(u(req), req.query))));
+
+  /* WhatsApp (SPEC-53): mensajes programados/enviados/fallidos y configuración del canal. */
+  r.get('/messages', h(async (req, res) => res.json(await admin.listMessages(u(req), req.query))));
+  r.get('/messages/:id', h(async (req, res) => res.json(await admin.messageDetail(u(req), req.params.id))));
+  r.post('/messages/:id/stop', h(async (req, res) => res.json(await admin.stopMessage(u(req), req.params.id))));
+  r.post('/messages/:id/retry', h(async (req, res) => res.json(await admin.retryMessage(u(req), req.params.id))));
+  r.get('/whatsapp', h(async (req, res) => res.json(await admin.getWhatsapp(u(req)))));
+  r.put('/whatsapp', h(async (req, res) => res.json(await admin.setWhatsapp(u(req), req.body || {}))));
 
   /* SPEC-56: seña por transferencia (solo super admin: el guard de arriba ya lo exige). */
   r.get('/deposit-settings', h(async (req, res) => res.json(await admin.depositSettings(u(req)))));
