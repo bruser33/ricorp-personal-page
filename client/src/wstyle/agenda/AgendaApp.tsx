@@ -8,6 +8,7 @@ import BookingPage from './pages/BookingPage';
 import AppointmentPage from './pages/AppointmentPage';
 import ReviewPage from './pages/ReviewPage';
 import { AccountPage, ConfirmPage, MyAppointmentsPage, RecoverPage } from './pages/AccountPages';
+import PointsPage from './pages/PointsPage';
 import { GiftBuyPage, GiftCardPage } from './pages/GiftPages';
 
 // Enrutado por carpeta (location.pathname). El WhatsApp del local sale de site.json, como en la landing: es la
@@ -27,6 +28,8 @@ export default function AgendaApp({ fbReturn }: { fbReturn: FacebookReturn | nul
   if (path.endsWith('/wstyle/regalar/')) return <GiftBuyPage ctx={ctx} />;
   if (path.endsWith('/wstyle/regalo/')) return <GiftCardPage ctx={ctx} />;
   if (path.endsWith('/wstyle/cuenta/mis-citas/')) return <MyAppointmentsPage ctx={ctx} />;
+  // SPEC-57: saldo, canje de productos e historial de puntos.
+  if (path.endsWith('/wstyle/cuenta/puntos/')) return <PointsPage ctx={ctx} />;
   if (path.endsWith('/wstyle/cuenta/resena/')) return <ReviewPage ctx={ctx} />;
   if (path.endsWith('/wstyle/cuenta/recuperar/')) return <RecoverPage ctx={ctx} />;
   if (path.endsWith('/wstyle/cuenta/confirmar/')) return <ConfirmPage ctx={ctx} />;

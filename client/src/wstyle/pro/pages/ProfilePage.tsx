@@ -7,6 +7,7 @@ import ApptSheet from '../components/ApptSheet';
 import { AvailabilityEditor, HomeServiceEditor, PhotosEditor, ServicesEditor } from '../components/Editors';
 import { HOME_ERRORS } from '../util';
 import ProShell from '../components/ProShell';
+import StylesManager from '../../agenda/components/StylesManager';
 import type { ProCtx } from '../ctx';
 
 type Msg = { tone: 'ok' | 'error'; text: string } | null;
@@ -125,6 +126,13 @@ export default function ProfilePage({ ctx }: { ctx: ProCtx }) {
         <Section id="pro-photos" title="Fotos">
           <PhotosEditor photos={me.professional.photos} onChange={(photos) => setMe({ ...me, professional: { ...me.professional, photos } })} />
         </Section>
+
+        {/* SPEC-59: fotos de tus trabajos que el cliente ve al reservar (solo las tuyas). */}
+        {approved && (
+          <Section id="pro-styles" title="Mis estilos">
+            <StylesManager admin={false} />
+          </Section>
+        )}
 
         <Section id="pro-data" title="Tus datos">
           <form onSubmit={saveData} noValidate>

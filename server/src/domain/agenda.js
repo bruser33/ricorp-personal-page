@@ -32,6 +32,7 @@ import { categoriesOf, categoryView } from './categories.js';
 import { applyLocalCollection, boletaClash, isBoletaClash, parseCollectInput } from './tax.js';
 import { TAX_DOCUMENT_PROVIDERS } from '../lib/taxDocuments.js';
 import { currentRates, pricingView, quote, ratesView } from './pricing.js';
+import { attachPhoto, referenceView, resolveReference } from './styles.js';
 import { depositConfig, depositView, publicDepositConfig } from './deposits.js';
 import { coverage, payableCLP } from './giftcards.js';
 import { canReview } from './reviews.js';
@@ -78,7 +79,7 @@ export const PAY_OPEN = ['pendiente', 'en_proceso', 'rechazado'];
 
 /* `onlinePayments.ready`: hay credenciales de Mercado Pago (SPEC-35). Sin ellas "Pagar en
    línea" no se ofrece aunque el admin lo habilite (CB-09). */
-export function createAgenda({ clock = Date.now, mailer, logger = console, frontUrl = 'http://localhost:5173', geocoder, businessSlug = 'ws-style', adminInbox = null, onlinePayments = { ready: false }, taxProvider = TAX_DOCUMENT_PROVIDERS.voucher, giftCards = null, depositRule = null, messaging = null }) {
+export function createAgenda({ clock = Date.now, mailer, logger = console, frontUrl = 'http://localhost:5173', geocoder, businessSlug = 'ws-style', adminInbox = null, onlinePayments = { ready: false }, taxProvider = TAX_DOCUMENT_PROVIDERS.voucher, giftCards = null, loyalty = null, depositRule = null, messaging = null }) {
   /* SPEC-53: avisos por WhatsApp. Se llama después de cada cambio de una cita (nunca lanza). */
   const afterChange = (appt, prev = null) => (messaging ? messaging.onAppointmentChanged(appt, prev) : Promise.resolve());
   /* SPEC-54: enganches de la lista de espera (domain/waitlist.js los registra).
@@ -379,6 +380,8 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
     else if ((payMethod === 'local' && !payOpts.local) || (payMethod === 'online' && !payOpts.online)) payProblem = 'payment_unavailable';
     if (payProblem && !giftCard) fields.paymentMethod = payProblem;
     if (Object.keys(fields).length) throw new HttpError(400, Object.values(fields)[0], 'Revisa los datos', { fields });
+    /* SPEC-59: estilo del catálogo y/o foto propia provisional (opcionales, RN-01). */
+    const { reference, photo: refPhoto } = await resolveReference(b, user, input);
 
     let pros = await professionals(b, { service, mode });
     const wanted = input.professionalId && input.professionalId !== 'any' ? String(input.professionalId) : 'any';
@@ -474,6 +477,7 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
         pricing,
         payment: online ? { method: 'online', status: 'pendiente', holdStartedAt: new Date(now) } : covered ? { method: 'local', status: 'cobrado', collectedAt: new Date(now) } : { method: 'local', status: 'pendiente' },
         note: note || undefined,
+        reference,
         status: firstStatus,
         /* SPEC-54: una hora tomada de la lista puede empezar en 30 min: el barbero tiene hasta 15 min antes.
            SPEC-56: con seña, el plazo es el de la seña. */
@@ -508,6 +512,7 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
             throw err;
           }
         }, logger);
+        if (!(await attachPhoto(refPhoto, appt._id)) && appt.reference) appt.reference.clientPhotoId = undefined;
         if (!user.phoneE164 || user.phoneE164 !== phone) await User.updateOne({ _id: user._id }, { phoneE164: phone });
         /* SPEC-53 RN-02: la casilla de WhatsApp del paso "Revisar" (se recuerda para la próxima reserva). */
         if (typeof input.whatsappOptIn === 'boolean' && messaging) await messaging.setOptIn(user._id, input.whatsappOptIn, { phone, source: 'reserva' }).catch((err) => logger.error('[wa] opt-in:', err.message));
@@ -719,6 +724,9 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
       /* SPEC-60: gift card aplicada (también la ve el barbero en la ficha, asunción 8). */
       giftCard: appt.giftCard?.giftCardId ? { code: appt.giftCard.code, from: appt.giftCard.from || '', amountCLP: appt.giftCard.amountCLP, status: appt.giftCard.status } : null,
       note: appt.note || '',
+      /* SPEC-59: estilo elegido y foto propia (privada: la URL exige sesión). */
+      reference: await referenceView(appt),
+      canChangeReference: role === 'client' && !FINAL.includes(appt.status),
       proposal: p ? { startsAt: p.startsAt.toISOString(), when: formatLong(p.startsAt.getTime(), tz), expiresAt: p.expiresAt?.toISOString() } : null,
       /* SPEC-53: con el link del WhatsApp (sin sesión) solo se puede cancelar. */
       actions: guest ? actionsFor(appt, role, b, now).filter((x) => x === 'cancel') : actionsFor(appt, role, b, now),
@@ -1068,9 +1076,12 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
          curso redondeado hacia arriba (nunca horas pasadas ni bloques de otra cita). */
       const freeFrom = ceilSlot(now);
       let freedLocks = 0;
-      const appt = await mutate(b, current._id, async (a) => {
+      /* SPEC-57 RN-01: los puntos se acreditan en la MISMA transacción que termina la cita. */
+      let earned = null;
+      const appt = await mutate(b, current._id, async (a, session) => {
         if (a.status !== need) throw invalid('stale');
         a.status = to;
+        earned = to === 'terminada' && loyalty ? await loyalty.earnForAppointment(b, a, session) : null;
         /* SPEC-60 RN-05: al terminar, lo aplicado de la gift card queda confirmado. */
         if (action === 'finish' && a.giftCard?.status === 'reservada') {
           a.giftCard.status = 'confirmada';
@@ -1088,8 +1099,12 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
         const r = await SlotLock.deleteMany({ appointmentId: appt._id, slotStart: { $gte: new Date(freeFrom) } });
         freedLocks = r.deletedCount || 0;
       }
-      /* SPEC-52: el "Gracias por venir" invita a dejar la reseña (solo si la cita tiene cuenta: RN-01). */
-      if (to === 'terminada') await notify(b, appt, 'client', 'finished', appt.customerUserId ? { reviewUrl: `${frontUrl}/wstyle/cuenta/resena/?cita=${appt._id}` } : {});
+      if (to === 'terminada') {
+        /* SPEC-57: puntos ganados en el "Gracias por venir". SPEC-52: invitación a reseñar (solo con cuenta: RN-01). */
+        const points = earned ? { earned: earned.points, balance: await loyalty.balanceOf(b._id, appt.customerUserId).catch(() => earned.points) } : null;
+        const reviewUrl = appt.customerUserId ? `${frontUrl}/wstyle/cuenta/resena/?cita=${appt._id}` : undefined;
+        await notify(b, appt, 'client', 'finished', { points, reviewUrl });
+      }
       if (to === 'no_asistio') await notify(b, appt, 'client', 'no_show');
       if (to === 'no_asistio' && appt.customerUserId) {
         await CustomerProfile.updateOne({ businessId: b._id, userId: appt.customerUserId }, { $inc: { 'counters.noShows': 1 } }, { upsert: true }).catch((err) => logger.error('[agenda] contador de inasistencias:', err.message));
@@ -1262,6 +1277,8 @@ export function createAgenda({ clock = Date.now, mailer, logger = console, front
     notify,
     mutate,
     inviteLinks,
+    /* SPEC-57: la app inyecta el programa de puntos después de crearlo. */
+    setLoyalty: (l) => { loyalty = l; },
     /* SPEC-56 */
     markDepositRefundDue,
     /* SPEC-54 */

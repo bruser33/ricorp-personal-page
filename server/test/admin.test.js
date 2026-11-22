@@ -859,8 +859,9 @@ describe('AC-02 matriz de autorización', () => {
 
   /* Lista TODAS las rutas registradas en la app ("GET /api/admin/barbers/:id"). */
   function allRoutes(app) {
-    /* El primero que calza (SPEC-54 monta /api/<x>/waitlist como router aparte: van al final). */
-    const prefixes = ['/api/auth', '/api/wstyle', '/api/pro', '/api/admin', '/api/wstyle/waitlist', '/api/pro/waitlist', '/api/admin/waitlist'];
+    /* El primero que calza: '/api/wstyle/points' (SPEC-57) y '/api/<x>/waitlist' (SPEC-54) son routers aparte y van al
+       final, porque el router de /api/wstyle (o /api/pro, /api/admin) también calza con ellos. */
+    const prefixes = ['/api/auth', '/api/wstyle', '/api/pro', '/api/admin', '/api/wstyle/points', '/api/wstyle/waitlist', '/api/pro/waitlist', '/api/admin/waitlist'];
     const out = [];
     for (const layer of app._router.stack) {
       if (layer.route) {
@@ -984,6 +985,32 @@ describe('AC-02 matriz de autorización', () => {
       /* Webhook de WhatsApp: público; el alta pide el verify token (403 sin él) y los avisos la firma (401 sin ella). */
       ['GET /api/whatsapp/webhook', { anon: 403, client: 403, approved: 403, pending: 403, admin: 403 }],
       ['POST /api/whatsapp/webhook', { anon: 401, client: 401, approved: 401, pending: 401, admin: 401 }],
+      /* SPEC-59: catálogo de estilos (público), foto de referencia del cliente (privada) y gestión del catálogo. */
+      ['GET /api/wstyle/styles', pub],
+      ['POST /api/wstyle/reference-photo', logged], ['DELETE /api/wstyle/reference-photo/:id', logged, { path: `/api/wstyle/reference-photo/${fake}` }],
+      ['GET /api/wstyle/reference-photos/:id', { anon: 401, client: 404, approved: 404, pending: 404, admin: 404 }, { path: `/api/wstyle/reference-photos/${fake}` }],
+      ['PUT /api/wstyle/appointments/:id/reference', { anon: 401, client: 404, approved: 403, pending: 404, admin: 403 }, { path: `/api/wstyle/appointments/${appt}/reference` }],
+      ...['GET', 'POST'].map((m) => [`${m} /api/pro/styles`, { ...barberOperate, admin: OK }]),
+      ...['PATCH', 'DELETE'].map((m) => [`${m} /api/pro/styles/:id`, { ...barberOperate, admin: OK }, { path: `/api/pro/styles/${fake}` }]),
+      ['GET /api/admin/styles', adminOnly], ['POST /api/admin/styles', adminOnly], ['POST /api/admin/styles/reorder', adminOnly],
+      ['PATCH /api/admin/styles/:id', adminOnly, { path: `/api/admin/styles/${fake}` }], ['DELETE /api/admin/styles/:id', adminOnly, { path: `/api/admin/styles/${fake}` }],
+      ['POST /api/admin/appointments/:id/remove-photo', adminOnly, { path: `/api/admin/appointments/${appt}/remove-photo` }],
+      /* SPEC-57: puntos y canjes. Catálogo público; saldo y canje con cualquier sesión; el ledger de otro → 404;
+         entregar/anular para el barbero aprobado y el admin; configuración, productos, ajustes y reversión solo admin. */
+      ['GET /api/wstyle/points/program', pub], ['GET /api/wstyle/points/products', pub],
+      ['GET /api/wstyle/points/me', logged], ['POST /api/wstyle/points/redeem', logged],
+      ['GET /api/wstyle/points/customers/:id/ledger', { anon: 401, client: 404, approved: 404, pending: 404, admin: OK }, { path: `/api/wstyle/points/customers/${owner.user._id}/ledger` }],
+      ['GET /api/wstyle/points/redemptions', { anon: 401, client: 403, approved: OK, pending: 403, admin: OK }],
+      ['POST /api/wstyle/points/redemptions/:id/deliver', { anon: 401, client: 403, approved: OK, pending: 403, admin: OK }, { path: `/api/wstyle/points/redemptions/${fake}/deliver` }],
+      ['POST /api/wstyle/points/redemptions/:id/cancel', { anon: 401, client: 403, approved: OK, pending: 403, admin: OK }, { path: `/api/wstyle/points/redemptions/${fake}/cancel` }],
+      ['GET /api/wstyle/points/admin/config', adminOnly], ['PUT /api/wstyle/points/admin/config', adminOnly],
+      ['GET /api/wstyle/points/admin/products', adminOnly], ['POST /api/wstyle/points/admin/products', adminOnly], ['PUT /api/wstyle/points/admin/products/order', adminOnly],
+      ['PATCH /api/wstyle/points/admin/products/:id', adminOnly, { path: `/api/wstyle/points/admin/products/${fake}` }],
+      ['DELETE /api/wstyle/points/admin/products/:id', adminOnly, { path: `/api/wstyle/points/admin/products/${fake}` }],
+      ['GET /api/wstyle/points/admin/customers', adminOnly],
+      ['POST /api/wstyle/points/admin/customers/:id/adjust', adminOnly, { path: `/api/wstyle/points/admin/customers/${owner.user._id}/adjust` }],
+      ['GET /api/wstyle/points/admin/appointments/:id', adminOnly, { path: `/api/wstyle/points/admin/appointments/${appt}` }],
+      ['POST /api/wstyle/points/admin/appointments/:id/revert', adminOnly, { path: `/api/wstyle/points/admin/appointments/${appt}/revert` }],
       /* SPEC-56 RN-09: configurar, revisar y marcar devuelta la seña → solo super admin. */
       ['GET /api/admin/deposit-settings', adminOnly], ['PUT /api/admin/deposit-settings', adminOnly], ['GET /api/admin/deposits', adminOnly],
       ...['confirm', 'reject', 'refunded'].map((a) => [`POST /api/admin/deposits/:id/${a}`, adminOnly, { path: `/api/admin/deposits/${appt}/${a}` }]),

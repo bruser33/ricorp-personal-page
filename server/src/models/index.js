@@ -3,6 +3,7 @@
    User, Professional y SlotLock son globales a propósito (ver la tabla
    "Modelo de datos y consideraciones para escalar" de la spec). */
 import mongoose from 'mongoose';
+import { LOYALTY_MODELS } from './loyalty.js';
 
 const { Schema } = mongoose;
 const ObjectId = Schema.Types.ObjectId;
@@ -392,6 +393,17 @@ const AppointmentSchema = new Schema(
        mensaje lleva el suyo); permiten ver y cancelar sin sesión, nada más. */
     guestTokens: { type: [{ _id: false, hash: String, at: Date }], default: undefined },
     note: String,
+    /* SPEC-59: referencia de estilo. Del catálogo se congela el nombre (RN-05); la foto propia
+       del cliente es un id de GridFS (nunca el binario). `clientPhotoState` explica por qué ya
+       no está: quitada por el local, expirada (90 días) o borrada con la cuenta. */
+    reference: {
+      styleId: ObjectId,
+      styleName: String,
+      stylePhotoId: String,
+      clientPhotoId: String,
+      clientPhotoState: { type: String, enum: ['removed', 'expired', 'deleted'] },
+      clientPhotoChangedAt: Date,
+    },
     status: { type: String, enum: STATUSES, required: true },
     /* Pendiente: hasta cuándo puede confirmar el barbero (RN-11). */
     expiresAt: Date,
@@ -611,6 +623,43 @@ const WaInboundSchema = new Schema(
 );
 WaInboundSchema.index({ createdAt: 1 }, { expireAfterSeconds: 30 * 24 * 60 * 60 });
 export const WaInbound = model('WaInbound', WaInboundSchema);
+/* ─── SPEC-59: catálogo de estilos (fotos de trabajos) y fotos de referencia de clientes. */
+const StyleSchema = new Schema(
+  {
+    businessId: { type: ObjectId, required: true },
+    photoId: { type: String, required: true },
+    name: { type: String, required: true },
+    /* Slug de la categoría de servicio (SPEC-51): barberia | decoloracion | ondulacion | tratamientos. */
+    category: { type: String, required: true },
+    /* Vacío = todos los servicios de su categoría (RN-06). */
+    serviceIds: { type: [ObjectId], default: [] },
+    uploadedByUserId: { type: ObjectId, required: true },
+    /* null = lo subió el super admin; si no, el barbero dueño (RN-08). */
+    professionalId: { type: ObjectId, default: null },
+    order: { type: Number, default: 0 },
+    active: { type: Boolean, default: true },
+  },
+  { timestamps: true }
+);
+StyleSchema.index({ businessId: 1, active: 1, order: 1, createdAt: -1 });
+StyleSchema.index({ photoId: 1 });
+export const Style = model('Style', StyleSchema);
+
+/* Foto propia del cliente. Sin `appointmentId` = provisional (RN-03: se borra a las 24 h). */
+const ClientPhotoSchema = new Schema(
+  {
+    businessId: { type: ObjectId, required: true },
+    userId: { type: ObjectId, required: true },
+    fileId: { type: String, required: true },
+    appointmentId: { type: ObjectId, default: null },
+    uploadedAt: { type: Date, required: true },
+  },
+  { versionKey: false }
+);
+ClientPhotoSchema.index({ userId: 1, appointmentId: 1 });
+ClientPhotoSchema.index({ fileId: 1 }, { unique: true });
+ClientPhotoSchema.index({ appointmentId: 1, uploadedAt: 1 });
+export const ClientPhoto = model('ClientPhoto', ClientPhotoSchema);
 /* SPEC-60: gift cards. `code` (WS-XXXX-XXXX) se canjea al reservar; `token` (distinto) abre la
    página pública de la tarjeta. El saldo solo cambia con updates atómicos condicionales. */
 export const GIFT_CARD_STATUSES = ['pendiente_pago', 'activa', 'usada', 'vencida', 'anulada'];
@@ -751,7 +800,13 @@ export const ALL_MODELS = [
   PaymentEvent,
   OutboundMessage,
   WaInbound,
+  Style,
+  ClientPhoto,
   GiftCard,
   WaitlistEntry,
   Review,
+  /* SPEC-57: puntos y canjes (models/loyalty.js). */
+  ...LOYALTY_MODELS,
 ];
+
+export * from './loyalty.js';

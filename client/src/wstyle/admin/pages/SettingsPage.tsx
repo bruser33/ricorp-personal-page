@@ -7,6 +7,7 @@ import { Loaded } from '../components/common';
 import WaitlistSetting from '../components/WaitlistSetting';
 import { useLoad } from '../hooks';
 import { WaBubble } from './MessagesPage';
+import PointsSettings from '../components/PointsSettings';
 import DepositSettingsSection from '../components/DepositSettings';
 import { GiftSettings } from './GiftCardsPage';
 
@@ -30,6 +31,8 @@ export default function SettingsPage({ user }: { user: User }) {
       <DepositSettingsSection />
       <GiftSettings />
       <WhatsappSettings />
+      {/* SPEC-57: Configuración → Puntos */}
+      <PointsSettings />
       <Account user={user} />
     </>
   );

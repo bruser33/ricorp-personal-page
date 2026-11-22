@@ -6,6 +6,7 @@ import AuthPanel from '../components/AuthPanel';
 import Calendar, { TimeChips } from '../components/Calendar';
 import Shell from '../components/Shell';
 import { Notice, Spinner, StatusPill, Unavailable } from '../components/ui';
+import { ReferenceEditor, ReferenceSummary } from '../components/StylePhotos';
 import { addDays, clp, localDate, localTime, longDay } from '../util';
 import { payTotalLabel, payView } from '../pay';
 import { DepositBox } from '../components/DepositBox';
@@ -168,6 +169,12 @@ export default function AppointmentPage({ ctx }: { ctx: AgendaCtx }) {
           {appt.payment.backing && <div data-backing={appt.payment.backing.kind}><dt>Comprobante</dt><dd>{appt.payment.backing.label}</dd></div>}
         </dl>
         {appt.note && <p className="ag-muted">Nota: {appt.note}</p>}
+        {/* SPEC-59: estilo elegido y foto propia; el cliente la cambia o quita mientras la cita no termina (RN-09). */}
+        <ReferenceSummary reference={appt.reference} />
+        {isClient && appt.canChangeReference && (
+          <ReferenceEditor apptId={appt.id} serviceId={appt.service.id} serviceName={appt.service.name} reference={appt.reference ?? null}
+            onSaved={(reference) => setAppt({ ...appt, reference })} />
+        )}
 
         {isClient && (
           <div className="ag-actions ag-actions--wrap">
