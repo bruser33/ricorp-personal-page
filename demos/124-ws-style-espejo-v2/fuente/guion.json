@@ -1,0 +1,30 @@
+{
+  "titulo": "WS Style — Espejo WS: diseña antes de cortar (v2, fotos reales)",
+  "producto": "WS Style (ricorp.cl/wstyle)",
+  "spec": "SPEC-62 (issue #118, PR #119) · video: issue #124",
+  "formatos": ["9:16", "16:9"],
+  "voz_modelo": "es-MX-DaliaNeural",
+  "rate": "-3%",
+  "pitch": "-2Hz",
+  "marca_de_agua": "Un producto elaborado por ricorp.cl",
+  "datos_demo": [
+    "Barbero de demostración Matías (matias.demo@wstyle.local, seed:pro-demo).",
+    "Cliente: Joe, dueño de WS Style, con su foto real de frente (autorizado por Pedro el 22-nov-2026). Solo vista de frente: no se muestran perfiles ni se inventan fotos.",
+    "Segundo ejemplo: Pedro (Ricorp), antes y después, solo en el tramo de IA.",
+    "Las vistas previas con IA (joe-corte-1, joe-corte-2, pedro-corte-1) fueron generadas con ChatGPT; se muestran como montaje rotulado «Vista previa con IA», sin la pantalla del Asistente de IA.",
+    "Consulta sin reserva previa, en el Editor manual. Sin pagos.",
+    "Música original sintetizada (CC0), con ducking bajo la voz, mezcla a -14 LUFS."
+  ],
+  "lineas": [
+    {"id": "l1", "accion": "hero", "pantalla": "montaje", "pre": "Antes/después de Joe (joe-frente → joe-corte-1) con barrido cobre.", "sub": "¿Y si pudieras ver el corte antes de hacerlo?", "voz": "¿Y si pudieras ver el corte antes de hacerlo?"},
+    {"id": "l2", "accion": "panel-barbero", "pantalla": "/wstyle/pro/", "pre": "Matías en su panel (Hoy) toca Espejo WS y elige el Editor manual.", "sub": "Con Espejo WS, Matías prepara cada diseño desde su celular.", "voz": "Con Espejo WS, Matías prepara cada diseño desde su celular."},
+    {"id": "l3", "accion": "fotografias", "pantalla": "/wstyle/pro/espejo/", "pre": "Vista de frente → «Elegir de galería» → joe-frente.jpg. Se abre «Cambiar foto de esta vista» para mostrar «Repetir foto». Sin perfiles.", "sub": "Sube la foto de frente del cliente. Si no sirve, la repites.", "voz": "Sube la foto de frente del cliente. Si no sirve, la repites."},
+    {"id": "l4", "accion": "degradados", "pantalla": "/wstyle/pro/espejo/", "pre": "Bajo → Medio → Alto y el control «Al ras», con acercamiento a la cabeza de Joe.", "sub": "Prueba degradados bajos, medios o altos y ajusta su intensidad.", "voz": "Prueba degradados bajos, medios o altos y ajusta su intensidad."},
+    {"id": "l5", "accion": "disenos", "pantalla": "/wstyle/pro/espejo/", "pre": "Dibujar una línea en el costado, moverla, engrosarla, ocultar y mostrar.", "sub": "Dibuja líneas, muévelas y cambia su grosor sin repetir la foto.", "voz": "Dibuja líneas, muévelas y cambia su grosor sin repetir la foto."},
+    {"id": "l6", "accion": "comparacion", "pantalla": "/wstyle/pro/espejo/", "pre": "Comparar A y B lado a lado y «Usar degradado B con líneas A».", "sub": "Compara dos estilos y combina lo mejor de cada uno.", "voz": "Compara dos estilos y combina lo mejor de cada uno."},
+    {"id": "l6b", "accion": "vista-previa-ia", "pantalla": "montaje", "pre": "joe-corte-1 y joe-corte-2 lado a lado, luego Pedro antes/después. Rótulo «Vista previa con IA». No se muestra la pantalla del Asistente.", "sub": "Y con inteligencia artificial, mira cómo te queda antes del primer corte.", "voz": "Y con inteligencia artificial, mira cómo te queda antes del primer corte."},
+    {"id": "l7", "accion": "referencia", "pantalla": "/wstyle/pro/espejo/", "pre": "Fijar este diseño, marcar la autorización y mostrar «Descargar referencia» sin descargar.", "sub": "Fija el diseño elegido y tenlo a mano mientras cortas.", "voz": "Fija el diseño elegido y tenlo a mano mientras cortas."},
+    {"id": "l8", "accion": "finalizar", "pantalla": "/wstyle/pro/espejo/", "pre": "Terminar sesión de fotos → Sí, descartar → la vista vuelve a quedar vacía.", "sub": "Al terminar, las fotos se descartan. Listo para el siguiente.", "voz": "Al terminar, las fotos se descartan. Listo para el siguiente."},
+    {"id": "l9", "accion": "cierre", "pantalla": "tarjeta de cierre", "pre": "Desde el diseño elegido, transición suave a negro y logo de Ricorp con la firma. Último segundo en silencio.", "sub": "Un producto elaborado por ricorp.cl", "voz": "Un producto elaborado por ricorp punto ce ele."}
+  ]
+}
