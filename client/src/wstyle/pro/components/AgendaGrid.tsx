@@ -1,5 +1,6 @@
 import { useRef, type CSSProperties, type ReactNode } from 'react';
 import { localDate, localTime, longDay } from '../../agenda/util';
+import { depositTag } from '../../agenda/deposit';
 import type { AgendaDay, ProAppointment, TimeOff } from '../api';
 import { blockBox, effectiveDay, freeCells, gapFrom, gridRange, groupFree, minutesOfDay, offsInDay } from '../util';
 
@@ -20,7 +21,7 @@ export interface GridCol<A extends ProAppointment = ProAppointment> {
 // Grilla de agenda compartida (SPEC-33 + SPEC-55): huecos libres agrupados y tocables ("Libre · tocar para reservar"),
 // bloques por cita con su insignia de inasistencias, bloqueos rayados con su motivo, línea de "ahora" y —en la vista
 // amplia— la acción rápida "El cliente no vino".
-export default function AgendaGrid<A extends ProAppointment>({ cols, now, wide, pendingId, onFree, onAppt, onOff, onNoShow, onSwipe, cellMin = 30 }: {
+export default function AgendaGrid<A extends ProAppointment>({ cols, now, wide, pendingId, onFree, onAppt, onOff, onNoShow, onSwipe, headExtra, cellMin = 30 }: {
   cols: GridCol<A>[];
   now: number;
   wide: boolean;
@@ -30,6 +31,8 @@ export default function AgendaGrid<A extends ProAppointment>({ cols, now, wide, 
   onOff: (col: GridCol<A>, off: TimeOff) => void;
   onNoShow?: (col: GridCol<A>, a: A) => void;
   onSwipe?: (dir: 1 | -1) => void;
+  /* SPEC-54: algo extra bajo el nombre del día (chip de la lista de espera). */
+  headExtra?: (col: GridCol<A>) => ReactNode;
   cellMin?: number;
 }) {
   const touch = useRef<number | null>(null);
@@ -54,7 +57,7 @@ export default function AgendaGrid<A extends ProAppointment>({ cols, now, wide, 
       <div className="pro-grid__head">
         <span />
         {visible.map((c) => (
-          <span key={c.key} className={`pro-grid__day${c.isToday ? ' is-today' : ''}`}>{c.label}{!c.day.shop && <small>Cerrado</small>}</span>
+          <span key={c.key} className={`pro-grid__day${c.isToday ? ' is-today' : ''}`}>{c.label}{!c.day.shop && <small>Cerrado</small>}{headExtra?.(c)}</span>
         ))}
       </div>
       <div className="pro-grid__body" style={{ height }}>
@@ -106,13 +109,16 @@ export default function AgendaGrid<A extends ProAppointment>({ cols, now, wide, 
                 const pending = pendingId === a.id;
                 const quick = wide && onNoShow && a.actions.includes('no_show') && !pending;
                 const ns = a.noShows ?? 0;
+                /* SPEC-56: etiqueta de la seña ("Seña pendiente", "Seña $X ✓"…). */
+                const dep = depositTag(a.deposit, a.status);
                 return (
                   <div key={a.id} className="pro-block-wrap" style={{ top: b.top, height: b.height }}>
                     <button type="button" className={`pro-block pro-block--${pending ? 'no_asistio' : a.status}${a.location.kind === 'home' ? ' is-home' : ''}${b.height < 40 ? ' is-short' : ''}`}
-                      data-appt={a.id} aria-label={`${localTime(a.startsAt)} ${a.customer.name}, ${a.service.name}, ${pending ? 'marcando que no vino' : a.statusLabel}${ns ? `, ${ns} ${ns === 1 ? 'inasistencia anterior' : 'inasistencias anteriores'}` : ''}`}
+                      data-appt={a.id} aria-label={`${localTime(a.startsAt)} ${a.customer.name}, ${a.service.name}, ${pending ? 'marcando que no vino' : a.statusLabel}${ns ? `, ${ns} ${ns === 1 ? 'inasistencia anterior' : 'inasistencias anteriores'}` : ''}${dep ? `, ${dep}` : ''}`}
                       onClick={() => onAppt(c, cols.find((x) => x.key === c.key)?.day.appointments.find((x) => x.id === a.id) ?? a)}>
                       <strong>{a.customer.name}{ns > 0 && <em className="pro-ns" data-noshows={ns}>{ns} no vino</em>}</strong>
                       <span>{localTime(a.startsAt)} · {pending ? 'Marcando que no vino…' : a.status === 'no_asistio' ? 'No asistió' : a.service.name}</span>
+                      {dep && <span className="pro-block__dep" data-deposit-tag="">{dep}</span>}
                     </button>
                     {quick && <button type="button" className="pro-quick" data-quick-noshow={a.id} onClick={() => onNoShow!(c, a)}>El cliente no vino</button>}
                   </div>

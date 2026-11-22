@@ -50,10 +50,10 @@ describe('Política de privacidad', () => {
     expect(html).toContain('id="whatsapp"');
     for (const s of ['Avisos por WhatsApp (opcional)', 'WhatsApp Business Platform', 'encargado del envío', 'BAJA']) expect(html).toContain(s);
   });
-  it('responsable Ricorp; en demo el WhatsApp del local lleva al contacto de Ricorp', () => {
+  it('responsable Ricorp y contacto directo del local', () => {
     expect(html).toContain('Ricorp');
     expect(html).toContain(`href="${DEMO_CONTACT_URL}"`);
-    expect(html).not.toContain('wa.me/');
+    expect(html).toContain('wa.me/56927454681');
   });
 });
 

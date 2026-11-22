@@ -1,5 +1,5 @@
 import { toCLP } from '../lib';
-import { clp, ext } from '../links';
+import { clp, ctaLinks, ext } from '../links';
 import { str, type SiteContent } from '../content';
 import { Extra } from './Section';
 import { countLabel, formatAverage, hasVisibleReviews, reviewDate, roundHalf, starsLabel, type ReviewsPage } from '../reviews';
@@ -84,6 +84,27 @@ export function Barbers({ site, booking, label }: { site: SiteContent; booking: 
 // grande, beneficios en lista y nota + CTA al pie, todo dentro de la tarjeta. Lo que falte en el JSON no deja cajas
 // vacías.
 export function Membership({ site, booking, label }: { site: SiteContent; booking: string | null; label: string }) {
+  if (site.plans?.length) {
+    const whatsapp = ctaLinks(site).whatsapp;
+    return (
+      <Extra id="membresia" label={label} title="PLANES WS STYLE." className="panel--plans">
+        <p>Elige tu plan personal · Pago anticipado · 30 días de vigencia</p>
+        <div className="plans-grid">
+          {site.plans.map(plan => {
+            const url = whatsapp ? new URL(whatsapp) : null;
+            url?.searchParams.set('text', `Hola, quiero contratar el plan ${plan.name} de WS Style.`);
+            return <article className={`ws-plan ws-plan--${plan.id}`} key={plan.id}>
+              <p>{plan.subtitle}{plan.id === 'medium' && ' · Recomendado'}</p>
+              <h3>{plan.name}</h3>
+              <strong>{clp.format(plan.price)}</strong>
+              <ul>{plan.perks.map(perk => <li key={perk}>{perk}</li>)}</ul>
+              {url && <a className="btn btn--primary" data-own-cta="" href={url.href} {...ext(url.href)}>Quiero {plan.name}</a>}
+            </article>;
+          })}
+        </div>
+      </Extra>
+    );
+  }
   const m = site.membership; const price = toCLP(m?.priceCLP);
   if (!m || !str(m.name)) return null;
   const perks = (m.perks ?? []).filter((p): p is string => !!str(p));
@@ -108,7 +129,7 @@ export function Membership({ site, booking, label }: { site: SiteContent; bookin
   );
 }
 
-export function Policies({ site, label }: { site: SiteContent; label: string }) {
+export function Policies({ site, label, giftCards = false }: { site: SiteContent; label: string; giftCards?: boolean }) {
   const list = (site.policies ?? []).filter((p) => p && str(p.title) && str(p.text));
   if (!list.length) return null;
   return (
@@ -116,6 +137,8 @@ export function Policies({ site, label }: { site: SiteContent; label: string }) 
       <dl className="policies reveal">
         {list.map((p, i) => <div key={i}><dt>{p.title}</dt><dd>{p.text}</dd></div>)}
       </dl>
+      {/* SPEC-60: enlace discreto, solo si la venta de gift cards en línea está activa (AC-10). */}
+      {giftCards && <p className="policies__gift reveal"><a href="/wstyle/regalar/" data-gift-link="">Regala WS Style · gift cards</a></p>}
     </Extra>
   );
 }

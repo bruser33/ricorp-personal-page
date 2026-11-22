@@ -5,7 +5,8 @@ import mongoose from 'mongoose';
 import { app } from './app.js';
 import { ensureSuperAdmin } from './seed-admin.js';
 import { ensurePlatformDefaults } from './domain/pricing.js';
-import { ensureCartaMigration } from './seed.js';
+import { Business } from './models/index.js';
+import { ensureCartaMigration, hoursFromSite, readContent } from './seed.js';
 
 const PORT = process.env.PORT || 4000;
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/pagina_personal';
@@ -22,6 +23,14 @@ mongoose
     (r) => r.applied && console.log(`[carta] SPEC-51 aplicada: ${r.categories} categorías, ${r.services} servicios (${r.created} nuevos)`),
     (err) => console.error('[carta] migración SPEC-51:', err.message)
   ))
+  .then(async () => {
+    const { site } = readContent();
+    await Business.updateOne(
+      { slug: 'ws-style', publicDetailsVersion: { $ne: 'penalolen-2026' } },
+      { $set: { publicDetailsVersion: 'penalolen-2026', address: site.contact.address,
+        contact: { phone: site.contact.phone, whatsapp: site.contact.whatsapp }, hours: hoursFromSite(site) } }
+    );
+  })
   .then(() => {
     app.listen(PORT, () => console.log(`api on :${PORT}`));
     /* SPEC-34 RN-01: primer super admin desde SUPERADMIN_EMAIL/SUPERADMIN_PASSWORD. */
@@ -37,6 +46,12 @@ mongoose
       app.locals.payments.runHolds().catch(quiet('[mp] retención:'));
       /* SPEC-53: despachador de WhatsApp (confirmaciones y recordatorios vencidos). */
       app.locals.messaging.runDispatch().catch(quiet('[wa] despachador:'));
+      /* SPEC-56 §11: señas sin comprobante a tiempo (y retención de 12 meses de comprobantes). */
+      app.locals.deposits.runDeposits().catch(quiet('[seña] vencimiento:'));
+      /* SPEC-60: gift cards vencidas y compras sin pagar de más de 24 h. */
+      app.locals.giftCards.runTasks().catch(quiet('[giftcards] tareas:'));
+      /* SPEC-54: entradas de la lista de espera de días que ya terminaron (o sin barbero/servicio). */
+      app.locals.waitlist.sweep().catch(quiet('[lista] barrido:'));
     }, 60_000).unref();
     /* SPEC-35: conciliación con Mercado Pago al arrancar (Render free "despierta" sin los
        webhooks que llegaron mientras dormía) y cada 5 min mientras esté despierto. */

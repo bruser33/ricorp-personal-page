@@ -78,7 +78,7 @@ describe('SPEC-51 services.json (fallback)', () => {
     expect(json.categories[1].note).toBe('Cada servicio incluye una evaluación previa del cabello.');
     expect(json.services).toHaveLength(14);
     expect(json.services.filter((s) => s.category === 'barberia').map((s) => [s.id, s.priceCLP, s.durationMin])).toEqual([
-      ['corte', 12000, 40], ['corte-barba', 18000, 60], ['barba', 8000, 25], ['lavado-masaje', 7000, 20], ['limpieza-facial', 15000, 35],
+      ['corte', 10000, 40], ['corte-barba', 12000, 60], ['barba', 8000, 25], ['lavado-masaje', 7000, 20], ['limpieza-facial', 15000, 35],
     ]);
     expect(json.services.filter((s) => s.category !== 'barberia').map((s) => [s.id, s.name, s.priceCLP, s.durationMin, s.category])).toEqual(TABLE);
     // Todas caben en bloques de 15 min y en el máximo de 240.
@@ -101,10 +101,18 @@ describe('SPEC-51 mergeCatalog con categorías', () => {
     expect(out.services.map((s) => [s.id, s.category, s.durationMin])).toEqual([['decoloracion-global', 'decoloracion', 165], ['corte', 'barberia', 40]]);
     expect(out.categories?.[1]).toEqual({ id: 'decoloracion', name: 'Coloración', note: 'Nota nueva' });
   });
-  it('API antigua sin categorías: quedan las del JSON y los servicios caen en Barbería', () => {
+  it('conserva contacto y horario publicados si la API aún identifica el local anterior', () => {
+    const stale = { ...catalog.business, contact: { phone: 'anterior', address: { street: 'Otra dirección' } } };
+    const result = mergeCatalog(content, { ...catalog, business: stale });
+    expect(result.site.contact).toEqual(content.site.contact);
+    expect(result.site.hours).toEqual(content.site.hours);
+  });
+  it('una API antigua conserva los 14 servicios publicados y actualiza el horario', () => {
     const out = mergeCatalog(withCats, catalog);
     expect(out.categories).toBe(json.categories);
-    expect(groupByCategory(out.services, out.categories).map((g) => [g.id, g.items.length])).toEqual([['barberia', 2]]);
+    expect(out.services).toEqual(json.services);
+    expect(groupByCategory(out.services, out.categories).map((g) => g.items.length)).toEqual([5, 7, 1, 1]);
+    expect(out.site.hours).toEqual(catalog.business.hoursRows);
   });
 });
 

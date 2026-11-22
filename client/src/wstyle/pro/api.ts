@@ -53,6 +53,18 @@ export interface Invitation { appointment: ProAppointment; whatsappUrl: string |
 // SPEC-55: resultado del buscador de clientes (sin email ni celular completo; `ref` agenda con su celular).
 export interface CustomerHit { ref: string; name: string; phoneMasked: string | null; lastVisit: string | null; noShows: number }
 export interface TimeOffInput { fromDate: string; fromTime?: string; toDate?: string; toTime?: string; restOfDay?: boolean; quick?: boolean; reason: string }
+// SPEC-54: lista de espera vista desde el panel (barbero y admin usan la misma forma).
+export interface ProWaitEntry {
+  id: string; name: string; service: string; pref: 'all' | 'am' | 'pm'; professional: string; createdAt: string;
+  status: 'waiting' | 'notified' | 'booked' | 'ended' | 'removed'; statusLabel: string; notifiedAt: string | null;
+}
+export interface WaitDay { date: string; count: number; entries: ProWaitEntry[] }
+export interface WaitlistRange { enabled: boolean; days: WaitDay[]; summary?: { next7: number } }
+export interface WaitlistApi {
+  list: (from: string, to: string) => Promise<WaitlistRange>;
+  notify: (id: string) => Promise<{ waUrl: string }>;
+  remove: (id: string) => Promise<{ ok: boolean }>;
+}
 export interface PanelNotification { id: string; kind: string; title: string; body: string; appointmentId: string | null; createdAt: string; read: boolean }
 
 const json = <T,>(path: string, method: string, body: unknown = {}) => api<T>(path, { method, body });
@@ -87,6 +99,12 @@ export const pro = {
   customers: (q: string) => api<{ items: CustomerHit[] }>('/api/pro/customers?q=' + encodeURIComponent(q)),
   notifications: () => api<{ unread: number; items: PanelNotification[] }>('/api/pro/notifications'),
   markRead: () => json<{ ok: boolean }>('/api/pro/notifications/read', 'POST'),
+};
+
+export const proWaitlist: WaitlistApi = {
+  list: (from, to) => api<WaitlistRange>(`/api/pro/waitlist?from=${from}&to=${to}`),
+  notify: (id) => json<{ waUrl: string }>(`/api/pro/waitlist/${encodeURIComponent(id)}/notify`, 'POST'),
+  remove: (id) => api<{ ok: boolean }>(`/api/pro/waitlist/${encodeURIComponent(id)}`, { method: 'DELETE' }),
 };
 
 /* Subida de fotos (multipart): fetch directo, con el mismo formato de error que api(). */

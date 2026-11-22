@@ -1,11 +1,21 @@
 import { describe, expect, it } from 'vitest';
-import { bookingLabel, bookingLink, ctaLinks, DEMO_CONTACT_URL, isDemo } from './links';
+import { bookingLabel, bookingLink, ctaLinks, DEMO_CONTACT_URL, isDemo, staffPanel } from './links';
 import { clPhone } from './lib';
 import { jsonLd, type SiteContent } from './content';
 import siteJson from '../../public/wstyle/content/site.json';
 
 // SPEC-31: datos de demo verosímiles y CTAs que en demo no contactan al número ficticio.
 const site = siteJson as SiteContent;
+
+describe('acceso desde la cabecera de WS Style', () => {
+  it('mantiene al cliente en su cuenta', () => expect(staffPanel(['client'])).toBeNull());
+  it('abre el panel del barbero aunque también sea cliente', () => {
+    expect(staffPanel(['client', 'barber'])).toBe('/wstyle/pro/');
+  });
+  it('prioriza administración cuando la cuenta tiene varios roles', () => {
+    expect(staffPanel(['client', 'barber', 'superadmin'])).toBe('/wstyle/admin/');
+  });
+});
 
 describe('site.json de demo (SPEC-31)', () => {
   it('no trae los datos delatores', () => {
@@ -24,7 +34,7 @@ describe('site.json de demo (SPEC-31)', () => {
     const q = encodeURIComponent(`${ad.street}, ${ad.city}`);
     expect(site.contact?.mapsUrl).toBe(`https://www.google.com/maps/search/?api=1&query=${q}`);
   });
-  it('sigue en demo', () => expect(isDemo(site)).toBe(true));
+  it('usa el número confirmado', () => expect(isDemo(site)).toBe(false));
   it('JSON-LD publica lo que se muestra', () => {
     const ld = jsonLd(site, 'https://ricorp.cl/wstyle/') as { telephone: string; address: { streetAddress: string } };
     expect(ld.telephone).toBe(site.contact?.phone);
@@ -88,7 +98,7 @@ describe('bookingLabel (SPEC-26)', () => {
   });  // El site.json que se entrega es demo:true con la agenda propia (SPEC-32) en booking.url: en demo también se
   // reserva ahí, porque no contacta a ningún número inventado (SPEC-31). Sin agenda caería en DEMO_CONTACT_URL.
   it('site.json tal cual (demo): "Reservar" con destino la agenda propia', () => {
-    expect(isDemo(site)).toBe(true);
+    expect(isDemo(site)).toBe(false);
     expect(bookingLink(site)).toBe('/wstyle/reservar/');
     expect(bookingLabel(site)).toBe('Reservar');
   });

@@ -2,7 +2,7 @@ import type { PricingView } from '../agenda/pricing';
 // Cliente HTTP del panel del super admin (SPEC-34): /api/admin/… con la misma sesión (cookie httpOnly) de la agenda.
 // El server valida la sesión y el rol en cada ruta; el front solo oculta botones.
 import { api, API_BASE, ApiError, type Appointment, type User } from '../agenda/api';
-import type { AgendaDay, CustomerHit, ProService, TimeOff, TimeOffInput } from '../pro/api';
+import type { AgendaDay, CustomerHit, ProService, TimeOff, TimeOffInput, WaitlistApi, WaitlistRange } from '../pro/api';
 
 export type MembershipStatus = 'pending' | 'approved' | 'rejected' | 'suspended';
 export type Decision = 'approve' | 'reject' | 'suspend' | 'reactivate' | 'reopen';
@@ -36,7 +36,7 @@ export interface AdminAgenda {
 export interface Alert { kind: string; professionalId: string; name: string; count: number; message: string }
 export interface Overview {
   today: string;
-  cards: { pendingBarbers: number; today: number; pendingConfirm: number; refundsPending: number; monthRevenueCLP: number; reviewsLast7d?: number };
+  cards: { pendingBarbers: number; today: number; pendingConfirm: number; refundsPending: number; monthRevenueCLP: number; depositsToReview?: number; depositsToRefund?: number; reviewsLast7d?: number };
   alerts: Alert[];
   unread: number;
   user: User;
@@ -110,7 +110,11 @@ export interface Settings {
   // SPEC-38: comisión de Mercado Pago que se traslada al cliente en la tarifa de servicio (+ IVA si corresponde).
   paymentFeePercent: number;
   paymentFeeVat: boolean;
+  // SPEC-54: lista de espera encendida/apagada.
+  waitlist?: boolean;
   rules: Record<RuleKey, number>;
+  // SPEC-60: venta de gift cards en línea y vigencia por defecto (meses).
+  giftCards?: { onlineEnabled: boolean; validityMonths: number };
   limits: { rules: Record<RuleKey, [number, number]>; platformFeePercent: [number, number]; paymentFeePercent: [number, number] };
 }
 // SPEC-53: WhatsApp a los clientes.
@@ -133,6 +137,38 @@ export interface WaConfig {
   preview: { confirmation: string; reminder: string }; monthSent: number; rescheduled?: number;
 }
 export interface MessageFilters { status?: string; kind?: string; q?: string; page?: string }
+// SPEC-56: seña por transferencia.
+export type DepositAppliesTo = 'all' | 'new' | 'no_show';
+export interface DepositBankInput { holder: string; rut: string; bank: string; accountType: string; accountNumber: string; email: string }
+export interface DepositSettings {
+  enabled: boolean; kind: 'fixed' | 'percent'; fixedCLP: number; percent: number; appliesTo: DepositAppliesTo; minutes: number;
+  bank: DepositBankInput & { accountTypeLabel: string }; bankComplete: boolean;
+  storage: { driver: string; configured: boolean; production: boolean; reason: string | null };
+  options: { minutes: number[]; accountTypes: Record<string, string>; appliesTo: Record<DepositAppliesTo, string> };
+}
+export interface DepositRow {
+  appointmentId: string; customer: { name: string; email: string | null; phone: string | null }; service: { name: string }; professional: { name: string };
+  startsAt: string; when: string; appointmentStatus: string; amountCLP: number; reference: string; status: string; statusLabel: string;
+  uploadedAt: string | null; receiptType: string | null; receiptAvailable: boolean; deadlineAt: string | null; confirmedAt: string | null; refundDueAt: string | null;
+  rejectReason: string | null; checklist: { amountCLP: number; reference: string; accountLast4: string; bank: string }; started: boolean;
+}
+export type DepositView = 'review' | 'refund' | 'all';
+// SPEC-60
+export interface GiftCardRow {
+  id: string; code: string; from: string; to: string; kind: 'monto' | 'servicio'; service: { id: string; name: string } | null;
+  amountCLP: number; balanceCLP: number; expiresAt: string | null; status: string; statusLabel: string; origin: 'online' | 'local';
+  localMethod: string | null; blocked: boolean; discarded: boolean; createdAt: string;
+}
+export interface GiftCardList { counters: Record<string, number>; items: GiftCardRow[]; settings: { onlineEnabled: boolean; validityMonths: number }; online: boolean }
+export interface GiftCardDetail extends GiftCardRow {
+  message: string; buyerEmail: string | null; voidReason: string | null; unusableReason: string | null; token: string; url: string;
+  pricing: { totalCLP: number; priceCLP: number; serviceFeeCLP: number } | null;
+  payment: { mpPaymentId: string | null; paidAt: string | null; collectedAt: string | null; localMethod: string | null; refundedAt: string | null };
+  activatedAt: string | null; mailedAt: string | null;
+  movements: { kind: string; amountCLP: number; appointmentId: string | null; by: string | null; reason: string | null; at: string }[];
+  appointments: { id: string; startsAt: string; status: string; customer: string; service: string; amountCLP: number; giftStatus: string | null }[];
+}
+export interface GiftIssueInput { kind: 'monto' | 'servicio'; amountCLP?: number; serviceId?: string; from: string; to: string; message: string; email?: string; localMethod: string }
 
 export interface AuditItem { id: string; at: string; actor: string; action: string; entity: string | null; entityId: string | null; summary: string; before: unknown; after: unknown }
 
@@ -187,7 +223,20 @@ export const admin = {
 
   stats: (from: string, to: string) => api<Stats>(`/api/admin/stats?${qs({ from, to })}`),
   settings: () => api<Settings>('/api/admin/settings'),
-  saveSettings: (body: Partial<Pick<Settings, 'payments' | 'platformFeePercent' | 'paymentFeePercent' | 'paymentFeeVat'>> & { rules?: Partial<Record<RuleKey, number>> }) => send<Settings>('/api/admin/settings', 'PUT', body),
+  saveSettings: (body: Partial<Pick<Settings, 'payments' | 'platformFeePercent' | 'paymentFeePercent' | 'paymentFeeVat' | 'waitlist'>> & { rules?: Partial<Record<RuleKey, number>>; giftCards?: Partial<{ onlineEnabled: boolean; validityMonths: number }> }) => send<Settings>('/api/admin/settings', 'PUT', body),
+  depositSettings: () => api<DepositSettings>('/api/admin/deposit-settings'),
+  saveDepositSettings: (body: Partial<Omit<DepositSettings, 'bank' | 'storage' | 'options' | 'bankComplete'>> & { bank?: Partial<DepositBankInput> }) => send<DepositSettings>('/api/admin/deposit-settings', 'PUT', body),
+  deposits: (view: DepositView = 'review') => api<{ view: DepositView; items: DepositRow[]; counts: { review: number; refund: number } }>(`/api/admin/deposits?${qs({ view })}`),
+  reviewDeposit: (aid: string, action: 'confirm' | 'reject' | 'refunded', body: { reasonCode?: string; reasonText?: string } = {}) =>
+    send<{ appointment: AdminAppointment; counts: { review: number; refund: number } }>(`/api/admin/deposits/${id(aid)}/${action}`, 'POST', body),
+  // SPEC-60: gift cards.
+  giftCards: (q: { q?: string; status?: string }) => api<GiftCardList>(`/api/admin/gift-cards?${qs(q)}`),
+  giftCard: (gid: string) => api<GiftCardDetail>(`/api/admin/gift-cards/${id(gid)}`),
+  issueGiftCard: (body: GiftIssueInput) => send<GiftCardDetail>('/api/admin/gift-cards', 'POST', body),
+  voidGiftCard: (gid: string, reason: string) => send<GiftCardDetail>(`/api/admin/gift-cards/${id(gid)}/void`, 'POST', { reason }),
+  extendGiftCard: (gid: string, months: number) => send<GiftCardDetail>(`/api/admin/gift-cards/${id(gid)}/extend`, 'POST', { months }),
+  resendGiftCard: (gid: string, email?: string) => send<{ ok: boolean; to: string }>(`/api/admin/gift-cards/${id(gid)}/resend`, 'POST', { email }),
+  // SPEC-53: WhatsApp a los clientes.
   messages: (f: MessageFilters) => api<WaMessages>(`/api/admin/messages?${qs(f)}`),
   message: (mid: string) => api<WaMessage>(`/api/admin/messages/${id(mid)}`),
   stopMessage: (mid: string) => send<WaMessage>(`/api/admin/messages/${id(mid)}/stop`, 'POST'),
@@ -199,6 +248,13 @@ export const admin = {
   hideReview: (rid: string, reason = '') => send<{ ok: boolean; status: string }>(`/api/admin/reviews/${id(rid)}/hide`, 'POST', { reason }),
   showReview: (rid: string) => send<{ ok: boolean; status: string }>(`/api/admin/reviews/${id(rid)}/show`, 'POST'),
   audit: (page = 1, action = '') => api<{ page: number; pages: number; total: number; items: AuditItem[] }>(`/api/admin/audit?${qs({ page: String(page), action })}`),
+};
+
+// SPEC-54: lista de espera de todos los barberos (misma forma que el panel del barbero + summary.next7).
+export const adminWaitlist: WaitlistApi = {
+  list: (from, to) => api<WaitlistRange>(`/api/admin/waitlist?${qs({ from, to })}`),
+  notify: (wid) => send<{ waUrl: string }>(`/api/admin/waitlist/${id(wid)}/notify`, 'POST'),
+  remove: (wid) => api<{ ok: boolean }>(`/api/admin/waitlist/${id(wid)}`, { method: 'DELETE' }),
 };
 
 /* CSV: la descarga necesita la cookie de sesión → fetch con credenciales y un blob (un <a href> cross-origin no la manda en Safari). */
@@ -214,4 +270,21 @@ export async function downloadCsv(f: ApptFilters) {
     throw new ApiError(res.status, String(data.error ?? 'error'), String(data.message ?? 'No pudimos exportar'), data);
   }
   return res.blob();
+}
+
+/* SPEC-56: el comprobante se baja con la cookie de sesión (fetch + blob → URL local); un <img src> cross-origin no
+   la manda en Safari. */
+export async function fetchReceipt(appointmentId: string): Promise<{ url: string; type: string }> {
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}/api/wstyle/appointments/${encodeURIComponent(appointmentId)}/deposit/receipt`, { credentials: 'include', signal: AbortSignal.timeout(60_000) });
+  } catch {
+    throw new ApiError(0, 'network', 'No pudimos conectar con la agenda');
+  }
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new ApiError(res.status, String(data.error ?? 'error'), String(data.message ?? 'No pudimos abrir el comprobante'), data);
+  }
+  const blob = await res.blob();
+  return { url: URL.createObjectURL(blob), type: blob.type };
 }

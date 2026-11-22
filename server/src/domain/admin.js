@@ -92,7 +92,7 @@ export const CSV_COLUMNS = [
 ];
 
 
-export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = console, frontUrl = 'http://localhost:5173', env = {}, adminInbox, onlinePayments = { ready: false }, payments = null, billing = null, messaging = null, reviews = null }) {
+export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = console, frontUrl = 'http://localhost:5173', env = {}, adminInbox, onlinePayments = { ready: false }, payments = null, billing = null, deposits = null, messaging = null, reviews = null, giftCards = null }) {
   /* ─── Acceso */
   function requireAdmin(user) {
     if (!user) throw new HttpError(401, 'unauthorized', 'Tu sesión venció. Inicia sesión para continuar.');
@@ -143,7 +143,7 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
     const dayStart = new Date(zonedToUtc(today, '00:00', tz));
     const dayEnd = new Date(zonedToUtc(addDays(today, 1), '00:00', tz));
     const month = monthRange(now, tz);
-    const [pendingBarbers, todayCount, pendingConfirm, refunds, monthStats, unread, alerts, reviewsLast7d] = await Promise.all([
+    const [pendingBarbers, todayCount, pendingConfirm, refunds, monthStats, unread, alerts, depositCounts, reviewsLast7d] = await Promise.all([
       Membership.countDocuments({ businessId: b._id, status: 'pending', submittedAt: { $ne: null } }),
       Appointment.countDocuments({ businessId: b._id, startsAt: { $gte: dayStart, $lt: dayEnd }, status: { $nin: ['cancelada', 'expirada'] } }),
       Appointment.countDocuments({ businessId: b._id, status: 'pendiente' }),
@@ -151,12 +151,14 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
       computeStats(b, month),
       PanelNotification.countDocuments({ userId: user._id, readAt: null }),
       suspendedAlerts(b, now),
+      /* SPEC-56: "3 señas por revisar". */
+      deposits ? deposits.counts(b) : { review: 0, refund: 0 },
       /* SPEC-52: reseñas nuevas de los últimos 7 días. */
       reviews ? reviews.countSince(b, 7) : 0,
     ]);
     return {
       today,
-      cards: { pendingBarbers, today: todayCount, pendingConfirm, refundsPending: refunds, monthRevenueCLP: monthStats.revenue.totalCLP, reviewsLast7d },
+      cards: { pendingBarbers, today: todayCount, pendingConfirm, refundsPending: refunds, monthRevenueCLP: monthStats.revenue.totalCLP, depositsToReview: depositCounts.review, depositsToRefund: depositCounts.refund, reviewsLast7d },
       alerts,
       unread,
       user: publicUser(user),
@@ -471,7 +473,8 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
     }
   }
 
-  const REASSIGNABLE = ['pendiente', 'pendiente_pago', 'confirmada', 'invitacion_enviada'];
+  /* SPEC-56 CB-06: una cita esperando la seña se puede reasignar (la seña y el plazo se conservan). */
+  const REASSIGNABLE = ['pendiente', 'pendiente_pago', 'pendiente_sena', 'confirmada', 'invitacion_enviada'];
   const canCollect = (a) => (a.payment?.method || 'local') === 'local' && ['pendiente', 'pago_pendiente'].includes(a.payment?.status || 'pendiente') && ['confirmada', 'en_curso', 'terminada'].includes(a.status);
 
   function buildFilter(b, q) {
@@ -1140,11 +1143,15 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
       paymentFeePercent: rates.paymentFeePercent,
       paymentFeeVat: rates.paymentFeeVat,
       rules: Object.fromEntries(Object.keys(RULE_LIMITS).map((k) => [k, b.settings?.[k]])),
+      /* SPEC-60: venta de gift cards en línea (apagada por defecto) y vigencia por defecto. */
+      giftCards: { onlineEnabled: Boolean(b.giftCards?.onlineEnabled), validityMonths: b.giftCards?.validityMonths ?? 12 },
+      /* SPEC-54: lista de espera de días llenos (ausente = encendida). */
+      waitlist: b.settings?.waitlistEnabled !== false,
       limits: { rules: RULE_LIMITS, platformFeePercent: [0, MAX_FEE_PERCENT], paymentFeePercent: [0, MAX_PAYMENT_FEE_PERCENT] },
     };
   }
 
-  const ALLOWED_SETTINGS = new Set(['payments', 'platformFeePercent', 'paymentFeePercent', 'paymentFeeVat', 'rules']);
+  const ALLOWED_SETTINGS = new Set(['payments', 'platformFeePercent', 'paymentFeePercent', 'paymentFeeVat', 'rules', 'giftCards', 'waitlist']);
   /* % con hasta 2 decimales dentro de [0, max]. */
   const validPercent = (v, max) => typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= max && Math.abs(Math.round(v * 100) - v * 100) <= 1e-6;
 
@@ -1181,6 +1188,10 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
       if (typeof body.paymentFeeVat !== 'boolean') fields.paymentFeeVat = 'invalid';
       else fee.paymentFeeVat = body.paymentFeeVat;
     }
+    if (body.waitlist !== undefined) {
+      if (typeof body.waitlist !== 'boolean') fields.waitlist = 'invalid';
+      else set['settings.waitlistEnabled'] = body.waitlist;
+    }
     if (body.rules !== undefined) {
       for (const [k, v] of Object.entries(body.rules || {})) {
         const lim = RULE_LIMITS[k];
@@ -1189,13 +1200,21 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
         else set[`settings.${k}`] = v;
       }
     }
+    if (body.giftCards !== undefined) {
+      if (!giftCards || typeof body.giftCards !== 'object' || body.giftCards === null) fields.giftCards = 'invalid';
+      else {
+        const g = await giftCards.setSettings(b, body.giftCards);
+        Object.assign(fields, g.fields);
+        Object.assign(set, g.set);
+      }
+    }
     if (Object.keys(fields).length) throw fieldError(fields, fields['payments.local'] === 'one_required' ? 'Deja al menos una forma de pago habilitada' : 'Revisa los valores');
     const before = await getSettings(user);
     if (Object.keys(set).length) await Business.updateOne({ _id: b._id }, { $set: set });
     /* RN-08: la comisión se congela en cada cita nueva; cambiarla no toca las existentes. */
     if (Object.keys(fee).length) await PlatformSettings.updateOne({ key: 'default' }, { $set: fee }, { upsert: true });
     const after = await getSettings(user);
-    const strip = (x) => ({ payments: x.payments, platformFeePercent: x.platformFeePercent, paymentFeePercent: x.paymentFeePercent, paymentFeeVat: x.paymentFeeVat, rules: x.rules });
+    const strip = (x) => ({ payments: x.payments, platformFeePercent: x.platformFeePercent, paymentFeePercent: x.paymentFeePercent, paymentFeeVat: x.paymentFeeVat, rules: x.rules, giftCards: x.giftCards, waitlist: x.waitlist });
     await audit(user, b, 'settings.update', { entity: 'settings', summary: 'Configuración', before: strip(before), after: strip(after) });
     return after;
   }
@@ -1242,6 +1261,28 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
     const r = await m.setConfig(b, body);
     await audit(user, b, 'settings.whatsapp', { entity: 'settings', summary: `WhatsApp${r.rescheduled ? ` · ${r.rescheduled} recordatorio(s) re-programado(s)` : ''}`, before: r.before, after: r.after });
     return { ...(await m.config(await agenda.business())), rescheduled: r.rescheduled };
+  }
+
+  /* ─── Seña por transferencia (SPEC-56). La auditoría la escribe deposits.js. */
+  async function depositSettings(user) {
+    const b = await ctx(user);
+    return deposits.getSettings(b);
+  }
+
+  async function setDepositSettings(user, body = {}) {
+    const b = await ctx(user);
+    return deposits.setSettings(user, b, body);
+  }
+
+  async function listDeposits(user, q = {}) {
+    const b = await ctx(user);
+    return deposits.list(b, q);
+  }
+
+  async function reviewDeposit(user, id, action, body = {}) {
+    const b = await ctx(user);
+    const appt = action === 'confirm' ? await deposits.confirm(user, b, id) : action === 'reject' ? await deposits.reject(user, b, id, body) : await deposits.markRefunded(user, b, id);
+    return { appointment: await serializeAdmin(appt, b, clock()), counts: await deposits.counts(b) };
   }
 
   /* ─── Mi cuenta */
@@ -1332,6 +1373,10 @@ export function createAdmin({ agenda, pro, clock = Date.now, mailer, logger = co
     retryMessage,
     getWhatsapp,
     setWhatsapp,
+    depositSettings,
+    setDepositSettings,
+    listDeposits,
+    reviewDeposit,
     listReviews,
     hideReview,
     showReview,

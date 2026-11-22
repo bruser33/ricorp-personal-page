@@ -9,13 +9,15 @@ interface Props {
   lastDay: string;
   slotsByDay: Map<string, Slot[]> | null;   // null = cargando
   selected?: string;
+  fullDays?: Set<string>;                   // SPEC-54: días llenos (lista de espera encendida) → tocables
   onSelect: (date: string) => void;
   onMonth: (year: number, month: number) => void;
 }
 
 // Calendario mensual como el de Styluxe (semana desde el lunes, LU MA MI JU VI SA DO). Días sin ninguna hora libre:
-// en gris con "Sin disponibilidad" (deshabilitados). Flechas del teclado para moverse entre días.
-export default function Calendar({ year, month, today, lastDay, slotsByDay, selected, onSelect, onMonth }: Props) {
+// en gris con "Sin disponibilidad" (deshabilitados). SPEC-54: un día lleno (en `fullDays`) se puede tocar y dice
+// "Lleno" (lista de espera); el cerrado sigue deshabilitado. Flechas del teclado para moverse entre días.
+export default function Calendar({ year, month, today, lastDay, slotsByDay, selected, fullDays, onSelect, onMonth }: Props) {
   const grid = monthGrid(year, month);
   const ref = useRef<HTMLDivElement>(null);
   const first = `${year}-${String(month).padStart(2, '0')}-01`;
@@ -53,14 +55,16 @@ export default function Calendar({ year, month, today, lastDay, slotsByDay, sele
           const inRange = d >= today && d <= lastDay;
           const ok = inRange && free(d);
           const loading = slotsByDay === null && inRange;
+          const full = inRange && !loading && !ok && Boolean(fullDays?.has(d));
           const n = slotsByDay?.get(d)?.length ?? 0;
           return (
-            <button key={d} type="button" data-date={d} className={`ag-cal__day${d === selected ? ' is-selected' : ''}${ok ? '' : ' is-off'}`}
-              disabled={!ok} aria-pressed={d === selected}
-              aria-label={`${longDay(d)}: ${loading ? 'cargando' : ok ? `${n} ${n === 1 ? 'hora libre' : 'horas libres'}` : 'Sin disponibilidad'}`}
+            <button key={d} type="button" data-date={d} className={`ag-cal__day${d === selected ? ' is-selected' : ''}${ok ? '' : full ? ' is-full' : ' is-off'}`}
+              disabled={!ok && !full} aria-pressed={d === selected}
+              aria-label={`${longDay(d)}: ${loading ? 'cargando' : ok ? `${n} ${n === 1 ? 'hora libre' : 'horas libres'}` : full ? 'Lleno, lista de espera' : 'Sin disponibilidad'}`}
               onClick={() => onSelect(d)}>
               <span className="ag-cal__num">{Number(d.slice(8))}</span>
-              {inRange && !loading && !ok && <span className="ag-cal__none" aria-hidden="true">Sin disp.</span>}
+              {full && <span className="ag-cal__full" aria-hidden="true">Lleno</span>}
+              {inRange && !loading && !ok && !full && <span className="ag-cal__none" aria-hidden="true">Sin disp.</span>}
             </button>
           );
         })}

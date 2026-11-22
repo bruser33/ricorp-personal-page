@@ -1,7 +1,7 @@
 // Funciones puras del panel del super admin (probadas en util.test.ts).
 import type { AdminService, ExportContent, MembershipStatus, WeekDay } from './api';
 
-export type AdminSection = 'inicio' | 'barberos' | 'citas' | 'pagos' | 'rendicion' | 'mensajes' | 'carta' | 'resenas' | 'horario' | 'estadisticas' | 'difusion' | 'configuracion' | 'auditoria';
+export type AdminSection = 'inicio' | 'barberos' | 'citas' | 'pagos' | 'rendicion' | 'mensajes' | 'gift-cards' | 'carta' | 'resenas' | 'horario' | 'estadisticas' | 'difusion' | 'configuracion' | 'auditoria';
 export const SECTIONS: { key: AdminSection; label: string; path: string }[] = [
   { key: 'inicio', label: 'Inicio', path: '/wstyle/admin/' },
   { key: 'barberos', label: 'Barberos', path: '/wstyle/admin/barberos/' },
@@ -11,6 +11,8 @@ export const SECTIONS: { key: AdminSection; label: string; path: string }[] = [
   { key: 'rendicion', label: 'Rendición', path: '/wstyle/admin/rendicion/' },
   // SPEC-53: WhatsApp a los clientes (por salir, enviados y fallidos).
   { key: 'mensajes', label: 'Mensajes', path: '/wstyle/admin/mensajes/' },
+  // SPEC-60: gift cards (emitir, saldo, anular).
+  { key: 'gift-cards', label: 'Gift cards', path: '/wstyle/admin/gift-cards/' },
   { key: 'carta', label: 'Carta', path: '/wstyle/admin/carta/' },
   // SPEC-52: reseñas de clientes (ocultar / mostrar).
   { key: 'resenas', label: 'Reseñas', path: '/wstyle/admin/resenas/' },
@@ -24,7 +26,7 @@ export const SECTIONS: { key: AdminSection; label: string; path: string }[] = [
 
 /* /wstyle/admin/carta/ → 'carta'. Cualquier otra cosa bajo /wstyle/admin/ → 'inicio'. */
 export function sectionFromPath(pathname: string): AdminSection {
-  const m = (pathname.replace(/\/+$/, '') + '/').match(/\/wstyle\/admin\/([a-z]+)\/$/);
+  const m = (pathname.replace(/\/+$/, '') + '/').match(/\/wstyle\/admin\/([a-z-]+)\/$/);
   const key = m?.[1] as AdminSection | undefined;
   return key && SECTIONS.some((s) => s.key === key) ? key : 'inicio';
 }
@@ -42,7 +44,7 @@ export const paymentLabel = (p: { method: string; status: string }) =>
   p.method === 'online' && p.status === 'pendiente' ? 'Esperando el pago' : PAYMENT_STATUS_LABEL[p.status] ?? p.status;
 export const STATUS_OPTIONS: [string, string][] = [
   ['pendiente', 'Esperando confirmación'], ['confirmada', 'Confirmada'], ['propuesta_cambio', 'Propuesta de cambio'], ['invitacion_enviada', 'Invitación enviada'],
-  ['en_curso', 'En curso'], ['terminada', 'Terminada'], ['cancelada', 'Cancelada'], ['expirada', 'Expirada'], ['no_asistio', 'No asistió'], ['pendiente_pago', 'Esperando el pago'],
+  ['en_curso', 'En curso'], ['terminada', 'Terminada'], ['cancelada', 'Cancelada'], ['expirada', 'Expirada'], ['no_asistio', 'No asistió'], ['pendiente_pago', 'Esperando el pago'], ['pendiente_sena', 'Pendiente de seña'],
 ];
 
 export const WEEKDAY_NAMES = ['', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
@@ -113,6 +115,7 @@ export function durationProblem(v: string): string | null {
 
 /* Nombre legible de una acción de auditoría. */
 export const AUDIT_LABEL: Record<string, string> = {
+  'giftcard.issue': 'Emitió gift card', 'giftcard.void': 'Anuló gift card', 'giftcard.extend': 'Extendió gift card', 'giftcard.resend': 'Reenvió gift card',
   'barber.approve': 'Aprobó barbero', 'barber.reject': 'Rechazó barbero', 'barber.suspend': 'Suspendió barbero', 'barber.reactivate': 'Reactivó barbero', 'barber.reopen': 'Reabrió postulación',
   'barber.profile': 'Editó perfil de barbero', 'barber.services': 'Editó servicios de barbero', 'barber.availability': 'Editó disponibilidad de barbero', 'barber.home-service': 'Editó domicilio de barbero',
   'appointment.confirm': 'Confirmó cita', 'appointment.reject': 'Rechazó cita', 'appointment.cancel': 'Canceló cita', 'appointment.propose': 'Propuso cambio', 'appointment.start': 'Inició cita',

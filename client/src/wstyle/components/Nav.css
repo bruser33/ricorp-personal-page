@@ -15,6 +15,12 @@
 }
 .nav__logo { font: 400 26px/1 var(--font-display); letter-spacing: .08em; text-transform: uppercase; text-decoration: none; margin-right: auto; }
 .nav__menu { display: flex; align-items: center; gap: 28px; }
+.nav__account {
+  position: relative; z-index: 2; display: inline-flex; flex-shrink: 0; align-items: center; gap: 6px;
+  min-height: 44px; padding: 0 12px; border: 1px solid var(--brass-line); border-radius: 24px;
+  background: var(--ink); color: var(--brass); font: 600 .875rem/1 var(--font-body); text-decoration: none;
+}
+.nav__account:hover, .nav__account:focus-visible { color: var(--bone); border-color: var(--brass); }
 .nav-links { display: flex; gap: 28px; list-style: none; margin: 0; padding: 0; }
 .nav-links a { font: 600 12px/1 var(--font-body); letter-spacing: var(--tracking-caps); text-decoration: none; color: var(--muted); padding: 8px 0; }
 .nav-links a:hover { color: var(--bone); }
