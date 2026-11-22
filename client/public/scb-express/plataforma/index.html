@@ -1,0 +1,791 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Plataforma SCB</title>
+<meta name="description" content="Demo de la plataforma SCB Express: órdenes, carga masiva, etiquetas, control de rutas, reportes y seguimiento público.">
+<link rel="icon" href="../img/marca-scb-azul.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="../vendor/qrcode.min.js"></script>
+<script src="../vendor/JsBarcode.all.min.js"></script>
+<style>
+:root{
+  --azul:#1546D1; --azul-600:#1239A8; --azul-50:#EAF0FD; --azul-100:#D6E2FB;
+  --navy:#0A1A3D; --navy-2:#122754; --tinta:#0E1830; --gris:#56627A; --linea:#DCE3EF;
+  --papel:#F5F7FB; --blanco:#fff; --ambar:#F5A524; --verde:#17A673; --rojo:#D93B3B;
+  --display:"Archivo",system-ui,sans-serif; --body:"Inter",system-ui,sans-serif; --mono:"JetBrains Mono",ui-monospace,monospace;
+  --side:248px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--papel);color:var(--tinta);font:400 14.5px/1.5 var(--body);-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--azul);outline-offset:2px;border-radius:6px}
+h1,h2,h3{font-family:var(--display);font-stretch:110%;letter-spacing:-.015em;font-weight:700;line-height:1.1}
+.mono{font-family:var(--mono)}
+[hidden]{display:none !important}
+
+/* layout */
+.app{display:grid;grid-template-columns:var(--side) 1fr;min-height:100vh}
+.side{background:var(--navy);color:#C9D6F5;padding:20px 14px;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;gap:4px;overflow-y:auto}
+.side .brand{display:flex;gap:10px;align-items:center;padding:4px 8px 22px;color:#fff;font:800 17px/1 var(--display);font-stretch:118%}
+.side .brand img{width:34px}
+.side .brand small{display:block;font:500 9.5px/1 var(--mono);letter-spacing:.14em;color:#8FA6DA;margin-top:4px;font-stretch:100%}
+.side .grp{font:500 10.5px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:#6F86BE;padding:16px 10px 8px}
+.side a{display:flex;gap:10px;align-items:center;padding:9px 10px;border-radius:10px;font-size:14px;font-weight:500}
+.side a svg{width:18px;height:18px;flex:none;opacity:.8}
+.side a:hover{background:rgba(255,255,255,.06);color:#fff}
+.side a[aria-current="page"]{background:var(--azul);color:#fff}
+.side .me{margin-top:auto;border-top:1px solid rgba(255,255,255,.1);padding:14px 8px 0;display:flex;gap:10px;align-items:center;font-size:13px}
+.side .me i{width:32px;height:32px;border-radius:50%;background:var(--azul);display:grid;place-items:center;font:600 12px/1 var(--mono);color:#fff;font-style:normal}
+.side .me small{display:block;color:#8FA6DA}
+.main{min-width:0;display:flex;flex-direction:column}
+.top{height:64px;display:flex;align-items:center;justify-content:space-between;padding:0 28px;border-bottom:1px solid var(--linea);background:rgba(245,247,251,.9);backdrop-filter:blur(10px);position:sticky;top:0;z-index:10;gap:16px}
+.top .crumb{font:500 12px/1 var(--mono);color:var(--gris);letter-spacing:.04em}
+.top .crumb b{color:var(--tinta);font-weight:600}
+.top .find{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--linea);border-radius:999px;padding:7px 8px 7px 14px;width:min(340px,50vw)}
+.top .find input{border:0;outline:0;flex:1;min-width:0;font:500 13px/1 var(--mono);background:transparent}
+.top .find button{border:0;background:var(--azul);color:#fff;border-radius:999px;padding:6px 12px;font-size:12.5px;font-weight:600;cursor:pointer}
+.menu-btn{display:none;border:1px solid var(--linea);background:#fff;border-radius:10px;padding:8px 10px;cursor:pointer}
+.view{padding:28px;max-width:1400px;width:100%}
+.vh{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;margin-bottom:22px;flex-wrap:wrap}
+.vh h1{font-size:30px}
+.vh p{color:var(--gris);margin-top:6px}
+.acts{display:flex;gap:8px;flex-wrap:wrap}
+@media(max-width:960px){
+  .app{grid-template-columns:1fr}
+  .side{position:fixed;inset:0 auto 0 0;width:var(--side);z-index:40;transform:translateX(-100%);transition:transform .25s}
+  .side.open{transform:none}
+  .menu-btn{display:inline-block}
+  .top{padding:0 16px}.top .crumb{display:none}
+  .view{padding:18px 16px}
+}
+
+/* piezas */
+.btn{display:inline-flex;align-items:center;gap:8px;border-radius:10px;padding:10px 14px;font-weight:600;font-size:13.5px;border:1px solid transparent;cursor:pointer;white-space:nowrap}
+.btn-azul{background:var(--azul);color:#fff}.btn-azul:hover{background:var(--azul-600)}
+.btn-linea{background:#fff;border-color:var(--linea)}.btn-linea:hover{border-color:#9FB6EE}
+.card{background:#fff;border:1px solid var(--linea);border-radius:16px;padding:20px}
+.card h3{font-size:16px;font-stretch:104%;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.grid{display:grid;gap:16px}
+.kpis{grid-template-columns:repeat(5,1fr)}
+.kpi span{font-size:12.5px;color:var(--gris)}
+.kpi b{display:block;font:700 30px/1.1 var(--display);font-stretch:110%;margin:6px 0 2px}
+.kpi small{font:500 11.5px/1 var(--mono)}
+.up{color:var(--verde)}.down{color:var(--rojo)}
+@media(max-width:1180px){.kpis{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:620px){.kpis{grid-template-columns:1fr 1fr}}
+.two{grid-template-columns:1.6fr 1fr}
+@media(max-width:1060px){.two{grid-template-columns:1fr}}
+.field{display:flex;flex-direction:column;gap:6px;font-size:12.5px;font-weight:500;color:var(--gris)}
+.field input,.field select,.field textarea{background:#fff;border:1px solid var(--linea);border-radius:10px;padding:10px 12px;color:var(--tinta);font-size:14px;outline:0;width:100%}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--azul);box-shadow:0 0 0 3px var(--azul-50)}
+.field .err{color:var(--rojo);font-size:12px}
+.form{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.form .s2{grid-column:span 2}.form .s4{grid-column:1/-1}
+@media(max-width:900px){.form{grid-template-columns:1fr 1fr}.form .s4,.form .s2{grid-column:1/-1}}
+@media(max-width:480px){.form{grid-template-columns:1fr}}
+.sec{font:500 11px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--azul);margin:6px 0 2px;grid-column:1/-1;display:flex;gap:10px;align-items:center}
+.sec::after{content:"";flex:1;height:1px;background:var(--linea)}
+.filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;align-items:end}
+.tablebox{overflow-x:auto;border:1px solid var(--linea);border-radius:14px;background:#fff}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{font:500 11px/1.2 var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--gris);text-align:left;padding:12px 14px;background:#FAFBFE;border-bottom:1px solid var(--linea);white-space:nowrap}
+td{padding:12px 14px;border-bottom:1px solid var(--linea);white-space:nowrap}
+tr:last-child td{border-bottom:0}
+tbody tr.click{cursor:pointer}
+tbody tr.click:focus-visible td{background:var(--azul-50);outline:0}
+tbody tr.click:focus-visible{outline:2px solid var(--azul);outline-offset:-2px}
+tbody tr.click:hover td{background:var(--azul-50)}
+td.od{font:600 13px/1 var(--mono);color:var(--azul)}
+.pill{display:inline-flex;align-items:center;gap:6px;font:600 11px/1 var(--mono);padding:5px 9px;border-radius:999px;white-space:nowrap}
+.pill::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.s-ruta{background:#FFF3DC;color:#9A5B00}.s-ret{background:var(--azul-50);color:var(--azul)}.s-ent{background:#E3F6EE;color:#0E7A52}.s-no{background:#FDE8E8;color:#B42323}
+.s-act{background:#E3F6EE;color:#0E7A52}.s-ina{background:#FDE8E8;color:#B42323}
+.seg{display:inline-flex;background:#E8EDF7;border-radius:12px;padding:4px;gap:4px;margin-bottom:18px}
+.seg button{border:0;background:transparent;padding:8px 14px;border-radius:9px;font-weight:600;font-size:13.5px;cursor:pointer;color:var(--gris)}
+.seg button[aria-pressed="true"]{background:#fff;color:var(--tinta);box-shadow:0 1px 3px rgba(14,24,48,.12)}
+.drop{border:1.5px dashed #9FB6EE;border-radius:16px;background:var(--azul-50);padding:28px;text-align:center;color:var(--gris)}
+.drop b{display:block;color:var(--tinta);font:700 18px/1.3 var(--display);font-stretch:106%;margin-bottom:4px}
+.warn{display:flex;gap:12px;align-items:flex-start;background:#FFF7E6;border:1px solid #F7D9A0;border-radius:12px;padding:12px 14px;font-size:13.5px;margin:14px 0}
+.warn b{color:#9A5B00}
+.toast{position:fixed;right:20px;bottom:20px;background:var(--navy);color:#fff;border-radius:12px;padding:12px 16px;font-size:14px;box-shadow:0 20px 40px rgba(10,26,61,.3);z-index:60;transition:opacity .3s,transform .3s}
+.toast.hide{opacity:0;transform:translateY(10px);pointer-events:none}
+.drawer{position:fixed;inset:0 0 0 auto;width:min(520px,100vw);background:#fff;z-index:50;box-shadow:-30px 0 60px rgba(10,26,61,.2);padding:24px;overflow-y:auto;transform:translateX(100%);transition:transform .3s}
+.drawer.open{transform:none}
+.drawer h2{font-size:22px;margin-bottom:4px}
+.scrim{position:fixed;inset:0;background:rgba(10,26,61,.35);z-index:39}
+
+/* gráficos */
+.bars{display:flex;align-items:flex-end;gap:10px;height:180px;padding-top:10px}
+.bars div{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%;justify-content:flex-end}
+.bars i{width:100%;max-width:38px;border-radius:8px 8px 3px 3px;background:var(--azul);display:block}
+.bars i.n{background:var(--azul-100)}
+.bars span{font:500 11px/1 var(--mono);color:var(--gris)}
+.donut{display:flex;gap:20px;align-items:center}
+.donut svg{width:140px;height:140px;flex:none}
+.legend{display:grid;gap:8px;font-size:13px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:8px}
+
+/* mapa */
+.map{position:relative;border-radius:14px;overflow:hidden;background:#E9EEF8;min-height:320px}
+.map svg{width:100%;height:100%;display:block}
+
+/* login */
+.login{min-height:100vh;display:grid;grid-template-columns:1.05fr .95fr}
+.login .art{background:linear-gradient(170deg,#071232,#0F2A6B 60%,#1546D1);color:#fff;padding:48px;display:flex;flex-direction:column;justify-content:space-between;position:relative;overflow:hidden}
+.login .art h2{font-size:clamp(30px,3.6vw,48px);max-width:14ch;font-stretch:114%}
+.login .art p{color:#B9C9F0;max-width:44ch;margin-top:14px}
+.login .art .road{position:absolute;inset:auto 0 0 0;height:36%;opacity:.9}
+.login .art > div:nth-child(2){margin-bottom:34%}
+.login .form-side{display:grid;place-items:center;padding:32px}
+.login .box{width:min(400px,100%)}
+.login .box img{width:150px;margin-bottom:28px}
+.login .box h1{font-size:30px;margin-bottom:6px}
+.login .box > p{color:var(--gris);margin-bottom:24px}
+.login .box .field{margin-bottom:14px}
+.login .alt{margin-top:18px;font-size:13.5px;color:var(--gris);text-align:center}
+.login .alt a{color:var(--azul);font-weight:600}
+.follow{margin-top:34px;border:1px solid var(--linea);border-radius:16px;padding:16px;background:#fff}
+.follow b{font:700 15px/1.2 var(--display);font-stretch:106%}
+.follow form{display:flex;gap:8px;margin-top:10px}
+.follow input{flex:1;min-width:0;border:1px solid var(--linea);border-radius:10px;padding:10px 12px;font:500 13px/1 var(--mono);outline:0}
+@media(max-width:880px){.login{grid-template-columns:1fr}.login .art{min-height:300px;padding:28px}}
+
+/* seguimiento público */
+.pub{min-height:100vh;background:var(--papel)}
+.pub header{background:var(--navy);color:#fff;padding:18px 0}
+.pub .in{max-width:1080px;margin:0 auto;padding:0 20px}
+.pub header .in{display:flex;justify-content:space-between;align-items:center;gap:16px}
+.pub header img{width:120px}
+.pub .hero{background:linear-gradient(170deg,#0A1A3D,#1546D1);color:#fff;padding:34px 0 80px}
+.pub .hero h1{font-size:clamp(28px,4vw,42px);font-stretch:114%}
+.pub .hero .od{font:600 14px/1 var(--mono);color:#9DB9FF;letter-spacing:.06em}
+.pub .state{display:inline-flex;align-items:center;gap:10px;margin-top:16px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);padding:9px 14px;border-radius:999px;font-weight:600}
+.pub .state i{width:10px;height:10px;border-radius:50%;background:#3BE0A0;box-shadow:0 0 0 5px rgba(59,224,160,.25)}
+.pub .body{margin-top:-52px;display:grid;grid-template-columns:1fr 1fr;gap:16px;padding-bottom:50px}
+.pub .full{grid-column:1/-1}
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:0;position:relative}
+.steps div{text-align:center;position:relative;padding-top:30px;font-size:13px}
+.steps div::before{content:"";position:absolute;top:8px;left:50%;width:16px;height:16px;margin-left:-8px;border-radius:50%;background:#fff;border:3px solid var(--azul-100);z-index:1}
+.steps div::after{content:"";position:absolute;top:14px;left:-50%;width:100%;height:3px;background:var(--azul-100)}
+.steps div:first-child::after{display:none}
+.steps div.done::before{background:var(--azul);border-color:var(--azul)}
+.steps div.done::after{background:var(--azul)}
+.steps div.last::before{background:var(--verde);border-color:var(--verde)}
+.steps div.no::before{background:var(--rojo);border-color:var(--rojo)}
+.steps b{display:block;font-weight:600}
+.steps span{color:var(--gris);font:500 11.5px/1.4 var(--mono)}
+.kv{display:grid;grid-template-columns:1fr 1fr;gap:14px 20px}
+.kv div span{display:block;font:500 11px/1.2 var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--gris);margin-bottom:3px}
+.kv div b{font-weight:600}
+.photo{border-radius:12px;overflow:hidden;background:#DCE6F8;aspect-ratio:4/3;position:relative}
+.photo svg{width:100%;height:100%;display:block}
+.photo .stamp{position:absolute;left:10px;bottom:10px;background:rgba(10,26,61,.8);color:#fff;font:500 11px/1.4 var(--mono);padding:6px 9px;border-radius:8px}
+@media(max-width:760px){.pub .body{grid-template-columns:1fr}.steps{grid-template-columns:repeat(2,1fr);row-gap:18px}.steps div:nth-child(3)::after{display:none}.kv{grid-template-columns:1fr}}
+
+/* etiqueta 100×150 */
+.labels{display:flex;gap:22px;flex-wrap:wrap;align-items:flex-start}
+.label{width:100mm;height:150mm;background:#fff;color:#000;border:1px solid #cfd6e4;border-radius:4px;padding:4mm;display:grid;grid-template-rows:auto auto 1fr auto auto auto;gap:2.4mm;font:500 9pt/1.25 var(--body);box-shadow:0 14px 34px rgba(14,24,48,.12);flex:none}
+.label .lh{display:flex;justify-content:space-between;align-items:center;border-bottom:.6mm solid #000;padding-bottom:2mm}
+.label .lh img{height:12mm;width:auto}
+.label .svc{font:800 13pt/1 var(--display);font-stretch:112%;text-align:right}
+.label .svc small{display:block;font:600 6.5pt/1.3 var(--mono);letter-spacing:.06em}
+.label .dest{background:#000;color:#fff;padding:2mm 3mm;display:flex;justify-content:space-between;align-items:center}
+.label .dest .k{font:600 6.5pt/1 var(--mono);letter-spacing:.1em}
+.label .dest .city{font:800 22pt/1 var(--display);font-stretch:108%;letter-spacing:-.01em;text-transform:uppercase}
+.label .dest .zone{font:700 12pt/1 var(--mono);border:.5mm solid #fff;padding:1mm 2mm}
+.label .lb{display:grid;grid-template-columns:1fr 30mm;gap:3mm;font-size:10pt;line-height:1.38;align-content:center}
+.label .lb b{font-weight:700}
+.label .qr{width:30mm;height:30mm;align-self:start}
+.label .flags{display:flex;gap:1.5mm;flex-wrap:wrap}
+.label .flags span{border:.5mm solid #000;padding:1mm 2mm;font:700 7.5pt/1 var(--mono)}
+.label .flags .inv{background:#000;color:#fff}
+.label .bc{text-align:center}
+.label .bc svg{width:100%;height:20mm;display:block}
+.label .qr{background:#fff}
+.label .bc span{font:600 9pt/1.4 var(--mono);letter-spacing:.12em}
+.label .lf{display:flex;justify-content:space-between;align-items:center;border-top:.6mm solid #000;padding-top:2mm;font:700 9pt/1 var(--mono)}
+.label .lf .bulto{font:800 15pt/1 var(--display);font-stretch:108%}
+@media screen and (max-width:440px){.label{zoom:.86}}
+@page{size:100mm 150mm;margin:0}
+@media print{
+  body{background:#fff}
+  .side,.top,.no-print,.vh{display:none !important}
+  .app{display:block}.view{padding:0}
+  .labels{display:block}
+  .label{box-shadow:none;border:0;border-radius:0;page-break-after:always;break-after:page}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none !important;animation:none !important}}
+</style>
+</head>
+<body>
+
+<!-- Vistas sin barra lateral -->
+<section data-view="login" class="login" hidden>
+  <div class="art">
+    <div style="display:flex;gap:10px;align-items:center;font:800 18px/1 var(--display);font-stretch:118%"><img src="../img/marca-scb-blanco.png" alt="" style="width:36px">SCB Express</div>
+    <div style="position:relative;z-index:1"><h2>Tu operación de despacho, en un solo lugar.</h2><p>Crea órdenes, imprime etiquetas, sigue cada ruta y descarga tus reportes. Entra con la cuenta de tu empresa.</p></div>
+    <svg class="road" viewBox="0 0 800 300" preserveAspectRatio="none" aria-hidden="true"><path d="M360 0 L440 0 L800 300 L0 300 Z" fill="#06102B" opacity=".6"/><path d="M390 0 L170 300 M410 0 L630 300" stroke="#9DB9FF" stroke-width="2" opacity=".7"/><path d="M400 0 L400 300" stroke="#fff" stroke-width="4" stroke-dasharray="14 26"/></svg>
+  </div>
+  <div class="form-side">
+    <div class="box">
+      <img src="../img/logo-scb-azul.png" alt="SCB Express">
+      <h1>Iniciar sesión</h1>
+      <p>Ingresa con el correo de tu empresa.</p>
+      <form id="login-form">
+        <label class="field">Correo electrónico<input type="email" value="despachos@distribuidoracentral.cl" required></label>
+        <label class="field">Clave<input type="password" value="demo-scb" required></label>
+        <button class="btn btn-azul" style="width:100%;justify-content:center;padding:12px" type="submit">Ingresar</button>
+      </form>
+      <p class="alt">¿No tienes una cuenta? <a href="#/login" data-toast="El registro de clientes lo aprueba SCB.">Regístrate</a></p>
+      <div class="follow"><b>Sigue tu envío</b><form data-follow><input placeholder="Ingresa número de orden" aria-label="Número de orden"><button class="btn btn-azul" type="submit">Buscar</button></form></div>
+    </div>
+  </div>
+</section>
+
+<section data-view="seguimiento" class="pub" hidden>
+  <header><div class="in"><a href="../"><img src="../img/logo-scb-blanco.png" alt="SCB Express"></a><a class="btn btn-linea" href="#/login" style="background:transparent;color:#fff;border-color:rgba(255,255,255,.3)">Ingresar</a></div></header>
+  <div class="hero"><div class="in">
+    <p class="od" id="pub-od">ORDEN 0004 8213 77</p>
+    <h1>Rastreo de guía</h1>
+    <span class="state"><i></i><span id="pub-state">Entregado · 04 nov 09:41</span></span>
+  </div></div>
+  <div class="in body">
+    <div class="card full" id="pub-missing" hidden>
+      <h3>No existe información de la orden</h3>
+      <p style="color:var(--gris)">Revisa el número que aparece bajo el código de barras de tu etiqueta (10 dígitos) o pide el link de seguimiento a quien te envió el paquete.</p>
+      <form data-follow class="follow" style="margin-top:14px;border:0;padding:0"><div style="display:flex;gap:8px"><input placeholder="Ingresa número de orden" aria-label="Número de orden" style="flex:1;min-width:0;border:1px solid var(--linea);border-radius:10px;padding:10px 12px;font:500 13px/1 var(--mono)"><button class="btn btn-azul" type="submit">Buscar</button></div></form>
+    </div>
+    <div class="card full" data-found>
+      <div class="steps" id="pub-steps"></div>
+    </div>
+    <div class="card" data-found>
+      <h3>Datos de la orden</h3>
+      <div class="kv" id="pub-kv"></div>
+    </div>
+    <div class="card" data-found id="pub-wait" hidden>
+      <h3>Evidencia de entrega <span class="pill s-ruta" id="pub-wait-pill">Pendiente</span></h3>
+      <p style="color:var(--gris)" id="pub-wait-text">La foto, el nombre de quien recibe y las coordenadas aparecen aquí apenas el chofer cierra la entrega.</p>
+    </div>
+    <div class="card" data-found id="pub-proof">
+      <h3>Evidencia de entrega <span class="pill s-ent">Con foto</span></h3>
+      <div class="photo">
+        <svg viewBox="0 0 400 300" aria-label="Foto de la entrega: tres cajas en la recepción">
+          <rect width="400" height="300" fill="#DCE6F8"/><rect x="0" y="200" width="400" height="100" fill="#C3D2EE"/>
+          <rect x="250" y="40" width="110" height="190" rx="4" fill="#AFC3EA"/><rect x="262" y="52" width="86" height="166" rx="2" fill="#C9D7F2"/><circle cx="338" cy="140" r="4" fill="#0A1A3D"/>
+          <g><rect x="70" y="150" width="110" height="80" fill="#C99A62"/><rect x="70" y="150" width="110" height="14" fill="#B5864F"/><rect x="118" y="150" width="14" height="80" fill="#E7D3B5"/><rect x="88" y="186" width="44" height="26" fill="#fff"/><rect x="92" y="190" width="18" height="18" fill="#0A1A3D"/></g>
+          <g><rect x="150" y="190" width="90" height="56" fill="#D4A870"/><rect x="190" y="190" width="12" height="56" fill="#EAD9BE"/><rect x="160" y="210" width="30" height="20" fill="#fff"/></g>
+          <g><rect x="95" y="100" width="70" height="52" fill="#DDB27C"/><rect x="124" y="100" width="12" height="52" fill="#EFE0C6"/></g>
+        </svg>
+        <span class="stamp" id="pub-stamp">04/11/2026 09:41 · −34.1701, −70.7406</span>
+      </div>
+    </div>
+    <div class="card full" data-found id="pub-map">
+      <h3>Punto de entrega</h3>
+      <div class="map" style="min-height:260px"><svg viewBox="0 0 1000 300" preserveAspectRatio="xMidYMid slice" aria-label="Mapa del punto de entrega en Rancagua">
+        <rect width="1000" height="300" fill="#E9EEF8"/>
+        <g stroke="#fff" stroke-width="14"><path d="M0 80 H1000 M0 210 H1000 M140 0 V300 M420 0 V300 M700 0 V300 M880 0 V300"/></g>
+        <g stroke="#fff" stroke-width="6"><path d="M0 140 H1000 M280 0 V300 M560 0 V300"/></g>
+        <path d="M-20 260 C200 230 300 120 520 140 S820 60 1020 90" stroke="#C7D6F3" stroke-width="22" fill="none"/>
+        <rect x="600" y="160" width="80" height="40" rx="6" fill="#D6E2FB"/>
+        <circle cx="560" cy="140" r="34" fill="rgba(21,70,209,.15)"/><circle cx="560" cy="140" r="11" fill="#1546D1" stroke="#fff" stroke-width="4"/>
+        <text x="585" y="128" font-family="JetBrains Mono" font-size="15" fill="#0A1A3D" font-weight="600" id="pub-addr">Av. Brasil 1021</text>
+      </svg></div>
+    </div>
+  </div>
+</section>
+
+<!-- App con barra lateral -->
+<div class="app" id="app" hidden>
+  <aside class="side" id="side" aria-label="Menú">
+    <div class="brand"><img src="../img/marca-scb-blanco.png" alt=""><span>SCB Express<small>PLATAFORMA</small></span></div>
+    <a href="#/dashboard" data-nav="dashboard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="9" rx="2"/><rect x="14" y="3" width="7" height="5" rx="2"/><rect x="14" y="12" width="7" height="9" rx="2"/><rect x="3" y="16" width="7" height="5" rx="2"/></svg>Inicio</a>
+    <div class="grp">Órdenes</div>
+    <a href="#/nueva" data-nav="nueva"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12h14"/></svg>Crear orden</a>
+    <a href="#/ordenes" data-nav="ordenes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Consultar órdenes</a>
+    <a href="#/etiqueta" data-nav="etiqueta"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4h16v16H4z"/><path d="M8 8v8M11 8v8M13 8v8M16 8v8"/></svg>Etiquetas</a>
+    <a href="#/reporte" data-nav="reporte"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 20V10M12 20V4M19 20v-7"/></svg>Reporte de envíos</a>
+    <a href="#/documentos" data-nav="documentos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/></svg>Documentos</a>
+    <div class="grp">Admin</div>
+    <a href="#/rutas" data-nav="rutas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="6" r="2.5"/><path d="M8.5 18H15a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h6.5"/></svg>Control de rutas</a>
+    <a href="#/clientes" data-nav="clientes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M21.5 20a6.5 6.5 0 0 0-4-6"/></svg>Clientes</a>
+    <a href="#/seguimiento" data-nav="seguimiento"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>Seguimiento público</a>
+    <div class="me"><i>DC</i><div>Distribuidora Central<small>Admin · demo</small></div></div>
+  </aside>
+
+  <div class="main">
+    <div class="top">
+      <button class="menu-btn" id="menu-btn" aria-label="Abrir menú" aria-expanded="false" aria-controls="side">☰</button>
+      <span class="crumb">SCB EXPRESS / <b id="crumb">INICIO</b></span>
+      <form class="find" data-follow role="search"><input placeholder="Buscar OD · ej. 0004821377" aria-label="Buscar OD"><button type="submit">Buscar</button></form>
+    </div>
+
+    <!-- INICIO -->
+    <section class="view" data-view="dashboard" hidden>
+      <div class="vh"><div><h1>Buenos días, Distribuidora Central</h1><p>Martes 4 de noviembre · ruta overnight del lunes cerrada a las 11:52.</p></div>
+        <div class="acts"><a class="btn btn-linea" href="#/nueva?excel=1">Subir Excel</a><a class="btn btn-azul" href="#/nueva">+ Crear orden</a></div></div>
+      <div class="grid kpis">
+        <div class="card kpi"><span>Órdenes de hoy</span><b>184</b><small class="up">▲ 12% vs. lunes</small></div>
+        <div class="card kpi"><span>En ruta</span><b>61</b><small class="mono" style="color:var(--gris)">3 camiones</small></div>
+        <div class="card kpi"><span>Entregadas</span><b>118</b><small class="up">antes de 12:00</small></div>
+        <div class="card kpi"><span>No entregadas</span><b>5</b><small class="down">2 con comentario</small></div>
+        <div class="card kpi"><span>Efectividad</span><b>97,3%</b><small class="up">▲ 0,8 pts</small></div>
+      </div>
+      <div class="grid two" style="margin-top:16px">
+        <div class="card"><h3>Órdenes por día <span class="pill s-ret">Últimos 10 días</span></h3><div class="bars" id="bars"></div></div>
+        <div class="card"><h3>Estado de las entregas</h3><div class="donut" id="donut"></div></div>
+      </div>
+      <div class="card" style="margin-top:16px"><h3>Últimas órdenes <a class="btn btn-linea" href="#/ordenes">Ver todas</a></h3><div class="tablebox" style="border:0"><table id="recent"></table></div></div>
+    </section>
+
+    <!-- CREAR ORDEN -->
+    <section class="view" data-view="nueva" hidden>
+      <div class="vh"><div><h1>Crear orden</h1><p>Una orden con el formulario o todas tus órdenes del día desde un Excel.</p></div></div>
+      <div class="seg" role="group" aria-label="Modo"><button aria-pressed="true" data-mode="una">Una orden</button><button aria-pressed="false" data-mode="excel">Desde Excel</button></div>
+      <div class="card" id="mode-una">
+        <form class="form" id="od-form" novalidate>
+          <div class="sec">Ruta</div>
+          <label class="field s2">Ciudad de origen<input list="cities" name="origen" value="Santiago" required></label>
+          <label class="field s2">Ciudad de destino<input list="cities" name="destino" placeholder="Escribe la ciudad" required><span class="err" role="alert" hidden>Ciudad no encontrada</span></label>
+          <div class="sec">Destinatario</div>
+          <label class="field">Guía<input name="guia" placeholder="Opcional"></label>
+          <label class="field">Destinatario<input name="destinatario" placeholder="Nombre o empresa" required></label>
+          <label class="field s2">Dirección<input name="direccion" placeholder="Calle, número, oficina" required></label>
+          <label class="field">Número contacto<input name="contacto" inputmode="tel" placeholder="+56 9"></label>
+          <label class="field">Centro de costos<input name="cc" placeholder="Opcional"></label>
+          <div class="sec">Carga</div>
+          <label class="field">Bultos<input name="bultos" type="number" min="1" max="20" step="1" value="1" required></label>
+          <label class="field">Kilos<input name="kilos" type="number" min="0" step="0.1" value="2.4"></label>
+          <label class="field">Alto (cm)<input name="alto" type="number" min="1" max="999" step="1" value="18" required></label>
+          <label class="field">Ancho (cm)<input name="ancho" type="number" min="1" max="999" step="1" value="20" required></label>
+          <label class="field">Largo (cm)<input name="largo" type="number" min="1" max="999" step="1" value="30" required></label>
+          <label class="field s4">Observaciones<textarea name="obs" rows="2" placeholder="Horario de recepción, refrigerada, frágil…"></textarea></label>
+          <div class="s4" style="display:flex;gap:8px;justify-content:flex-end;align-items:center"><span class="err" id="od-err" role="alert" style="color:var(--rojo);font-size:13px;margin-right:auto" hidden></span><button type="reset" class="btn btn-linea">Limpiar</button><button class="btn btn-azul" type="submit">Crear orden</button></div>
+        </form>
+      </div>
+      <div id="mode-excel" hidden>
+        <div class="drop"><b>Arrastra tu planilla o elige un archivo</b>CSV o XLSX con las columnas Guía, Destinatario, Dirección, Ciudad, Contacto, Bultos, Kilos, Alto, Ancho, Largo, Observaciones, Destino y Centro de costos.<div style="margin-top:14px"><button class="btn btn-azul" id="load-sample">Usar despachos_martes.xlsx (ejemplo)</button></div></div>
+        <div id="excel-out" hidden>
+          <div class="warn"><span>⚠</span><div><b>Ciudad no encontrada en la fila 7.</b> Escribiste «Rancahua». ¿Querías decir <b>Rancagua</b>? <button class="btn btn-linea" style="padding:4px 10px;margin-left:6px" id="fix-city">Aceptar sugerencia</button></div></div>
+          <div class="tablebox"><table id="excel-table"></table></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;gap:10px;flex-wrap:wrap"><span class="mono" style="color:var(--gris);font-size:12.5px" id="excel-count"></span><button class="btn btn-azul" id="approve">Aprobar órdenes</button></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CONSULTAR / ADMINISTRAR OD -->
+    <section class="view" data-view="ordenes" hidden>
+      <div class="vh"><div><h1>Órdenes</h1><p>Filtra por fecha, ciudad o estado. Haz clic en una orden para editarla o imprimir sus etiquetas.</p></div>
+        <div class="acts"><button class="btn btn-linea" id="manifest">Descargar manifiesto</button><a class="btn btn-azul" href="#/etiqueta">Imprimir etiquetas</a></div></div>
+      <div class="card" style="margin-bottom:16px">
+        <div class="filters">
+          <label class="field">Fecha de inicio<input type="date" id="f-desde" value="2026-11-03"></label>
+          <label class="field">Fecha final<input type="date" id="f-hasta" value="2026-11-04"></label>
+          <label class="field">Ciudad de origen<select id="f-origen"><option value="">Todas</option></select></label>
+          <label class="field">Ciudad de destino<select id="f-destino"><option value="">Todas</option></select></label>
+          <label class="field">Estado OD<select id="f-estado"><option value="">Todos</option><option>CREADA</option><option>EN RUTA</option><option>RETIRADO</option><option>ENTREGADO</option><option>NO ENTREGADO</option></select></label>
+          <label class="field">Comentarios<select id="f-com"><option value="">Todos</option><option value="con">Con</option><option value="sin">Sin</option></select></label>
+        </div>
+      </div>
+      <div class="tablebox"><table id="od-table"></table></div>
+    </section>
+
+    <!-- ETIQUETAS -->
+    <section class="view" data-view="etiqueta" hidden>
+      <div class="vh"><div><h1>Etiquetas</h1><p id="label-sub">OD 0004 8213 77 · 3 bultos · 100×150 mm para impresora térmica</p></div>
+        <div class="acts no-print"><a class="btn btn-linea" href="#/ordenes">Volver a órdenes</a><button class="btn btn-azul" onclick="print()">Imprimir 3 etiquetas</button></div></div>
+      <div class="labels" id="labels"></div>
+    </section>
+
+    <!-- CONTROL DE RUTAS -->
+    <section class="view" data-view="rutas" hidden>
+      <div class="vh"><div><h1>Control de rutas</h1><p>Lo que hizo cada chofer, parada por parada, con hora y ubicación.</p></div></div>
+      <div class="card" style="margin-bottom:16px"><div class="filters">
+        <label class="field">Ciudad<select><option>Rancagua</option><option>Santiago</option><option>Talca</option><option>Concepción</option></select></label>
+        <label class="field">Chofer<select><option>Jorge Fuentes</option><option>Luis Araya</option><option>Pedro Contreras</option></select></label>
+        <label class="field">Fecha<input type="date" value="2026-11-04"></label>
+        <button class="btn btn-azul" style="justify-content:center" data-toast="Ruta actualizada">Buscar</button>
+      </div></div>
+      <div class="grid two">
+        <div class="card"><h3>Punto de destino <span style="display:flex;gap:12px;font-size:12px;font-weight:500;color:var(--gris)"><span><i style="display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--verde);margin-right:5px"></i>Entregas</span><span><i style="display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--rojo);margin-right:5px"></i>No entregas</span><span><i style="display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--azul);margin-right:5px"></i>Retiros</span></span></h3><div class="map" id="route-map"></div></div>
+        <div class="grid" style="align-content:start">
+          <div class="card"><h3>Resumen de ruta</h3><div class="kv">
+            <div><span>Nombre</span><b>Jorge Fuentes</b></div><div><span>RUT</span><b>13.204.778-2</b></div>
+            <div><span>Primera gestión</span><b>08:12</b></div><div><span>Última gestión</span><b>11:52</b></div>
+            <div><span>Entregas</span><b>9</b></div><div><span>No entregas</span><b>1</b></div>
+            <div><span>Retiros</span><b>2</b></div><div><span>Total</span><b>12</b></div></div></div>
+          <div class="card"><h3>Efectividad <b style="font:700 30px/1 var(--display);color:var(--azul)">91,7%</b></h3><div class="donut" id="route-donut"></div></div>
+        </div>
+      </div>
+      <div class="tablebox" style="margin-top:16px"><table id="route-table"></table></div>
+    </section>
+
+    <!-- REPORTE -->
+    <section class="view" data-view="reporte" hidden>
+      <div class="vh"><div><h1>Reporte de envíos</h1><p>Elige un rango y descarga el detalle completo para tu contabilidad o tu cliente.</p></div>
+        <div class="acts"><button class="btn btn-linea" data-toast="Reporte generado: 31 órdenes">Crear reporte</button><button class="btn btn-azul" id="dl-report">Descargar reporte</button></div></div>
+      <div class="card" style="margin-bottom:16px"><div class="filters">
+        <label class="field">Fecha de inicio<input type="date" value="2026-11-01"></label>
+        <label class="field">Fecha final<input type="date" value="2026-11-04"></label>
+        <label class="field">Usuario<select><option>Todos</option><option>Distribuidora Central</option><option>Comercial Andes</option><option>Repuestos del Sur</option></select></label>
+      </div></div>
+      <div class="tablebox"><table id="report-table"></table></div>
+    </section>
+
+    <!-- CLIENTES -->
+    <section class="view" data-view="clientes" hidden>
+      <div class="vh"><div><h1>Clientes</h1><p>Cuentas con acceso a la plataforma. Desactiva una cuenta sin borrar su historial.</p></div>
+        <div class="acts"><label class="field" style="min-width:260px"><input id="client-q" placeholder="Buscar por nombre, RUT o email" aria-label="Buscar cliente"></label></div></div>
+      <div class="tablebox"><table id="client-table"></table></div>
+    </section>
+
+    <!-- DOCUMENTOS -->
+    <section class="view" data-view="documentos" hidden>
+      <div class="vh"><div><h1>Documentos</h1><p>Facturas, manifiestos y guías compartidas con cada cliente.</p></div>
+        <div class="acts"><button class="btn btn-azul" data-toast="Demo: aquí se suben PDF, Excel o Word">+ Subir documento</button></div></div>
+      <div class="card" style="margin-bottom:16px"><div class="filters">
+        <label class="field">Filtrar por RUT<input placeholder="Ej: 12345678-9"></label>
+        <label class="field">Filtrar por nombre<input placeholder="Nombre del cliente"></label>
+        <label class="field">Fecha desde<input type="date"></label>
+        <label class="field">Fecha hasta<input type="date"></label>
+        <button class="btn btn-linea" style="justify-content:center">Limpiar filtros</button>
+      </div></div>
+      <div class="tablebox"><table id="doc-table"></table></div>
+    </section>
+  </div>
+</div>
+
+<datalist id="cities"></datalist>
+<div class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title" inert></div>
+<div class="scrim" id="scrim" hidden></div>
+<div class="toast hide" id="toast" role="status"></div>
+
+<script>
+const CITIES = ["Copiapó","La Serena","Santiago","Rancagua","Pichidegua","Talca","Concepción","Temuco","Puerto Montt"];
+const ST = { "CREADA": "s-ret", "EN RUTA": "s-ruta", "RETIRADO": "s-ret", "ENTREGADO": "s-ent", "NO ENTREGADO": "s-no" };
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const fmtOd = n => String(n).padStart(10, "0").replace(/(\d{4})(\d{4})(\d{2})/, "$1 $2 $3");
+const pill = s => `<span class="pill ${ST[s] || ""}">${esc(s)}</span>`;
+const $ = s => document.querySelector(s);
+
+// datos de ejemplo
+const DEST = ["Distribuidora Central","Ferretería Los Aromos","Repuestos del Sur","Comercial Andes","Bodega Maipo","Librería Rancagua","Agrícola San Vicente","Tienda Plaza Talca","Óptica Concepción","Electro Temuco"];
+const STREETS = ["Av. Brasil 1021","Calle Estado 455","Av. Libertador 2300","Independencia 88","Los Carrera 1290","Cuevas 612","O'Carrol 340","Av. Alemania 0745","Freire 1150","Bulnes 977"];
+const STATES = ["ENTREGADO","ENTREGADO","EN RUTA","ENTREGADO","RETIRADO","ENTREGADO","EN RUTA","NO ENTREGADO","ENTREGADO","ENTREGADO"];
+const ORDERS = Array.from({ length: 18 }, (_, i) => ({
+  od: 4821377 + i * 7, guia: i % 3 ? "G-" + (58120 + i) : ".", fecha: i < 9 ? "04/11/2026" : "03/11/2026",
+  estado: STATES[i % 10], cliente: ["Distribuidora Central","Comercial Andes","Repuestos del Sur"][i % 3],
+  destinatario: DEST[i % 10], origen: "Santiago", destino: ["Rancagua","Talca","Concepción","Pichidegua","Temuco","La Serena"][i % 6],
+  direccion: STREETS[i % 10], bultos: (i % 4) + 1, kilos: (2.4 + i * 1.3).toFixed(1).replace(".", ","),
+  cc: i % 2 ? "CC-" + (100 + i) : "—", obs: i % 5 === 0 ? "Recepción hasta 13:00" : "", frio: i % 4 === 1
+}));
+const DEMO_DAY = "04/11/2026";
+ORDERS[0] = { ...ORDERS[0], destinatario: "Distribuidora Central", destino: "Rancagua", direccion: "Av. Brasil 1021, of. 4", bultos: 3, kilos: "7,2", estado: "ENTREGADO", cliente: "Comercial Andes", frio: true };
+const findOrder = od => ORDERS.find(o => String(o.od) === String(+od));
+const ZONES = new Map([["Copiapó","R03"],["La Serena","R04"],["Santiago","R13"],["Rancagua","R06"],["Pichidegua","R06"],["Talca","R07"],["Concepción","R08"],["Temuco","R09"],["Puerto Montt","R10"]]);
+const intParam = (v, def, lo, hi) => { const n = Number.parseInt(v, 10); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : def; };
+
+let toastT;
+const toast = msg => { const t = $("#toast"); t.textContent = msg; t.classList.remove("hide"); clearTimeout(toastT); toastT = setTimeout(() => t.classList.add("hide"), 2600); };
+
+const drawer = $("#drawer"), scrim = $("#scrim");
+let drawerFrom = null;
+// ── router ──
+const VIEWS = ["login","seguimiento","dashboard","nueva","ordenes","etiqueta","rutas","reporte","clientes","documentos"];
+const TITLES = { dashboard: "Inicio", nueva: "Crear orden", ordenes: "Órdenes", etiqueta: "Etiquetas", rutas: "Control de rutas", reporte: "Reporte de envíos", clientes: "Clientes", documentos: "Documentos" };
+function route() {
+  const [path, qs] = location.hash.replace(/^#\/?/, "").split("?");
+  const v = VIEWS.includes(path) ? path : "dashboard";
+  const params = new URLSearchParams(qs || "");
+  document.querySelectorAll("[data-view]").forEach(s => s.hidden = s.dataset.view !== v);
+  $("#app").hidden = v === "login" || v === "seguimiento";
+  document.querySelectorAll("[data-nav]").forEach(a => a.toggleAttribute("aria-current", a.dataset.nav === v) && a.setAttribute("aria-current", "page"));
+  if (TITLES[v]) { $("#crumb").textContent = TITLES[v].toUpperCase(); document.title = TITLES[v] + " · Plataforma SCB"; }
+  else document.title = (v === "login" ? "Ingresar" : "Rastreo de guía") + " · Plataforma SCB";
+  if (v === "seguimiento") showTracking(params.get("od"));
+  if (v === "etiqueta") renderLabels(params.get("od"));
+  if (v === "nueva") setMode(params.get("excel") ? "excel" : "una");
+  closeMenu(); closeDrawer(); scrollTo(0, 0);
+}
+addEventListener("hashchange", route);
+
+// ── menú móvil ──
+const side = $("#side"), mb = $("#menu-btn");
+function closeMenu() { side.classList.remove("open"); mb.setAttribute("aria-expanded", "false"); if (!drawer.classList.contains("open")) scrim.hidden = true; }
+mb.addEventListener("click", () => { const o = side.classList.toggle("open"); mb.setAttribute("aria-expanded", o); scrim.hidden = !o; });
+
+// ── seguir OD (login, barra superior) ──
+document.querySelectorAll("[data-follow]").forEach(f => f.addEventListener("submit", e => {
+  e.preventDefault();
+  const v = f.querySelector("input").value.replace(/\D/g, "");
+  location.hash = "#/seguimiento?od=" + (v || ORDERS[0].od);
+}));
+$("#login-form").addEventListener("submit", e => { e.preventDefault(); location.hash = "#/dashboard"; });
+document.addEventListener("click", e => { const t = e.target.closest("[data-toast]"); if (t) { e.preventDefault(); toast(t.dataset.toast); } });
+
+// ── inicio ──
+const DAYS = [["24",142],["27",151],["28",160],["29",148],["30",171],["31",139],["01",120],["02",95],["03",168],["04",184]];
+$("#bars").innerHTML = DAYS.map(([d, n], i) => `<div><i class="${i === DAYS.length - 1 ? "" : "n"}" style="height:${(n / 190 * 100).toFixed(0)}%" title="${n} órdenes"></i><span>${d}</span></div>`).join("");
+const donut = (el, parts) => {
+  const total = parts.reduce((s, p) => s + p[1], 0); let a = 0;
+  const arcs = parts.map(([, n, c]) => { const l = n / total * 100; const s = `<circle r="15.9" cx="20" cy="20" fill="none" stroke="${c}" stroke-width="6" stroke-dasharray="${l} ${100 - l}" stroke-dashoffset="${25 - a}"/>`; a += l; return s; }).join("");
+  el.innerHTML = `<svg viewBox="0 0 40 40" role="img" aria-label="${parts.map(p => p[0] + " " + p[1]).join(", ")}"><circle r="15.9" cx="20" cy="20" fill="none" stroke="#EEF2F9" stroke-width="6"/>${arcs}</svg>
+    <div class="legend">${parts.map(([l, n, c]) => `<span><i style="background:${c}"></i>${l} <b>${n}</b></span>`).join("")}</div>`;
+};
+donut($("#donut"), [["Entregado", 118, "#17A673"], ["En ruta", 61, "#F5A524"], ["No entregado", 5, "#D93B3B"]]);
+donut($("#route-donut"), [["Entregado", 9, "#17A673"], ["Retirado", 2, "#1546D1"], ["No entregado", 1, "#D93B3B"]]);
+const renderRecent = () => $("#recent").innerHTML = `<thead><tr><th>OD</th><th>Destinatario</th><th>Destino</th><th>Bultos</th><th>Estado</th></tr></thead><tbody>` +
+  ORDERS.slice(0, 6).map(o => `<tr class="click" tabindex="0" data-od="${o.od}"><td class="od">${fmtOd(o.od)}</td><td>${esc(o.destinatario)}</td><td>${esc(o.destino)}</td><td>${o.bultos}</td><td>${pill(o.estado)}</td></tr>`).join("") + "</tbody>";
+renderRecent();
+
+// ── crear orden ──
+$("#cities").innerHTML = CITIES.map(c => `<option value="${c}">`).join("");
+const setMode = m => {
+  document.querySelectorAll("[data-mode]").forEach(b => b.setAttribute("aria-pressed", b.dataset.mode === m));
+  $("#mode-una").hidden = m !== "una"; $("#mode-excel").hidden = m !== "excel";
+};
+document.querySelectorAll("[data-mode]").forEach(b => b.addEventListener("click", () => setMode(b.dataset.mode)));
+$("#od-form").addEventListener("submit", e => {
+  e.preventDefault();
+  const f = e.target, dest = f.destino.value.trim(), origen = f.origen.value.trim(), err = f.querySelector(".err"), gen = $("#od-err");
+  err.hidden = CITIES.includes(dest);
+  const int = (v, lo, hi) => { const n = Number(v); return Number.isInteger(n) && n >= lo && n <= hi; };
+  const msg = !CITIES.includes(origen) ? "Elige una ciudad de origen de la lista" : !err.hidden ? "" : !f.destinatario.value.trim() || !f.direccion.value.trim() ? "Falta el destinatario o la dirección"
+    : !int(f.bultos.value, 1, 20) ? "Bultos: un entero entre 1 y 20" : ![f.alto, f.ancho, f.largo].every(x => int(x.value, 1, 999)) ? "Medidas: enteros entre 1 y 999 cm" : !(Number(f.kilos.value) > 0) ? "Kilos debe ser mayor que 0" : "";
+  gen.textContent = msg; gen.hidden = !msg;
+  if (!err.hidden || msg) return;
+  const od = Math.max(...ORDERS.map(o => o.od)) + 7;
+  ORDERS.unshift({ od, guia: f.guia.value.trim() || ".", fecha: DEMO_DAY, estado: "CREADA", cliente: "Distribuidora Central", destinatario: f.destinatario.value.trim(),
+    origen, destino: dest, direccion: f.direccion.value.trim(), bultos: +f.bultos.value, kilos: Number(f.kilos.value).toFixed(1).replace(".", ","),
+    cc: f.cc.value.trim() || "—", obs: f.obs.value.trim(), frio: /refriger|2.?8|fr[ií]o/i.test(f.obs.value), dim: `${+f.largo.value}×${+f.ancho.value}×${+f.alto.value}` });
+  renderOrders(); renderRecent(); renderReport();
+  toast(`Orden ${fmtOd(od)} creada · ${f.bultos.value} bulto(s) a ${dest}`);
+  setTimeout(() => location.hash = `#/etiqueta?od=${od}`, 700);
+});
+const XL = ORDERS.slice(0, 9).map((o, i) => ({ ...o, ciudad: i === 6 ? "Rancahua" : o.destino }));
+const renderExcel = () => {
+  $("#excel-table").innerHTML = `<thead><tr><th>#</th><th>Guía</th><th>Destinatario</th><th>Dirección</th><th>Ciudad</th><th>Contacto</th><th>Bultos</th><th>Kilos</th><th>Alto</th><th>Ancho</th><th>Largo</th><th>Centro de costos</th></tr></thead><tbody>` +
+    XL.map((o, i) => `<tr${o.ciudad === "Rancahua" ? ' style="background:#FFF7E6"' : ""}><td class="mono">${i + 1}</td><td class="mono">${esc(o.guia === "." ? "—" : o.guia)}</td><td>${esc(o.destinatario)}</td><td>${esc(o.direccion)}</td><td>${esc(o.ciudad)}</td><td class="mono">+56 9 ${5550100 + i * 37}</td><td>${o.bultos}</td><td>${o.kilos}</td><td>18</td><td>20</td><td>30</td><td>${esc(o.cc)}</td></tr>`).join("") + "</tbody>";
+  $("#excel-count").textContent = `${XL.length} filas leídas · ${XL.filter(o => o.ciudad === "Rancahua").length} por revisar`;
+};
+$("#load-sample").addEventListener("click", () => { $("#excel-out").hidden = false; renderExcel(); });
+$("#fix-city").addEventListener("click", () => { XL[6].ciudad = "Rancagua"; renderExcel(); $(".warn").hidden = true; });
+$("#approve").addEventListener("click", () => toast(`${XL.length} órdenes subidas con sus etiquetas`));
+
+// ── órdenes ──
+["#f-origen", "#f-destino"].forEach(s => $(s).insertAdjacentHTML("beforeend", CITIES.map(c => `<option>${c}</option>`).join("")));
+const iso = f => f.split("/").reverse().join("-");
+const filtered = () => {
+  const fo = $("#f-origen").value, fd = $("#f-destino").value, fe = $("#f-estado").value, fc = $("#f-com").value;
+  const d0 = $("#f-desde").value || "0000", d1 = $("#f-hasta").value || "9999";
+  return ORDERS.filter(o => (!fo || o.origen === fo) && (!fd || o.destino === fd) && (!fe || o.estado === fe)
+    && iso(o.fecha) >= d0 && iso(o.fecha) <= d1 && (!fc || (fc === "con") === !!o.obs));
+};
+const renderOrders = () => {
+  const rows = filtered();
+  $("#od-table").innerHTML = `<thead><tr><th>Fecha</th><th>OD</th><th>Guía</th><th>Estado</th><th>Cliente</th><th>Ciudad</th><th>Destino</th><th>Dirección</th><th>Bultos</th><th>Kilos</th><th>Centro de costos</th></tr></thead><tbody>` +
+    (rows.length ? rows.map(o => `<tr class="click" tabindex="0" data-od="${o.od}"><td class="mono">${o.fecha}</td><td class="od">${fmtOd(o.od)}</td><td class="mono">${esc(o.guia === "." ? "—" : o.guia)}</td><td>${pill(o.estado)}</td><td>${esc(o.cliente)}</td><td>${esc(o.origen)}</td><td>${esc(o.destino)}</td><td>${esc(o.direccion)}</td><td>${o.bultos}</td><td>${o.kilos}</td><td>${esc(o.cc)}</td></tr>`).join("")
+      : `<tr><td colspan="11" style="text-align:center;color:var(--gris);padding:30px">No hay órdenes con esos filtros.</td></tr>`) + "</tbody>";
+};
+["#f-origen", "#f-destino", "#f-estado", "#f-com", "#f-desde", "#f-hasta"].forEach(s => $(s).addEventListener("change", renderOrders));
+renderOrders();
+$("#manifest").addEventListener("click", () => {
+  const list = filtered();
+  if (!list.length) return toast("No hay órdenes con esos filtros");
+  const rows = [["GUIA","OD","CIUDAD","DESTINO","DIRECCION","BULTOS","KILOS"], ...list.map(o => [o.guia === "." ? "—" : o.guia, fmtOd(o.od), o.origen, o.destino, o.direccion, o.bultos, o.kilos]), [], ["Total bultos", list.reduce((s, o) => s + o.bultos, 0)]];
+  download("manifiesto-de-carga.csv", rows);
+  toast(`Manifiesto de carga descargado · ${list.length} órdenes`);
+});
+function download(name, rows) {
+  const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(";")).join("\n");
+  const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(new Blob(["﻿" + csv], { type: "text/csv" })), download: name });
+  a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+// editar OD (drawer)
+function closeDrawer() {
+  const was = drawer.classList.contains("open");
+  drawer.classList.remove("open"); drawer.inert = true; $("#app").inert = false;
+  scrim.hidden = !side.classList.contains("open");
+  if (was) refocus();
+}
+function refocus() {
+  // la tabla pudo re-renderizarse: se busca la fila por su OD en la vista visible
+  const od = drawerFrom?.dataset?.od;
+  const row = od && [...document.querySelectorAll(`tr[data-od="${od}"]`)].find(r => r.offsetParent !== null);
+  (row || drawerFrom)?.focus?.();
+}
+scrim.addEventListener("click", () => { closeDrawer(); closeMenu(); });
+addEventListener("keydown", e => {
+  if (e.key === "Escape") { closeDrawer(); closeMenu(); }
+  if (e.key === "Tab" && drawer.classList.contains("open")) {
+    const f = [...drawer.querySelectorAll("button,a[href],input,select,textarea")].filter(x => !x.disabled);
+    if (!f.length) return;
+    if (e.shiftKey && document.activeElement === f[0]) { e.preventDefault(); f[f.length - 1].focus(); }
+    else if (!e.shiftKey && document.activeElement === f[f.length - 1]) { e.preventDefault(); f[0].focus(); }
+    else if (!drawer.contains(document.activeElement)) { e.preventDefault(); f[0].focus(); }
+  }
+});
+document.addEventListener("keydown", e => { const tr = e.target.closest?.("tr[data-od]"); if (tr && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); openOrder(tr); } });
+document.addEventListener("click", e => { const tr = e.target.closest("tr[data-od]"); if (tr) openOrder(tr); });
+function openOrder(tr) {
+  drawerFrom = tr;
+  const o = findOrder(tr.dataset.od); if (!o) return;
+  const opts = (list, cur) => list.map(c => `<option ${c === cur ? "selected" : ""}>${esc(c)}</option>`).join("");
+  drawer.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:start;gap:10px"><div><p class="mono" style="color:var(--azul);font-size:12px;font-weight:600">OD ${fmtOd(o.od)}</p><h2 id="drawer-title">Editar orden</h2></div><button class="btn btn-linea" id="dclose" aria-label="Cerrar">✕</button></div>
+  <form class="form" style="grid-template-columns:1fr 1fr;margin-top:18px" id="edit-form" novalidate>
+    <label class="field">Ciudad de origen<select name="origen">${opts(CITIES, o.origen)}</select></label>
+    <label class="field">Ciudad de destino<select name="destino">${opts(CITIES, o.destino)}</select></label>
+    <label class="field">Destinatario<input name="destinatario" value="${esc(o.destinatario)}"></label><label class="field">Dirección<input name="direccion" value="${esc(o.direccion)}"></label>
+    <label class="field">Bultos<input type="number" name="bultos" id="e-b" min="1" max="20" step="1" value="${o.bultos}"></label><label class="field">Kilos<input name="kilos" inputmode="decimal" value="${esc(o.kilos)}"></label>
+    <div class="sec">Datos del servicio</div>
+    <label class="field">Estado de la orden<select name="estado">${opts(Object.keys(ST), o.estado)}</select></label>
+    <label class="field">Estado de los bultos<select name="recep">${opts(["Sin recibir", "Incompleto", "Completo"], o.recep || "Completo")}</select></label>
+    <label class="field">Bultos recibidos<input type="number" name="recibidos" id="e-r" min="0" step="1" value="${o.recibidos ?? o.bultos}"></label>
+    <label class="field">Fecha recepción<input value="${o.fecha} · 17:40" readonly></label>
+    <p class="err" role="alert" style="grid-column:1/-1;color:var(--rojo);font-size:13px" hidden></p>
+    <div style="grid-column:1/-1;display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap;margin-top:6px"><a class="btn btn-linea" href="#/etiqueta?od=${o.od}">Imprimir etiquetas</a><span style="display:flex;gap:8px"><button type="button" class="btn btn-linea" id="dcancel">Cancelar</button><button class="btn btn-azul">Guardar</button></span></div>
+  </form>`;
+  drawer.classList.add("open"); drawer.inert = false; $("#app").inert = true; scrim.hidden = false;
+  $("#dclose").onclick = $("#dcancel").onclick = closeDrawer;
+  $("#edit-form").onsubmit = ev => {
+    ev.preventDefault();
+    const f = ev.target, b = Number(f.bultos.value), r = Number(f.recibidos.value), k = Number(String(f.kilos.value).replace(",", ".")), err = drawer.querySelector(".err");
+    const msg = !Number.isInteger(b) || b < 1 || b > 20 ? "Bultos: un entero entre 1 y 20" : !Number.isInteger(r) || r < 0 ? "Bultos recibidos no puede ser negativo"
+      : r > b ? "Bultos recibidos no puede ser mayor que bultos" : !f.destinatario.value.trim() || !f.direccion.value.trim() ? "Falta el destinatario o la dirección" : !(k > 0) ? "Kilos debe ser mayor que 0" : "";
+    err.textContent = msg; err.hidden = !msg;
+    if (msg) return;
+    Object.assign(o, { origen: f.origen.value, destino: f.destino.value, destinatario: f.destinatario.value.trim(), direccion: f.direccion.value.trim(),
+      bultos: b, kilos: k.toFixed(1).replace(".", ","), estado: f.estado.value, recep: f.recep.value, recibidos: r });
+    renderOrders(); renderRecent(); renderReport(); closeDrawer(); toast(`Orden ${fmtOd(o.od)} guardada`);
+  };
+  $("#dclose").focus();
+}
+
+// ── etiquetas (una por bulto: 1/N … N/N) ──
+const CODES_OK = typeof JsBarcode === "function" && typeof qrcode === "function";
+function barcode(value) {
+  // Code 128 real (JsBarcode): lo lee cualquier pistola
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("class", "barcode"); svg.setAttribute("role", "img"); svg.setAttribute("aria-label", "Código de barras " + value);
+  try { JsBarcode(svg, value, { format: "CODE128", displayValue: false, margin: 0, height: 60, width: 2 }); svg.setAttribute("preserveAspectRatio", "none"); }
+  catch { svg.innerHTML = ""; }
+  return svg.outerHTML;
+}
+function qr(value) {
+  // QR real (qrcode-generator) que abre el seguimiento público de la orden
+  let inner = "", n = 21;
+  try {
+    const q = qrcode(0, "M"); q.addData(value); q.make(); n = q.getModuleCount();
+    for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) if (q.isDark(y, x)) inner += `M${x} ${y}h1v1h-1z`;
+  } catch {}
+  return `<svg class="qr" data-qr="${esc(value)}" viewBox="-2 -2 ${n + 4} ${n + 4}" shape-rendering="crispEdges" role="img" aria-label="QR al seguimiento de la orden"><rect x="-2" y="-2" width="${n + 4}" height="${n + 4}" fill="#fff"/><path d="${inner}"/></svg>`;
+}
+function renderLabels(odParam) {
+  const p = new URLSearchParams(location.hash.split("?")[1] || "");
+  const o = odParam ? findOrder(String(odParam).replace(/\D/g, "") || "x") : ORDERS[0];
+  const btn = document.querySelector('[data-view="etiqueta"] .acts .btn-azul');
+  if (!o) {
+    $("#label-sub").textContent = "No existe una orden con ese número.";
+    btn.disabled = true; btn.textContent = "Imprimir";
+    $("#labels").innerHTML = `<div class="card" style="max-width:520px"><h3>Orden no encontrada</h3><p style="color:var(--gris)">Revisa el número o búscala en <a href="#/ordenes" style="color:var(--azul);font-weight:600">Consultar órdenes</a>.</p></div>`;
+    return;
+  }
+  btn.disabled = false;
+  const od = o.od, n = Math.min(20, Math.max(1, o.bultos));
+  const dest = o.destino, name = o.destinatario, dir = o.direccion, origen = o.origen, kilos = o.kilos, cliente = o.cliente, frio = !!o.frio;
+  const guia = o.guia === "." ? "—" : o.guia, dim = o.dim || "30×20×18", fecha = o.fecha.slice(0, 5);
+  const zone = ZONES.get(dest) || "R13";
+  const track = new URL("#/seguimiento?od=" + od, location.href.split("#")[0]).href;
+  $("#label-sub").textContent = `OD ${fmtOd(od)} · ${n} bulto${n > 1 ? "s" : ""} · 100×150 mm para impresora térmica`;
+  document.querySelector('[data-view="etiqueta"] .acts .btn-azul').textContent = `Imprimir ${n} etiqueta${n > 1 ? "s" : ""}`;
+  $("#labels").innerHTML = Array.from({ length: n }, (_, i) => `
+  <article class="label" aria-label="Etiqueta bulto ${i + 1} de ${n}">
+    <div class="lh"><img src="../img/logo-scb-azul.png" alt="SCB Express" style="filter:grayscale(1) contrast(3)"><div class="svc">OVERNIGHT<small>ENTREGA ANTES 12:00</small></div></div>
+    <div class="dest"><div><span class="k">DESTINO</span><div class="city">${esc(dest)}</div></div><span class="zone">${zone}</span></div>
+    <div class="lb"><div><b>DESTINATARIO</b><br>${esc(name)}<br>${esc(dir)}<br><br><b>ORIGEN</b> ${esc(origen)}<br><b>CLIENTE</b> ${esc(cliente)}<br><b>PESO</b> ${esc(kilos)} kg · ${esc(dim)} cm</div>${qr(track)}</div>
+    <div class="flags">${frio ? '<span class="inv">2–8 °C</span>' : ""}<span>FRÁGIL</span><span>↑↑ ESTE LADO ARRIBA</span></div>
+    <div class="bc">${barcode(String(od).padStart(10, "0") + String(i + 1).padStart(2, "0"))}<span>OD ${fmtOd(od)}</span></div>${CODES_OK ? "" : `<p class="no-print" style="font:600 8pt/1.3 var(--mono);color:#B42323">Sin conexión al generador de códigos: recarga antes de imprimir.</p>`}
+    <div class="lf"><span class="bulto">BULTO ${i + 1} / ${n}</span><span>${esc(fecha)} · G ${esc(guia)}</span></div>
+  </article>`).join("");
+}
+
+// ── control de rutas ──
+const STOPS = [[120, 90, "e", "08:12"], [210, 140, "e", "08:31"], [300, 110, "r", "08:55"], [360, 200, "e", "09:20"], [470, 170, "e", "09:41"], [540, 250, "n", "10:02"], [640, 210, "e", "10:15"], [720, 130, "e", "10:38"], [800, 180, "r", "10:57"], [860, 90, "e", "11:14"], [930, 150, "e", "11:33"], [980, 230, "e", "11:52"]];
+const SC = { e: "#17A673", n: "#D93B3B", r: "#1546D1" };
+$("#route-map").innerHTML = `<svg viewBox="0 0 1060 320" preserveAspectRatio="xMidYMid slice" aria-label="Mapa de la ruta del chofer en Rancagua">
+  <rect width="1060" height="320" fill="#E9EEF8"/>
+  <g stroke="#fff" stroke-width="12">${[60, 160, 260].map(y => `<path d="M0 ${y} H1060"/>`).join("")}${[90, 250, 420, 600, 760, 920].map(x => `<path d="M${x} 0 V320"/>`).join("")}</g>
+  <path d="M-10 300 C220 280 380 40 620 70 S900 20 1080 60" stroke="#C7D6F3" stroke-width="20" fill="none"/>
+  <polyline points="${STOPS.map(s => s[0] + "," + s[1]).join(" ")}" fill="none" stroke="#1546D1" stroke-width="3.5" stroke-dasharray="2 7" stroke-linecap="round"/>
+  ${STOPS.map(([x, y, t], i) => `<g><circle cx="${x}" cy="${y}" r="13" fill="${SC[t]}" stroke="#fff" stroke-width="3"/><text x="${x}" y="${y + 4}" text-anchor="middle" font-family="JetBrains Mono" font-size="11" font-weight="600" fill="#fff">${i + 1}</text></g>`).join("")}
+</svg>`;
+$("#route-table").innerHTML = `<thead><tr><th>#</th><th>OD</th><th>Hora</th><th>Gestión</th><th>Código</th></tr></thead><tbody>` +
+  STOPS.map(([, , t, h], i) => `<tr><td class="mono">${i + 1}</td><td class="od">${fmtOd(ORDERS[i % 18].od)}</td><td class="mono">${h}</td><td>${pill({ e: "ENTREGADO", n: "NO ENTREGADO", r: "RETIRADO" }[t])}</td><td class="mono">${t === "n" ? "NE-02 · Cerrado" : t === "r" ? "RT-01" : "EN-00"}</td></tr>`).join("") + "</tbody>";
+
+// ── reporte ──
+const REP_COLS = ["Fecha","Guía","OD","Estado","Cliente","Destinatario","Ciudad","Destino","Dirección","Bultos","Kilos","Centro de costos","Observaciones"];
+const repRow = o => [o.fecha, o.guia === "." ? "—" : o.guia, fmtOd(o.od), o.estado, o.cliente, o.destinatario, o.origen, o.destino, o.direccion, o.bultos, o.kilos, o.cc, o.obs || "—"];
+const renderReport = () => $("#report-table").innerHTML = `<thead><tr>${REP_COLS.map(c => `<th>${c}</th>`).join("")}</tr></thead><tbody>` +
+  ORDERS.map(o => `<tr>${repRow(o).map((c, i) => i === 3 ? `<td>${pill(c)}</td>` : i === 2 ? `<td class="od">${c}</td>` : `<td>${esc(c)}</td>`).join("")}</tr>`).join("") + "</tbody>";
+renderReport();
+$("#dl-report").addEventListener("click", () => { download("reporte-de-envios.csv", [REP_COLS, ...ORDERS.map(repRow)]); toast("Reporte descargado"); });
+
+// ── clientes ──
+const CLIENTS = [["76.123.456-7","Distribuidora Central","despachos@distribuidoracentral.cl",1],["77.884.210-3","Comercial Andes","logistica@comercialandes.cl",1],["76.552.901-K","Repuestos del Sur","bodega@repuestosdelsur.cl",1],["78.010.334-5","Ferretería Los Aromos","compras@losaromos.cl",0],["76.990.120-1","Agrícola San Vicente","envios@agricolasv.cl",1],["77.231.008-9","Electro Temuco","ventas@electrotemuco.cl",1]];
+const renderClients = q => {
+  q = (q || "").toLowerCase();
+  $("#client-table").innerHTML = `<thead><tr><th>RUT</th><th>Nombre</th><th>Email</th><th>Estado</th><th>Acción</th></tr></thead><tbody>` +
+    CLIENTS.filter(c => c.slice(0, 3).join(" ").toLowerCase().includes(q)).map((c, i) => `<tr><td class="mono">${c[0]}</td><td>${esc(c[1])}</td><td>${esc(c[2])}</td><td><span class="pill ${c[3] ? "s-act" : "s-ina"}">${c[3] ? "Activo" : "Inactivo"}</span></td>
+    <td style="display:flex;gap:6px"><button class="btn btn-linea" style="padding:6px 10px" data-toast="Editar cliente: ${esc(c[1])}">Editar</button><button class="btn btn-linea" style="padding:6px 10px" data-act="${i}">${c[3] ? "Desactivar" : "Activar"}</button></td></tr>`).join("") + "</tbody>";
+};
+renderClients();
+$("#client-q").addEventListener("input", e => renderClients(e.target.value));
+$("#client-table").addEventListener("click", e => { const b = e.target.closest("[data-act]"); if (!b) return; const c = CLIENTS[b.dataset.act]; c[3] = c[3] ? 0 : 1; renderClients($("#client-q").value); toast(`${c[1]} ${c[3] ? "activado" : "desactivado"}`); });
+
+// ── documentos ──
+const DOCS = [["76.123.456-7","Distribuidora Central","Factura_10482.pdf","04/11/2026"],["77.884.210-3","Comercial Andes","Manifiesto_03-11.xlsx","03/11/2026"],["76.123.456-7","Distribuidora Central","Guias_octubre.pdf","31/10/2026"],["76.552.901-K","Repuestos del Sur","Contrato_servicio.docx","28/10/2026"],["77.231.008-9","Electro Temuco","Factura_10455.pdf","27/10/2026"]];
+$("#doc-table").innerHTML = `<thead><tr><th>RUT</th><th>Nombre cliente</th><th>Archivo</th><th>Fecha</th><th>Acciones</th></tr></thead><tbody>` +
+  DOCS.map(d => `<tr><td class="mono">${d[0]}</td><td>${esc(d[1])}</td><td><span class="mono" style="color:var(--azul)">${esc(d[2])}</span></td><td class="mono">${d[3]}</td><td style="display:flex;gap:6px"><button class="btn btn-linea" style="padding:6px 10px" data-toast="Descargando ${esc(d[2])}">Descargar</button><button class="btn btn-linea" style="padding:6px 10px;color:var(--rojo)" data-toast="Demo: eliminar pide confirmación">Eliminar</button></td></tr>`).join("") + "</tbody>";
+
+// ── seguimiento público ──
+const RECEPTORES = ["Marcela Soto", "Jorge Pinto", "Camila Rojas", "Andrés Vidal"];
+const COORDS = { "Copiapó": "−27.3668, −70.3322", "La Serena": "−29.9045, −71.2489", "Santiago": "−33.4489, −70.6693", "Rancagua": "−34.1701, −70.7406", "Pichidegua": "−34.3584, −71.2832", "Talca": "−35.4264, −71.6554", "Concepción": "−36.8270, −73.0503", "Temuco": "−38.7359, −72.5904", "Puerto Montt": "−41.4689, −72.9411" };
+function showTracking(od) {
+  const o = od ? findOrder(String(od).replace(/\D/g, "")) : ORDERS[0];
+  const num = String(od || "").replace(/\D/g, "");
+  $("#pub-od").textContent = "ORDEN " + (o ? fmtOd(o.od) : num ? fmtOd(num.slice(0, 10)) : "—");
+  $("#pub-missing").hidden = !!o;
+  document.querySelectorAll("[data-found]").forEach(el => el.hidden = !o);
+  if (!o) { $("#pub-state").textContent = "Sin información"; return; }
+  const day = o.fecha.slice(0, 5), prev = o.estado === "CREADA" ? day : o.fecha === "04/11/2026" ? "03/11" : "02/11";
+  const step = { "CREADA": 0, "RETIRADO": 1, "EN RUTA": 2, "ENTREGADO": 3, "NO ENTREGADO": 3 }[o.estado];
+  const STEPS = [["Orden creada", `${prev} · 15:02`], ["Retirado", `${prev} · 17:40 · ${o.origen}`], ["En ruta", `${prev} · 22:15`],
+    o.estado === "NO ENTREGADO" ? ["No entregado", `${day} · 10:02 · ${o.destino}`] : ["Entregado", step === 3 ? `${day} · 09:41 · ${o.destino}` : `Antes de 12:00 · ${o.destino}`]];
+  $("#pub-steps").innerHTML = STEPS.map(([t, h], i) => `<div class="${i < step ? "done" : i === step ? (o.estado === "ENTREGADO" ? "done last" : o.estado === "NO ENTREGADO" ? "done no" : "done") : ""}"><b>${esc(t)}</b><span>${i <= step ? esc(h) : "Pendiente"}</span></div>`).join("");
+  const done = o.estado === "ENTREGADO", rec = RECEPTORES[o.od % RECEPTORES.length];
+  $("#pub-state").textContent = done ? `Entregado · ${day} 09:41` : o.estado === "NO ENTREGADO" ? `No entregado · ${day} 10:02` : o.estado === "EN RUTA" ? "En ruta · llega antes de las 12:00" : o.estado === "CREADA" ? "Orden creada · esperando retiro" : `Retirado · ${prev} 17:40`;
+  const kv = [["Destinatario", o.destinatario], ["Remitente", o.cliente], ["Origen", o.origen], ["Destino", o.destino], ["Dirección", o.direccion], ["Bultos", done ? `${o.recibidos ?? o.bultos} de ${o.bultos} recibidos` : `${o.bultos}`]];
+  if (done) kv.unshift(["Nombre receptor", rec], ["Fecha gestión", `${o.fecha} · 09:41`]), kv.push(["Coordenadas", COORDS[o.destino] || COORDS.Santiago]);
+  $("#pub-kv").innerHTML = kv.map(([k, v]) => `<div><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join("");
+  $("#pub-proof").hidden = $("#pub-map").hidden = !done;
+  $("#pub-wait").hidden = done;
+  $("#pub-wait-pill").textContent = o.estado === "NO ENTREGADO" ? "No entregado" : "Pendiente";
+  $("#pub-wait-pill").className = "pill " + (o.estado === "NO ENTREGADO" ? "s-no" : "s-ruta");
+  $("#pub-wait-text").textContent = o.estado === "NO ENTREGADO" ? "El chofer no pudo entregar (local cerrado). Se reintenta en la próxima ruta y te avisamos por correo." : "La foto, el nombre de quien recibe y las coordenadas aparecen aquí apenas el chofer cierra la entrega.";
+  const c = COORDS[o.destino] || COORDS.Santiago;
+  $("#pub-stamp").textContent = `${o.fecha} 09:41 · ${c}`;
+  document.querySelector("#pub-map svg").setAttribute("aria-label", `Mapa del punto de entrega en ${o.destino}`);
+  $("#pub-addr").textContent = o.direccion;
+  document.querySelector(".pub .state i").style.background = done ? "#3BE0A0" : o.estado === "NO ENTREGADO" ? "#FF6B6B" : "#F5A524";
+}
+
+route();
+</script>
+</body>
+</html>
