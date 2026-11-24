@@ -196,3 +196,56 @@ describe('Render sin mailer', () => {
     }
   });
 });
+
+/* CORS del formulario de cotizar de Courier Medical Express: sus dominios solo
+   pueden usar POST /api/contact y sin credentials (la cookie de la agenda no viaja). */
+describe('CORS de /api/contact para sitios de clientes', () => {
+  let ctx;
+  const base = () => ctx.url.replace('/api/contact', '');
+  const preflight = (path, origin) =>
+    fetch(base() + path, {
+      method: 'OPTIONS',
+      headers: { Origin: origin, 'Access-Control-Request-Method': 'POST' },
+    });
+
+  before(async () => {
+    ctx = await start({ env: { ALLOWED_ORIGINS: 'https://ricorp.cl,https://www.ricorp.cl' } });
+  });
+  after(() => stop(ctx.server));
+
+  for (const origin of [
+    'https://couriermedical.cl',
+    'https://www.couriermedical.cl',
+    'https://medicalcourrier-cl.web.app',
+    'https://medicalcourrier-cl.firebaseapp.com',
+  ]) {
+    test(`${origin} puede cotizar, sin credentials`, async () => {
+      const res = await preflight('/api/contact', origin);
+      assert.ok(res.status < 300, `preflight ${res.status}`);
+      assert.equal(res.headers.get('access-control-allow-origin'), origin);
+      assert.equal(res.headers.get('access-control-allow-credentials'), null);
+    });
+  }
+
+  test('el sitio del cliente no abre otras rutas', async () => {
+    const res = await preflight('/api/health', 'https://couriermedical.cl');
+    assert.equal(res.headers.get('access-control-allow-origin'), null);
+  });
+
+  test('ricorp.cl sigue con credentials', async () => {
+    const res = await preflight('/api/contact', 'https://ricorp.cl');
+    assert.equal(res.headers.get('access-control-allow-origin'), 'https://ricorp.cl');
+    assert.equal(res.headers.get('access-control-allow-credentials'), 'true');
+  });
+
+  test('un origen desconocido no recibe CORS', async () => {
+    const res = await preflight('/api/contact', 'https://otro-sitio.example');
+    assert.equal(res.headers.get('access-control-allow-origin'), null);
+  });
+
+  test('POST real desde couriermedical.cl responde con CORS', async () => {
+    const res = await fetch(ctx.url, { method: 'POST', body: form(), headers: { Origin: 'https://couriermedical.cl' } });
+    assert.equal(res.headers.get('access-control-allow-origin'), 'https://couriermedical.cl');
+    assert.ok(res.status < 500, `status ${res.status}`);
+  });
+});

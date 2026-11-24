@@ -56,6 +56,15 @@ export const CONTACT_SUBJECT = 'ricorp.cl contacto';
    corre una sola instancia; si algún día hay varias, esto pasa a Mongo/Redis. */
 export const RATE_LIMIT = { max: 5, windowMs: 10 * 60 * 1000 };
 
+/* Orígenes de Courier Medical Express (sitio de un cliente): solo pueden usar
+   POST /api/contact (el "Cotizar" de su landing). */
+export const CONTACT_ONLY_ORIGINS = [
+  'https://couriermedical.cl',
+  'https://www.couriermedical.cl',
+  'https://medicalcourrier-cl.web.app',
+  'https://medicalcourrier-cl.firebaseapp.com',
+];
+
 export function isAcceptedFile(originalname, mimetype) {
   if (String(mimetype || '').startsWith('image/')) return true;
   const name = String(originalname || '').toLowerCase();
@@ -153,15 +162,26 @@ export function createApp({
     .map((s) => s.trim())
     .filter(Boolean);
 
+  /* Sitios de clientes que usan solo el formulario de cotizar (POST /api/contact).
+     Van aparte: para ellos NO hay credentials (la cookie de la agenda no viaja) y
+     no abren ninguna otra ruta. Se pueden cambiar con CONTACT_ORIGINS. */
+  const contactOrigins = (env.CONTACT_ORIGINS || CONTACT_ONLY_ORIGINS.join(','))
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+
   app.use(
-    cors({
-      /* credentials: la sesión de la agenda viaja en una cookie httpOnly. */
-      credentials: true,
-      origin: (origin, cb) => {
-        if (!origin) return cb(null, true);
-        if (allowedOrigins.some((a) => origin.startsWith(a))) return cb(null, true);
-        cb(new Error('Origin not allowed: ' + origin));
-      },
+    cors((req, cb) => {
+      const origin = req.header('Origin');
+      if (!origin) return cb(null, { origin: false });
+      if (allowedOrigins.some((a) => origin.startsWith(a))) {
+        /* credentials: la sesión de la agenda viaja en una cookie httpOnly. */
+        return cb(null, { origin: true, credentials: true });
+      }
+      if (req.path === '/api/contact' && contactOrigins.includes(origin)) {
+        return cb(null, { origin: true, credentials: false });
+      }
+      cb(new Error('Origin not allowed: ' + origin));
     })
   );
   /* `rawBody`: el webhook de WhatsApp (SPEC-53) firma el cuerpo crudo (X-Hub-Signature-256). */
